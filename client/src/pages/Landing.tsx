@@ -87,7 +87,7 @@ export default function Landing() {
             {!loading && recentUsers.length > 0 && (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Recent Users</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Recent Repair Shops</h3>
                   <div className="space-y-2">
                     {recentUsers.map((user) => (
                       <Button
