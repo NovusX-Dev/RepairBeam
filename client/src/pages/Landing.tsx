@@ -115,9 +115,7 @@ export default function Landing() {
                           </div>
                           <div className="text-left">
                             <p className="font-medium">
-                              {user.firstName && user.lastName 
-                                ? `${user.firstName} ${user.lastName}` 
-                                : user.email}
+                              {user.tenantName || 'Shop'}
                             </p>
                             <p className="text-xs text-muted-foreground">{user.tenantAlias}</p>
                           </div>

@@ -253,8 +253,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        profileImageUrl: user.profileImageUrl,
-        tenantAlias: user.tenant?.alias || user.tenant?.name || 'Shop'
+        profileImageUrl: user.tenant?.shopImageUrl, // Use shop image instead of user profile image
+        tenantAlias: user.tenant?.alias || user.tenant?.name || 'Shop',
+        tenantName: user.tenant?.name || 'Shop'
       }));
       
       res.json(userList);
