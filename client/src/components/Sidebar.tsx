@@ -82,21 +82,21 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
           const isActive = location === item.href;
           
           return (
-            <Link key={item.id} href={item.href}>
-              <a 
-                className={cn(
-                  "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                  "hover:bg-accent hover:border-l-primary",
-                  isActive && "bg-accent border-l-primary text-primary"
-                )}
-                onClick={() => onPageChange(item.name)}
-                data-testid={`link-nav-${item.id}`}
-              >
-                <Icon className="w-5 h-5" />
-                {!isCollapsed && (
-                  <span className="font-medium">{item.name}</span>
-                )}
-              </a>
+            <Link 
+              key={item.id} 
+              href={item.href}
+              className={cn(
+                "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+                "hover:bg-accent hover:border-l-primary",
+                isActive && "bg-accent border-l-primary text-primary"
+              )}
+              onClick={() => onPageChange(item.name)}
+              data-testid={`link-nav-${item.id}`}
+            >
+              <Icon className="w-5 h-5" />
+              {!isCollapsed && (
+                <span className="font-medium">{item.name}</span>
+              )}
             </Link>
           );
         })}
