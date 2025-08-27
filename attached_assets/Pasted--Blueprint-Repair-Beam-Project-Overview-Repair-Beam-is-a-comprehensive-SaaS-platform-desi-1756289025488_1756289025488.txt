@@ -1,0 +1,42 @@
+# Blueprint: Repair Beam
+
+## Project Overview
+
+Repair Beam is a comprehensive SaaS platform designed to streamline operations for repair businesses. It aims to provide a centralized system for managing clients, tracking repairs through a Kanban board, managing inventory, handling point-of-sale transactions, and providing customer support. The platform will be built with scalability and multi-tenancy in mind.
+
+## Main Features
+
+*   **Dashboard:** An executive overview of key business metrics (e.g., open tickets, revenue, inventory levels).
+*   **Clients:** A CRM-like module to manage customer information, history, and communication.
+*   **Kanban Tickets:** A visual board to track the progress of repair jobs from initial inquiry to completion.
+*   **Inventory:** Management of parts and supplies, including stock levels, ordering, and tracking usage per repair.
+*   **POS (Point of Sale):** A simple interface for processing payments for repairs and parts.
+*   **Customer Support:** Tools for managing customer inquiries and support requests.
+*   **Configs:** Tenant-specific settings and configurations.
+*   **User Management:** Administration of users and their roles within each tenant.
+*   **UI/UX:** Modern, slick design with a focus on usability.
+
+## Design Guidelines
+
+*   **Layout:** Left-sidebar navigation (collapsible, showing icons when collapsed). App name and brand icon in the top-left corner.
+*   **Typography:**
+    *   Primary UI: Inter (with tabular numbers for POS/finance)
+    *   Global Fallback: Noto Sans
+    *   Optional Display/Mono: Geist Sans/Mono
+*   **Color Palette:**
+    *   Dark Navy Blue (#0A192F)
+    *   Neon Blue (#00FFFF)
+    *   Black (#000000)
+    *   White (#FFFFFF)
+*   **Multilingual Support:** Initial support for English. Future expansion to other languages.
+
+## Technical Considerations
+
+*   **Multi-Tenant Architecture:** The platform will be designed to host multiple independent tenants.
+*   **Tenant Authentication:** Secure authentication mechanisms for each tenant and their users.
+*   **Separate Databases per Tenant:** To ensure data isolation and security, each tenant will have its own dedicated database.
+*   **Database Technology:** Postgres/RLS PostgreSQL
+
+## Implementation Plan
+
+Initially, all main feature sections (Dashboard, Clients, Kanban tickets, Inventory, POS, Customer Support, Configs, User Management) will display "Under Construction" pages. This will allow for rapid deployment of the basic application structure and authentication while core features are developed incrementally.
