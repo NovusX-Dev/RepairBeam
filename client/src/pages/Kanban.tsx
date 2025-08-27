@@ -125,16 +125,16 @@ export default function KanbanTickets() {
       </div>
 
       {/* Kanban Board Container - Constrained to parent width */}
-      <div className="flex-1 min-h-0 w-full">
+      <div className="flex-1 min-h-0 w-full overflow-hidden">
         <div 
-          className="h-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
-          style={{ width: '100%' }}
+          className="h-full w-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
         >
-          <div className="flex gap-4 p-4" style={{ width: 'max-content', minWidth: '100%' }}>
+          <div className="flex gap-4 p-4 h-full" style={{ width: 'max-content', minWidth: '100%' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
-              className={`w-80 ${column.color} rounded-lg p-4 flex flex-col`}
+              className={`w-80 ${column.color} rounded-lg p-4 flex flex-col flex-shrink-0`}
+              style={{ height: 'calc(100% - 0.5rem)' }}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id as TicketStatus)}
               data-testid={`column-${column.id}`}
