@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <div className="flex-shrink-0">
         <Sidebar 
           isCollapsed={isSidebarCollapsed}
@@ -26,12 +26,12 @@ export default function Layout({ children }: LayoutProps) {
           onPageChange={setCurrentPage}
         />
       </div>
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
         <div className="flex-shrink-0">
           <Header currentPage={currentPage} />
         </div>
-        <main className="flex-1 overflow-hidden p-6 max-w-full">
-          <div className="h-full max-w-full">
+        <main className="flex-1 overflow-hidden p-6">
+          <div className="h-full w-full overflow-hidden">
             {children}
           </div>
         </main>

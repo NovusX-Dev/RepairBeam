@@ -95,7 +95,7 @@ export default function KanbanTickets() {
   }
 
   return (
-    <div className="h-full flex flex-col max-w-full">
+    <div className="h-full w-full flex flex-col overflow-hidden">
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div>
@@ -129,7 +129,7 @@ export default function KanbanTickets() {
         <div 
           className="h-full w-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
         >
-          <div className="flex gap-4 p-4 h-full" style={{ width: 'max-content', minWidth: '100%' }}>
+          <div className="flex gap-4 p-4 h-full" style={{ width: 'fit-content' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
