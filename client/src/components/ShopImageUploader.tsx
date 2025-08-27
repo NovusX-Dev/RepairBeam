@@ -15,6 +15,10 @@ export function ShopImageUploader({
 }: ShopImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // Use preview URL if available, otherwise use the current image URL
+  const displayUrl = previewUrl || currentImageUrl;
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;
@@ -53,12 +57,32 @@ export function ShopImageUploader({
 
       if (!uploadResponse.ok) throw new Error('Failed to upload image');
 
-      // Notify parent component with the uploaded image URL
-      onImageUpload(uploadURL.split('?')[0]); // Remove query params to get clean URL
+      // Convert the upload URL to our serving endpoint
+      const imageUrl = uploadURL.split('?')[0]; // Remove query params
+      console.log('Upload URL:', imageUrl);
+      
+      // Extract the object path from the GCS URL to create our serving URL
+      // Convert from: https://storage.googleapis.com/bucket/path/to/file
+      // To: /objects/shop-images/uuid
+      const url = new URL(imageUrl);
+      const pathParts = url.pathname.split('/').filter(p => p); // Remove empty parts
+      console.log('Path parts:', pathParts);
+      
+      // Skip bucket name (first part) and use the rest as object path
+      const objectPath = pathParts.slice(1).join('/');
+      const servingUrl = `/objects/${objectPath}`;
+      console.log('Serving URL:', servingUrl);
+      
+      // Update local preview immediately
+      setPreviewUrl(servingUrl);
+      
+      // Notify parent component with the serving URL
+      onImageUpload(servingUrl);
       
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload image. Please try again.');
+      setPreviewUrl(null); // Clear any partial preview
+      alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setUploading(false);
     }
@@ -95,10 +119,10 @@ export function ShopImageUploader({
         }}
         onDragLeave={() => setDragOver(false)}
       >
-        {currentImageUrl ? (
+        {displayUrl ? (
           <div className="space-y-3">
             <img
-              src={currentImageUrl}
+              src={displayUrl}
               alt="Shop logo"
               className="w-24 h-24 object-cover rounded-lg mx-auto border"
             />
