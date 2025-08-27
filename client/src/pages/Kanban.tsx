@@ -96,37 +96,39 @@ export default function KanbanTickets() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-kanban-title">
-            Kanban Board
-          </h1>
-          <p className="text-muted-foreground">
-            Manage and track repair tickets through your workflow stages
-          </p>
+      {/* Fixed Header */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border pb-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground" data-testid="text-kanban-title">
+              Kanban Board
+            </h1>
+            <p className="text-muted-foreground">
+              Manage and track repair tickets through your workflow stages
+            </p>
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-ticket">
+                <Plus className="w-4 h-4 mr-2" />
+                New Ticket
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Ticket</DialogTitle>
+              </DialogHeader>
+              <div className="p-4 text-center text-muted-foreground">
+                Ticket creation form coming soon...
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-ticket">
-              <Plus className="w-4 h-4 mr-2" />
-              New Ticket
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Ticket</DialogTitle>
-            </DialogHeader>
-            <div className="p-4 text-center text-muted-foreground">
-              Ticket creation form coming soon...
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 overflow-x-auto">
-        <div className="flex gap-4 min-w-max pb-4" style={{ minHeight: '600px' }}>
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-4 min-w-max pb-4 px-1" style={{ minHeight: '600px' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
