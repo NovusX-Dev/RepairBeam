@@ -57,13 +57,44 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
-  await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
-  });
+  // Check if user exists
+  let user = await storage.getUser(claims["sub"]);
+  
+  if (!user) {
+    // Create a default tenant for new users or get existing one
+    let tenant = await storage.getTenantByDomain('default');
+    if (!tenant) {
+      tenant = await storage.createTenant({
+        name: 'Default Organization',
+        domain: 'default',
+        settings: {}
+      });
+    }
+
+    // Create user with tenant
+    user = await storage.upsertUser({
+      id: claims["sub"],
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+      tenantId: tenant.id,
+      role: 'user'
+    });
+  } else {
+    // Update existing user info (without changing tenantId)
+    user = await storage.upsertUser({
+      id: claims["sub"],
+      email: claims["email"],
+      firstName: claims["first_name"],
+      lastName: claims["last_name"],
+      profileImageUrl: claims["profile_image_url"],
+      tenantId: user.tenantId,
+      role: user.role || 'user'
+    });
+  }
+  
+  return user;
 }
 
 export async function setupAuth(app: Express) {
