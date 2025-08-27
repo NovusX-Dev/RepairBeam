@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import repairBeamLogo from "@assets/image_1756290029098.png";
 
 export default function Landing() {
   return (
@@ -10,7 +11,7 @@ export default function Landing() {
             {/* Logo */}
             <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto">
               <img 
-                src="/attached_assets/image_1756289910643.png" 
+                src={repairBeamLogo} 
                 alt="Repair Beam Logo" 
                 className="w-16 h-16 object-contain"
               />

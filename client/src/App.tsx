@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import repairBeamLogo from "@assets/image_1756290029098.png";
 import Layout from "@/components/Layout";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
@@ -25,7 +26,7 @@ function Router() {
         <div className="text-center">
           <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto mb-4">
             <img 
-              src="/attached_assets/image_1756289910643.png" 
+              src={repairBeamLogo} 
               alt="Repair Beam Logo" 
               className="w-16 h-16 object-contain animate-pulse"
             />
