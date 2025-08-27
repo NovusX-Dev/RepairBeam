@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Upload, Image } from "lucide-react";
+import { Upload, Image, X } from "lucide-react";
 
 interface ShopImageUploaderProps {
   currentImageUrl?: string;
   onImageUpload: (imageUrl: string) => void;
+  onImageRemove?: () => void;
   disabled?: boolean;
 }
 
 export function ShopImageUploader({ 
   currentImageUrl, 
-  onImageUpload, 
+  onImageUpload,
+  onImageRemove, 
   disabled 
 }: ShopImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
@@ -118,14 +120,29 @@ export function ShopImageUploader({
       >
         {displayUrl ? (
           <div className="space-y-3">
-            <img
-              src={displayUrl}
-              alt="Shop logo"
-              className="w-24 h-24 object-cover rounded-lg mx-auto border"
-            />
-            <p className="text-sm text-muted-foreground">
-              Drop a new image here or click to change
-            </p>
+            <div className="relative inline-block">
+              <img
+                src={displayUrl}
+                alt="Shop logo"
+                className="w-24 h-24 object-cover rounded-lg mx-auto border"
+              />
+              {onImageRemove && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewUrl(null);
+                    onImageRemove();
+                  }}
+                  disabled={disabled || uploading}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

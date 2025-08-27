@@ -19,6 +19,10 @@ export default function TenantSetup() {
     shopImageUrl: ""
   });
 
+  const handleImageRemove = () => {
+    setFormData(prev => ({ ...prev, shopImageUrl: "" }));
+  };
+
   const createTenantMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await fetch("/api/tenants", {
@@ -101,6 +105,7 @@ export default function TenantSetup() {
               <ShopImageUploader
                 currentImageUrl={formData.shopImageUrl}
                 onImageUpload={(url) => handleInputChange("shopImageUrl", url)}
+                onImageRemove={handleImageRemove}
                 disabled={createTenantMutation.isPending}
               />
             </div>
