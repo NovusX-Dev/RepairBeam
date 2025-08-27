@@ -59,19 +59,16 @@ export function ShopImageUploader({
 
       // Convert the upload URL to our serving endpoint
       const imageUrl = uploadURL.split('?')[0]; // Remove query params
-      console.log('Upload URL:', imageUrl);
       
       // Extract the object path from the GCS URL to create our serving URL
       // Convert from: https://storage.googleapis.com/bucket/path/to/file
-      // To: /objects/shop-images/uuid
+      // To: /objects/.private/shop-images/uuid
       const url = new URL(imageUrl);
       const pathParts = url.pathname.split('/').filter(p => p); // Remove empty parts
-      console.log('Path parts:', pathParts);
       
       // Skip bucket name (first part) and use the rest as object path
       const objectPath = pathParts.slice(1).join('/');
       const servingUrl = `/objects/${objectPath}`;
-      console.log('Serving URL:', servingUrl);
       
       // Update local preview immediately
       setPreviewUrl(servingUrl);

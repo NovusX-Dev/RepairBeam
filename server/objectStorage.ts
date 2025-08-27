@@ -69,15 +69,28 @@ export class ObjectStorageService {
     }
 
     const entityId = parts.slice(1).join("/");
-    let entityDir = this.getPrivateObjectDir();
-    if (!entityDir.endsWith("/")) {
-      entityDir = `${entityDir}/`;
+    
+    // Handle both full private path and relative path
+    let objectEntityPath;
+    if (entityId.startsWith('.private/')) {
+      // If the path already includes .private, use it as is
+      const privateObjectDir = this.getPrivateObjectDir();
+      const { bucketName } = parseObjectPath(privateObjectDir);
+      objectEntityPath = `/${bucketName}/${entityId}`;
+    } else {
+      // Otherwise, prepend the private object directory
+      let entityDir = this.getPrivateObjectDir();
+      if (!entityDir.endsWith("/")) {
+        entityDir = `${entityDir}/`;
+      }
+      objectEntityPath = `${entityDir}${entityId}`;
     }
-    const objectEntityPath = `${entityDir}${entityId}`;
+    
     const { bucketName, objectName } = parseObjectPath(objectEntityPath);
     const bucket = objectStorageClient.bucket(bucketName);
     const objectFile = bucket.file(objectName);
     const [exists] = await objectFile.exists();
+    
     if (!exists) {
       throw new ObjectNotFoundError();
     }
