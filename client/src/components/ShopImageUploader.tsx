@@ -158,13 +158,15 @@ export function ShopImageUploader({
           </div>
         )}
 
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleInputChange}
-          disabled={disabled || uploading}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-        />
+        {!displayUrl && (
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleInputChange}
+            disabled={disabled || uploading}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+          />
+        )}
       </div>
 
       <Button
