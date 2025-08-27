@@ -66,7 +66,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
           {!isCollapsed && (
             <div>
               <h1 className="text-xl font-bold text-white">
-                {tenant?.alias || tenant?.name || "Repair Beam"}
+                Repair Beam
               </h1>
               <p className="text-xs text-muted-foreground">Professional Repair Management</p>
             </div>
@@ -136,7 +136,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
                   : user.email || "User"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.alias || tenant?.name || 'Repair Shop'}
+                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.alias || tenant?.name || 'Shop'}
               </p>
             </div>
           </div>
