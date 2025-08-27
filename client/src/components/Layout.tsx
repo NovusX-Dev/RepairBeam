@@ -30,8 +30,10 @@ export default function Layout({ children }: LayoutProps) {
         <div className="flex-shrink-0">
           <Header currentPage={currentPage} />
         </div>
-        <main className="flex-1 overflow-hidden p-6">
-          {children}
+        <main className="flex-1 overflow-hidden p-6 max-w-full">
+          <div className="h-full max-w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>

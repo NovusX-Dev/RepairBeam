@@ -95,7 +95,7 @@ export default function KanbanTickets() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col max-w-full">
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div>
@@ -124,10 +124,13 @@ export default function KanbanTickets() {
         </Dialog>
       </div>
 
-      {/* Kanban Board - Full height with horizontal scroll */}
-      <div className="flex-1 min-h-0">
-        <div className="h-full overflow-x-auto overflow-y-hidden">
-          <div className="flex gap-4 h-full" style={{ minWidth: 'max-content', paddingBottom: '1rem' }}>
+      {/* Kanban Board Container - Constrained to parent width */}
+      <div className="flex-1 min-h-0 w-full">
+        <div 
+          className="h-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
+          style={{ width: '100%' }}
+        >
+          <div className="flex gap-4 p-4" style={{ width: 'max-content', minWidth: '100%' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
