@@ -126,7 +126,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
                 {tenant?.alias || tenant?.name || "Shop"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.alias || tenant?.name || "Shop"}
+                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.name || "Shop"}
               </p>
             </div>
           </div>
