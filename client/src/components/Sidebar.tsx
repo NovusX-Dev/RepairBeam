@@ -49,19 +49,11 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       <div className="flex items-center justify-between p-6 border-b border-border">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-background">
-            {tenant?.shopImageUrl ? (
-              <img 
-                src={tenant.shopImageUrl} 
-                alt="Shop Logo" 
-                className="w-10 h-10 object-cover rounded-lg"
-              />
-            ) : (
-              <img 
-                src="/repair-beam-logo.png" 
-                alt="Repair Beam Logo" 
-                className="w-10 h-10 object-contain"
-              />
-            )}
+            <img 
+              src="/repair-beam-logo.png" 
+              alt="Repair Beam Logo" 
+              className="w-10 h-10 object-contain"
+            />
           </div>
           {!isCollapsed && (
             <div>
@@ -131,12 +123,12 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {user.firstName && user.lastName 
-                  ? `${user.firstName} ${user.lastName}` 
-                  : user.email || "User"}
+                {tenant?.alias || tenant?.name || "Shop"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.alias || tenant?.name || 'Shop'}
+                {user.role === 'admin' ? 'Administrator' : 'User'} • {user.firstName && user.lastName 
+                  ? `${user.firstName} ${user.lastName}` 
+                  : user.email || "User"}
               </p>
             </div>
           </div>
