@@ -10,7 +10,7 @@ export default function Landing() {
             {/* Logo */}
             <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto">
               <img 
-                src="/attached_assets/Icon-Main-NoName-Small_1756289848803.png" 
+                src="/attached_assets/image_1756289910643.png" 
                 alt="Repair Beam Logo" 
                 className="w-16 h-16 object-contain"
               />

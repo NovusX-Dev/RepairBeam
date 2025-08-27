@@ -48,7 +48,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center">
             <img 
-              src="/attached_assets/Icon-Main-NoName-Small_1756289848803.png" 
+              src="/attached_assets/image_1756289910643.png" 
               alt="Repair Beam Logo" 
               className="w-10 h-10 object-contain"
             />
