@@ -1,7 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import repairBeamLogo from "@assets/image_1756290029098.png";
 import {
   LayoutDashboard,
   Users,
@@ -49,7 +48,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center">
             <img 
-              src={repairBeamLogo} 
+              src="/repair-beam-logo.png" 
               alt="Repair Beam Logo" 
               className="w-10 h-10 object-contain"
             />
