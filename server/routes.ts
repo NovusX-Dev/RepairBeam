@@ -94,11 +94,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const tickets = await storage.getTickets(user.tenantId);
+      const tickets = await storage.getTicketsWithClients(user.tenantId);
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       res.status(500).json({ message: "Failed to fetch tickets" });
+    }
+  });
+
+  app.put("/api/tickets/:ticketId/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const { status } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const updatedTicket = await storage.updateTicketStatus(ticketId, status, user.tenantId);
+      
+      if (!updatedTicket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(updatedTicket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+
+  // Create sample tickets for testing Kanban (development only)
+  app.post("/api/tickets/create-samples", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Get or create a client first
+      let clients = await storage.getClients(user.tenantId);
+      let clientId;
+      
+      if (clients.length === 0) {
+        // Create a sample client
+        const sampleClient = await storage.createClient({
+          tenantId: user.tenantId,
+          firstName: "John",
+          lastName: "Doe", 
+          email: "john.doe@example.com",
+          phone: "+1-555-0123",
+          address: "123 Main St, Anytown, USA",
+        });
+        clientId = sampleClient.id;
+      } else {
+        clientId = clients[0].id;
+      }
+
+      // Sample tickets for different stages
+      const sampleTickets = [
+        {
+          tenantId: user.tenantId,
+          clientId,
+          title: "iPhone 12 Screen Replacement",
+          description: "Customer dropped phone, screen is cracked",
+          status: "backlog" as const,
+          priority: "high" as const,
+          deviceType: "iPhone",
+          deviceModel: "iPhone 12",
+          issueDescription: "Cracked screen, LCD still functional",
+          estimatedCost: "149.99"
+        },
+        {
+          tenantId: user.tenantId,
+          clientId,
+          title: "Samsung Galaxy Battery Issue",
+          description: "Phone not holding charge, needs diagnostic",
+          status: "waiting_diagnostics" as const,
+          priority: "medium" as const,
+          deviceType: "Samsung",
+          deviceModel: "Galaxy S21",
+          issueDescription: "Battery drains quickly, possible hardware issue",
+          estimatedCost: "89.99"
+        },
+        {
+          tenantId: user.tenantId,
+          clientId,
+          title: "MacBook Pro Water Damage",
+          description: "Laptop exposed to water, won't boot",
+          status: "waiting_client_approval" as const,
+          priority: "urgent" as const,
+          deviceType: "MacBook",
+          deviceModel: "MacBook Pro 2021",
+          issueDescription: "Water damage to motherboard, extensive repair needed",
+          estimatedCost: "450.00"
+        },
+        {
+          tenantId: user.tenantId,
+          clientId,
+          title: "iPad Screen and Digitizer",
+          description: "Touch not responding, screen replacement approved",
+          status: "approved" as const,
+          priority: "medium" as const,
+          deviceType: "iPad",
+          deviceModel: "iPad Air 4",
+          issueDescription: "Digitizer not responding to touch input",
+          estimatedCost: "199.99"
+        },
+        {
+          tenantId: user.tenantId,
+          clientId,
+          title: "Dell Laptop Keyboard Replacement",
+          description: "Multiple keys not working, replacement in progress",
+          status: "servicing" as const,
+          priority: "low" as const,
+          deviceType: "Laptop",
+          deviceModel: "Dell XPS 13",
+          issueDescription: "Several keys unresponsive, keyboard needs replacement",
+          estimatedCost: "79.99"
+        }
+      ];
+
+      const createdTickets = [];
+      for (const ticket of sampleTickets) {
+        const newTicket = await storage.createTicket(ticket);
+        createdTickets.push(newTicket);
+      }
+
+      res.json({ message: `Created ${createdTickets.length} sample tickets`, tickets: createdTickets });
+    } catch (error) {
+      console.error("Error creating sample tickets:", error);
+      res.status(500).json({ message: "Failed to create sample tickets" });
     }
   });
 

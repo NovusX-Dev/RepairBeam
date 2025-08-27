@@ -64,6 +64,25 @@ export const clients = pgTable("clients", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Kanban ticket statuses enum
+export const ticketStatusEnum = [
+  'backlog',
+  'waiting_diagnostics',
+  'waiting_client_approval', 
+  'approved',
+  'servicing',
+  'quality_check',
+  'final_customer_check',
+  'finalized'
+] as const;
+
+export const ticketPriorityEnum = [
+  'low',
+  'medium', 
+  'high',
+  'urgent'
+] as const;
+
 // Tickets table for Kanban board
 export const tickets = pgTable("tickets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -71,11 +90,14 @@ export const tickets = pgTable("tickets", {
   clientId: varchar("client_id").notNull(),
   title: varchar("title").notNull(),
   description: text("description"),
-  status: varchar("status").notNull().default('pending'),
+  status: varchar("status").notNull().default('backlog'),
   priority: varchar("priority").notNull().default('medium'),
   assignedTo: varchar("assigned_to"),
   estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
   actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  deviceType: varchar("device_type"),
+  deviceModel: varchar("device_model"),
+  issueDescription: text("issue_description"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -198,3 +220,13 @@ export const insertClientSchema = createInsertSchema(clients).omit({
   createdAt: true,
   updatedAt: true,
 });
+
+export const insertTicketSchema = createInsertSchema(tickets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTicketType = z.infer<typeof insertTicketSchema>;
+export type TicketStatus = (typeof ticketStatusEnum)[number];
+export type TicketPriority = (typeof ticketPriorityEnum)[number];

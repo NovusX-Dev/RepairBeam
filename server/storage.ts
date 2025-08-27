@@ -41,8 +41,10 @@ export interface IStorage {
   
   // Ticket operations
   getTickets(tenantId: string): Promise<Ticket[]>;
+  getTicketsWithClients(tenantId: string): Promise<(Ticket & { client?: Client })[]>;
   getTicket(id: string, tenantId: string): Promise<Ticket | undefined>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
+  updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined>;
   
   // Inventory operations
   getInventoryItems(tenantId: string): Promise<InventoryItem[]>;
@@ -122,6 +124,47 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(tickets).where(eq(tickets.tenantId, tenantId));
   }
 
+  async getTicketsWithClients(tenantId: string): Promise<(Ticket & { client?: Client })[]> {
+    const results = await db
+      .select({
+        id: tickets.id,
+        tenantId: tickets.tenantId,
+        clientId: tickets.clientId,
+        title: tickets.title,
+        description: tickets.description,
+        status: tickets.status,
+        priority: tickets.priority,
+        assignedTo: tickets.assignedTo,
+        estimatedCost: tickets.estimatedCost,
+        actualCost: tickets.actualCost,
+        deviceType: tickets.deviceType,
+        deviceModel: tickets.deviceModel,
+        issueDescription: tickets.issueDescription,
+        createdAt: tickets.createdAt,
+        updatedAt: tickets.updatedAt,
+        client: {
+          id: clients.id,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          email: clients.email,
+          phone: clients.phone,
+          address: clients.address,
+          notes: clients.notes,
+          tenantId: clients.tenantId,
+          createdAt: clients.createdAt,
+          updatedAt: clients.updatedAt,
+        },
+      })
+      .from(tickets)
+      .leftJoin(clients, eq(tickets.clientId, clients.id))
+      .where(eq(tickets.tenantId, tenantId));
+
+    return results.map(row => ({
+      ...row,
+      client: row.client?.id ? row.client : undefined
+    }));
+  }
+
   async getTicket(id: string, tenantId: string): Promise<Ticket | undefined> {
     const [ticket] = await db
       .select()
@@ -133,6 +176,15 @@ export class DatabaseStorage implements IStorage {
   async createTicket(ticket: InsertTicket): Promise<Ticket> {
     const [newTicket] = await db.insert(tickets).values(ticket).returning();
     return newTicket;
+  }
+
+  async updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined> {
+    const [updatedTicket] = await db
+      .update(tickets)
+      .set({ status, updatedAt: new Date() })
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
+      .returning();
+    return updatedTicket;
   }
 
   // Inventory operations
