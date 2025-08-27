@@ -8,10 +8,12 @@ export default function Landing() {
         <CardContent className="pt-6">
           <div className="text-center space-y-6">
             {/* Logo */}
-            <div className="w-16 h-16 bg-primary rounded-lg flex items-center justify-center mx-auto glow-effect">
-              <svg className="w-10 h-10 text-navy-900" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-              </svg>
+            <div className="w-16 h-16 rounded-lg flex items-center justify-center mx-auto">
+              <img 
+                src="/attached_assets/Icon-Main_1756289722504.png" 
+                alt="Repair Beam Logo" 
+                className="w-16 h-16 object-contain"
+              />
             </div>
             
             <div>

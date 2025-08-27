@@ -46,10 +46,12 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       {/* Brand Header */}
       <div className="flex items-center justify-between p-6 border-b border-border">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center glow-effect">
-            <svg className="w-6 h-6 text-navy-900" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-            </svg>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+            <img 
+              src="/attached_assets/Icon-Main_1756289722504.png" 
+              alt="Repair Beam Logo" 
+              className="w-10 h-10 object-contain"
+            />
           </div>
           {!isCollapsed && (
             <div>
