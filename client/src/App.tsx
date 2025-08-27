@@ -4,8 +4,10 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import Layout from "@/components/Layout";
 import Landing from "@/pages/Landing";
+import TenantSetup from "@/pages/TenantSetup";
 import Dashboard from "@/pages/Dashboard";
 import Clients from "@/pages/Clients";
 import KanbanTickets from "@/pages/Kanban";
@@ -17,9 +19,10 @@ import Users from "@/pages/Users";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const { tenant, isLoading: tenantLoading, hasValidTenant } = useTenant();
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && tenantLoading)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -36,10 +39,15 @@ function Router() {
     );
   }
 
+  // Check if user needs to set up their tenant
+  const needsTenantSetup = isAuthenticated && user && !hasValidTenant;
+
   return (
     <Switch>
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
+      ) : needsTenantSetup ? (
+        <Route path="/" component={TenantSetup} />
       ) : (
         <>
           <Route path="/" component={() => <Layout><Dashboard /></Layout>} />

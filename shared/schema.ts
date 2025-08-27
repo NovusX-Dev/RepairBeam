@@ -42,6 +42,8 @@ export const users = pgTable("users", {
 export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name").notNull(),
+  alias: varchar("alias"), // Shop display name/alias
+  shopImageUrl: varchar("shop_image_url"), // Shop logo/image URL
   domain: varchar("domain").unique(),
   settings: jsonb("settings").default({}),
   createdAt: timestamp("created_at").defaultNow(),

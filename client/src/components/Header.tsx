@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
 
@@ -8,6 +9,7 @@ interface HeaderProps {
 
 export default function Header({ currentPage }: HeaderProps) {
   const { user } = useAuth();
+  const { tenant } = useTenant();
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
@@ -36,10 +38,20 @@ export default function Header({ currentPage }: HeaderProps) {
           onClick={() => window.location.href = '/api/logout'}
           data-testid="button-user-menu"
         >
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm">
-            {user?.firstName && user?.lastName 
-              ? `${user.firstName[0]}${user.lastName[0]}` 
-              : user?.email?.[0]?.toUpperCase() || "U"}
+          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm overflow-hidden">
+            {tenant?.shopImageUrl ? (
+              <img 
+                src={tenant.shopImageUrl} 
+                alt="Shop Logo" 
+                className="w-8 h-8 object-cover rounded-full"
+              />
+            ) : (
+              <span>
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName[0]}${user.lastName[0]}` 
+                  : user?.email?.[0]?.toUpperCase() || "U"}
+              </span>
+            )}
           </div>
         </Button>
       </div>

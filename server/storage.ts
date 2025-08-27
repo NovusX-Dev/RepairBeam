@@ -22,7 +22,7 @@ import {
   type InsertSupportTicket,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -56,6 +56,9 @@ export interface IStorage {
   // Support operations
   getSupportTickets(tenantId: string): Promise<SupportTicket[]>;
   createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
+  
+  // Recent users for quick login
+  getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -168,6 +171,41 @@ export class DatabaseStorage implements IStorage {
   async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
     const [newTicket] = await db.insert(supportTickets).values(ticket).returning();
     return newTicket;
+  }
+
+  // Get recent users for quick login display
+  async getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant })[]> {
+    const usersWithTenants = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        tenantId: users.tenantId,
+        role: users.role,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+        tenant: {
+          id: tenants.id,
+          name: tenants.name,
+          alias: tenants.alias,
+          shopImageUrl: tenants.shopImageUrl,
+          domain: tenants.domain,
+          settings: tenants.settings,
+          createdAt: tenants.createdAt,
+          updatedAt: tenants.updatedAt,
+        },
+      })
+      .from(users)
+      .leftJoin(tenants, eq(users.tenantId, tenants.id))
+      .orderBy(desc(users.updatedAt))
+      .limit(limit);
+
+    return usersWithTenants.map(row => ({
+      ...row,
+      tenant: row.tenant?.id ? row.tenant : undefined
+    }));
   }
 }
 

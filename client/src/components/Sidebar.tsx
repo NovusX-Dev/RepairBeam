@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenant } from "@/hooks/useTenant";
 import {
   LayoutDashboard,
   Users,
@@ -35,6 +36,7 @@ const navigationItems = [
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { tenant } = useTenant();
 
   return (
     <div 
@@ -46,16 +48,26 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       {/* Brand Header */}
       <div className="flex items-center justify-between p-6 border-b border-border">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-            <img 
-              src="/repair-beam-logo.png" 
-              alt="Repair Beam Logo" 
-              className="w-10 h-10 object-contain"
-            />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-background">
+            {tenant?.shopImageUrl ? (
+              <img 
+                src={tenant.shopImageUrl} 
+                alt="Shop Logo" 
+                className="w-10 h-10 object-cover rounded-lg"
+              />
+            ) : (
+              <img 
+                src="/repair-beam-logo.png" 
+                alt="Repair Beam Logo" 
+                className="w-10 h-10 object-contain"
+              />
+            )}
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-xl font-bold text-white">Repair Beam</h1>
+              <h1 className="text-xl font-bold text-white">
+                {tenant?.alias || tenant?.name || "Repair Beam"}
+              </h1>
               <p className="text-xs text-muted-foreground">Professional Repair Management</p>
             </div>
           )}
@@ -102,10 +114,20 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       {!isCollapsed && user && (
         <div className="p-4 border-t border-border">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm">
-              {user.firstName && user.lastName 
-                ? `${user.firstName[0]}${user.lastName[0]}` 
-                : user.email?.[0]?.toUpperCase() || "U"}
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm overflow-hidden">
+              {tenant?.shopImageUrl ? (
+                <img 
+                  src={tenant.shopImageUrl} 
+                  alt="Shop Logo" 
+                  className="w-8 h-8 object-cover rounded-full"
+                />
+              ) : (
+                <span>
+                  {user.firstName && user.lastName 
+                    ? `${user.firstName[0]}${user.lastName[0]}` 
+                    : user.email?.[0]?.toUpperCase() || "U"}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
@@ -114,7 +136,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
                   : user.email || "User"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role === 'admin' ? 'Administrator' : 'User'} • Repair Shop
+                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.alias || tenant?.name || 'Repair Shop'}
               </p>
             </div>
           </div>
