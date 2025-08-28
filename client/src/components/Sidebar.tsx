@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
+import { useLocalization } from "@/contexts/LocalizationContext";
 import {
   LayoutDashboard,
   Users,
@@ -22,21 +23,24 @@ interface SidebarProps {
   onPageChange: (page: string) => void;
 }
 
-const navigationItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, id: "dashboard" },
-  { name: "Clients", href: "/clients", icon: Users, id: "clients" },
-  { name: "Kanban Tickets", href: "/kanban", icon: Kanban, id: "kanban" },
-  { name: "Inventory", href: "/inventory", icon: Package, id: "inventory" },
-  { name: "Point of Sale", href: "/pos", icon: CreditCard, id: "pos" },
-  { name: "Customer Support", href: "/support", icon: HeadphonesIcon, id: "support" },
-  { name: "Configurations", href: "/configs", icon: Settings, id: "configs" },
-  { name: "User Management", href: "/users", icon: UserCog, id: "users" },
+const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
+  { name: t("dashboard", "Dashboard"), href: "/", icon: LayoutDashboard, id: "dashboard", translationKey: "dashboard" },
+  { name: t("clients", "Clients"), href: "/clients", icon: Users, id: "clients", translationKey: "clients" },
+  { name: t("kanban", "Kanban Tickets"), href: "/kanban", icon: Kanban, id: "kanban", translationKey: "kanban" },
+  { name: t("inventory", "Inventory"), href: "/inventory", icon: Package, id: "inventory", translationKey: "inventory" },
+  { name: t("pos", "Point of Sale"), href: "/pos", icon: CreditCard, id: "pos", translationKey: "pos" },
+  { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support" },
+  { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs" },
+  { name: t("user_management", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "user_management" },
 ];
 
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { t } = useLocalization();
+  
+  const navigationItems = getNavigationItems(t);
 
   return (
     <div 
@@ -60,7 +64,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
               <h1 className="text-xl font-bold text-white">
                 Repair Beam
               </h1>
-              <p className="text-xs text-muted-foreground">Professional Repair Management</p>
+              <p className="text-xs text-muted-foreground">{t("repair_shop_management", "Professional Repair Management")}</p>
             </div>
           )}
         </div>
@@ -126,7 +130,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
                 {tenant?.alias || tenant?.name || "Shop"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role === 'admin' ? 'Administrator' : 'User'} • {tenant?.name || "Shop"}
+                {user.role === 'admin' ? t("administrator", "Administrator") : t("user", "User")} • {tenant?.name || t("shop", "Shop")}
               </p>
             </div>
           </div>

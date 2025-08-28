@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import UnderConstruction from "@/components/UnderConstruction";
+import { useLocalization } from "@/contexts/LocalizationContext";
 import { 
   LayoutDashboard, 
   ClipboardList, 
@@ -22,6 +23,8 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/stats"],
     retry: false,
   });
+  
+  const { t } = useLocalization();
 
   return (
     <div className="space-y-6">
@@ -31,7 +34,7 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm font-medium">Open Tickets</p>
+                <p className="text-muted-foreground text-sm font-medium">{t("open_tickets", "Open Tickets")}</p>
                 {isLoading ? (
                   <Skeleton className="h-8 w-16 mt-1" />
                 ) : (
@@ -51,7 +54,7 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm font-medium">Monthly Revenue</p>
+                <p className="text-muted-foreground text-sm font-medium">{t("monthly_revenue", "Monthly Revenue")}</p>
                 {isLoading ? (
                   <Skeleton className="h-8 w-20 mt-1" />
                 ) : (
@@ -71,7 +74,7 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm font-medium">Low Stock Items</p>
+                <p className="text-muted-foreground text-sm font-medium">{t("low_stock_items", "Low Stock Items")}</p>
                 {isLoading ? (
                   <Skeleton className="h-8 w-12 mt-1" />
                 ) : (
@@ -91,7 +94,7 @@ export default function Dashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm font-medium">Active Clients</p>
+                <p className="text-muted-foreground text-sm font-medium">{t("active_clients", "Active Clients")}</p>
                 {isLoading ? (
                   <Skeleton className="h-8 w-16 mt-1" />
                 ) : (
@@ -110,8 +113,8 @@ export default function Dashboard() {
 
       {/* Under Construction */}
       <UnderConstruction
-        title="Dashboard Under Construction"
-        description="Advanced analytics, reporting tools, and comprehensive business insights are being developed. Coming soon with real-time data visualization and performance metrics."
+        title={t("dashboard_under_construction", "Dashboard Under Construction")}
+        description={t("dashboard_construction_desc", "Advanced analytics, reporting tools, and comprehensive business insights are being developed. Coming soon with real-time data visualization and performance metrics.")}
         icon={<LayoutDashboard className="w-10 h-10 text-primary" />}
       />
     </div>

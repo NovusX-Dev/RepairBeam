@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Plus, User } from "lucide-react";
+import { useLocalization } from "@/contexts/LocalizationContext";
 
 interface RecentUser {
   id: string;
@@ -11,11 +12,13 @@ interface RecentUser {
   email: string | null;
   profileImageUrl: string | null;
   tenantAlias: string;
+  tenantName: string;
 }
 
 export default function Landing() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useLocalization();
 
   useEffect(() => {
     const fetchRecentUsers = async () => {
@@ -61,17 +64,16 @@ export default function Landing() {
                   Repair Beam
                 </h1>
                 <p className="text-muted-foreground" data-testid="text-app-subtitle">
-                  Professional Repair Shop Management Platform
+                  {t("repair_shop_management", "Professional Repair Shop Management Platform")}
                 </p>
               </div>
 
               <p className="text-sm text-muted-foreground">
-                Streamline your repair business with comprehensive tools for client management, 
-                inventory tracking, and point-of-sale operations.
+                {t("streamline_operations", "Streamline your repair business with comprehensive tools for client management, inventory tracking, and point-of-sale operations.")}
               </p>
 
               <div className="text-xs text-muted-foreground">
-                Multi-tenant • Secure • Scalable
+                {t("multi_tenant_features", "Multi-tenant • Secure • Scalable")}
               </div>
             </div>
           </CardContent>
@@ -80,14 +82,14 @@ export default function Landing() {
         {/* Quick Login / Create Tenant Card */}
         <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg text-center">Get Started</CardTitle>
+            <CardTitle className="text-lg text-center">{t("get_started", "Get Started")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Recent Users Section */}
             {!loading && recentUsers.length > 0 && (
               <>
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Recent Repair Shops</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">{t("recent_repair_shops", "Recent Repair Shops")}</h3>
                   <div className="space-y-2">
                     {recentUsers.map((user) => (
                       <Button
@@ -136,7 +138,7 @@ export default function Landing() {
                 data-testid="button-create-new-shop"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Create New Repair Shop
+                {t("create_new_repair_shop", "Create New Repair Shop")}
               </Button>
               
               <Button 
@@ -146,7 +148,7 @@ export default function Landing() {
                 data-testid="button-sign-in"
               >
                 <User className="w-4 h-4 mr-2" />
-                Sign In to Existing Account
+                {t("sign_in_existing", "Sign In to Existing Account")}
               </Button>
             </div>
           </CardContent>

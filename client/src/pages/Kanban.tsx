@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocalization } from "@/contexts/LocalizationContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,15 +16,15 @@ import { Plus, Clock, User, DollarSign } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 
 // Kanban column configuration
-const kanbanColumns = [
-  { id: 'backlog', title: 'Backlog', color: 'bg-gray-100' },
-  { id: 'waiting_diagnostics', title: 'Waiting on Diagnostics', color: 'bg-yellow-100' },
-  { id: 'waiting_client_approval', title: 'Waiting on Client Approval', color: 'bg-orange-100' },
-  { id: 'approved', title: 'Approved', color: 'bg-green-100' },
-  { id: 'servicing', title: 'Servicing', color: 'bg-blue-100' },
-  { id: 'quality_check', title: 'Quality Check', color: 'bg-purple-100' },
-  { id: 'final_customer_check', title: 'Final Customer Check', color: 'bg-pink-100' },
-  { id: 'finalized', title: 'Finalized / Done', color: 'bg-emerald-100' },
+const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
+  { id: 'backlog', title: t('backlog', 'Backlog'), color: 'bg-gray-100' },
+  { id: 'waiting_diagnostics', title: t('waiting_diagnostics', 'Waiting on Diagnostics'), color: 'bg-yellow-100' },
+  { id: 'waiting_client_approval', title: t('waiting_client_approval', 'Waiting on Client Approval'), color: 'bg-orange-100' },
+  { id: 'approved', title: t('approved', 'Approved'), color: 'bg-green-100' },
+  { id: 'servicing', title: t('servicing', 'Servicing'), color: 'bg-blue-100' },
+  { id: 'quality_check', title: t('quality_check', 'Quality Check'), color: 'bg-purple-100' },
+  { id: 'final_customer_check', title: t('final_customer_check', 'Final Customer Check'), color: 'bg-pink-100' },
+  { id: 'finalized', title: t('finalized', 'Finalized / Done'), color: 'bg-emerald-100' },
 ] as const;
 
 type TicketWithClient = Ticket & { client?: Client };
@@ -31,6 +32,9 @@ type TicketWithClient = Ticket & { client?: Client };
 export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { t } = useLocalization();
+  
+  const kanbanColumns = getKanbanColumns(t);
 
   // Fetch tickets with client information
   const { data: tickets = [], isLoading } = useQuery<TicketWithClient[]>({
