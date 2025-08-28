@@ -15,7 +15,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 
 // Kanban column configuration
@@ -55,6 +61,38 @@ interface TicketFormData {
 }
 
 type TicketWithClient = Ticket & { client?: Client };
+
+// Helper component for form field with tooltip
+interface FormFieldWithTooltipProps {
+  label: string;
+  tooltip: string;
+  required?: boolean;
+  children: React.ReactNode;
+}
+
+function FormFieldWithTooltip({ label, tooltip, required = false, children }: FormFieldWithTooltipProps) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Label className="flex items-center gap-2">
+          {label} {required && <span className="text-red-500">*</span>}
+        </Label>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help transition-colors" />
+          </TooltipTrigger>
+          <TooltipContent 
+            side="right" 
+            className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20"
+          >
+            <p className="text-sm">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
@@ -360,6 +398,7 @@ export default function KanbanTickets() {
   }
 
   return (
+    <TooltipProvider>
     <div className="h-full w-full flex flex-col overflow-hidden">
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
@@ -561,40 +600,45 @@ export default function KanbanTickets() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     {/* First Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">
-                        {t("first_name", "First Name")} <span className="text-red-500">*</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("first_name", "First Name")}
+                      tooltip={t("first_name_tooltip", "Enter the client's legal first name as it appears on official documents. This helps with accurate identification and record keeping.")}
+                      required
+                    >
                       <Input
                         id="firstName"
                         value={formData.firstName}
                         onChange={(e) => handleInputChange('firstName', e.target.value)}
                         className={formErrors.firstName ? 'border-red-500' : ''}
+                        placeholder={t("first_name_placeholder", "e.g., João")}
                         data-testid="input-first-name"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
 
                     {/* Last Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">
-                        {t("last_name", "Last Name")} <span className="text-red-500">*</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("last_name", "Last Name")}
+                      tooltip={t("last_name_tooltip", "Enter the client's family name or surname. Use the full surname including any compound names or particles (da, de, dos, etc.).")}
+                      required
+                    >
                       <Input
                         id="lastName"
                         value={formData.lastName}
                         onChange={(e) => handleInputChange('lastName', e.target.value)}
                         className={formErrors.lastName ? 'border-red-500' : ''}
+                        placeholder={t("last_name_placeholder", "e.g., Silva Santos")}
                         data-testid="input-last-name"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* CPF */}
-                    <div className="space-y-2">
-                      <Label htmlFor="cpf">
-                        {t("cpf", "CPF")} <span className="text-red-500">*</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("cpf", "CPF")}
+                      tooltip={t("cpf_tooltip", "Enter the Brazilian individual taxpayer registry (CPF). Format: 000.000.000-00. The system will automatically format and validate the number. Only digits are stored.")}
+                      required
+                    >
                       <Input
                         id="cpf"
                         value={displayCPF}
@@ -603,13 +647,14 @@ export default function KanbanTickets() {
                         className={formErrors.cpf ? 'border-red-500' : ''}
                         data-testid="input-cpf"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
 
                     {/* Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="email">
-                        {t("email", "Email")} <span className="text-red-500">*</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("email", "Email")}
+                      tooltip={t("email_tooltip", "Enter a valid email address for communication. This will be used for repair updates, notifications, and service confirmations. Format: user@domain.com")}
+                      required
+                    >
                       <Input
                         id="email"
                         type="email"
@@ -624,16 +669,17 @@ export default function KanbanTickets() {
                           {t("email_format_error", "Please enter a valid email address (e.g., name@example.com)")}
                         </div>
                       )}
-                    </div>
+                    </FormFieldWithTooltip>
                   </div>
 
                   {/* Address Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Street Address */}
-                    <div className="space-y-2">
-                      <Label htmlFor="streetAddress">
-                        {t("street_address", "Street Address")} <span className="text-red-500">*</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("street_address", "Street Address")}
+                      tooltip={t("street_address_tooltip", "Enter the full street name without the number. Include any street type (Rua, Avenida, Alameda, etc.). This is used for accurate address identification and delivery/service location.")}
+                      required
+                    >
                       <Input
                         id="streetAddress"
                         value={formData.streetAddress}
@@ -642,13 +688,14 @@ export default function KanbanTickets() {
                         placeholder={t("street_address_placeholder", "e.g., Rua das Flores")}
                         data-testid="input-street-address"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
 
                     {/* Street Number */}
-                    <div className="space-y-2">
-                      <Label htmlFor="streetNumber">
-                        {t("street_number", "Street Number")} <span className="text-red-500">*</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("street_number", "Street Number")}
+                      tooltip={t("street_number_tooltip", "Enter the building or house number on the street. Use only numbers or include letters for subdivisions (123A, 456-B). This helps locate the exact address for service visits.")}
+                      required
+                    >
                       <Input
                         id="streetNumber"
                         value={formData.streetNumber}
@@ -657,15 +704,16 @@ export default function KanbanTickets() {
                         placeholder={t("street_number_placeholder", "e.g., 123")}
                         data-testid="input-street-number"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
                   </div>
 
                   {/* Apartment/Unit */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="apartment">
-                        {t("apartment_unit", "Apartment/Unit")} <span className="text-muted-foreground text-sm">({t("complemento", "Complemento")})</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("apartment_unit", "Apartment/Unit")}
+                      tooltip={t("apartment_tooltip", "Optional field for apartment number, unit, suite, or other address details (complemento). Include information like apartment number, block, floor, or suite that helps identify the specific location within a building.")}
+                      optional
+                    >
                       <Input
                         id="apartment"
                         value={formData.apartment}
@@ -673,16 +721,17 @@ export default function KanbanTickets() {
                         placeholder={t("apartment_placeholder", "e.g., Apt 4B, Block C")}
                         data-testid="input-apartment"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
                     <div></div>
                   </div>
 
                   {/* Birthday */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="birthday">
-                        {t("birthday", "Birthday")} <span className="text-muted-foreground text-sm">({t("optional", "Optional")})</span>
-                      </Label>
+                    <FormFieldWithTooltip
+                      label={t("birthday", "Birthday")}
+                      tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
+                      optional
+                    >
                       <Input
                         id="birthday"
                         type="date"
@@ -690,7 +739,7 @@ export default function KanbanTickets() {
                         onChange={(e) => handleInputChange('birthday', e.target.value)}
                         data-testid="input-birthday"
                       />
-                    </div>
+                    </FormFieldWithTooltip>
                     <div></div>
                   </div>
 
@@ -908,5 +957,6 @@ export default function KanbanTickets() {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
