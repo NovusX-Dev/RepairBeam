@@ -14,6 +14,7 @@ interface LocalizationContextType {
   translations: Record<string, string>;
   t: (key: string, fallback?: string) => string;
   isLoading: boolean;
+  isChangingLanguage: boolean;
 }
 
 const LocalizationContext = createContext<LocalizationContextType | undefined>(undefined);
@@ -42,6 +43,7 @@ function detectBrowserLanguage(): typeof LANGUAGES[0] {
 export function LocalizationProvider({ children }: LocalizationProviderProps) {
   const queryClient = useQueryClient();
   const [initialized, setInitialized] = useState(false);
+  const [isChangingLanguage, setIsChangingLanguage] = useState(false);
   
   const [currentLanguage, setCurrentLanguage] = useState(() => {
     // Try to get saved language from localStorage, then browser detection, default to English
@@ -75,6 +77,17 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
       return response.json();
     },
   });
+
+  // Hide overlay when translations are loaded with a delay
+  useEffect(() => {
+    if (isChangingLanguage && !isLoading && localizations.length > 0) {
+      const timer = setTimeout(() => {
+        setIsChangingLanguage(false);
+      }, 1000); // 1 second delay before hiding overlay
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isChangingLanguage, isLoading, localizations.length]);
 
   // Mutation to update tenant language preference
   const updateTenantLanguage = useMutation({
@@ -126,6 +139,12 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
 
   // Enhanced setCurrentLanguage that saves to tenant if authenticated
   const setLanguage = async (language: typeof LANGUAGES[0]) => {
+    // Don't show overlay if it's the same language
+    if (currentLanguage.code === language.code) return;
+    
+    // Show overlay
+    setIsChangingLanguage(true);
+    
     setCurrentLanguage(language);
     localStorage.setItem('repairbeam-language', language.code);
     
@@ -145,11 +164,41 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     translations,
     t,
     isLoading,
+    isChangingLanguage,
   };
 
   return (
     <LocalizationContext.Provider value={value}>
       {children}
+      {/* Language Change Overlay */}
+      {isChangingLanguage && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in-0 duration-300"
+          style={{ backdropFilter: 'blur(4px)' }}
+        >
+          <div className="flex flex-col items-center gap-6 animate-in zoom-in-95 duration-500">
+            {/* Logo */}
+            <div className="text-6xl font-bold text-cyan-400 animate-pulse">
+              ⚡
+            </div>
+            <div className="text-3xl font-bold text-white mb-2">
+              Repair Beam
+            </div>
+            
+            {/* Loading message */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-lg text-white/90">
+                {currentLanguage.code === 'pt-BR' ? 'Alterando idioma para' : 'Changing language to'} <strong className="text-cyan-400">{currentLanguage.name}</strong>
+              </div>
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </LocalizationContext.Provider>
   );
 }
