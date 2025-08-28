@@ -1041,8 +1041,70 @@ export default function KanbanTickets() {
                 </div>
               )}
 
+              {/* Device Specifications Step */}
+              {currentStep === 1 && (
+                <div className="space-y-6">
+                  <div className="text-center pb-6 border-b border-border">
+                    <h3 className="text-xl font-semibold text-foreground mb-2">
+                      {ticketSteps[1].title}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {t("device_specs_description", "Enter details about the device that needs repair")}
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="deviceType">{t("device_type", "Device Type")} *</Label>
+                      <Input
+                        id="deviceType"
+                        placeholder={t("device_type_placeholder", "e.g., Smartphone, Laptop, Tablet")}
+                        data-testid="input-device-type"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="deviceBrand">{t("device_brand", "Brand")}</Label>
+                      <Input
+                        id="deviceBrand"
+                        placeholder={t("device_brand_placeholder", "e.g., Apple, Samsung, Dell")}
+                        data-testid="input-device-brand"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="deviceModel">{t("device_model", "Model")}</Label>
+                      <Input
+                        id="deviceModel"
+                        placeholder={t("device_model_placeholder", "e.g., iPhone 13, Galaxy S21")}
+                        data-testid="input-device-model"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="serialNumber">{t("serial_number", "Serial Number")}</Label>
+                      <Input
+                        id="serialNumber"
+                        placeholder={t("serial_placeholder", "Optional - if available")}
+                        data-testid="input-serial-number"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="deviceCondition">{t("device_condition", "Device Condition")}</Label>
+                    <Textarea
+                      id="deviceCondition"
+                      placeholder={t("condition_placeholder", "Describe the current physical condition of the device...")}
+                      rows={3}
+                      data-testid="textarea-device-condition"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Other steps - Under Construction */}
-              {currentStep > 0 && (
+              {currentStep > 1 && (
                 <div className="text-center py-12 text-muted-foreground">
                   <div className="space-y-4">
                     <div className="text-6xl">🚧</div>
