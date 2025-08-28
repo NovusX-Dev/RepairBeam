@@ -19,7 +19,7 @@ interface HeaderProps {
 export default function Header({ currentPage }: HeaderProps) {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const { currentLanguage, setCurrentLanguage } = useLocalization();
+  const { currentLanguage, setCurrentLanguage, t } = useLocalization();
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
@@ -84,7 +84,7 @@ export default function Header({ currentPage }: HeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             <div className="p-3 text-sm text-muted-foreground text-center">
-              No Notifications Available
+              {t("no_notifications_available", "No Notifications Available")}
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -120,7 +120,7 @@ export default function Header({ currentPage }: HeaderProps) {
               data-testid="menuitem-sign-out"
             >
               <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+              {t("sign_out", "Sign Out")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

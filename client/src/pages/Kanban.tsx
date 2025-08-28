@@ -93,7 +93,7 @@ export default function KanbanTickets() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-muted-foreground">Loading tickets...</div>
+        <div className="text-lg text-muted-foreground">{t("loading_tickets", "Loading tickets...")}</div>
       </div>
     );
   }
@@ -104,25 +104,25 @@ export default function KanbanTickets() {
       <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div>
           <h1 className="text-3xl font-bold text-foreground" data-testid="text-kanban-title">
-            Kanban Board
+            {t("kanban_board", "Kanban Board")}
           </h1>
           <p className="text-muted-foreground">
-            Manage and track repair tickets through your workflow stages
+            {t("kanban_description", "Manage and track repair tickets through your workflow stages")}
           </p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
             <Button data-testid="button-create-ticket">
               <Plus className="w-4 h-4 mr-2" />
-              New Ticket
+              {t("new_ticket", "New Ticket")}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Ticket</DialogTitle>
+              <DialogTitle>{t("create_new_ticket", "Create New Ticket")}</DialogTitle>
             </DialogHeader>
             <div className="p-4 text-center text-muted-foreground">
-              Ticket creation form coming soon...
+              {t("ticket_form_coming_soon", "Ticket creation form coming soon...")}
             </div>
           </DialogContent>
         </Dialog>
@@ -166,7 +166,7 @@ export default function KanbanTickets() {
                       <div className="flex items-center justify-between mb-2">
                         <div
                           className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority as TicketPriority)}`}
-                          title={`Priority: ${ticket.priority}`}
+                          title={`${t("priority", "Priority")}: ${ticket.priority}`}
                         ></div>
                         <span className="text-xs text-muted-foreground">
                           #{ticket.id.slice(-6).toUpperCase()}
@@ -197,7 +197,7 @@ export default function KanbanTickets() {
                       {ticket.estimatedCost && (
                         <div className="flex items-center text-xs text-muted-foreground mb-2">
                           <DollarSign className="w-3 h-3 mr-1" />
-                          Est: ${ticket.estimatedCost}
+                          {t("estimated_cost_abbrev", "Est")}: ${ticket.estimatedCost}
                         </div>
                       )}
 
@@ -213,7 +213,7 @@ export default function KanbanTickets() {
                 {/* Empty state */}
                 {(!ticketsByStatus[column.id] || ticketsByStatus[column.id].length === 0) && (
                   <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                    No tickets in this stage
+                    {t("no_tickets_stage", "No tickets in this stage")}
                   </div>
                 )}
               </div>
