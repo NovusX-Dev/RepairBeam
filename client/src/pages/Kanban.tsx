@@ -599,14 +599,57 @@ export default function KanbanTickets() {
               </DialogDescription>
             </DialogHeader>
             
-            {/* Progress Stepper */}
+            {/* Gamified Progress Stepper */}
             <div className="py-6">
+              {/* Progress Percentage Display with Motivational Messages */}
+              <div className="mb-6 text-center space-y-3">
+                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-2 rounded-full border border-primary/20">
+                  <div className="text-2xl font-bold text-primary animate-pulse">
+                    {Math.round((currentStep / (ticketSteps.length - 1)) * 100)}%
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {t("progress_complete", "Complete")}
+                  </div>
+                </div>
+                
+                {/* Motivational Message */}
+                <div className="text-sm text-center transition-all duration-500">
+                  {currentStep === 0 && (
+                    <div className="text-primary animate-pulse-text font-medium">
+                      🎯 {t("motivational_start", "Great! Let's find your client and get started")}
+                    </div>
+                  )}
+                  {currentStep > 0 && currentStep < ticketSteps.length - 1 && (
+                    <div className="text-green-400 animate-bounce-subtle font-medium">
+                      🚀 {t("motivational_progress", "You're making excellent progress!")}
+                    </div>
+                  )}
+                  {currentStep === ticketSteps.length - 1 && (
+                    <div className="text-yellow-400 animate-celebrate font-bold">
+                      🎉 {t("motivational_complete", "Almost there! You're a champion!")}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Achievement Badges */}
+                {currentStep > 0 && (
+                  <div className="flex justify-center gap-2">
+                    {Array.from({ length: currentStep }, (_, i) => (
+                      <div key={i} className="w-3 h-3 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
               <div className="flex items-center justify-between relative">
-                {/* Connection Line */}
-                <div className="absolute top-4 left-8 right-8 h-0.5 bg-muted-foreground/20 z-0"></div>
+                {/* Animated Connection Line */}
+                <div className="absolute top-4 left-8 right-8 h-1 bg-muted-foreground/10 rounded-full z-0"></div>
                 <div 
-                  className="absolute top-4 left-8 h-0.5 bg-primary transition-all duration-300 z-0"
-                  style={{ width: `${(currentStep / (ticketSteps.length - 1)) * 100}%` }}
+                  className="absolute top-4 left-8 h-1 bg-gradient-to-r from-primary via-primary to-primary/80 rounded-full transition-all duration-500 ease-out z-0 shadow-sm shadow-primary/30"
+                  style={{ 
+                    width: `${(currentStep / (ticketSteps.length - 1)) * (100 - 16)}%`,
+                    animation: currentStep > 0 ? 'progress-glow 2s infinite alternate' : 'none'
+                  }}
                 ></div>
                 
                 {/* Step Indicators */}
@@ -614,24 +657,52 @@ export default function KanbanTickets() {
                   const Icon = step.icon;
                   const isCompleted = index < currentStep;
                   const isCurrent = index === currentStep;
+                  const isUpcoming = index > currentStep;
                   
                   return (
-                    <div key={step.id} className="flex flex-col items-center relative z-10">
+                    <div key={step.id} className="flex flex-col items-center relative z-10 group">
                       <div className={`
-                        w-8 h-8 rounded-full flex items-center justify-center border-2 bg-background
-                        ${isCompleted ? 'bg-primary border-primary text-primary-foreground' : 
-                          isCurrent ? 'border-primary text-primary' : 'border-muted-foreground/30 text-muted-foreground'}
+                        w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 relative overflow-hidden cursor-pointer
+                        ${isCompleted ? 
+                          'bg-gradient-to-br from-green-400 to-green-600 border-green-500 text-white shadow-lg shadow-green-500/30 scale-110 hover:scale-115' : 
+                          isCurrent ? 
+                            'bg-gradient-to-br from-primary to-primary/80 border-primary text-white shadow-lg shadow-primary/40 animate-pulse-slow scale-105 hover:scale-110' : 
+                            isUpcoming ?
+                              'border-muted-foreground/20 text-muted-foreground/50 bg-background hover:border-primary/30 hover:text-primary/70 hover:scale-105' :
+                              'border-muted-foreground/30 text-muted-foreground bg-background'}
                       `}>
                         {isCompleted ? (
-                          <Check className="w-4 h-4" />
+                          <div className="relative">
+                            <Check className="w-5 h-5 animate-bounce-subtle" />
+                            <div className="absolute inset-0 bg-white/20 rounded-full animate-ping opacity-75"></div>
+                          </div>
                         ) : (
-                          <Icon className="w-4 h-4" />
+                          <Icon className={`w-5 h-5 ${isCurrent ? 'animate-pulse' : ''} group-hover:scale-110 transition-transform`} />
+                        )}
+                        
+                        {/* Achievement Badge for Completed Steps */}
+                        {isCompleted && (
+                          <div className="absolute -top-2 -right-2 w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center animate-bounce shadow-lg shadow-yellow-400/30">
+                            <div className="text-xs text-yellow-900 font-bold">⭐</div>
+                          </div>
+                        )}
+                        
+                        {/* Current Step Pulse Ring */}
+                        {isCurrent && (
+                          <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping"></div>
                         )}
                       </div>
-                      <div className={`mt-2 text-xs text-center max-w-16 ${
-                        isCurrent ? 'text-primary font-medium' : 'text-muted-foreground'
+                      <div className={`mt-3 text-xs text-center max-w-20 font-medium transition-all duration-300 ${
+                        isCompleted ? 'text-green-600 font-semibold' :
+                        isCurrent ? 'text-primary font-bold animate-pulse-text' : 
+                        isUpcoming ? 'text-muted-foreground/70' : 'text-muted-foreground'
                       }`}>
                         {step.title}
+                        {isCompleted && (
+                          <div className="text-green-500 mt-1 animate-bounce-subtle">
+                            ✓
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -955,6 +1026,21 @@ export default function KanbanTickets() {
               )}
             </div>
 
+            {/* Step Status Indicator */}
+            {currentStep > 0 && (
+              <div className="text-center py-4 border border-green-500/20 rounded-lg bg-green-500/5 mb-6">
+                <div className="flex items-center justify-center gap-2 text-green-400">
+                  <Check className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    {t("steps_completed", "{{count}} of {{total}} steps completed", { 
+                      count: currentStep, 
+                      total: ticketSteps.length 
+                    })}
+                  </span>
+                </div>
+              </div>
+            )}
+            
             {/* Navigation Buttons */}
             <div className="flex justify-between pt-6 border-t">
               <Button 
@@ -978,18 +1064,29 @@ export default function KanbanTickets() {
                 {currentStep < ticketSteps.length - 1 ? (
                   <Button 
                     onClick={handleNextStep}
-                    className="btn-next-hover"
+                    disabled={currentStep === 0 && !selectedClient && !showClientForm}
+                    className="btn-next-hover relative overflow-hidden group"
                     data-testid="button-next-step"
                   >
-                    {t("next", "Next")}
+                    <div className="flex items-center gap-2">
+                      {t("next", "Next")}
+                      <div className="transition-transform group-hover:translate-x-1">
+                        →
+                      </div>
+                    </div>
                   </Button>
                 ) : (
                   <Button 
                     onClick={() => {/* TODO: Submit ticket */}}
-                    className="btn-next-hover"
+                    className="btn-next-hover bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 relative overflow-hidden"
                     data-testid="button-create-ticket-final"
                   >
-                    {t("create_ticket", "Create Ticket")}
+                    <div className="flex items-center gap-2">
+                      <div className="text-lg">🎉</div>
+                      {t("create_ticket", "Create Ticket")}
+                      <div className="text-lg">🎉</div>
+                    </div>
+                    <div className="absolute inset-0 bg-white/10 rounded-lg animate-ping opacity-30"></div>
                   </Button>
                 )}
               </div>
