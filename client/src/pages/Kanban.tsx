@@ -204,7 +204,7 @@ export default function KanbanTickets() {
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>) => {
-      return await apiRequest("POST", "/api/clients", clientData) as Promise<Client>;
+      return await apiRequest("POST", "/api/clients", clientData) as Client;
     },
     onSuccess: (newClient: Client) => {
       setSelectedClient(newClient);

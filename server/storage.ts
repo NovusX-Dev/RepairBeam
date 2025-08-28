@@ -158,8 +158,8 @@ export class DatabaseStorage implements IStorage {
             ilike(clients.lastName, `%${query}%`),
             ilike(clients.email, `%${query}%`),
             ilike(clients.cpf, `%${query}%`),
-            // Also search for CPF using clean digits
-            cleanQuery.length >= 3 ? ilike(clients.cpf, `%${cleanQuery}%`) : undefined
+            // Also search for CPF using clean digits (only if we have enough digits)
+            ...(cleanQuery.length >= 3 ? [ilike(clients.cpf, `%${cleanQuery}%`)] : [])
           )
         )
       )
