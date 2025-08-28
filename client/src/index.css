@@ -188,6 +188,7 @@
 /* Date picker calendar theming */
 input[type="date"] {
   color-scheme: dark;
+  position: relative;
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
@@ -200,6 +201,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background-color: hsl(180 100% 60%);
+}
+
+/* Date input validation styling */
+input[type="date"]:invalid {
+  border-color: hsl(356.3033 90.5579% 54.3137%) !important;
+}
+
+input[type="date"]:valid {
+  border-color: hsl(142.1429 76.2% 36.3%);
+}
+
+/* Prevent year overflow in date inputs */
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Custom date placeholder styling */
+input[type="date"]::-webkit-input-placeholder {
+  color: var(--muted-foreground);
 }
 
 /* Next button hover animation */

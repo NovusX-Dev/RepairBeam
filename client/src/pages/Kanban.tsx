@@ -147,7 +147,7 @@ export default function KanbanTickets() {
   const [conflictClient, setConflictClient] = useState<Client | null>(null);
   
   const queryClient = useQueryClient();
-  const { t } = useLocalization();
+  const { t, currentLocale } = useLocalization();
   
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
@@ -304,6 +304,38 @@ export default function KanbanTickets() {
   };
 
   // Handle form input changes
+  // Date formatting and validation
+  const formatDateForLocale = (dateString: string, locale: string) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
+    if (locale.startsWith('pt')) {
+      // Brazilian format: dd/mm/yyyy
+      return date.toLocaleDateString('pt-BR');
+    } else {
+      // English format: mm/dd/yyyy
+      return date.toLocaleDateString('en-US');
+    }
+  };
+
+  const handleDateChange = (value: string) => {
+    // Limit year to 4 digits by validating the date format
+    if (value) {
+      const dateParts = value.split('-');
+      if (dateParts.length === 3) {
+        const [year, month, day] = dateParts;
+        // Ensure year is exactly 4 digits and within reasonable range
+        if (year.length > 4 || parseInt(year) > new Date().getFullYear() + 100) {
+          return; // Don't update if year is invalid
+        }
+      }
+    }
+    
+    handleInputChange('birthday', value);
+  };
+
   const validateField = (field: keyof TicketFormData, value: string) => {
     let isValid = false;
     
@@ -324,6 +356,13 @@ export default function KanbanTickets() {
         break;
       case 'streetNumber':
         isValid = value.trim().length >= 1;
+        break;
+      case 'birthday':
+        if (!value) return true; // Optional field
+        const date = new Date(value);
+        const currentYear = new Date().getFullYear();
+        const birthYear = date.getFullYear();
+        isValid = !isNaN(date.getTime()) && birthYear >= 1900 && birthYear <= currentYear;
         break;
       default:
         isValid = value.length > 0;
@@ -362,6 +401,13 @@ export default function KanbanTickets() {
       if (formErrors.cpf) {
         setFormErrors(prev => ({ ...prev, cpf: undefined }));
       }
+      
+      // Real-time validation for micro-interactions
+      const isValid = validateField('cpf', unformatted);
+      setFieldValidation(prev => ({
+        ...prev,
+        cpf: { isValid, hasError: false }
+      }));
       
       // Check for CPF conflict when complete
       if (unformatted.length === 11) {
@@ -737,6 +783,8 @@ export default function KanbanTickets() {
                       label={t("last_name", "Last Name")}
                       tooltip={t("last_name_tooltip", "Enter the client's family name or surname. Use the full surname including any compound names or particles (da, de, dos, etc.).")}
                       required
+                      hasError={!!formErrors.lastName}
+                      isValid={fieldValidation.lastName?.isValid && formData.lastName.length > 0}
                     >
                       <Input
                         id="lastName"
@@ -755,6 +803,8 @@ export default function KanbanTickets() {
                       label={t("cpf", "CPF")}
                       tooltip={t("cpf_tooltip", "Enter the Brazilian individual taxpayer registry (CPF). Format: 000.000.000-00. The system will automatically format and validate the number. Only digits are stored.")}
                       required
+                      hasError={!!formErrors.cpf}
+                      isValid={fieldValidation.cpf?.isValid && formData.cpf.length > 0}
                     >
                       <Input
                         id="cpf"
@@ -798,6 +848,8 @@ export default function KanbanTickets() {
                       label={t("street_address", "Street Address")}
                       tooltip={t("street_address_tooltip", "Enter the full street name without the number. Include any street type (Rua, Avenida, Alameda, etc.). This is used for accurate address identification and delivery/service location.")}
                       required
+                      hasError={!!formErrors.streetAddress}
+                      isValid={fieldValidation.streetAddress?.isValid && formData.streetAddress.length > 0}
                     >
                       <Input
                         id="streetAddress"
@@ -814,6 +866,8 @@ export default function KanbanTickets() {
                       label={t("street_number", "Street Number")}
                       tooltip={t("street_number_tooltip", "Enter the building or house number on the street. Use only numbers or include letters for subdivisions (123A, 456-B). This helps locate the exact address for service visits.")}
                       required
+                      hasError={!!formErrors.streetNumber}
+                      isValid={fieldValidation.streetNumber?.isValid && formData.streetNumber.length > 0}
                     >
                       <Input
                         id="streetNumber"
@@ -850,12 +904,16 @@ export default function KanbanTickets() {
                       label={t("birthday", "Birthday")}
                       tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
                       optional
+                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0}
                     >
                       <Input
                         id="birthday"
                         type="date"
                         value={formData.birthday}
-                        onChange={(e) => handleInputChange('birthday', e.target.value)}
+                        onChange={(e) => handleDateChange(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                        min="1900-01-01" // Reasonable minimum year
+                        placeholder={currentLocale?.startsWith('pt') ? 'dd/mm/aaaa' : 'mm/dd/yyyy'}
                         data-testid="input-birthday"
                       />
                     </FormFieldWithTooltip>
