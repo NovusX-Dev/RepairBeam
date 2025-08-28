@@ -232,13 +232,14 @@ export default function KanbanTickets() {
             {t("kanban_description", "Manage and track repair tickets through your workflow stages")}
           </p>
         </div>
-        <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button className="btn-next-hover" data-testid="button-create-ticket">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("new_ticket", "New Ticket")}
-            </Button>
-          </DialogTrigger>
+        <div className="p-2">
+          <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
+            <DialogTrigger asChild>
+              <Button className="btn-next-hover" data-testid="button-create-ticket">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("new_ticket", "New Ticket")}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("create_new_ticket", "Create New Ticket")}</DialogTitle>
@@ -486,6 +487,7 @@ export default function KanbanTickets() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Kanban Board Container - Constrained to parent width */}
