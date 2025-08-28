@@ -184,3 +184,34 @@
 ::-webkit-scrollbar-corner {
   background: hsl(210 40% 8%);
 }
+
+/* Date picker calendar theming */
+input[type="date"] {
+  color-scheme: dark;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-color: var(--primary);
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  filter: invert(1);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: hsl(180 100% 60%);
+}
+
+/* Next button hover animation */
+.btn-next-hover {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.btn-next-hover:hover {
+  @apply transform scale-105 shadow-lg;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.btn-next-hover:active {
+  @apply transform scale-95;
+}

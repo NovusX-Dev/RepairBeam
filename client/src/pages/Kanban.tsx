@@ -468,6 +468,7 @@ export default function KanbanTickets() {
                 {currentStep < ticketSteps.length - 1 ? (
                   <Button 
                     onClick={handleNextStep}
+                    className="btn-next-hover"
                     data-testid="button-next-step"
                   >
                     {t("next", "Next")}
@@ -475,6 +476,7 @@ export default function KanbanTickets() {
                 ) : (
                   <Button 
                     onClick={() => {/* TODO: Submit ticket */}}
+                    className="btn-next-hover"
                     data-testid="button-create-ticket-final"
                   >
                     {t("create_ticket", "Create Ticket")}
