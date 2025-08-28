@@ -148,6 +148,18 @@ export const supportTickets = pgTable("support_tickets", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Localization table
+export const localizations = pgTable("localizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key").notNull(),
+  language: varchar("language").notNull(), // e.g., 'en', 'es', 'fr', etc.
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_localization_key_language").on(table.key, table.language),
+]);
+
 // Relations
 export const tenantRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -201,6 +213,8 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+export type Localization = typeof localizations.$inferSelect;
+export type InsertLocalization = typeof localizations.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -227,6 +241,13 @@ export const insertTicketSchema = createInsertSchema(tickets).omit({
   updatedAt: true,
 });
 
+export const insertLocalizationSchema = createInsertSchema(localizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertTicketType = z.infer<typeof insertTicketSchema>;
+export type InsertLocalizationType = z.infer<typeof insertLocalizationSchema>;
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];

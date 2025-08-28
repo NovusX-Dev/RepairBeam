@@ -6,6 +6,7 @@ import {
   inventoryItems,
   transactions,
   supportTickets,
+  localizations,
   type User,
   type UpsertUser,
   type Tenant,
@@ -20,6 +21,8 @@ import {
   type InsertTransaction,
   type SupportTicket,
   type InsertSupportTicket,
+  type Localization,
+  type InsertLocalization,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -61,6 +64,12 @@ export interface IStorage {
   
   // Recent users for quick login
   getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant })[]>;
+
+  // Localization operations
+  getLocalizations(language?: string): Promise<Localization[]>;
+  getLocalizationsByKey(key: string): Promise<Localization[]>;
+  createLocalization(localization: InsertLocalization): Promise<Localization>;
+  updateLocalization(id: string, localization: Partial<InsertLocalization>): Promise<Localization | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +267,32 @@ export class DatabaseStorage implements IStorage {
       ...row,
       tenant: row.tenant?.id ? row.tenant : undefined
     }));
+  }
+
+  // Localization operations
+  async getLocalizations(language?: string): Promise<Localization[]> {
+    if (language) {
+      return db.select().from(localizations).where(eq(localizations.language, language));
+    }
+    return db.select().from(localizations);
+  }
+
+  async getLocalizationsByKey(key: string): Promise<Localization[]> {
+    return db.select().from(localizations).where(eq(localizations.key, key));
+  }
+
+  async createLocalization(localization: InsertLocalization): Promise<Localization> {
+    const [newLocalization] = await db.insert(localizations).values(localization).returning();
+    return newLocalization;
+  }
+
+  async updateLocalization(id: string, localization: Partial<InsertLocalization>): Promise<Localization | undefined> {
+    const [updatedLocalization] = await db
+      .update(localizations)
+      .set({ ...localization, updatedAt: new Date() })
+      .where(eq(localizations.id, id))
+      .returning();
+    return updatedLocalization;
   }
 }
 

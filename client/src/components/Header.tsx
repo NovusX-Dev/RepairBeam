@@ -6,8 +6,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Bell, LogOut } from "lucide-react";
+import { Bell, LogOut, Globe } from "lucide-react";
+import ReactCountryFlag from "react-country-flag";
+import { useLocalization, LANGUAGES } from "@/contexts/LocalizationContext";
 
 interface HeaderProps {
   currentPage: string;
@@ -16,6 +19,7 @@ interface HeaderProps {
 export default function Header({ currentPage }: HeaderProps) {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { currentLanguage, setCurrentLanguage } = useLocalization();
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
@@ -25,6 +29,48 @@ export default function Header({ currentPage }: HeaderProps) {
         </h2>
       </div>
       <div className="flex items-center space-x-4">
+        {/* Language Selector */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <div 
+              className="p-2 rounded-lg hover:bg-accent transition-colors cursor-pointer flex items-center space-x-2"
+              data-testid="dropdown-language"
+            >
+              <ReactCountryFlag 
+                countryCode={currentLanguage.countryCode} 
+                svg 
+                style={{
+                  width: '20px',
+                  height: '15px',
+                }}
+              />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {LANGUAGES.map((lang) => (
+              <DropdownMenuItem
+                key={lang.code}
+                onClick={() => setCurrentLanguage(lang)}
+                className="flex items-center space-x-3 cursor-pointer"
+                data-testid={`language-option-${lang.code}`}
+              >
+                <ReactCountryFlag 
+                  countryCode={lang.countryCode} 
+                  svg 
+                  style={{
+                    width: '20px',
+                    height: '15px',
+                  }}
+                />
+                <span>{lang.name}</span>
+                {currentLanguage.code === lang.code && (
+                  <span className="text-primary ml-auto">✓</span>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Notifications Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

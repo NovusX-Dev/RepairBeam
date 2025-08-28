@@ -398,6 +398,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Localization routes
+  app.get("/api/localizations", async (req, res) => {
+    try {
+      const { language } = req.query;
+      const localizations = await storage.getLocalizations(language as string);
+      res.json(localizations);
+    } catch (error) {
+      console.error("Error fetching localizations:", error);
+      res.status(500).json({ message: "Failed to fetch localizations" });
+    }
+  });
+
+  app.post("/api/localizations", isAuthenticated, async (req: any, res) => {
+    try {
+      const { key, language, value } = req.body;
+      
+      if (!key || !language || !value) {
+        return res.status(400).json({ message: "Key, language, and value are required" });
+      }
+
+      const localization = await storage.createLocalization({ key, language, value });
+      res.json(localization);
+    } catch (error) {
+      console.error("Error creating localization:", error);
+      res.status(500).json({ message: "Failed to create localization" });
+    }
+  });
+
+  app.put("/api/localizations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { key, language, value } = req.body;
+      
+      const localization = await storage.updateLocalization(id, { key, language, value });
+      
+      if (!localization) {
+        return res.status(404).json({ message: "Localization not found" });
+      }
+
+      res.json(localization);
+    } catch (error) {
+      console.error("Error updating localization:", error);
+      res.status(500).json({ message: "Failed to update localization" });
+    }
+  });
+
+  // Get localizations by key for all languages
+  app.get("/api/localizations/key/:key", async (req, res) => {
+    try {
+      const { key } = req.params;
+      const localizations = await storage.getLocalizationsByKey(key);
+      res.json(localizations);
+    } catch (error) {
+      console.error("Error fetching localizations by key:", error);
+      res.status(500).json({ message: "Failed to fetch localizations by key" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
