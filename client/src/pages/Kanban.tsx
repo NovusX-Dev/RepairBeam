@@ -603,7 +603,7 @@ export default function KanbanTickets() {
             <div className="py-6">
               {/* Progress Percentage Display with Motivational Messages */}
               <div className="mb-6 text-center space-y-3">
-                <div className="inline-flex items-center gap-3 bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-2 rounded-full border border-primary/20">
+                <div className="inline-flex items-center gap-3">
                   <div className="text-2xl font-bold text-primary animate-pulse">
                     {Math.round((currentStep / (ticketSteps.length - 1)) * 100)}%
                   </div>
@@ -993,7 +993,7 @@ export default function KanbanTickets() {
                       label={t("birthday", "Birthday")}
                       tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
                       optional
-                      isValid={formData.birthday.length > 0 && fieldValidation.birthday?.isValid}
+                      isValid={formData.birthday.length > 0 && validateField('birthday', formData.birthday)}
                     >
                       <Input
                         id="birthday"
