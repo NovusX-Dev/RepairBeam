@@ -147,20 +147,24 @@ export class DatabaseStorage implements IStorage {
     // Clean the query for CPF search (remove non-digits for CPF matching)
     const cleanQuery = query.replace(/\D/g, '');
     
+    const searchConditions = [
+      ilike(clients.firstName, `%${query}%`),
+      ilike(clients.lastName, `%${query}%`),
+      ilike(clients.email, `%${query}%`)
+    ];
+
+    // For CPF search, only use the cleaned digits version since CPFs are stored without formatting
+    if (cleanQuery.length >= 3) {
+      searchConditions.push(ilike(clients.cpf, `%${cleanQuery}%`));
+    }
+    
     return db
       .select()
       .from(clients)
       .where(
         and(
           eq(clients.tenantId, tenantId),
-          or(
-            ilike(clients.firstName, `%${query}%`),
-            ilike(clients.lastName, `%${query}%`),
-            ilike(clients.email, `%${query}%`),
-            ilike(clients.cpf, `%${query}%`),
-            // Also search for CPF using clean digits (only if we have enough digits)
-            ...(cleanQuery.length >= 3 ? [ilike(clients.cpf, `%${cleanQuery}%`)] : [])
-          )
+          or(...searchConditions)
         )
       )
       .orderBy(desc(clients.updatedAt))
