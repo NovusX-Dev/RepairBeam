@@ -945,7 +945,6 @@ export default function KanbanTickets() {
                     >
                       <Input
                         id="email"
-                        type="email"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         className={formErrors.email ? 'border-red-500' : ''}
@@ -994,6 +993,7 @@ export default function KanbanTickets() {
                         onChange={(e) => handleInputChange('streetNumber', e.target.value)}
                         className={formErrors.streetNumber ? 'border-red-500' : ''}
                         placeholder={t("street_number_placeholder", "e.g., 123")}
+                        title={t("street_number_format_hint", "Please enter a valid number")}
                         data-testid="input-street-number"
                       />
                     </FormFieldWithTooltip>
