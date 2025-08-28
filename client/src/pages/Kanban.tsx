@@ -71,6 +71,7 @@ interface FormFieldWithTooltipProps {
   required?: boolean;
   hasError?: boolean;
   isValid?: boolean;
+  errorMessage?: string;
   children: React.ReactNode;
 }
 
@@ -80,8 +81,10 @@ function FormFieldWithTooltip({
   required = false, 
   hasError = false, 
   isValid = false, 
+  errorMessage,
   children 
 }: FormFieldWithTooltipProps) {
+  const { t } = useLocalization();
   const wrapperClasses = `
     form-field-wrapper
     ${hasError ? 'form-field-error' : ''}
@@ -96,13 +99,17 @@ function FormFieldWithTooltip({
             {label} {required && <span className="text-red-500">*</span>}
           </Label>
           <div className="flex items-center gap-1">
-            <Tooltip>
+            <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help transition-colors" />
               </TooltipTrigger>
               <TooltipContent 
-                side="right" 
-                className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20"
+                side="top"
+                sideOffset={5}
+                alignOffset={0}
+                avoidCollisions={true}
+                sticky="always"
+                className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20 z-50 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
               >
                 <p className="text-sm">{tooltip}</p>
               </TooltipContent>
@@ -115,6 +122,18 @@ function FormFieldWithTooltip({
           </div>
         </div>
         {children}
+        
+        {/* Whimsical Error State */}
+        {hasError && errorMessage && (
+          <div className="mt-2 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+            <div className="text-red-400 animate-bounce text-lg">
+              😅
+            </div>
+            <span className="text-sm text-red-400 font-medium animate-pulse">
+              {errorMessage}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -454,9 +473,9 @@ export default function KanbanTickets() {
       phone: null,
       streetAddress: formData.streetAddress,
       streetNumber: formData.streetNumber,
-      apartment: formData.apartment || undefined,
-      birthday: formData.birthday || undefined,
-      notes: undefined,
+      apartment: formData.apartment || null,
+      birthday: formData.birthday || null,
+      notes: null,
     };
     
     createClientMutation.mutate(clientData);
@@ -979,8 +998,9 @@ export default function KanbanTickets() {
                     <FormFieldWithTooltip
                       label={t("apartment_unit", "Apartment/Unit")}
                       tooltip={t("apartment_tooltip", "Optional field for apartment number, unit, suite, or other address details (complemento). Include information like apartment number, block, floor, or suite that helps identify the specific location within a building.")}
-                      optional
+                      hasError={!!formErrors.apartment}
                       isValid={fieldValidation.apartment?.isValid && formData.apartment.length > 0}
+                      errorMessage={formErrors.apartment}
                     >
                       <Input
                         id="apartment"
@@ -998,7 +1018,9 @@ export default function KanbanTickets() {
                     <FormFieldWithTooltip
                       label={t("birthday", "Birthday")}
                       tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
-                      optional
+                      hasError={!!formErrors.birthday}
+                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0}
+                      errorMessage={formErrors.birthday}
                     >
                       <Input
                         id="birthday"
@@ -1007,7 +1029,7 @@ export default function KanbanTickets() {
                         onChange={(e) => handleDateChange(e.target.value)}
                         max={new Date().toISOString().split('T')[0]} // Prevent future dates
                         min="1900-01-01" // Reasonable minimum year
-                        placeholder={currentLocale?.startsWith('pt') ? 'dd/mm/aaaa' : 'mm/dd/yyyy'}
+                        placeholder={'YYYY-MM-DD'}
                         data-testid="input-birthday"
                       />
                     </FormFieldWithTooltip>
