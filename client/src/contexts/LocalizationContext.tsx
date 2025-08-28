@@ -4,11 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 // Available languages with their country codes and names
 export const LANGUAGES = [
   { code: 'en', countryCode: 'US', name: 'English' },
-  { code: 'es', countryCode: 'ES', name: 'Español' },
-  { code: 'fr', countryCode: 'FR', name: 'Français' },
-  { code: 'de', countryCode: 'DE', name: 'Deutsch' },
-  { code: 'it', countryCode: 'IT', name: 'Italiano' },
-  { code: 'pt', countryCode: 'PT', name: 'Português' },
+  { code: 'pt-BR', countryCode: 'BR', name: 'Português (Brasil)' },
 ];
 
 interface LocalizationContextType {
