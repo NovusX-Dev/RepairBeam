@@ -169,7 +169,7 @@ export default function KanbanTickets() {
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: TicketStatus }) => {
-      return await apiRequest(`/api/tickets/${ticketId}/status`, "PUT", { status });
+      return await apiRequest("PUT", `/api/tickets/${ticketId}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
@@ -179,7 +179,7 @@ export default function KanbanTickets() {
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>): Promise<Client> => {
-      return await apiRequest("/api/clients", "POST", clientData);
+      return await apiRequest("POST", "/api/clients", clientData);
     },
     onSuccess: (newClient: Client) => {
       setSelectedClient(newClient);
