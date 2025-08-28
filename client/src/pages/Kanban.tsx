@@ -47,7 +47,9 @@ interface TicketFormData {
   firstName: string;
   lastName: string;
   cpf: string;
-  address: string;
+  streetAddress: string;
+  streetNumber: string;
+  apartment: string;
   birthday: string;
   email: string;
 }
@@ -62,7 +64,9 @@ export default function KanbanTickets() {
     firstName: '',
     lastName: '',
     cpf: '',
-    address: '',
+    streetAddress: '',
+    streetNumber: '',
+    apartment: '',
     birthday: '',
     email: '',
   });
@@ -128,6 +132,12 @@ export default function KanbanTickets() {
     }
   };
 
+  // Email validation helper
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   // Form validation for client info step
   const validateClientInfo = () => {
     const errors: Partial<TicketFormData> = {};
@@ -141,11 +151,16 @@ export default function KanbanTickets() {
     if (!formData.cpf.trim()) {
       errors.cpf = 'required';
     }
-    if (!formData.address.trim()) {
-      errors.address = 'required';
+    if (!formData.streetAddress.trim()) {
+      errors.streetAddress = 'required';
+    }
+    if (!formData.streetNumber.trim()) {
+      errors.streetNumber = 'required';
     }
     if (!formData.email.trim()) {
       errors.email = 'required';
+    } else if (!isValidEmail(formData.email)) {
+      errors.email = 'invalid_email_format';
     }
     
     setFormErrors(errors);
@@ -187,7 +202,9 @@ export default function KanbanTickets() {
         firstName: '',
         lastName: '',
         cpf: '',
-        address: '',
+        streetAddress: '',
+        streetNumber: '',
+        apartment: '',
         birthday: '',
         email: '',
       });
@@ -330,24 +347,65 @@ export default function KanbanTickets() {
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         className={formErrors.email ? 'border-red-500' : ''}
+                        placeholder={t("email_placeholder", "e.g., joao@exemplo.com")}
                         data-testid="input-email"
+                      />
+                      {formErrors.email === 'invalid_email_format' && (
+                        <div className="text-sm text-red-500" data-testid="error-email-format">
+                          {t("email_format_error", "Please enter a valid email address (e.g., name@example.com)")}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Address Fields */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Street Address */}
+                    <div className="space-y-2">
+                      <Label htmlFor="streetAddress">
+                        {t("street_address", "Street Address")} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="streetAddress"
+                        value={formData.streetAddress}
+                        onChange={(e) => handleInputChange('streetAddress', e.target.value)}
+                        className={formErrors.streetAddress ? 'border-red-500' : ''}
+                        placeholder={t("street_address_placeholder", "e.g., Rua das Flores")}
+                        data-testid="input-street-address"
+                      />
+                    </div>
+
+                    {/* Street Number */}
+                    <div className="space-y-2">
+                      <Label htmlFor="streetNumber">
+                        {t("street_number", "Street Number")} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="streetNumber"
+                        value={formData.streetNumber}
+                        onChange={(e) => handleInputChange('streetNumber', e.target.value)}
+                        className={formErrors.streetNumber ? 'border-red-500' : ''}
+                        placeholder={t("street_number_placeholder", "e.g., 123")}
+                        data-testid="input-street-number"
                       />
                     </div>
                   </div>
 
-                  {/* Address */}
-                  <div className="space-y-2">
-                    <Label htmlFor="address">
-                      {t("address", "Address")} <span className="text-red-500">*</span>
-                    </Label>
-                    <Textarea
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => handleInputChange('address', e.target.value)}
-                      className={formErrors.address ? 'border-red-500' : ''}
-                      rows={3}
-                      data-testid="input-address"
-                    />
+                  {/* Apartment/Unit */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="apartment">
+                        {t("apartment_unit", "Apartment/Unit")} <span className="text-muted-foreground text-sm">({t("complemento", "Complemento")})</span>
+                      </Label>
+                      <Input
+                        id="apartment"
+                        value={formData.apartment}
+                        onChange={(e) => handleInputChange('apartment', e.target.value)}
+                        placeholder={t("apartment_placeholder", "e.g., Apt 4B, Block C")}
+                        data-testid="input-apartment"
+                      />
+                    </div>
+                    <div></div>
                   </div>
 
                   {/* Birthday */}
