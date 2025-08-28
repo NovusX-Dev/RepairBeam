@@ -5,6 +5,29 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check routes
+  app.get('/api/health', async (req, res) => {
+    try {
+      const dbHealth = await storage.healthCheck();
+      const status = dbHealth ? 'healthy' : 'unhealthy';
+      const statusCode = dbHealth ? 200 : 503;
+      
+      res.status(statusCode).json({
+        status,
+        timestamp: new Date().toISOString(),
+        database: dbHealth ? 'connected' : 'disconnected'
+      });
+    } catch (error) {
+      console.error('Health check failed:', error);
+      res.status(503).json({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        database: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Auth middleware
   await setupAuth(app);
 

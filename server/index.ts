@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 const app = express();
 app.use(express.json());
@@ -67,5 +68,28 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start database keepalive to prevent suspension
+    startDatabaseKeepalive();
   });
+
+  // Database keepalive system
+  function startDatabaseKeepalive() {
+    const keepaliveInterval = 4 * 60 * 1000; // 4 minutes (before 5-minute suspension)
+    
+    setInterval(async () => {
+      try {
+        const isHealthy = await storage.healthCheck();
+        if (isHealthy) {
+          log('Database keepalive: healthy');
+        } else {
+          log('Database keepalive: WARNING - health check failed');
+        }
+      } catch (error) {
+        log(`Database keepalive: ERROR - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }, keepaliveInterval);
+    
+    log(`Database keepalive started (every ${keepaliveInterval / 1000}s)`);
+  }
 })();

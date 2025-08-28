@@ -25,9 +25,35 @@ import {
   type InsertLocalization,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, ilike } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
+
+// Database retry utility with exponential backoff
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  retries = 3,
+  delay = 1000
+): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (i === retries - 1) {
+        console.error(`Database operation failed after ${retries} retries:`, error);
+        throw error;
+      }
+      
+      const backoffDelay = delay * Math.pow(2, i);
+      console.warn(`Database operation failed (attempt ${i + 1}/${retries}), retrying in ${backoffDelay}ms:`, error);
+      await new Promise(resolve => setTimeout(resolve, backoffDelay));
+    }
+  }
+  throw new Error("Unexpected error in withRetry");
+}
 
 export interface IStorage {
+  // Health check operations
+  healthCheck(): Promise<boolean>;
+  
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
@@ -76,25 +102,44 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Health check implementation
+  async healthCheck(): Promise<boolean> {
+    try {
+      await withRetry(async () => {
+        const result = await db.execute(sql`SELECT 1 as health`);
+        if (!result.rows || result.rows.length === 0) {
+          throw new Error('Health check query returned no results');
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Database health check failed:', error);
+      return false;
+    }
+  }
   // User operations
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    return withRetry(async () => {
+      const [user] = await db.select().from(users).where(eq(users.id, id));
+      return user;
+    });
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+    return withRetry(async () => {
+      const [user] = await db
+        .insert(users)
+        .values(userData)
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            ...userData,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return user;
+    });
   }
 
   // Tenant operations
