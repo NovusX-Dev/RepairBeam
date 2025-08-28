@@ -167,7 +167,7 @@ export default function KanbanTickets() {
   const [conflictClient, setConflictClient] = useState<Client | null>(null);
   
   const queryClient = useQueryClient();
-  const { t, currentLocale } = useLocalization();
+  const { t, currentLanguage } = useLocalization();
   
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
@@ -197,8 +197,8 @@ export default function KanbanTickets() {
 
   // Create client mutation
   const createClientMutation = useMutation({
-    mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>): Promise<Client> => {
-      return await apiRequest("POST", "/api/clients", clientData);
+    mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>) => {
+      return await apiRequest("POST", "/api/clients", clientData) as Promise<Client>;
     },
     onSuccess: (newClient: Client) => {
       setSelectedClient(newClient);
@@ -1059,10 +1059,7 @@ export default function KanbanTickets() {
                 <div className="flex items-center justify-center gap-2 text-green-400">
                   <Check className="w-4 h-4" />
                   <span className="text-sm font-medium">
-                    {t("steps_completed", "{{count}} of {{total}} steps completed", { 
-                      count: currentStep, 
-                      total: ticketSteps.length 
-                    })}
+                    {t("steps_completed", `${currentStep} of ${ticketSteps.length} steps completed`)}
                   </span>
                 </div>
               </div>
