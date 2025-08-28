@@ -70,6 +70,7 @@ export default function KanbanTickets() {
     birthday: '',
     email: '',
   });
+  const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
   
   const queryClient = useQueryClient();
@@ -138,6 +139,22 @@ export default function KanbanTickets() {
     return emailRegex.test(email);
   };
 
+  // CPF formatting helpers
+  const formatCPF = (cpf: string) => {
+    // Remove all non-digits
+    const numbers = cpf.replace(/\D/g, '');
+    
+    // Format as XXX.XXX.XXX-XX
+    if (numbers.length <= 3) return numbers;
+    if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
+  };
+
+  const getUnformattedCPF = (cpf: string) => {
+    return cpf.replace(/\D/g, '');
+  };
+
   // Form validation for client info step
   const validateClientInfo = () => {
     const errors: Partial<TicketFormData> = {};
@@ -176,6 +193,23 @@ export default function KanbanTickets() {
     }
   };
 
+  // Handle CPF input with formatting
+  const handleCPFChange = (value: string) => {
+    const unformatted = getUnformattedCPF(value);
+    const formatted = formatCPF(value);
+    
+    // Only allow up to 11 digits
+    if (unformatted.length <= 11) {
+      setFormData(prev => ({ ...prev, cpf: unformatted }));
+      setDisplayCPF(formatted);
+      
+      // Clear error when user starts typing
+      if (formErrors.cpf) {
+        setFormErrors(prev => ({ ...prev, cpf: undefined }));
+      }
+    }
+  };
+
   // Handle next step
   const handleNextStep = () => {
     if (currentStep === 0 && !validateClientInfo()) {
@@ -208,6 +242,7 @@ export default function KanbanTickets() {
         birthday: '',
         email: '',
       });
+      setDisplayCPF('');
       setFormErrors({});
     }
   };
@@ -329,8 +364,8 @@ export default function KanbanTickets() {
                       </Label>
                       <Input
                         id="cpf"
-                        value={formData.cpf}
-                        onChange={(e) => handleInputChange('cpf', e.target.value)}
+                        value={displayCPF}
+                        onChange={(e) => handleCPFChange(e.target.value)}
                         placeholder="000.000.000-00"
                         className={formErrors.cpf ? 'border-red-500' : ''}
                         data-testid="input-cpf"
