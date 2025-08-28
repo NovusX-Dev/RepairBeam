@@ -144,6 +144,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchClients(tenantId: string, query: string): Promise<Client[]> {
+    // Clean the query for CPF search (remove non-digits for CPF matching)
+    const cleanQuery = query.replace(/\D/g, '');
+    
     return db
       .select()
       .from(clients)
@@ -154,7 +157,9 @@ export class DatabaseStorage implements IStorage {
             ilike(clients.firstName, `%${query}%`),
             ilike(clients.lastName, `%${query}%`),
             ilike(clients.email, `%${query}%`),
-            ilike(clients.cpf, `%${query}%`)
+            ilike(clients.cpf, `%${query}%`),
+            // Also search for CPF using clean digits
+            cleanQuery.length >= 3 ? ilike(clients.cpf, `%${cleanQuery}%`) : undefined
           )
         )
       )
