@@ -234,7 +234,7 @@ export default function KanbanTickets() {
         </div>
         <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-ticket">
+            <Button className="btn-next-hover" data-testid="button-create-ticket">
               <Plus className="w-4 h-4 mr-2" />
               {t("new_ticket", "New Ticket")}
             </Button>
