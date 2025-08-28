@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -358,11 +359,14 @@ export default function KanbanTickets() {
         isValid = value.trim().length >= 1;
         break;
       case 'birthday':
-        if (!value) return true; // Optional field
+        if (!value) return false; // Don't show valid indicator when empty
         const date = new Date(value);
         const currentYear = new Date().getFullYear();
         const birthYear = date.getFullYear();
         isValid = !isNaN(date.getTime()) && birthYear >= 1900 && birthYear <= currentYear;
+        break;
+      case 'apartment':
+        isValid = value.trim().length > 0; // Show valid when has content
         break;
       default:
         isValid = value.length > 0;
@@ -494,6 +498,14 @@ export default function KanbanTickets() {
       });
       setDisplayCPF('');
       setFormErrors({});
+      setFieldValidation({});
+      
+      // Reset client search states
+      setClientSearchQuery('');
+      setSelectedClient(null);
+      setShowClientForm(false);
+      setShowCPFConflict(false);
+      setConflictClient(null);
     }
   };
 
@@ -582,6 +594,9 @@ export default function KanbanTickets() {
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("create_new_ticket", "Create New Ticket")}</DialogTitle>
+              <DialogDescription>
+                {t("create_ticket_description", "Follow the steps to create a new repair ticket for your client.")}
+              </DialogDescription>
             </DialogHeader>
             
             {/* Progress Stepper */}
@@ -628,7 +643,9 @@ export default function KanbanTickets() {
             <div className="py-6">
               {currentStep === 0 && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">{t("client_search", "Find Client")}</h3>
+                  <h3 className="text-lg font-semibold">
+                    {showClientForm ? t("add_new_client", "Add New Client") : t("client_search", "Find Client")}
+                  </h3>
                   
                   {!selectedClient && !showClientForm && (
                     <div className="space-y-4">
@@ -886,6 +903,7 @@ export default function KanbanTickets() {
                       label={t("apartment_unit", "Apartment/Unit")}
                       tooltip={t("apartment_tooltip", "Optional field for apartment number, unit, suite, or other address details (complemento). Include information like apartment number, block, floor, or suite that helps identify the specific location within a building.")}
                       optional
+                      isValid={fieldValidation.apartment?.isValid && formData.apartment.length > 0}
                     >
                       <Input
                         id="apartment"
@@ -904,7 +922,7 @@ export default function KanbanTickets() {
                       label={t("birthday", "Birthday")}
                       tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
                       optional
-                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0}
+                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0 && validateField('birthday', formData.birthday)}
                     >
                       <Input
                         id="birthday"
