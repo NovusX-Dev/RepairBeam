@@ -215,3 +215,130 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .btn-next-hover:active {
   @apply transform scale-95;
 }
+
+/* Form micro-interactions */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-border {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 255, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(0, 255, 255, 0);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+  }
+}
+
+/* Enhanced form field interactions */
+.form-field-wrapper {
+  position: relative;
+  transition: all 0.2s ease-in-out;
+}
+
+.form-field-error {
+  animation: shake 0.5s ease-in-out;
+}
+
+.form-field-error input,
+.form-field-error textarea {
+  border-color: hsl(356.3033 90.5579% 54.3137%) !important;
+  animation: pulse-border 0.6s ease-out;
+}
+
+.form-field-success input,
+.form-field-success textarea {
+  border-color: hsl(142.1429 76.2% 36.3%) !important;
+  animation: glow 0.8s ease-out;
+}
+
+.form-field-focus {
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+/* Input focus effects */
+input:focus, 
+textarea:focus, 
+select:focus {
+  animation: pulse-border 0.6s ease-out;
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+  box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.2);
+}
+
+input:hover,
+textarea:hover {
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+  border-color: rgba(0, 255, 255, 0.5);
+}
+
+/* Error message animations */
+.error-message {
+  animation: fadeInUp 0.3s ease-out;
+  color: hsl(356.3033 90.5579% 54.3137%);
+}
+
+/* Tooltip animations */
+.tooltip-content {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+/* Success indicator */
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(45deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(45deg);
+  }
+  100% {
+    transform: scale(1) rotate(45deg);
+  }
+}
+
+.success-checkmark {
+  animation: checkmark 0.3s ease-out;
+}
+
+/* Skeleton shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.animate-pulse {
+  background: linear-gradient(90deg, hsl(210 40% 10%) 25%, hsl(210 40% 12%) 37%, hsl(210 40% 10%) 63%);
+  background-size: 400px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}

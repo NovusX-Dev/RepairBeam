@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 
@@ -67,29 +68,53 @@ interface FormFieldWithTooltipProps {
   label: string;
   tooltip: string;
   required?: boolean;
+  hasError?: boolean;
+  isValid?: boolean;
   children: React.ReactNode;
 }
 
-function FormFieldWithTooltip({ label, tooltip, required = false, children }: FormFieldWithTooltipProps) {
+function FormFieldWithTooltip({ 
+  label, 
+  tooltip, 
+  required = false, 
+  hasError = false, 
+  isValid = false, 
+  children 
+}: FormFieldWithTooltipProps) {
+  const wrapperClasses = `
+    form-field-wrapper
+    ${hasError ? 'form-field-error' : ''}
+    ${isValid ? 'form-field-success' : ''}
+  `.trim();
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Label className="flex items-center gap-2">
-          {label} {required && <span className="text-red-500">*</span>}
-        </Label>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help transition-colors" />
-          </TooltipTrigger>
-          <TooltipContent 
-            side="right" 
-            className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20"
-          >
-            <p className="text-sm">{tooltip}</p>
-          </TooltipContent>
-        </Tooltip>
+    <div className={wrapperClasses}>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Label className="flex items-center gap-2">
+            {label} {required && <span className="text-red-500">*</span>}
+          </Label>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground hover:text-primary cursor-help transition-colors" />
+              </TooltipTrigger>
+              <TooltipContent 
+                side="right" 
+                className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20"
+              >
+                <p className="text-sm">{tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+            {isValid && (
+              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center success-checkmark">
+                <Check className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
+          </div>
+        </div>
+        {children}
       </div>
-      {children}
     </div>
   );
 }
@@ -110,6 +135,7 @@ export default function KanbanTickets() {
   });
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
+  const [fieldValidation, setFieldValidation] = useState<Record<string, { isValid: boolean; hasError: boolean }>>({});
   
   // Client search state
   const [clientSearchQuery, setClientSearchQuery] = useState('');
@@ -278,12 +304,48 @@ export default function KanbanTickets() {
   };
 
   // Handle form input changes
+  const validateField = (field: keyof TicketFormData, value: string) => {
+    let isValid = false;
+    
+    switch (field) {
+      case 'firstName':
+      case 'lastName':
+        isValid = value.trim().length >= 2;
+        break;
+      case 'email':
+        const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+        isValid = emailRegex.test(value) && value.length > 0;
+        break;
+      case 'cpf':
+        isValid = value.replace(/\D/g, '').length === 11;
+        break;
+      case 'streetAddress':
+        isValid = value.trim().length >= 3;
+        break;
+      case 'streetNumber':
+        isValid = value.trim().length >= 1;
+        break;
+      default:
+        isValid = value.length > 0;
+    }
+    
+    return isValid;
+  };
+  
   const handleInputChange = (field: keyof TicketFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
     // Clear error when user starts typing
     if (formErrors[field]) {
       setFormErrors(prev => ({ ...prev, [field]: undefined }));
     }
+    
+    // Real-time validation for micro-interactions
+    const isValid = validateField(field, value);
+    setFieldValidation(prev => ({
+      ...prev,
+      [field]: { isValid, hasError: false }
+    }));
   };
 
   // Handle CPF input with formatting
@@ -389,11 +451,64 @@ export default function KanbanTickets() {
     }
   };
 
+  // Kanban Loading Skeleton Component
+  const KanbanSkeleton = () => (
+    <div className="h-full w-full flex flex-col overflow-hidden">
+      {/* Page Header Skeleton */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div className="space-y-3">
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Skeleton className="h-10 w-32" />
+      </div>
+      
+      {/* Kanban Columns Skeleton */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-x-auto">
+          <div className="flex gap-6 h-full pb-6" style={{ minWidth: 'fit-content' }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex flex-col w-80 bg-card rounded-lg border border-border">
+                {/* Column Header Skeleton */}
+                <div className="p-4 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-6 w-8 rounded-full" />
+                  </div>
+                </div>
+                
+                {/* Column Content Skeleton */}
+                <div className="flex-1 p-4 space-y-3">
+                  {[1, 2, 3].map((j) => (
+                    <div key={j} className="animate-pulse">
+                      <div className="bg-background rounded-lg p-4 border border-border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Skeleton className="h-4 w-16" />
+                          <Skeleton className="h-6 w-12 rounded" />
+                        </div>
+                        <Skeleton className="h-5 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                        <div className="flex items-center justify-between pt-2">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-24" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-muted-foreground">{t("loading_tickets", "Loading tickets...")}</div>
-      </div>
+      <TooltipProvider>
+        <KanbanSkeleton />
+      </TooltipProvider>
     );
   }
 
@@ -604,6 +719,8 @@ export default function KanbanTickets() {
                       label={t("first_name", "First Name")}
                       tooltip={t("first_name_tooltip", "Enter the client's legal first name as it appears on official documents. This helps with accurate identification and record keeping.")}
                       required
+                      hasError={!!formErrors.firstName}
+                      isValid={fieldValidation.firstName?.isValid && formData.firstName.length > 0}
                     >
                       <Input
                         id="firstName"
@@ -654,6 +771,8 @@ export default function KanbanTickets() {
                       label={t("email", "Email")}
                       tooltip={t("email_tooltip", "Enter a valid email address for communication. This will be used for repair updates, notifications, and service confirmations. Format: user@domain.com")}
                       required
+                      hasError={!!formErrors.email}
+                      isValid={fieldValidation.email?.isValid && formData.email.length > 0}
                     >
                       <Input
                         id="email"
@@ -665,7 +784,7 @@ export default function KanbanTickets() {
                         data-testid="input-email"
                       />
                       {formErrors.email === 'invalid_email_format' && (
-                        <div className="text-sm text-red-500" data-testid="error-email-format">
+                        <div className="text-sm text-red-500 error-message" data-testid="error-email-format">
                           {t("email_format_error", "Please enter a valid email address (e.g., name@example.com)")}
                         </div>
                       )}
