@@ -922,7 +922,7 @@ export default function KanbanTickets() {
                       label={t("birthday", "Birthday")}
                       tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
                       optional
-                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0 && validateField('birthday', formData.birthday)}
+                      isValid={formData.birthday.length > 0 && fieldValidation.birthday?.isValid}
                     >
                       <Input
                         id="birthday"
