@@ -181,6 +181,12 @@ export default function KanbanTickets() {
   // Client search query
   const { data: searchResults = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients/search", clientSearchQuery],
+    queryFn: async () => {
+      if (clientSearchQuery.length < 2) return [];
+      const response = await fetch(`/api/clients/search?q=${encodeURIComponent(clientSearchQuery)}`);
+      if (!response.ok) throw new Error('Failed to search clients');
+      return response.json();
+    },
     enabled: clientSearchQuery.length >= 2,
     retry: false,
   });
@@ -1121,7 +1127,7 @@ export default function KanbanTickets() {
                 <div className="flex items-center justify-center gap-2 text-green-400">
                   <Check className="w-4 h-4" />
                   <span className="text-sm font-medium">
-                    {t("steps_completed", `${currentStep} of ${ticketSteps.length} steps completed`)}
+                    {`${currentStep} of ${ticketSteps.length} steps completed`}
                   </span>
                 </div>
               </div>
