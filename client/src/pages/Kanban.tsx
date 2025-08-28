@@ -5,6 +5,9 @@ import { useLocalization } from "@/contexts/LocalizationContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Clock, User, DollarSign } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 
 // Kanban column configuration
@@ -27,14 +30,49 @@ const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
   { id: 'finalized', title: t('finalized', 'Finalized / Done'), color: 'bg-emerald-100' },
 ] as const;
 
+// Ticket creation steps configuration
+const getTicketSteps = (t: (key: string, fallback?: string) => string) => [
+  { id: 'client_info', title: t('client_information', 'Client Information'), icon: User },
+  { id: 'device_details', title: t('device_specifications', 'Device Specifications'), icon: Clock },
+  { id: 'problem_description', title: t('issue_assessment', 'Issue Assessment'), icon: DollarSign },
+  { id: 'service_checklist', title: t('service_checklist', 'Service Checklist'), icon: Check },
+  { id: 'time_estimation', title: t('time_estimation', 'Time Estimation'), icon: Clock },
+  { id: 'warranty_verification', title: t('warranty_verification', 'Warranty Verification'), icon: User },
+  { id: 'client_authorization', title: t('client_authorization', 'Client Authorization'), icon: Check },
+];
+
+// Form data interface
+interface TicketFormData {
+  // Client Information
+  firstName: string;
+  lastName: string;
+  cpf: string;
+  address: string;
+  birthday: string;
+  email: string;
+}
+
 type TicketWithClient = Ticket & { client?: Client };
 
 export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
+  const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState<TicketFormData>({
+    firstName: '',
+    lastName: '',
+    cpf: '',
+    address: '',
+    birthday: '',
+    email: '',
+  });
+  const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
+  
   const queryClient = useQueryClient();
   const { t } = useLocalization();
   
   const kanbanColumns = getKanbanColumns(t);
+  const ticketSteps = getTicketSteps(t);
 
   // Fetch tickets with client information
   const { data: tickets = [], isLoading } = useQuery<TicketWithClient[]>({
@@ -90,6 +128,73 @@ export default function KanbanTickets() {
     }
   };
 
+  // Form validation for client info step
+  const validateClientInfo = () => {
+    const errors: Partial<TicketFormData> = {};
+    
+    if (!formData.firstName.trim()) {
+      errors.firstName = 'required';
+    }
+    if (!formData.lastName.trim()) {
+      errors.lastName = 'required';
+    }
+    if (!formData.cpf.trim()) {
+      errors.cpf = 'required';
+    }
+    if (!formData.address.trim()) {
+      errors.address = 'required';
+    }
+    if (!formData.email.trim()) {
+      errors.email = 'required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle form input changes
+  const handleInputChange = (field: keyof TicketFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  // Handle next step
+  const handleNextStep = () => {
+    if (currentStep === 0 && !validateClientInfo()) {
+      return;
+    }
+    if (currentStep < ticketSteps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    }
+  };
+
+  // Handle previous step
+  const handlePreviousStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Reset form when dialog closes
+  const handleDialogChange = (open: boolean) => {
+    setIsTicketDialogOpen(open);
+    if (!open) {
+      setCurrentStep(0);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        cpf: '',
+        address: '',
+        birthday: '',
+        email: '',
+      });
+      setFormErrors({});
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -110,19 +215,214 @@ export default function KanbanTickets() {
             {t("kanban_description", "Manage and track repair tickets through your workflow stages")}
           </p>
         </div>
-        <Dialog>
+        <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-ticket">
               <Plus className="w-4 h-4 mr-2" />
               {t("new_ticket", "New Ticket")}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("create_new_ticket", "Create New Ticket")}</DialogTitle>
             </DialogHeader>
-            <div className="p-4 text-center text-muted-foreground">
-              {t("ticket_form_coming_soon", "Ticket creation form coming soon...")}
+            
+            {/* Progress Stepper */}
+            <div className="py-6">
+              <div className="flex items-center justify-between relative">
+                {/* Connection Line */}
+                <div className="absolute top-4 left-8 right-8 h-0.5 bg-muted-foreground/20 z-0"></div>
+                <div 
+                  className="absolute top-4 left-8 h-0.5 bg-primary transition-all duration-300 z-0"
+                  style={{ width: `${(currentStep / (ticketSteps.length - 1)) * 100}%` }}
+                ></div>
+                
+                {/* Step Indicators */}
+                {ticketSteps.map((step, index) => {
+                  const Icon = step.icon;
+                  const isCompleted = index < currentStep;
+                  const isCurrent = index === currentStep;
+                  
+                  return (
+                    <div key={step.id} className="flex flex-col items-center relative z-10">
+                      <div className={`
+                        w-8 h-8 rounded-full flex items-center justify-center border-2 bg-background
+                        ${isCompleted ? 'bg-primary border-primary text-primary-foreground' : 
+                          isCurrent ? 'border-primary text-primary' : 'border-muted-foreground/30 text-muted-foreground'}
+                      `}>
+                        {isCompleted ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Icon className="w-4 h-4" />
+                        )}
+                      </div>
+                      <div className={`mt-2 text-xs text-center max-w-16 ${
+                        isCurrent ? 'text-primary font-medium' : 'text-muted-foreground'
+                      }`}>
+                        {step.title}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Step Content */}
+            <div className="py-6">
+              {currentStep === 0 && (
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold">{t("client_information", "Client Information")}</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* First Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">
+                        {t("first_name", "First Name")} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => handleInputChange('firstName', e.target.value)}
+                        className={formErrors.firstName ? 'border-red-500' : ''}
+                        data-testid="input-first-name"
+                      />
+                    </div>
+
+                    {/* Last Name */}
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">
+                        {t("last_name", "Last Name")} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => handleInputChange('lastName', e.target.value)}
+                        className={formErrors.lastName ? 'border-red-500' : ''}
+                        data-testid="input-last-name"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* CPF */}
+                    <div className="space-y-2">
+                      <Label htmlFor="cpf">
+                        {t("cpf", "CPF")} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="cpf"
+                        value={formData.cpf}
+                        onChange={(e) => handleInputChange('cpf', e.target.value)}
+                        placeholder="000.000.000-00"
+                        className={formErrors.cpf ? 'border-red-500' : ''}
+                        data-testid="input-cpf"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email">
+                        {t("email", "Email")} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        className={formErrors.email ? 'border-red-500' : ''}
+                        data-testid="input-email"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="space-y-2">
+                    <Label htmlFor="address">
+                      {t("address", "Address")} <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => handleInputChange('address', e.target.value)}
+                      className={formErrors.address ? 'border-red-500' : ''}
+                      rows={3}
+                      data-testid="input-address"
+                    />
+                  </div>
+
+                  {/* Birthday */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="birthday">
+                        {t("birthday", "Birthday")} <span className="text-muted-foreground text-sm">({t("optional", "Optional")})</span>
+                      </Label>
+                      <Input
+                        id="birthday"
+                        type="date"
+                        value={formData.birthday}
+                        onChange={(e) => handleInputChange('birthday', e.target.value)}
+                        data-testid="input-birthday"
+                      />
+                    </div>
+                    <div></div>
+                  </div>
+
+                  {/* Required Field Legend */}
+                  <div className="text-sm text-muted-foreground flex items-center gap-1">
+                    <span className="text-red-500">*</span>
+                    {t("required_field", "Required field")}
+                  </div>
+                </div>
+              )}
+
+              {/* Other steps - Under Construction */}
+              {currentStep > 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <div className="space-y-4">
+                    <div className="text-6xl">🚧</div>
+                    <h3 className="text-lg font-semibold">{t("under_construction", "Under Construction")}</h3>
+                    <p>{t("step_under_development", "This step is currently under development")}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between pt-6 border-t">
+              <Button 
+                variant="outline" 
+                onClick={handlePreviousStep}
+                disabled={currentStep === 0}
+                data-testid="button-previous-step"
+              >
+                {t("previous", "Previous")}
+              </Button>
+              
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleDialogChange(false)}
+                  data-testid="button-cancel"
+                >
+                  {t("cancel", "Cancel")}
+                </Button>
+                
+                {currentStep < ticketSteps.length - 1 ? (
+                  <Button 
+                    onClick={handleNextStep}
+                    data-testid="button-next-step"
+                  >
+                    {t("next", "Next")}
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={() => {/* TODO: Submit ticket */}}
+                    data-testid="button-create-ticket-final"
+                  >
+                    {t("create_ticket", "Create Ticket")}
+                  </Button>
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>
