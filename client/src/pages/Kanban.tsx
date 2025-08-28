@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Clock, User, DollarSign, Check } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 
 // Kanban column configuration
@@ -73,6 +73,15 @@ export default function KanbanTickets() {
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
   
+  // Client search state
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showClientForm, setShowClientForm] = useState(false);
+  
+  // CPF conflict state
+  const [showCPFConflict, setShowCPFConflict] = useState(false);
+  const [conflictClient, setConflictClient] = useState<Client | null>(null);
+  
   const queryClient = useQueryClient();
   const { t } = useLocalization();
   
@@ -85,6 +94,13 @@ export default function KanbanTickets() {
     retry: false,
   });
 
+  // Client search query
+  const { data: searchResults = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients/search", clientSearchQuery],
+    enabled: clientSearchQuery.length >= 2,
+    retry: false,
+  });
+
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: TicketStatus }) => {
@@ -94,6 +110,45 @@ export default function KanbanTickets() {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
     },
   });
+
+  // Create client mutation
+  const createClientMutation = useMutation({
+    mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>): Promise<Client> => {
+      return await apiRequest("/api/clients", "POST", clientData);
+    },
+    onSuccess: (newClient: Client) => {
+      setSelectedClient(newClient);
+      setShowClientForm(false);
+      setFormData({
+        firstName: '',
+        lastName: '',
+        cpf: '',
+        streetAddress: '',
+        streetNumber: '',
+        apartment: '',
+        birthday: '',
+        email: '',
+      });
+      setDisplayCPF('');
+      setFormErrors({});
+    },
+  });
+
+  // Check for CPF conflict
+  const checkCPFConflict = async (cpf: string) => {
+    if (cpf.length !== 11) return;
+    
+    try {
+      const response = await fetch(`/api/clients/cpf/${cpf}`);
+      if (response.ok) {
+        const existingClient = await response.json();
+        setConflictClient(existingClient);
+        setShowCPFConflict(true);
+      }
+    } catch (error) {
+      // No conflict found or error - continue normally
+    }
+  };
 
   // Group tickets by status
   const ticketsByStatus = kanbanColumns.reduce((acc, column) => {
@@ -207,15 +262,64 @@ export default function KanbanTickets() {
       if (formErrors.cpf) {
         setFormErrors(prev => ({ ...prev, cpf: undefined }));
       }
+      
+      // Check for CPF conflict when complete
+      if (unformatted.length === 11) {
+        checkCPFConflict(unformatted);
+      }
     }
+  };
+
+  // CPF conflict resolution handlers
+  const handleUseExistingClient = () => {
+    if (conflictClient) {
+      setSelectedClient(conflictClient);
+      setShowClientForm(false);
+      setShowCPFConflict(false);
+      setConflictClient(null);
+    }
+  };
+
+  const handleOverwriteClient = () => {
+    // Continue with creating new client - conflict is acknowledged
+    handleSaveNewClient();
+    setShowCPFConflict(false);
+    setConflictClient(null);
+  };
+
+  const handleSaveNewClient = () => {
+    if (!validateClientInfo()) return;
+    
+    const clientData = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      cpf: formData.cpf,
+      email: formData.email,
+      phone: null,
+      streetAddress: formData.streetAddress,
+      streetNumber: formData.streetNumber,
+      apartment: formData.apartment || undefined,
+      birthday: formData.birthday || undefined,
+      notes: undefined,
+    };
+    
+    createClientMutation.mutate(clientData);
   };
 
   // Handle next step
   const handleNextStep = () => {
-    if (currentStep === 0 && !validateClientInfo()) {
-      return;
-    }
-    if (currentStep < ticketSteps.length - 1) {
+    if (currentStep === 0) {
+      if (selectedClient) {
+        // Client is selected, proceed to next step
+        setCurrentStep(currentStep + 1);
+      } else if (showClientForm) {
+        // Save new client first
+        handleSaveNewClient();
+      } else {
+        // No client selected, need to search or add one
+        return;
+      }
+    } else if (currentStep < ticketSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -324,7 +428,136 @@ export default function KanbanTickets() {
             <div className="py-6">
               {currentStep === 0 && (
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold">{t("client_information", "Client Information")}</h3>
+                  <h3 className="text-lg font-semibold">{t("client_search", "Find Client")}</h3>
+                  
+                  {!selectedClient && !showClientForm && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="clientSearch">
+                          {t("search_client", "Search for existing client")}
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="clientSearch"
+                            placeholder={t("search_placeholder", "Type name, CPF, email, or ticket number...")}
+                            value={clientSearchQuery}
+                            onChange={(e) => setClientSearchQuery(e.target.value)}
+                            className="pl-10"
+                            data-testid="input-client-search"
+                          />
+                          <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+
+                      {/* Search Results */}
+                      {clientSearchQuery.length >= 2 && searchResults.length > 0 && (
+                        <div className="border rounded-lg p-4 bg-muted/50 space-y-2">
+                          <h4 className="font-medium text-sm text-muted-foreground">
+                            {t("search_results", "Search Results")}
+                          </h4>
+                          <div className="space-y-2">
+                            {searchResults.map((client) => (
+                              <div
+                                key={client.id}
+                                className="flex items-center justify-between p-3 border rounded-lg bg-background hover:bg-muted/50 cursor-pointer transition-all duration-200 hover:scale-105"
+                                onClick={() => {
+                                  setSelectedClient(client);
+                                  setClientSearchQuery('');
+                                }}
+                                data-testid={`client-result-${client.id}`}
+                              >
+                                <div className="flex-1">
+                                  <div className="font-medium">
+                                    {client.firstName} {client.lastName}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground space-y-1">
+                                    {client.cpf && (
+                                      <div>CPF: {client.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</div>
+                                    )}
+                                    {client.email && <div>{client.email}</div>}
+                                    {client.streetAddress && client.streetNumber && (
+                                      <div>{client.streetAddress}, {client.streetNumber}</div>
+                                    )}
+                                  </div>
+                                </div>
+                                <Button size="sm" variant="outline" data-testid="button-select-client">
+                                  {t("select", "Select")}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No Results Message */}
+                      {clientSearchQuery.length >= 2 && searchResults.length === 0 && (
+                        <div className="text-center p-8 text-muted-foreground">
+                          <User className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                          <p>{t("no_clients_found", "No clients found matching your search")}</p>
+                        </div>
+                      )}
+
+                      {/* Add New Client Button */}
+                      <div className="flex justify-center pt-4">
+                        <Button
+                          onClick={() => setShowClientForm(true)}
+                          className="bg-primary hover:bg-primary/90 transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-primary/20"
+                          data-testid="button-add-new-client"
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          {t("add_new_client", "Add New Client")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Client Display */}
+                  {selectedClient && !showClientForm && (
+                    <div className="border rounded-lg p-4 bg-green-50 border-green-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-green-800">
+                            {t("selected_client", "Selected Client")}
+                          </h4>
+                          <div className="mt-2 space-y-1 text-green-700">
+                            <div className="font-medium">
+                              {selectedClient.firstName} {selectedClient.lastName}
+                            </div>
+                            {selectedClient.cpf && (
+                              <div>CPF: {selectedClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</div>
+                            )}
+                            {selectedClient.email && <div>{selectedClient.email}</div>}
+                            {selectedClient.streetAddress && selectedClient.streetNumber && (
+                              <div>{selectedClient.streetAddress}, {selectedClient.streetNumber}</div>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedClient(null)}
+                          data-testid="button-change-client"
+                        >
+                          {t("change", "Change")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add New Client Form */}
+                  {showClientForm && (
+                    <div className="space-y-6 border rounded-lg p-6 bg-muted/20">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold">{t("add_new_client", "Add New Client")}</h4>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowClientForm(false)}
+                          data-testid="button-cancel-add-client"
+                        >
+                          {t("cancel", "Cancel")}
+                        </Button>
+                      </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     {/* First Name */}
@@ -461,11 +694,8 @@ export default function KanbanTickets() {
                     <div></div>
                   </div>
 
-                  {/* Required Field Legend */}
-                  <div className="text-sm text-muted-foreground flex items-center gap-1">
-                    <span className="text-red-500">*</span>
-                    {t("required_field", "Required field")}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -522,6 +752,64 @@ export default function KanbanTickets() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* CPF Conflict Dialog */}
+        <Dialog open={showCPFConflict} onOpenChange={setShowCPFConflict}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-orange-600">
+                <AlertTriangle className="h-5 w-5" />
+                {t("cpf_conflict", "CPF Already Exists")}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <p className="text-muted-foreground">
+                {t("cpf_conflict_message", "A client with this CPF already exists in your system.")}
+              </p>
+              
+              {conflictClient && (
+                <div className="border rounded-lg p-4 bg-muted/50">
+                  <h4 className="font-medium mb-2">
+                    {t("existing_client", "Existing Client:")}
+                  </h4>
+                  <div className="space-y-1 text-sm">
+                    <div className="font-medium">
+                      {conflictClient.firstName} {conflictClient.lastName}
+                    </div>
+                    {conflictClient.cpf && (
+                      <div>CPF: {conflictClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</div>
+                    )}
+                    {conflictClient.email && <div>{conflictClient.email}</div>}
+                  </div>
+                </div>
+              )}
+              
+              <p className="text-sm text-muted-foreground">
+                {t("cpf_conflict_options", "Would you like to use the existing client or create a new one?")}
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={handleUseExistingClient}
+                className="flex-1"
+                data-testid="button-use-existing-client"
+              >
+                {t("use_existing", "Use Existing")}
+              </Button>
+              <Button
+                onClick={handleOverwriteClient}
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
+                data-testid="button-create-new-anyway"
+              >
+                {t("create_new_anyway", "Create New Anyway")}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
         </div>
       </div>
 

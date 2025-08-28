@@ -435,6 +435,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Client search endpoint
+  app.get("/api/clients/search", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const query = req.query.q as string;
+      if (!query || query.trim().length < 2) {
+        return res.json([]);
+      }
+
+      const clients = await storage.searchClients(user.tenantId, query.trim());
+      res.json(clients);
+    } catch (error) {
+      console.error("Error searching clients:", error);
+      res.status(500).json({ message: "Failed to search clients" });
+    }
+  });
+
+  // Get client by CPF endpoint
+  app.get("/api/clients/cpf/:cpf", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { cpf } = req.params;
+      const client = await storage.getClientByCPF(user.tenantId, cpf);
+      
+      if (client) {
+        res.json(client);
+      } else {
+        res.status(404).json({ message: "Client not found" });
+      }
+    } catch (error) {
+      console.error("Error fetching client by CPF:", error);
+      res.status(500).json({ message: "Failed to fetch client by CPF" });
+    }
+  });
+
+  // Create or update client endpoint
+  app.post("/api/clients", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const clientData = { ...req.body, tenantId: user.tenantId };
+      const client = await storage.createClient(clientData);
+      res.json(client);
+    } catch (error) {
+      console.error("Error creating client:", error);
+      res.status(500).json({ message: "Failed to create client" });
+    }
+  });
+
   app.post("/api/localizations", isAuthenticated, async (req: any, res) => {
     try {
       const { key, language, value } = req.body;

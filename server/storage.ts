@@ -25,7 +25,7 @@ import {
   type InsertLocalization,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -41,6 +41,8 @@ export interface IStorage {
   // Client operations
   getClients(tenantId: string): Promise<Client[]>;
   getClient(id: string, tenantId: string): Promise<Client | undefined>;
+  getClientByCPF(tenantId: string, cpf: string): Promise<Client | undefined>;
+  searchClients(tenantId: string, query: string): Promise<Client[]>;
   createClient(client: InsertClient): Promise<Client>;
   
   // Ticket operations
@@ -133,6 +135,33 @@ export class DatabaseStorage implements IStorage {
     return client;
   }
 
+  async getClientByCPF(tenantId: string, cpf: string): Promise<Client | undefined> {
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.tenantId, tenantId), eq(clients.cpf, cpf)));
+    return client;
+  }
+
+  async searchClients(tenantId: string, query: string): Promise<Client[]> {
+    return db
+      .select()
+      .from(clients)
+      .where(
+        and(
+          eq(clients.tenantId, tenantId),
+          or(
+            ilike(clients.firstName, `%${query}%`),
+            ilike(clients.lastName, `%${query}%`),
+            ilike(clients.email, `%${query}%`),
+            ilike(clients.cpf, `%${query}%`)
+          )
+        )
+      )
+      .orderBy(desc(clients.updatedAt))
+      .limit(10);
+  }
+
   async createClient(client: InsertClient): Promise<Client> {
     const [newClient] = await db.insert(clients).values(client).returning();
     return newClient;
@@ -165,9 +194,13 @@ export class DatabaseStorage implements IStorage {
           id: clients.id,
           firstName: clients.firstName,
           lastName: clients.lastName,
+          cpf: clients.cpf,
           email: clients.email,
           phone: clients.phone,
-          address: clients.address,
+          streetAddress: clients.streetAddress,
+          streetNumber: clients.streetNumber,
+          apartment: clients.apartment,
+          birthday: clients.birthday,
           notes: clients.notes,
           tenantId: clients.tenantId,
           createdAt: clients.createdAt,
