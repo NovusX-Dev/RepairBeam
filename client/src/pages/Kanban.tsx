@@ -334,7 +334,13 @@ export default function KanbanTickets() {
       }
     }
     
-    handleInputChange('birthday', value);
+    // Update form data without validation for birthday field
+    setFormData(prev => ({ ...prev, birthday: value }));
+    
+    // Clear any errors
+    if (formErrors.birthday) {
+      setFormErrors(prev => ({ ...prev, birthday: undefined }));
+    }
   };
 
   const validateField = (field: keyof TicketFormData, value: string) => {
