@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Plus, User } from "lucide-react";
-import { useLocalization } from "@/contexts/LocalizationContext";
+import { useLocalization, LANGUAGES } from "@/contexts/LocalizationContext";
 
 interface RecentUser {
   id: string;
@@ -18,7 +18,7 @@ interface RecentUser {
 export default function Landing() {
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const { t } = useLocalization();
+  const { t, currentLanguage, setCurrentLanguage } = useLocalization();
 
   useEffect(() => {
     const fetchRecentUsers = async () => {
@@ -45,6 +45,29 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {/* Language Selector - Fixed Position */}
+      <div className="fixed top-4 right-4 z-50">
+        <div className="flex gap-2">
+          {LANGUAGES.map((lang) => (
+            <Button
+              key={lang.code}
+              variant={currentLanguage.code === lang.code ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCurrentLanguage(lang)}
+              className="h-8 px-2"
+              data-testid={`button-language-${lang.code}`}
+            >
+              <span className="text-lg">
+                {lang.countryCode === 'US' ? '🇺🇸' : lang.countryCode === 'BR' ? '🇧🇷' : '🌐'}
+              </span>
+              <span className="ml-1 text-xs hidden sm:inline">
+                {lang.code === 'en' ? 'EN' : 'PT'}
+              </span>
+            </Button>
+          ))}
+        </div>
+      </div>
+      
       <div className="w-full max-w-md space-y-4">
         {/* Main App Card */}
         <Card>

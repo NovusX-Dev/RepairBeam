@@ -36,6 +36,7 @@ export interface IStorage {
   getTenant(id: string): Promise<Tenant | undefined>;
   getTenantByDomain(domain: string): Promise<Tenant | undefined>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenantLanguage(id: string, language: string): Promise<Tenant | undefined>;
   
   // Client operations
   getClients(tenantId: string): Promise<Client[]>;
@@ -108,6 +109,15 @@ export class DatabaseStorage implements IStorage {
   async createTenant(tenant: InsertTenant): Promise<Tenant> {
     const [newTenant] = await db.insert(tenants).values(tenant).returning();
     return newTenant;
+  }
+
+  async updateTenantLanguage(id: string, language: string): Promise<Tenant | undefined> {
+    const [tenant] = await db
+      .update(tenants)
+      .set({ preferredLanguage: language, updatedAt: new Date() })
+      .where(eq(tenants.id, id))
+      .returning();
+    return tenant;
   }
 
   // Client operations

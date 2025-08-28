@@ -45,6 +45,7 @@ export const tenants = pgTable("tenants", {
   alias: varchar("alias"), // Shop display name/alias
   shopImageUrl: varchar("shop_image_url"), // Shop logo/image URL
   domain: varchar("domain").unique(),
+  preferredLanguage: varchar("preferred_language").default('en'), // User's preferred language
   settings: jsonb("settings").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

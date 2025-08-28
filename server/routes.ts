@@ -374,6 +374,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/tenants/language", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { language } = req.body;
+      if (!language || !['en', 'pt-BR'].includes(language)) {
+        return res.status(400).json({ error: "Invalid language. Supported: en, pt-BR" });
+      }
+
+      const updatedTenant = await storage.updateTenantLanguage(user.tenantId, language);
+      if (!updatedTenant) {
+        return res.status(404).json({ error: "Tenant not found" });
+      }
+
+      res.json(updatedTenant);
+    } catch (error) {
+      console.error("Error updating tenant language:", error);
+      res.status(500).json({ error: "Failed to update tenant language" });
+    }
+  });
+
   // Get recent users for quick login (shows users who logged in before)
   app.get("/api/auth/recent-users", async (req, res) => {
     try {
