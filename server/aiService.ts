@@ -550,20 +550,15 @@ JSON: {"brands": ["Brand1", "Brand2", ...]}
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o", // Use GPT-4o to avoid reasoning token exhaustion
         messages: [
-          {
-            role: "system",
-            content: "Device brand expert for repair shops. Provide accurate brand lists."
-          },
           {
             role: "user",
             content: prompt
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 800
-        // Note: gpt-5 only supports default temperature (1), removed custom temperature
+        max_completion_tokens: 1200
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
