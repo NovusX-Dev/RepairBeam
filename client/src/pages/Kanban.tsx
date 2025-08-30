@@ -9,6 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -60,6 +67,11 @@ interface TicketFormData {
   apartment: string;
   birthday: string;
   email: string;
+  // Device Information
+  deviceType: string;
+  deviceBrand: string;
+  deviceModel: string;
+  serialNumber: string;
 }
 
 type TicketWithClient = Ticket & { client?: Client };
@@ -152,6 +164,10 @@ export default function KanbanTickets() {
     apartment: '',
     birthday: '',
     email: '',
+    deviceType: '',
+    deviceBrand: '',
+    deviceModel: '',
+    serialNumber: '',
   });
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
@@ -218,6 +234,10 @@ export default function KanbanTickets() {
         apartment: '',
         birthday: '',
         email: '',
+        deviceType: '',
+        deviceBrand: '',
+        deviceModel: '',
+        serialNumber: '',
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -399,6 +419,14 @@ export default function KanbanTickets() {
       case 'apartment':
         isValid = value.trim().length > 0; // Show valid when has content
         break;
+      case 'deviceType':
+        isValid = ['phone', 'laptop', 'desktop'].includes(value);
+        break;
+      case 'deviceBrand':
+      case 'deviceModel':
+      case 'serialNumber':
+        isValid = value.trim().length > 0;
+        break;
       default:
         isValid = value.length > 0;
     }
@@ -526,6 +554,10 @@ export default function KanbanTickets() {
         apartment: '',
         birthday: '',
         email: '',
+        deviceType: '',
+        deviceBrand: '',
+        deviceModel: '',
+        serialNumber: '',
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -1059,53 +1091,91 @@ export default function KanbanTickets() {
                     </p>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="deviceType">{t("device_type", "Device Type")} *</Label>
-                      <Input
-                        id="deviceType"
-                        placeholder={t("device_type_placeholder", "e.g., Smartphone, Laptop, Tablet")}
-                        data-testid="input-device-type"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="deviceBrand">{t("device_brand", "Brand")}</Label>
-                      <Input
-                        id="deviceBrand"
-                        placeholder={t("device_brand_placeholder", "e.g., Apple, Samsung, Dell")}
-                        data-testid="input-device-brand"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="deviceModel">{t("device_model", "Model")}</Label>
-                      <Input
-                        id="deviceModel"
-                        placeholder={t("device_model_placeholder", "e.g., iPhone 13, Galaxy S21")}
-                        data-testid="input-device-model"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="serialNumber">{t("serial_number", "Serial Number")}</Label>
-                      <Input
-                        id="serialNumber"
-                        placeholder={t("serial_placeholder", "Optional - if available")}
-                        data-testid="input-serial-number"
-                      />
-                    </div>
+                  {/* Device Type Selection - Primary Field */}
+                  <div className="mb-8">
+                    <Label htmlFor="deviceType" className="text-base font-medium">
+                      {t("device_type", "Device Type")} *
+                    </Label>
+                    <Select
+                      value={formData.deviceType}
+                      onValueChange={(value) => handleInputChange('deviceType', value)}
+                      data-testid="select-device-type"
+                    >
+                      <SelectTrigger className={`mt-2 ${formErrors.deviceType ? 'border-red-500' : ''}`}>
+                        <SelectValue placeholder={t("select_device_type", "Select device type...")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="phone">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">📱</span>
+                            {t("device_type_phone", "Phone")}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="laptop">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">💻</span>
+                            {t("device_type_laptop", "Laptop")}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="desktop">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">🖥️</span>
+                            {t("device_type_desktop", "Desktop")}
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formErrors.deviceType && (
+                      <div className="text-sm text-red-500 mt-1">
+                        {t("device_type_required", "Please select a device type")}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Device Details - Only show after device type is selected */}
+                  {formData.deviceType && (
+                    <div className="space-y-6 animate-in slide-in-from-top-2 duration-300">
+                      <div className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></span>
+                        {t("device_details_unlocked", "Device details are now available")}
+                      </div>
                   
-                  <div>
-                    <Label htmlFor="deviceCondition">{t("device_condition", "Device Condition")}</Label>
-                    <Textarea
-                      id="deviceCondition"
-                      placeholder={t("condition_placeholder", "Describe the current physical condition of the device...")}
-                      rows={3}
-                      data-testid="textarea-device-condition"
-                    />
-                  </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <Label htmlFor="deviceBrand">{t("device_brand", "Brand")}</Label>
+                          <Input
+                            id="deviceBrand"
+                            value={formData.deviceBrand || ''}
+                            onChange={(e) => handleInputChange('deviceBrand', e.target.value)}
+                            placeholder={t("device_brand_placeholder", "e.g., Apple, Samsung, Dell")}
+                            data-testid="input-device-brand"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="deviceModel">{t("device_model", "Model")}</Label>
+                          <Input
+                            id="deviceModel"
+                            value={formData.deviceModel || ''}
+                            onChange={(e) => handleInputChange('deviceModel', e.target.value)}
+                            placeholder={t("device_model_placeholder", "e.g., iPhone 13, Galaxy S21")}
+                            data-testid="input-device-model"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="serialNumber">{t("serial_number", "Serial Number")}</Label>
+                          <Input
+                            id="serialNumber"
+                            value={formData.serialNumber || ''}
+                            onChange={(e) => handleInputChange('serialNumber', e.target.value)}
+                            placeholder={t("serial_placeholder", "Optional - if available")}
+                            data-testid="input-serial-number"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
