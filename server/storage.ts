@@ -8,6 +8,10 @@ import {
   supportTickets,
   localizations,
   autoGenLists,
+  userProgress,
+  achievements,
+  userAchievements,
+  userActivities,
   type User,
   type UpsertUser,
   type Tenant,
@@ -26,6 +30,14 @@ import {
   type InsertLocalization,
   type AutoGenList,
   type InsertAutoGenList,
+  type UserProgress,
+  type InsertUserProgress,
+  type Achievement,
+  type InsertAchievement,
+  type UserAchievement,
+  type InsertUserAchievement,
+  type UserActivity,
+  type InsertUserActivity,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -110,6 +122,25 @@ export interface IStorage {
   createAutoGenList(list: InsertAutoGenList): Promise<AutoGenList>;
   updateAutoGenList(id: string, list: Partial<InsertAutoGenList>): Promise<AutoGenList | undefined>;
   getAutoGenListsForUpdate(): Promise<AutoGenList[]>;
+  
+  // Gamification operations
+  getUserProgress(userId: string, tenantId: string): Promise<UserProgress | undefined>;
+  createUserProgress(progress: InsertUserProgress): Promise<UserProgress>;
+  updateUserProgress(userId: string, tenantId: string, progress: Partial<InsertUserProgress>): Promise<UserProgress | undefined>;
+  addExperience(userId: string, tenantId: string, experience: number): Promise<UserProgress | undefined>;
+  updateStreak(userId: string, tenantId: string): Promise<UserProgress | undefined>;
+  
+  getAchievements(): Promise<Achievement[]>;
+  getAchievementsByCategory(category: string): Promise<Achievement[]>;
+  createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+  
+  getUserAchievements(userId: string, tenantId: string): Promise<(UserAchievement & { achievement: Achievement })[]>;
+  unlockAchievement(userId: string, tenantId: string, achievementId: string): Promise<UserAchievement>;
+  hasAchievement(userId: string, tenantId: string, achievementKey: string): Promise<boolean>;
+  
+  getUserActivities(userId: string, tenantId: string, limit?: number): Promise<UserActivity[]>;
+  recordActivity(activity: InsertUserActivity): Promise<UserActivity>;
+  getActivityStats(userId: string, tenantId: string, activityType?: string): Promise<{ count: number; totalExperience: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -468,6 +499,230 @@ export class DatabaseStorage implements IStorage {
           eq(autoGenLists.isActive, true),
           sql`${autoGenLists.nextUpdate} <= NOW()`
         ));
+    });
+  }
+
+  // Gamification methods implementation
+  async getUserProgress(userId: string, tenantId: string): Promise<UserProgress | undefined> {
+    return withRetry(async () => {
+      const [progress] = await db
+        .select()
+        .from(userProgress)
+        .where(and(eq(userProgress.userId, userId), eq(userProgress.tenantId, tenantId)));
+      return progress;
+    });
+  }
+
+  async createUserProgress(progress: InsertUserProgress): Promise<UserProgress> {
+    return withRetry(async () => {
+      const [newProgress] = await db
+        .insert(userProgress)
+        .values(progress)
+        .returning();
+      return newProgress;
+    });
+  }
+
+  async updateUserProgress(userId: string, tenantId: string, progress: Partial<InsertUserProgress>): Promise<UserProgress | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(userProgress)
+        .set({ ...progress, updatedAt: new Date() })
+        .where(and(eq(userProgress.userId, userId), eq(userProgress.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  async addExperience(userId: string, tenantId: string, experience: number): Promise<UserProgress | undefined> {
+    return withRetry(async () => {
+      // Get current progress or create new one
+      let progress = await this.getUserProgress(userId, tenantId);
+      
+      if (!progress) {
+        progress = await this.createUserProgress({
+          userId,
+          tenantId,
+          experience,
+          totalActions: 1,
+        });
+      } else {
+        const newExperience = progress.experience + experience;
+        const newLevel = Math.floor(newExperience / 100) + 1; // 100 XP per level
+        
+        progress = await this.updateUserProgress(userId, tenantId, {
+          experience: newExperience,
+          level: newLevel,
+          totalActions: progress.totalActions + 1,
+        });
+      }
+      
+      return progress;
+    });
+  }
+
+  async updateStreak(userId: string, tenantId: string): Promise<UserProgress | undefined> {
+    return withRetry(async () => {
+      const progress = await this.getUserProgress(userId, tenantId);
+      if (!progress) return undefined;
+
+      const today = new Date();
+      const lastActive = progress.lastActiveDate ? new Date(progress.lastActiveDate) : null;
+      
+      let newStreak = progress.streakDays;
+      
+      if (lastActive) {
+        const daysDiff = Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff === 1) {
+          // Consecutive day, increment streak
+          newStreak = progress.streakDays + 1;
+        } else if (daysDiff > 1) {
+          // Missed days, reset streak
+          newStreak = 1;
+        }
+        // If daysDiff === 0, same day, keep current streak
+      } else {
+        // First time, start streak
+        newStreak = 1;
+      }
+
+      return await this.updateUserProgress(userId, tenantId, {
+        streakDays: newStreak,
+        lastActiveDate: today,
+      });
+    });
+  }
+
+  async getAchievements(): Promise<Achievement[]> {
+    return withRetry(async () => {
+      return await db.select().from(achievements).orderBy(asc(achievements.category), asc(achievements.requiredValue));
+    });
+  }
+
+  async getAchievementsByCategory(category: string): Promise<Achievement[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(achievements)
+        .where(eq(achievements.category, category))
+        .orderBy(asc(achievements.requiredValue));
+    });
+  }
+
+  async createAchievement(achievement: InsertAchievement): Promise<Achievement> {
+    return withRetry(async () => {
+      const [newAchievement] = await db
+        .insert(achievements)
+        .values(achievement)
+        .returning();
+      return newAchievement;
+    });
+  }
+
+  async getUserAchievements(userId: string, tenantId: string): Promise<(UserAchievement & { achievement: Achievement })[]> {
+    return withRetry(async () => {
+      const result = await db
+        .select({
+          id: userAchievements.id,
+          userId: userAchievements.userId,
+          tenantId: userAchievements.tenantId,
+          achievementId: userAchievements.achievementId,
+          unlockedAt: userAchievements.unlockedAt,
+          achievement: achievements,
+        })
+        .from(userAchievements)
+        .innerJoin(achievements, eq(userAchievements.achievementId, achievements.id))
+        .where(and(eq(userAchievements.userId, userId), eq(userAchievements.tenantId, tenantId)))
+        .orderBy(desc(userAchievements.unlockedAt));
+      
+      return result.map(row => ({
+        ...row,
+        achievement: row.achievement,
+      })) as (UserAchievement & { achievement: Achievement })[];
+    });
+  }
+
+  async unlockAchievement(userId: string, tenantId: string, achievementId: string): Promise<UserAchievement> {
+    return withRetry(async () => {
+      const [unlock] = await db
+        .insert(userAchievements)
+        .values({ userId, tenantId, achievementId })
+        .returning();
+      return unlock;
+    });
+  }
+
+  async hasAchievement(userId: string, tenantId: string, achievementKey: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .select({ id: userAchievements.id })
+        .from(userAchievements)
+        .innerJoin(achievements, eq(userAchievements.achievementId, achievements.id))
+        .where(and(
+          eq(userAchievements.userId, userId),
+          eq(userAchievements.tenantId, tenantId),
+          eq(achievements.key, achievementKey)
+        ))
+        .limit(1);
+      
+      return result.length > 0;
+    });
+  }
+
+  async getUserActivities(userId: string, tenantId: string, limit = 50): Promise<UserActivity[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(userActivities)
+        .where(and(eq(userActivities.userId, userId), eq(userActivities.tenantId, tenantId)))
+        .orderBy(desc(userActivities.createdAt))
+        .limit(limit);
+    });
+  }
+
+  async recordActivity(activity: InsertUserActivity): Promise<UserActivity> {
+    return withRetry(async () => {
+      const [newActivity] = await db
+        .insert(userActivities)
+        .values(activity)
+        .returning();
+      
+      // Add experience to user progress
+      if (activity.experienceGained && activity.experienceGained > 0) {
+        await this.addExperience(activity.userId, activity.tenantId, activity.experienceGained);
+      }
+      
+      // Update daily streak
+      await this.updateStreak(activity.userId, activity.tenantId);
+      
+      return newActivity;
+    });
+  }
+
+  async getActivityStats(userId: string, tenantId: string, activityType?: string): Promise<{ count: number; totalExperience: number }> {
+    return withRetry(async () => {
+      const conditions = [
+        eq(userActivities.userId, userId),
+        eq(userActivities.tenantId, tenantId),
+      ];
+      
+      if (activityType) {
+        conditions.push(eq(userActivities.activityType, activityType));
+      }
+      
+      const result = await db
+        .select({
+          count: sql<number>`count(*)`,
+          totalExperience: sql<number>`sum(${userActivities.experienceGained})`,
+        })
+        .from(userActivities)
+        .where(and(...conditions));
+      
+      return {
+        count: Number(result[0]?.count || 0),
+        totalExperience: Number(result[0]?.totalExperience || 0),
+      };
     });
   }
 }

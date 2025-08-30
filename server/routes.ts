@@ -336,6 +336,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gamification API routes
+  app.get("/api/gamification/progress", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, tenantId } = req.user;
+      let progress = await storage.getUserProgress(userId, tenantId);
+      
+      // Create initial progress if none exists
+      if (!progress) {
+        progress = await storage.createUserProgress({
+          userId,
+          tenantId,
+        });
+      }
+      
+      res.json(progress);
+    } catch (error) {
+      console.error('Error fetching user progress:', error);
+      res.status(500).json({ error: 'Failed to fetch user progress' });
+    }
+  });
+
+  app.get("/api/gamification/achievements", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, tenantId } = req.user;
+      const achievements = await storage.getUserAchievements(userId, tenantId);
+      res.json(achievements);
+    } catch (error) {
+      console.error('Error fetching user achievements:', error);
+      res.status(500).json({ error: 'Failed to fetch user achievements' });
+    }
+  });
+
+  app.get("/api/gamification/activities", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, tenantId } = req.user;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const activities = await storage.getUserActivities(userId, tenantId, limit);
+      res.json(activities);
+    } catch (error) {
+      console.error('Error fetching user activities:', error);
+      res.status(500).json({ error: 'Failed to fetch user activities' });
+    }
+  });
+
+  app.post("/api/gamification/activity", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId, tenantId } = req.user;
+      const { activityType, entityType, entityId, experienceGained, metadata } = req.body;
+      
+      const activity = await storage.recordActivity({
+        userId,
+        tenantId,
+        activityType,
+        entityType,
+        entityId,
+        experienceGained: experienceGained || 0,
+        metadata: metadata || {},
+      });
+      
+      res.json(activity);
+    } catch (error) {
+      console.error('Error recording activity:', error);
+      res.status(500).json({ error: 'Failed to record activity' });
+    }
+  });
+
   // Shop image upload routes"}
   app.post("/api/shop-images/upload", isAuthenticated, async (req, res) => {
     try {

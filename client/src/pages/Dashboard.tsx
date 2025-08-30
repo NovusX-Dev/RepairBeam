@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import UnderConstruction from "@/components/UnderConstruction";
+import { GamificationTracker } from "@/components/GamificationTracker";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { 
   LayoutDashboard, 
@@ -111,12 +112,19 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Under Construction */}
-      <UnderConstruction
-        title={t("dashboard_under_construction", "Dashboard Under Construction")}
-        description={t("dashboard_construction_desc", "Advanced analytics, reporting tools, and comprehensive business insights are being developed. Coming soon with real-time data visualization and performance metrics.")}
-        icon={<LayoutDashboard className="w-10 h-10 text-primary" />}
-      />
+      {/* Gamification and Additional Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div>
+          <GamificationTracker />
+        </div>
+        <div>
+          <UnderConstruction
+            title={t("dashboard_under_construction", "Dashboard Under Construction")}
+            description={t("dashboard_construction_desc", "Advanced analytics and reporting tools coming soon.")}
+            icon={<LayoutDashboard className="w-10 h-10 text-primary" />}
+          />
+        </div>
+      </div>
     </div>
   );
 }

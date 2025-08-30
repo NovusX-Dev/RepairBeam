@@ -280,6 +280,94 @@ export const insertAutoGenListSchema = createInsertSchema(autoGenLists).omit({
   updatedAt: true,
 });
 
+// User progress tracking for gamification
+export const userProgress = pgTable("user_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tenantId: varchar("tenant_id").notNull(),
+  level: integer("level").notNull().default(1),
+  experience: integer("experience").notNull().default(0),
+  totalActions: integer("total_actions").notNull().default(0),
+  streakDays: integer("streak_days").notNull().default(0),
+  lastActiveDate: timestamp("last_active_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Achievement definitions
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key").notNull().unique(), // e.g., 'first_client', 'ticket_master', etc.
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  icon: varchar("icon").notNull(), // Icon name or emoji
+  category: varchar("category").notNull(), // e.g., 'clients', 'tickets', 'sales'
+  requiredValue: integer("required_value").notNull(), // Number needed to unlock
+  experienceReward: integer("experience_reward").notNull().default(0),
+  isHidden: boolean("is_hidden").notNull().default(false), // Secret achievements
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User achievement unlocks
+export const userAchievements = pgTable("user_achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tenantId: varchar("tenant_id").notNull(),
+  achievementId: varchar("achievement_id").notNull(),
+  unlockedAt: timestamp("unlocked_at").defaultNow(),
+}, (table) => [
+  index("idx_user_achievements_user").on(table.userId),
+  index("idx_user_achievements_tenant").on(table.tenantId),
+]);
+
+// Activity tracking for gamification
+export const userActivities = pgTable("user_activities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  tenantId: varchar("tenant_id").notNull(),
+  activityType: varchar("activity_type").notNull(), // e.g., 'client_created', 'ticket_completed'
+  entityType: varchar("entity_type"), // e.g., 'client', 'ticket', 'transaction'
+  entityId: varchar("entity_id"), // ID of the entity involved
+  experienceGained: integer("experience_gained").notNull().default(0),
+  metadata: jsonb("metadata").default({}), // Additional activity data
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_user_activities_user").on(table.userId),
+  index("idx_user_activities_type").on(table.activityType),
+  index("idx_user_activities_date").on(table.createdAt),
+]);
+
+// Schema exports for gamification
+export const userProgressInsertSchema = createInsertSchema(userProgress).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const achievementInsertSchema = createInsertSchema(achievements).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const userAchievementInsertSchema = createInsertSchema(userAchievements).omit({
+  id: true,
+  unlockedAt: true,
+});
+
+export const userActivityInsertSchema = createInsertSchema(userActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type UserProgress = typeof userProgress.$inferSelect;
+export type InsertUserProgress = z.infer<typeof userProgressInsertSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertAchievement = z.infer<typeof achievementInsertSchema>;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type InsertUserAchievement = z.infer<typeof userAchievementInsertSchema>;
+export type UserActivity = typeof userActivities.$inferSelect;
+export type InsertUserActivity = z.infer<typeof userActivityInsertSchema>;
+
 export type InsertTicketType = z.infer<typeof insertTicketSchema>;
 export type InsertLocalizationType = z.infer<typeof insertLocalizationSchema>;
 export type InsertAutoGenListType = z.infer<typeof insertAutoGenListSchema>;
