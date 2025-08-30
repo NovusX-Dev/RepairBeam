@@ -48,14 +48,17 @@ export function GenerationProgressDialog({
     setProgressPercentage(progress);
     setCurrentBrand(completedBrands);
     
-    // Estimate remaining time based on actual progress (4 minutes per brand average)
+    // Estimate remaining time based on actual progress (30 seconds per brand average - much faster now)
     const remainingBrands = totalBrands - completedBrands;
-    const estimatedRemainingMinutes = remainingBrands * 4;
+    const estimatedRemainingSeconds = remainingBrands * 2; // 2 seconds per brand average
     
     if (remainingBrands === 0) {
       setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
-    } else if (estimatedRemainingMinutes > 1) {
-      setEstimatedTimeRemaining(t('progress.estimated_time_minutes', '{minutes} minutes remaining').replace('{minutes}', estimatedRemainingMinutes.toString()));
+    } else if (estimatedRemainingSeconds > 60) {
+      const minutes = Math.ceil(estimatedRemainingSeconds / 60);
+      setEstimatedTimeRemaining(t('progress.estimated_time_minutes', '{minutes} minutes remaining').replace('{minutes}', minutes.toString()));
+    } else if (estimatedRemainingSeconds > 10) {
+      setEstimatedTimeRemaining(t('progress.estimated_time_seconds', '{seconds} seconds remaining').replace('{seconds}', estimatedRemainingSeconds.toString()));
     } else {
       setEstimatedTimeRemaining(t('progress.estimated_time_soon', 'Almost complete...'));
     }
@@ -68,10 +71,10 @@ export function GenerationProgressDialog({
       setCurrentBrand(totalBrands);
       setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
       
-      // Auto-close after a short delay
+      // Auto-close after longer delay to let user see completion
       setTimeout(() => {
         onOpenChange(false);
-      }, 2000);
+      }, 4000);
     }
   }, [isGenerating, progressPercentage, totalBrands, t, onOpenChange]);
 

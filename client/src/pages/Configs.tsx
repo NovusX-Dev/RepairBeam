@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,29 @@ export default function Configs() {
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [progressCategory, setProgressCategory] = useState<string>("");
   const [progressTotalBrands, setProgressTotalBrands] = useState(0);
+  const [realTimeProgress, setRealTimeProgress] = useState(0);
+
+  // Poll generation status when a generation is running
+  useEffect(() => {
+    if (!generatingModels || !showProgressDialog) return;
+    
+    const pollStatus = async () => {
+      try {
+        const response = await fetch(`/api/auto-gen-lists/${generatingModels}/status`);
+        if (response.ok) {
+          const status = await response.json();
+          setRealTimeProgress(status.processedBrands || 0);
+        }
+      } catch (error) {
+        // Ignore polling errors
+      }
+    };
+    
+    // Poll every 2 seconds during generation
+    const interval = setInterval(pollStatus, 2000);
+    
+    return () => clearInterval(interval);
+  }, [generatingModels, showProgressDialog]);
 
   // Fetch all auto-generated lists
   const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
@@ -131,6 +154,7 @@ export default function Configs() {
     if (brandList) {
       setProgressCategory(category);
       setProgressTotalBrands(brandList.items.length);
+      setRealTimeProgress(0); // Reset real-time progress
       setShowProgressDialog(true);
       generateModelsMutation.mutate(category);
     }
@@ -522,7 +546,7 @@ export default function Configs() {
         category={progressCategory}
         totalBrands={progressTotalBrands}
         isGenerating={generatingModels !== null}
-        completedBrands={autoGenLists.filter(list => 
+        completedBrands={generatingModels === progressCategory ? realTimeProgress : autoGenLists.filter(list => 
           list.listType.includes('Models') && list.category === progressCategory
         ).length}
       />
