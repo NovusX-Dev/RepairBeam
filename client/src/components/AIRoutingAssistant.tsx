@@ -44,14 +44,14 @@ export function AIRoutingAssistant({ error, resetError }: AIRoutingAssistantProp
 
   // Available routes in the app
   const availableRoutes = [
-    { path: '/', name: 'Dashboard', description: 'Main dashboard with business overview' },
-    { path: '/clients', name: 'Clients', description: 'Client management system' },
-    { path: '/kanban', name: 'Kanban', description: 'Repair ticket management board' },
-    { path: '/inventory', name: 'Inventory', description: 'Parts and stock management' },
-    { path: '/pos', name: 'POS', description: 'Point of sale system' },
-    { path: '/support', name: 'Support', description: 'Customer support center' },
-    { path: '/configs', name: 'AI Lists', description: 'AI-generated device lists management' },
-    { path: '/users', name: 'Users', description: 'User and team management' },
+    { path: '/', name: 'Dashboard', description: t('routing.dashboard_desc', 'Main dashboard with business overview') },
+    { path: '/clients', name: 'Clients', description: t('routing.clients_desc', 'Client management system') },
+    { path: '/kanban', name: 'Kanban', description: t('routing.kanban_desc', 'Repair ticket management board') },
+    { path: '/inventory', name: 'Inventory', description: t('routing.inventory_desc', 'Parts and stock management') },
+    { path: '/pos', name: 'POS', description: t('routing.pos_desc', 'Point of sale system') },
+    { path: '/support', name: 'Support', description: t('routing.support_desc', 'Customer support center') },
+    { path: '/configs', name: 'AI Lists', description: t('routing.configs_desc', 'AI-generated device lists management') },
+    { path: '/users', name: 'Users', description: t('routing.users_desc', 'User and team management') },
   ];
 
   useEffect(() => {
