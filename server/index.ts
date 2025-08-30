@@ -99,10 +99,15 @@ app.use((req, res, next) => {
 
   // Auto-generated lists management system
   function startAutoGenListsManager() {
-    // Check for expired lists every 6 hours
+    // DISABLED: Automatic updates are disabled to prevent unwanted OpenAI API costs
+    // Only manual updates through the API endpoints will trigger AI generation
+    log('Auto-gen lists manager: Automatic updates DISABLED for cost control');
+    log('💰 Lists will only update when manually triggered via API endpoints');
+    
+    // Optional: Uncomment to enable automatic checks (WILL COST MONEY)
+    /*
     const updateCheckInterval = 6 * 60 * 60 * 1000; // 6 hours
     
-    // Initial check after 1 minute (let server fully start)
     setTimeout(async () => {
       try {
         log('Checking for expired auto-generated lists...');
@@ -112,7 +117,6 @@ app.use((req, res, next) => {
       }
     }, 60 * 1000);
     
-    // Periodic checks
     setInterval(async () => {
       try {
         log('Checking for expired auto-generated lists...');
@@ -123,5 +127,6 @@ app.use((req, res, next) => {
     }, updateCheckInterval);
     
     log(`Auto-gen lists manager started (checks every ${updateCheckInterval / (60 * 60 * 1000)} hours)`);
+    */
   }
 })();

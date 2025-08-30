@@ -60,13 +60,15 @@ Requirements:
 
   /**
    * Generate or update brand lists for all device types
+   * WARNING: This makes OpenAI API calls which cost money - only use when explicitly requested
    */
   async generateAllDeviceBrandLists(): Promise<void> {
+    console.log('⚠️  COST WARNING: Starting AI brand list generation - this will make OpenAI API calls');
     const deviceTypes = ['Phone', 'Laptop', 'Desktop'];
     
     for (const deviceType of deviceTypes) {
       try {
-        console.log(`Generating brand list for ${deviceType}...`);
+        console.log(`💰 Making OpenAI API call for ${deviceType} brands...`);
         
         const { brands } = await this.generateDeviceBrands(deviceType);
         
@@ -78,10 +80,10 @@ Requirements:
           await storage.updateAutoGenList(existingList.id, {
             items: brands,
             lastGenerated: new Date(),
-            nextUpdate: this.getNextWeeklyUpdate(),
+            nextUpdate: this.getNextUpdate(),
             updatedAt: new Date()
           });
-          console.log(`Updated ${deviceType} brand list with ${brands.length} brands`);
+          console.log(`✅ Updated ${deviceType} brand list with ${brands.length} brands`);
         } else {
           // Create new list
           const newList: InsertAutoGenList = {
@@ -89,17 +91,19 @@ Requirements:
             category: deviceType,
             items: brands,
             lastGenerated: new Date(),
-            nextUpdate: this.getNextWeeklyUpdate(),
+            nextUpdate: this.getNextUpdate('monthly'), // Default to monthly
+            refreshInterval: 'monthly',
             isActive: true
           };
           
           await storage.createAutoGenList(newList);
-          console.log(`Created ${deviceType} brand list with ${brands.length} brands`);
+          console.log(`✅ Created ${deviceType} brand list with ${brands.length} brands`);
         }
       } catch (error) {
-        console.error(`Failed to generate/update brand list for ${deviceType}:`, error);
+        console.error(`❌ Failed to generate/update brand list for ${deviceType}:`, error);
       }
     }
+    console.log('💰 AI brand list generation completed');
   }
 
   /**
@@ -140,12 +144,30 @@ Requirements:
   }
 
   /**
-   * Get next weekly update timestamp (7 days from now)
+   * Get next update timestamp based on refresh interval
    */
-  private getNextWeeklyUpdate(): Date {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    return nextWeek;
+  private getNextUpdate(refreshInterval: string = 'monthly'): Date {
+    const now = new Date();
+    
+    switch (refreshInterval) {
+      case 'weekly':
+        now.setDate(now.getDate() + 7);
+        break;
+      case 'biweekly':
+        now.setDate(now.getDate() + 14);
+        break;
+      case 'monthly':
+        now.setMonth(now.getMonth() + 1);
+        break;
+      case 'quarterly':
+        now.setMonth(now.getMonth() + 3);
+        break;
+      default:
+        // Default to monthly if unknown interval
+        now.setMonth(now.getMonth() + 1);
+    }
+    
+    return now;
   }
 
   /**
