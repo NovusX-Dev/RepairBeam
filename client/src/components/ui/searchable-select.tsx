@@ -42,12 +42,14 @@ export function SearchableSelect({
   // Filter items based on search value
   useEffect(() => {
     if (!searchValue) {
-      setFilteredItems(items);
+      // Sort items alphabetically before setting
+      setFilteredItems([...items].sort());
     } else {
       const filtered = items.filter((item) =>
         item.toLowerCase().includes(searchValue.toLowerCase())
       );
-      setFilteredItems(filtered);
+      // Sort filtered items alphabetically
+      setFilteredItems(filtered.sort());
     }
   }, [items, searchValue]);
 
@@ -103,7 +105,7 @@ export function SearchableSelect({
             onValueChange={setSearchValue}
             className="h-9"
           />
-          <CommandList>
+          <CommandList className="max-h-60 overflow-y-auto overscroll-contain">
             <CommandEmpty>
               {allowCustomInput && searchValue ? (
                 <div className="p-2">

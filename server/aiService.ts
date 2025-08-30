@@ -48,7 +48,7 @@ Requirements:
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
       
       return {
-        brands: result.brands || [],
+        brands: (result.brands || []).sort(),
         category: deviceType
       };
     } catch (error) {
@@ -275,7 +275,7 @@ Examples:
     };
 
     return {
-      brands: fallbackBrands[deviceType] || [],
+      brands: (fallbackBrands[deviceType] || []).sort(),
       category: deviceType
     };
   }

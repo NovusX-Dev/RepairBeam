@@ -30,7 +30,7 @@ export function useDeviceBrands(deviceType: string | null) {
           id: 'fallback',
           listType: `AutoGen-List-Brands-${deviceType}`,
           category: deviceType,
-          items: fallbackBrands,
+          items: fallbackBrands.sort(),
           lastGenerated: new Date().toISOString(),
           nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
           isActive: true,
@@ -68,7 +68,7 @@ function getFallbackBrands(deviceType: string): string[] {
     ]
   };
 
-  return fallbackBrands[deviceType] || [];
+  return (fallbackBrands[deviceType] || []).sort();
 }
 
 export function useInitializeBrandLists() {
