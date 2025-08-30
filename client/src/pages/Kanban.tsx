@@ -453,11 +453,40 @@ export default function KanbanTickets() {
   };
   
   const handleInputChange = (field: keyof TicketFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newFormData = { ...prev, [field]: value };
+      
+      // Reset dependent fields when device type changes
+      if (field === 'deviceType') {
+        newFormData.deviceBrand = '';
+        newFormData.deviceModel = '';
+      }
+      
+      return newFormData;
+    });
     
-    // Clear error when user starts typing
+    // Clear errors for the changed field and dependent fields
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: undefined }));
+      setFormErrors(prev => {
+        const newErrors = { ...prev, [field]: undefined };
+        
+        // Clear dependent field errors when device type changes
+        if (field === 'deviceType') {
+          newErrors.deviceBrand = undefined;
+          newErrors.deviceModel = undefined;
+        }
+        
+        return newErrors;
+      });
+    }
+    
+    // Reset dependent field validations when device type changes
+    if (field === 'deviceType') {
+      setFieldValidation(prev => ({
+        ...prev,
+        deviceBrand: { isValid: false, hasError: false },
+        deviceModel: { isValid: false, hasError: false }
+      }));
     }
     
     // Real-time validation for micro-interactions
