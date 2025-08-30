@@ -430,7 +430,7 @@ export default function KanbanTickets() {
         isValid = value.trim().length > 0; // Show valid when has content
         break;
       case 'deviceType':
-        isValid = ['phone', 'laptop', 'desktop'].includes(value);
+        isValid = ['Phone', 'Laptop', 'Desktop'].includes(value);
         break;
       case 'deviceBrand':
       case 'deviceModel':
@@ -1115,19 +1115,19 @@ export default function KanbanTickets() {
                         <SelectValue placeholder={t("select_device_type", "Select device type...")} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="phone">
+                        <SelectItem value="Phone">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">📱</span>
                             {t("device_type_phone", "Phone")}
                           </div>
                         </SelectItem>
-                        <SelectItem value="laptop">
+                        <SelectItem value="Laptop">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">💻</span>
                             {t("device_type_laptop", "Laptop")}
                           </div>
                         </SelectItem>
-                        <SelectItem value="desktop">
+                        <SelectItem value="Desktop">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">🖥️</span>
                             {t("device_type_desktop", "Desktop")}
