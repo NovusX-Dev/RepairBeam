@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone } from "lucide-react";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
@@ -166,6 +166,42 @@ export default function Configs() {
     },
   });
 
+  // Retry failed brands mutation
+  const retryFailedMutation = useMutation({
+    mutationFn: async (category: string) => {
+      setGeneratingModels(category);
+      const response = await fetch(`/api/auto-gen-lists/${category}/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to retry generation');
+      }
+      return response.json();
+    },
+    onSuccess: (data, category) => {
+      toast({
+        title: t('toast.retry_started', 'Retry Started'),
+        description: t('retry_started_desc', `Retrying failed brands for ${category}. This may take a few minutes.`),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
+    },
+    onError: (error: Error, category) => {
+      toast({
+        title: t('toast.retry_failed', 'Retry Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      // Don't immediately close dialog - let the completion effect handle it
+      setTimeout(() => {
+        setGeneratingModels(null);
+      }, 1000); // Small delay to ensure final progress is shown
+    },
+  });
+
   // Handle generate models with progress dialog
   const handleGenerateModels = (category: string) => {
     const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
@@ -178,10 +214,39 @@ export default function Configs() {
     }
   };
 
+  // Handle retry failed brands with progress dialog
+  const handleRetryFailedBrands = (category: string) => {
+    const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
+    if (brandList) {
+      setProgressCategory(category);
+      setProgressTotalBrands(brandList.items.length);
+      setRealTimeProgress(0); // Reset real-time progress
+      setShowProgressDialog(true);
+      retryFailedMutation.mutate(category);
+    }
+  };
+
   const canUpdateList = (list: AutoGenList) => {
     const now = new Date();
     const nextUpdate = new Date(list.nextUpdate);
     return now >= nextUpdate;
+  };
+
+  // Check if a category has failed generations that can be retried
+  const hasFailedGenerations = (category: string) => {
+    // Simulate checking if there are failed brands by comparing expected vs actual model lists
+    const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
+    const modelLists = autoGenLists.filter(list => 
+      list.listType.includes('Models') && list.category === category
+    );
+    
+    if (!brandList) return false;
+    
+    // If we have significantly fewer model lists than brands, there might be failures
+    const expectedBrands = brandList.items.length;
+    const actualModels = modelLists.length;
+    
+    return expectedBrands > actualModels && actualModels > 0; // Some success, but not complete
   };
 
   const getTimeUntilNextUpdate = (nextUpdate: string | Date) => {
@@ -472,6 +537,7 @@ export default function Configs() {
                   // Check if generation might be in progress (some models exist but not all brands covered)
                   const mightBeGenerating = hasModels && modelLists.length < brandList.items.length && !isGenerating;
                   const shouldDisableButton = hasModels && modelLists.length >= brandList.items.length;
+                  const hasFailed = hasFailedGenerations(brandList.category);
                   
                   return (
                     <Card key={`models-${brandList.category}`} className="relative">
@@ -508,6 +574,11 @@ export default function Configs() {
                               ✅ {t('configs.models_generated_successfully', 'Models generated successfully')}
                             </p>
                           )}
+                          {hasFailed && (
+                            <p className="text-sm text-orange-600 dark:text-orange-400">
+                              ⚠️ {t('configs.partial_failure_detected', 'Some brands may have failed - retry available')}
+                            </p>
+                          )}
                         </div>
 
                         {shouldDisableButton && (
@@ -519,35 +590,59 @@ export default function Configs() {
                           </div>
                         )}
 
-                        <Button
-                          onClick={() => handleGenerateModels(brandList.category)}
-                          disabled={shouldDisableButton || isGenerating || generateModelsMutation.isPending}
-                          className="w-full"
-                          variant={shouldDisableButton ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
-                          data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
-                        >
-                          {isGenerating ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {t('generating_models', 'Generating Models...')}
-                            </>
-                          ) : shouldDisableButton ? (
-                            <>
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                              {t('configs.models_already_generated', 'Models Already Generated')}
-                            </>
-                          ) : mightBeGenerating ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              {t('configs.continue_generation', 'Continue Generation')} ({modelLists.length}/{brandList.items.length}) 💰
-                            </>
-                          ) : (
-                            <>
-                              <Bot className="w-4 h-4 mr-2" />
-                              {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))} 💰
-                            </>
+                        <div className="space-y-2">
+                          <Button
+                            onClick={() => handleGenerateModels(brandList.category)}
+                            disabled={shouldDisableButton || isGenerating || generateModelsMutation.isPending}
+                            className="w-full"
+                            variant={shouldDisableButton ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
+                            data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
+                          >
+                            {isGenerating ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t('generating_models', 'Generating Models...')}
+                              </>
+                            ) : shouldDisableButton ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                {t('configs.models_already_generated', 'Models Already Generated')}
+                              </>
+                            ) : mightBeGenerating ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                {t('configs.continue_generation', 'Continue Generation')} ({modelLists.length}/{brandList.items.length}) 💰
+                              </>
+                            ) : (
+                              <>
+                                <Bot className="w-4 h-4 mr-2" />
+                                {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))} 💰
+                              </>
+                            )}
+                          </Button>
+                          
+                          {hasFailed && !isGenerating && (
+                            <Button
+                              onClick={() => handleRetryFailedBrands(brandList.category)}
+                              disabled={retryFailedMutation.isPending}
+                              className="w-full"
+                              variant="outline"
+                              data-testid={`button-retry-failed-${brandList.category.toLowerCase()}`}
+                            >
+                              {retryFailedMutation.isPending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  {t('retrying_failed', 'Retrying Failed...')}
+                                </>
+                              ) : (
+                                <>
+                                  <RotateCcw className="w-4 h-4 mr-2" />
+                                  {t('retry_failed_brands', 'Retry Failed Brands')} 💰
+                                </>
+                              )}
+                            </Button>
                           )}
-                        </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   );

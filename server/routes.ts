@@ -966,6 +966,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Retry failed brands for a specific category
+  app.post("/api/auto-gen-lists/:category/retry", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log(`⚠️  COST WARNING: User ${userId} is retrying failed brands for ${category}`);
+      
+      // Start retry process asynchronously
+      aiService.retryFailedBrands(category).catch(error => {
+        console.error(`Async retry failed for ${category}:`, error);
+      });
+      
+      res.json({ 
+        message: `Retry started for failed brands in ${category}. Check status endpoint for progress.`,
+        statusEndpoint: `/api/auto-gen-lists/${category}/status`,
+        isAsync: true
+      });
+    } catch (error) {
+      console.error(`Error starting retry for ${req.params.category}:`, error);
+      res.status(500).json({ message: error.message || "Failed to start retry" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -153,6 +153,103 @@ export class AIService {
     statusManager.completeGeneration(deviceType, false, 'Status reset');
     console.log(`🔄 Reset generation status for ${deviceType}`);
   }
+
+  /**
+   * Retry failed brands for a specific device type
+   * WARNING: This makes OpenAI API calls which cost money - only use when explicitly requested
+   */
+  async retryFailedBrands(deviceType: string): Promise<{ retriedBrands: string[], successCount: number, stillFailedBrands: string[] }> {
+    console.log(`⚠️  COST WARNING: Retrying failed brands for ${deviceType} - this will make OpenAI API calls`);
+    
+    const status = statusManager.getStatus(deviceType);
+    if (!status || status.failedBrands.length === 0) {
+      throw new Error(`No failed brands found for ${deviceType}`);
+    }
+
+    const failedBrands = [...status.failedBrands];
+    console.log(`🔄 Retrying ${failedBrands.length} failed brands for ${deviceType}: ${failedBrands.join(', ')}`);
+
+    // Check for existing generation and prevent concurrent retries
+    if (status.status === 'running') {
+      throw new Error(`Generation already in progress for ${deviceType}`);
+    }
+
+    try {
+      // Start retry generation tracking
+      statusManager.startGeneration(deviceType, status.totalBrands);
+      
+      const results = await this.generateModelsBatch(deviceType, failedBrands);
+      const successfulBrands: string[] = [];
+      const stillFailedBrands: string[] = [];
+
+      // Process retry results and save to database
+      for (const brand of failedBrands) {
+        if (results[brand] && results[brand].length > 0) {
+          try {
+            await this.saveModelListToDatabase(deviceType, brand, results[brand]);
+            successfulBrands.push(brand);
+            console.log(`✅ Retry successful for ${brand}: ${results[brand].length} models`);
+          } catch (error) {
+            console.error(`💾 Storage error during retry for ${brand}:`, error);
+            stillFailedBrands.push(brand);
+          }
+        } else {
+          stillFailedBrands.push(brand);
+          console.log(`❌ Retry still failed for ${brand}`);
+        }
+      }
+
+      // Update status with retry results
+      const newFailedBrands = status.failedBrands.filter(brand => !successfulBrands.includes(brand));
+      statusManager.updateProgress(deviceType, status.processedBrands + successfulBrands.length, newFailedBrands);
+      statusManager.completeGeneration(deviceType, stillFailedBrands.length === 0, 
+        stillFailedBrands.length > 0 ? `${stillFailedBrands.length} brands still failed after retry` : undefined);
+
+      console.log(`🎉 Retry completed: ${successfulBrands.length} successful, ${stillFailedBrands.length} still failed`);
+      
+      return {
+        retriedBrands: failedBrands,
+        successCount: successfulBrands.length,
+        stillFailedBrands
+      };
+
+    } catch (error) {
+      console.error(`❌ Retry failed for ${deviceType}:`, error);
+      statusManager.completeGeneration(deviceType, false, `Retry failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Save model list to database (helper method)
+   */
+  private async saveModelListToDatabase(deviceType: string, brand: string, models: string[]): Promise<void> {
+    const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+    
+    const existingList = await storage.getAutoGenListByType(listType);
+    
+    if (existingList) {
+      await storage.updateAutoGenList(existingList.id, {
+        items: models,
+        lastGenerated: new Date(),
+        nextUpdate: this.getNextUpdate(),
+        updatedAt: new Date()
+      });
+    } else {
+      const newList: InsertAutoGenList = {
+        listType,
+        category: deviceType,
+        brand,
+        items: models,
+        lastGenerated: new Date(),
+        nextUpdate: this.getNextUpdate('quarterly'),
+        refreshInterval: 'quarterly',
+        isActive: true
+      };
+      
+      await storage.createAutoGenList(newList);
+    }
+  }
   /**
    * Analyze routing errors and provide intelligent suggestions
    */
