@@ -711,7 +711,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: `Model lists for ${category} generated successfully` });
     } catch (error) {
       console.error(`Error generating model lists for ${req.params.category}:`, error);
-      res.status(500).json({ message: "Failed to generate model lists" });
+      
+      // Clean up any partial generation state to allow retries
+      try {
+        const allLists = await storage.getAllAutoGenLists();
+        const partialLists = allLists.filter(list => list.category === req.params.category);
+        const modelLists = partialLists.filter(list => list.listType.includes('Models'));
+        for (const list of modelLists) {
+          await storage.updateAutoGenList(list.id, { isActive: false });
+          console.log(`Cleaned up partial model list: ${list.listType}`);
+        }
+      } catch (cleanupError) {
+        console.error('Error during cleanup:', cleanupError);
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to generate model lists. Please try again.", 
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
