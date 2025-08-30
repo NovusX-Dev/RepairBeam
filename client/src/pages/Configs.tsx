@@ -518,7 +518,7 @@ export default function Configs() {
                   <span className="font-medium">{t('cost_warning', '💰 Cost Warning')}</span>
                 </div>
                 <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-                  {t('configs.models_cost_warning', 'Generating model lists makes OpenAI API calls and costs money')}. {t('models_4_year_limit', 'Models are limited to the last 4 years to focus on relevant devices.')}
+                  {t('configs.models_cost_warning', 'Generating model lists makes OpenAI API calls and costs money')}. {t('models_4_year_range', 'Models include devices from 2025 back to 2021 (4-year range) to focus on relevant devices.')}
                 </p>
               </CardContent>
             </Card>
@@ -561,7 +561,7 @@ export default function Configs() {
                           </p>
                           {!hasModels && !mightBeGenerating && (
                             <p className="text-sm text-muted-foreground">
-                              {t('models_will_be_generated', 'Models will be generated for each brand (last 4 years)')}
+                              {t('models_will_be_generated', 'Models will be generated for each brand (2025 back to 2021)')}
                             </p>
                           )}
                           {mightBeGenerating && (

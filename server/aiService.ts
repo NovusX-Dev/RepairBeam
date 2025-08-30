@@ -477,21 +477,25 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
 
   /**
    * Generate comprehensive device model lists for a specific brand and device type using AI
-   * Limited to models from the last 4 years to focus on relevant devices
+   * Includes models from today going back 4 years to focus on relevant devices
    */
   async generateDeviceModels(deviceType: string, brand: string): Promise<ModelGenerationResult> {
     const currentYear = new Date().getFullYear();
-    const startYear = currentYear - 4; // 4 years back
+    const startYear = currentYear - 4; // 4 years back from current year
 
-    const prompt = `List ${brand} ${deviceType} models from ${startYear}-${currentYear} for repair shops.
+    const prompt = `List comprehensive ${brand} ${deviceType} models released from ${startYear} to ${currentYear} (inclusive) for repair shops.
 
 JSON format: {"models": ["Model1", "Model2", ...]}
 
-Include:
-- Official model names/numbers
-- Popular and repair-relevant models
-- Consumer and professional variants
-- Max 40 models, newest first`;
+Include ALL models from this 4-year period (${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}):
+- Recent models from ${currentYear} and ${currentYear - 1}
+- Mid-period models from ${currentYear - 2} and ${currentYear - 3}  
+- Earlier models from ${startYear}
+- Both consumer and professional variants
+- Popular models commonly brought for repairs
+- Official model names/numbers (not marketing names)
+
+Focus on models actually sold and commonly repaired. Max 40 models, prioritize variety across all years ${startYear}-${currentYear}.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -906,18 +910,18 @@ Examples: "Appel"->{"isValid":true,"correctedName":"Apple","confidence":0.9}`;
   private getFallbackModels(deviceType: string, brand: string): ModelGenerationResult {
     const fallbackModels: Record<string, Record<string, string[]>> = {
       Phone: {
-        Apple: ['iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13'],
-        Samsung: ['Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23', 'Galaxy S22 Ultra', 'Galaxy S22+', 'Galaxy S22'],
-        Google: ['Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 6 Pro', 'Pixel 6'],
-        OnePlus: ['OnePlus 12', 'OnePlus 11', 'OnePlus 10 Pro', 'OnePlus 9 Pro', 'OnePlus 9'],
-        Xiaomi: ['Xiaomi 14 Ultra', 'Xiaomi 14', 'Xiaomi 13 Ultra', 'Xiaomi 13', 'Xiaomi 12 Ultra']
+        Apple: ['iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 15 Plus', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 14 Plus', 'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13', 'iPhone 13 mini', 'iPhone 12 Pro Max', 'iPhone 12 Pro', 'iPhone 12', 'iPhone 12 mini'],
+        Samsung: ['Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23', 'Galaxy S22 Ultra', 'Galaxy S22+', 'Galaxy S22', 'Galaxy S21 Ultra', 'Galaxy S21+', 'Galaxy S21', 'Galaxy Note 20 Ultra', 'Galaxy Note 20'],
+        Google: ['Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 7a', 'Pixel 6 Pro', 'Pixel 6', 'Pixel 6a', 'Pixel 5', 'Pixel 4a 5G', 'Pixel 4a'],
+        OnePlus: ['OnePlus 12', 'OnePlus 11', 'OnePlus 10 Pro', 'OnePlus 10T', 'OnePlus 9 Pro', 'OnePlus 9', 'OnePlus 8T', 'OnePlus 8 Pro', 'OnePlus 8'],
+        Xiaomi: ['Xiaomi 14 Ultra', 'Xiaomi 14', 'Xiaomi 13 Ultra', 'Xiaomi 13', 'Xiaomi 12 Ultra', 'Xiaomi 12', 'Xiaomi 11 Ultra', 'Xiaomi 11', 'Mi 10T Pro', 'Mi 10T']
       },
       Laptop: {
-        Apple: ['MacBook Pro 16" M3', 'MacBook Pro 14" M3', 'MacBook Air 15" M2', 'MacBook Air 13" M2', 'MacBook Pro 13" M2'],
-        Dell: ['XPS 13 Plus', 'XPS 15', 'XPS 17', 'Inspiron 15 3000', 'Latitude 7420'],
-        HP: ['Spectre x360', 'Envy 13', 'Pavilion 15', 'EliteBook 840', 'ProBook 450'],
-        Lenovo: ['ThinkPad X1 Carbon', 'ThinkPad T14', 'IdeaPad 5', 'Legion 5', 'Yoga 9i'],
-        Asus: ['ZenBook 14', 'VivoBook S15', 'ROG Zephyrus G14', 'TUF Gaming A15']
+        Apple: ['MacBook Pro 16" M3', 'MacBook Pro 14" M3', 'MacBook Air 15" M2', 'MacBook Air 13" M2', 'MacBook Pro 13" M2', 'MacBook Pro 16" M2', 'MacBook Pro 14" M2', 'MacBook Air M1', 'MacBook Pro 13" M1', 'MacBook Pro 16" M1'],
+        Dell: ['XPS 13 Plus', 'XPS 15', 'XPS 17', 'XPS 13', 'Inspiron 15 3000', 'Inspiron 14 5000', 'Latitude 7420', 'Latitude 5520', 'Precision 5560', 'Alienware m15 R7'],
+        HP: ['Spectre x360 16', 'Spectre x360 14', 'Envy 13', 'Envy 15', 'Pavilion 15', 'Pavilion 14', 'EliteBook 840', 'EliteBook 850', 'ProBook 450', 'ProBook 455'],
+        Lenovo: ['ThinkPad X1 Carbon Gen 11', 'ThinkPad X1 Carbon Gen 10', 'ThinkPad T14', 'ThinkPad T15', 'IdeaPad 5', 'IdeaPad 3', 'Legion 5', 'Legion 7', 'Yoga 9i', 'Yoga Slim 7'],
+        Asus: ['ZenBook 14', 'ZenBook 13', 'VivoBook S15', 'VivoBook Pro 15', 'ROG Zephyrus G14', 'ROG Zephyrus G15', 'TUF Gaming A15', 'TUF Gaming F15']
       },
       Desktop: {
         Dell: ['Inspiron 3880', 'XPS 8950', 'OptiPlex 7090', 'Alienware Aurora R13'],
