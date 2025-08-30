@@ -71,22 +71,6 @@ export function SearchableSelect({
     }
   };
 
-  // Ensure proper wheel event handling
-  useEffect(() => {
-    const listElement = listRef.current;
-    if (listElement && open) {
-      const handleWheel = (e: WheelEvent) => {
-        e.stopPropagation();
-        // Allow default scrolling behavior
-      };
-      
-      listElement.addEventListener('wheel', handleWheel, { passive: true });
-      return () => {
-        listElement.removeEventListener('wheel', handleWheel);
-      };
-    }
-  }, [open]);
-
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
@@ -113,7 +97,7 @@ export function SearchableSelect({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 max-h-80 overflow-hidden" align="start">
+      <PopoverContent className="w-full p-0" align="start">
         <Command>
           <CommandInput
             ref={inputRef}
@@ -122,9 +106,8 @@ export function SearchableSelect({
             onValueChange={setSearchValue}
             className="h-9"
           />
-          <div className="max-h-60 overflow-y-auto">
-            <CommandList ref={listRef}>
-              <CommandEmpty>
+          <CommandList className="max-h-[240px] overflow-y-scroll">
+            <CommandEmpty>
               {allowCustomInput && searchValue ? (
                 <div className="p-2">
                   <div className="text-sm text-muted-foreground mb-2">
@@ -164,9 +147,8 @@ export function SearchableSelect({
                   {item}
                 </CommandItem>
               ))}
-              </CommandGroup>
-            </CommandList>
-          </div>
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
