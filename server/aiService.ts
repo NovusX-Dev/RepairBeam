@@ -374,21 +374,17 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
           // Try OpenAI with timeout protection
           let response;
           try {
-            // Use GPT-4o for better reliability while GPT-5 may have issues
+            // Use GPT-4o with much higher token limit to avoid reasoning token exhaustion
             response = await openai.chat.completions.create({
-              model: "gpt-4o", // Using GPT-4o for better reliability 
+              model: "gpt-4o", // Using GPT-4o - no reasoning tokens issue
               messages: [
                 {
-                  role: "system",
-                  content: `You are an expert in device models for repair shops. Provide device model lists in JSON format.`
-                },
-                {
                   role: "user",
-                  content: `List ${batch.join(' and ')} ${deviceType} models from ${startYear}-${currentYear} for repair shops. JSON format: {"${batch[0]}": ["Model1", "Model2"], "${batch[1] || batch[0]}": ["Model3", "Model4"]}. Include 3-5 models per brand.`
+                  content: `List ${batch.join(' and ')} ${deviceType} models from ${startYear}-${currentYear}. JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch.length > 1 ? batch[1] : batch[0]}": ["Model3", "Model4"]}. 3-5 popular repair models per brand.`
                 }
               ],
               response_format: { type: "json_object" },
-              max_completion_tokens: 1500
+              max_completion_tokens: 2000 // Much higher limit for complex requests
             });
           } catch (apiError: any) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
