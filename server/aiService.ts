@@ -129,7 +129,7 @@ Requirements:
           await storage.updateAutoGenList(list.id, {
             items: brands,
             lastGenerated: new Date(),
-            nextUpdate: this.getNextWeeklyUpdate(),
+            nextUpdate: this.getNextUpdate('quarterly'),
             updatedAt: new Date()
           });
           
@@ -215,8 +215,8 @@ Examples:
             content: validationPrompt
           }
         ],
-        response_format: { type: "json_object" },
-        temperature: 0.1 // Very low temperature for consistent validation
+        response_format: { type: "json_object" }
+        // Note: gpt-5 only supports default temperature (1), removed custom temperature
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');

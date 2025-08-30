@@ -569,6 +569,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all auto-generated lists for management
+  app.get("/api/auto-gen-lists", isAuthenticated, async (req: any, res) => {
+    try {
+      const lists = await storage.getAllAutoGenLists();
+      res.json(lists);
+    } catch (error) {
+      console.error("Error fetching auto-gen lists:", error);
+      res.status(500).json({ message: "Failed to fetch auto-gen lists" });
+    }
+  });
+
   // Auto-generated lists routes (device brands)
   app.get("/api/auto-gen-lists/:category", async (req, res) => {
     try {

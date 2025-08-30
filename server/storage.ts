@@ -28,7 +28,7 @@ import {
   type InsertAutoGenList,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
 
 // Database retry utility with exponential backoff
 async function withRetry<T>(
@@ -105,6 +105,7 @@ export interface IStorage {
   
   // Auto-generated list operations
   getAutoGenList(category: string): Promise<AutoGenList | undefined>;
+  getAllAutoGenLists(): Promise<AutoGenList[]>;
   createAutoGenList(list: InsertAutoGenList): Promise<AutoGenList>;
   updateAutoGenList(id: string, list: Partial<InsertAutoGenList>): Promise<AutoGenList | undefined>;
   getAutoGenListsForUpdate(): Promise<AutoGenList[]>;
@@ -413,6 +414,16 @@ export class DatabaseStorage implements IStorage {
           eq(autoGenLists.isActive, true)
         ));
       return list;
+    });
+  }
+
+  async getAllAutoGenLists(): Promise<AutoGenList[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(autoGenLists)
+        .where(eq(autoGenLists.isActive, true))
+        .orderBy(asc(autoGenLists.category), desc(autoGenLists.lastGenerated));
     });
   }
 
