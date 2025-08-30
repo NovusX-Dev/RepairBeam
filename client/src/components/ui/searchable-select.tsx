@@ -112,7 +112,7 @@ export function SearchableSelect({
               WebkitOverflowScrolling: 'touch'
             }}
           >
-            <CommandList>
+            <CommandList className="overflow-hidden">
               <CommandEmpty>
               {allowCustomInput && searchValue ? (
                 <div className="p-2">
