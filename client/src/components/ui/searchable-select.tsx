@@ -38,7 +38,6 @@ export function SearchableSelect({
   const [searchValue, setSearchValue] = useState("");
   const [filteredItems, setFilteredItems] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   // Filter items based on search value
   useEffect(() => {
@@ -97,7 +96,7 @@ export function SearchableSelect({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-full p-0" align="start" onWheel={(e) => e.stopPropagation()}>
         <Command>
           <CommandInput
             ref={inputRef}
@@ -106,8 +105,15 @@ export function SearchableSelect({
             onValueChange={setSearchValue}
             className="h-9"
           />
-          <CommandList className="max-h-[240px] overflow-y-scroll">
-            <CommandEmpty>
+          <div 
+            className="max-h-[240px] overflow-y-auto"
+            style={{ 
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            <CommandList>
+              <CommandEmpty>
               {allowCustomInput && searchValue ? (
                 <div className="p-2">
                   <div className="text-sm text-muted-foreground mb-2">
@@ -147,8 +153,9 @@ export function SearchableSelect({
                   {item}
                 </CommandItem>
               ))}
-            </CommandGroup>
-          </CommandList>
+              </CommandGroup>
+            </CommandList>
+          </div>
         </Command>
       </PopoverContent>
     </Popover>
