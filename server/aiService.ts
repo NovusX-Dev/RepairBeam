@@ -371,45 +371,33 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
             deviceType
           });
           
-          // Add timeout wrapper
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-          
-          // Try OpenAI first, but use immediate fallbacks if unreliable
+          // Try OpenAI with proper timeout
           let response;
           try {
-            // Reduced timeout for faster fallback
-            response = await Promise.race([
-              openai.chat.completions.create({
-                model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-                messages: [
-                  {
-                    role: "system",
-                    content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}). JSON format: {\"BrandName\": [\"Model1\", \"Model2\"]}`
-                  },
-                  {
-                    role: "user",
-                    content: prompt
-                  }
-                ],
-                response_format: { type: "json_object" },
-                max_completion_tokens: 1000
-              }),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Quick timeout for fast fallback')), 10000)
-              )
-            ]) as OpenAI.Chat.Completions.ChatCompletion;
+            response = await openai.chat.completions.create({
+              model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+              messages: [
+                {
+                  role: "system",
+                  content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}). JSON format: {\"BrandName\": [\"Model1\", \"Model2\"]}`
+                },
+                {
+                  role: "user",
+                  content: prompt
+                }
+              ],
+              response_format: { type: "json_object" },
+              max_completion_tokens: 1000
+            });
           } catch (apiError) {
-            this.logGenerationStep(`API call failed (${apiError.message}), using fallbacks immediately`, { 
+            this.logGenerationStep(`API call failed (${apiError.message})`, { 
               brands: batch,
               batchNumber,
               attempt
             });
-            // Immediate fallback on any API error
-            throw new Error('API unavailable - using fallbacks');
+            // Try again on next attempt, or fallback if all attempts failed
+            throw apiError;
           }
-          
-          clearTimeout(timeoutId);
           
           // Validate response
           const content = response.choices[0]?.message?.content;
@@ -445,23 +433,31 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
           });
           
         } catch (error) {
-          console.error(`❌ Batch ${batchNumber} attempt ${attempt} failed:`, error);
+          this.logGenerationStep(`Batch ${batchNumber} attempt ${attempt} failed: ${error.message}`, { 
+            batchNumber, 
+            attempt, 
+            error: error.message 
+          });
           
-          if (attempt === maxRetries) {
-            console.log(`🚨 All attempts failed for batch ${batchNumber}, using fallbacks`);
-            // Add fallback for all failed brands in this batch
+          if (attempt >= maxRetries) {
+            this.logGenerationStep(`All attempts failed for batch ${batchNumber}, using fallbacks`, { 
+              batchNumber, 
+              totalAttempts: attempt 
+            });
+            
+            // Generate fallback models for all brands in this batch
             for (const brand of batch) {
-              if (!results[brand]) {
-                const fallback = this.getFallbackModels(deviceType, brand);
-                results[brand] = fallback.models.slice(0, 30);
-                console.log(`🔄 Fallback for ${brand}: ${results[brand].length} models`);
-              }
+              const fallback = this.getFallbackModels(deviceType, brand);
+              results[brand] = fallback.models.slice(0, 30);
+              console.log(`🔄 Fallback for ${brand}: ${results[brand].length} models`);
             }
+            
+            success = true; // Mark as successful since we have fallback data
           } else {
-            // Wait before retry with exponential backoff
-            const waitTime = retryDelay * Math.pow(2, attempt - 1);
-            console.log(`⏱️  Waiting ${waitTime}ms before retry...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
+            // Wait before retrying with exponential backoff
+            const backoffDelay = Math.min(1500 * Math.pow(1.5, attempt - 1), 5000);
+            this.logGenerationStep(`Waiting ${backoffDelay}ms before retry...`);
+            await this.delay(backoffDelay);
           }
         }
       }
