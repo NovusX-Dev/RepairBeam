@@ -211,11 +211,11 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 4;
     
-    // Process brands in batches of 3 for better reliability (reduced from 5)
-    const batchSize = 3;
+    // Process brands in batches of 2 for maximum reliability (reduced from 3)
+    const batchSize = 2;
     const results: { [brand: string]: string[] } = {};
-    const maxRetries = 3;
-    const retryDelay = 2000; // 2 seconds between retries
+    const maxRetries = 2; // Reduced retries to avoid long waits
+    const retryDelay = 1500; // Shorter delay between retries
     
     this.logGenerationStep(`Starting batch generation`, { 
       deviceType, 
@@ -253,7 +253,7 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
           
           // Add timeout wrapper
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
           
           const response = await Promise.race([
             openai.chat.completions.create({
@@ -271,7 +271,7 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
               response_format: { type: "json_object" },
             }),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Request timeout')), 45000)
+              setTimeout(() => reject(new Error('Request timeout')), 30000)
             )
           ]) as OpenAI.Chat.Completions.ChatCompletion;
           
