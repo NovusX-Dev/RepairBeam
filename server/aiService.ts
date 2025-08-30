@@ -342,11 +342,19 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
       
       console.log(`📦 Processing batch ${batchNumber}/${totalBatches}: ${batch.join(', ')}`);
       
-      const prompt = `List ${deviceType} models from ${startYear}-${currentYear} for these brands: ${batch.join(', ')}.
+      const prompt = `List comprehensive ${deviceType} models released from ${startYear} to ${currentYear} (inclusive) for these brands: ${batch.join(', ')}.
 
 JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch[1] || 'Brand2'}": ["Model1", "Model2"], ...}
 
-For each brand, max 30 models, newest first, repair-relevant only.`;
+Include ALL models from this 4-year period (${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}):
+- Recent models from ${currentYear} and ${currentYear - 1}
+- Mid-period models from ${currentYear - 2} and ${currentYear - 3}
+- Earlier models from ${startYear}
+- Both consumer and professional variants
+- Popular models commonly brought for repairs
+- Official model names/numbers (not marketing names)
+
+For each brand, max 30 models, prioritize variety across all years ${startYear}-${currentYear}.`;
       
       let attempt = 0;
       let success = false;
@@ -372,11 +380,11 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
             // Reduced timeout for faster fallback
             response = await Promise.race([
               openai.chat.completions.create({
-                model: "gpt-3.5-turbo", // Use fastest, most reliable model available
+                model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
                 messages: [
                   {
                     role: "system",
-                    content: "Device model expert. List 8-12 recent models for repair shops. JSON format: {\"models\": {\"BrandName\": [\"Model1\", \"Model2\"]}}"
+                    content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}). JSON format: {\"BrandName\": [\"Model1\", \"Model2\"]}`
                   },
                   {
                     role: "user",
@@ -503,7 +511,7 @@ Focus on models actually sold and commonly repaired. Max 40 models, prioritize v
         messages: [
           {
             role: "system",
-            content: "Expert in device models for repair shops. Provide accurate, recent model lists."
+            content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}).`
           },
           {
             role: "user",
