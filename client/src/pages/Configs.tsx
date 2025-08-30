@@ -434,7 +434,7 @@ export default function Configs() {
                         </CardTitle>
                         <CardDescription>
                           {hasModels 
-                            ? t('configs.models_already_generated', 'Models have been generated for this category')
+                            ? t('configs.models_have_been_generated', 'Models have been generated for this category')
                             : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)
                           }
                         </CardDescription>
