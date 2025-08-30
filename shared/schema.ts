@@ -172,6 +172,7 @@ export const autoGenLists = pgTable("auto_gen_lists", {
   category: varchar("category").notNull(), // e.g., 'Phone', 'Laptop', 'Desktop'
   brand: varchar("brand"), // e.g., 'Apple', 'Samsung' - null for brand lists, specific for model lists
   items: text("items").array().notNull(), // Array of brand names or model names
+  excludedBrands: text("excluded_brands").array().default([]), // Brands with no models that should be excluded
   lastGenerated: timestamp("last_generated").defaultNow(),
   nextUpdate: timestamp("next_update").notNull(), // When to regenerate
   refreshInterval: varchar("refresh_interval").notNull().default('quarterly'), // weekly, biweekly, monthly, quarterly

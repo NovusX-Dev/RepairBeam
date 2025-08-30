@@ -135,40 +135,52 @@ Requirements:
       
       console.log(`📱 Found ${brandList.items.length} brands for ${deviceType}`);
       
+      const brandsWithoutModels: string[] = [];
+      const activeBrands: string[] = [];
+      
       for (const brand of brandList.items) {
         try {
           console.log(`💰 Making OpenAI API call for ${brand} ${deviceType} models...`);
           
           const { models } = await this.generateDeviceModels(deviceType, brand);
           
-          // Check if model list already exists for this brand
-          const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
-          const existingList = await storage.getAutoGenListByType(listType);
-          
-          if (existingList) {
-            // Update existing list
-            await storage.updateAutoGenList(existingList.id, {
-              items: models,
-              lastGenerated: new Date(),
-              nextUpdate: this.getNextUpdate(),
-              updatedAt: new Date()
-            });
-            console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
+          if (models.length === 0) {
+            // Brand has no models - track for removal
+            console.log(`🚫 ${brand} has no ${deviceType} models - will be excluded from brand list`);
+            brandsWithoutModels.push(brand);
           } else {
-            // Create new list
-            const newList: InsertAutoGenList = {
-              listType,
-              category: deviceType,
-              brand,
-              items: models,
-              lastGenerated: new Date(),
-              nextUpdate: this.getNextUpdate('quarterly'), // Default to quarterly
-              refreshInterval: 'quarterly',
-              isActive: true
-            };
+            // Brand has models - keep it active
+            activeBrands.push(brand);
             
-            await storage.createAutoGenList(newList);
-            console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
+            // Check if model list already exists for this brand
+            const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+            const existingList = await storage.getAutoGenListByType(listType);
+            
+            if (existingList) {
+              // Update existing list
+              await storage.updateAutoGenList(existingList.id, {
+                items: models,
+                lastGenerated: new Date(),
+                nextUpdate: this.getNextUpdate(),
+                updatedAt: new Date()
+              });
+              console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
+            } else {
+              // Create new list
+              const newList: InsertAutoGenList = {
+                listType,
+                category: deviceType,
+                brand,
+                items: models,
+                lastGenerated: new Date(),
+                nextUpdate: this.getNextUpdate('quarterly'), // Default to quarterly
+                refreshInterval: 'quarterly',
+                isActive: true
+              };
+              
+              await storage.createAutoGenList(newList);
+              console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
+            }
           }
           
           // Add a small delay between API calls to be respectful
@@ -177,6 +189,23 @@ Requirements:
         } catch (error) {
           console.error(`❌ Failed to generate/update model list for ${brand} ${deviceType}:`, error);
         }
+      }
+      
+      // Update the brand list to remove brands without models and track excluded brands
+      if (brandsWithoutModels.length > 0 || activeBrands.length !== brandList.items.length) {
+        const currentExcluded = brandList.excludedBrands || [];
+        const newExcluded = Array.from(new Set([...currentExcluded, ...brandsWithoutModels]));
+        
+        await storage.updateAutoGenList(brandList.id, {
+          items: activeBrands,
+          excludedBrands: newExcluded,
+          lastGenerated: new Date(),
+          nextUpdate: this.getNextUpdate(),
+          updatedAt: new Date()
+        });
+        
+        console.log(`🧹 Updated ${deviceType} brand list: ${activeBrands.length} active brands, ${brandsWithoutModels.length} brands excluded (no models)`);
+        console.log(`📋 Excluded brands: ${newExcluded.join(', ')}`);
       }
     } catch (error) {
       console.error(`❌ Failed to generate model lists for ${deviceType}:`, error);
@@ -203,14 +232,22 @@ Requirements:
         const existingList = await storage.getAutoGenList(deviceType);
         
         if (existingList) {
+          // Filter out previously excluded brands that had no models
+          const excludedBrands = existingList.excludedBrands || [];
+          const filteredBrands = brands.filter(brand => !excludedBrands.includes(brand));
+          
+          if (excludedBrands.length > 0) {
+            console.log(`🚫 Excluding ${excludedBrands.length} brands with no models: ${excludedBrands.join(', ')}`);
+          }
+          
           // Update existing list
           await storage.updateAutoGenList(existingList.id, {
-            items: brands,
+            items: filteredBrands,
             lastGenerated: new Date(),
             nextUpdate: this.getNextUpdate(),
             updatedAt: new Date()
           });
-          console.log(`✅ Updated ${deviceType} brand list with ${brands.length} brands`);
+          console.log(`✅ Updated ${deviceType} brand list with ${filteredBrands.length} brands (${brands.length - filteredBrands.length} excluded)`);
         } else {
           // Create new list
           const newList: InsertAutoGenList = {
