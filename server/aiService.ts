@@ -2,11 +2,10 @@ import OpenAI from "openai";
 import { storage } from "./storage";
 import type { InsertAutoGenList } from "@shared/schema";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 45000, // 45 second timeout
-  maxRetries: 2 // Reduce retries to avoid long waits
+  timeout: 20000, // Much shorter timeout - 20 seconds
+  maxRetries: 1 // Only one retry to prevent long waits
 });
 
 // Generation status tracking
@@ -276,7 +275,7 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
             // Reduced timeout for faster fallback
             response = await Promise.race([
               openai.chat.completions.create({
-                model: "gpt-4o-mini", // Use fastest, most reliable model
+                model: "gpt-3.5-turbo", // Use fastest, most reliable model available
                 messages: [
                   {
                     role: "system",
@@ -291,7 +290,7 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
                 max_tokens: 1000
               }),
               new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Quick timeout for fast fallback')), 15000)
+                setTimeout(() => reject(new Error('Quick timeout for fast fallback')), 10000)
               )
             ]) as OpenAI.Chat.Completions.ChatCompletion;
           } catch (apiError) {
