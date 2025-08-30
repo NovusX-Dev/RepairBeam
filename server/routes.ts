@@ -898,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ status: 'idle', message: 'No generation in progress' });
       }
       
-      res.json({ status });
+      res.json(status);
     } catch (error) {
       console.error("Error fetching generation status:", error);
       res.status(500).json({ message: "Failed to fetch generation status" });

@@ -29,12 +29,23 @@ export default function Configs() {
     
     const pollStatus = async () => {
       try {
-        const response = await fetch(`/api/auto-gen-lists/${generatingModels}/status`);
+        const response = await fetch(`/api/auto-gen-lists/${generatingModels}/status`, {
+          credentials: 'include', // Include authentication cookies
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
         if (response.ok) {
           const status = await response.json();
-          setRealTimeProgress(status.processedBrands || 0);
+          // Status now returns the GenerationStatus object directly
+          if (status && typeof status.processedBrands === 'number') {
+            setRealTimeProgress(status.processedBrands);
+          } else {
+            // Fallback: count existing models in database
+            queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
+          }
         } else {
-          // If status endpoint returns 404, count existing models in database
+          // If status endpoint fails, count existing models in database
           queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
         }
       } catch (error) {
