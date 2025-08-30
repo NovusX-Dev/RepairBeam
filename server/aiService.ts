@@ -42,7 +42,7 @@ Requirements:
           }
         ],
         response_format: { type: "json_object" },
-        temperature: 0.3 // Lower temperature for more consistent results
+        // Note: gpt-5 only supports default temperature (1), removed custom temperature
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
