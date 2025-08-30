@@ -371,24 +371,30 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
             deviceType
           });
           
-          // Try OpenAI with proper timeout
+          // Try OpenAI with timeout protection
           let response;
           try {
-            response = await openai.chat.completions.create({
-              model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-              messages: [
-                {
-                  role: "system",
-                  content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}). JSON format: {\"BrandName\": [\"Model1\", \"Model2\"]}`
-                },
-                {
-                  role: "user",
-                  content: prompt
-                }
-              ],
-              response_format: { type: "json_object" },
-              max_completion_tokens: 1000
-            });
+            // Add timeout wrapper to prevent hanging
+            response = await Promise.race([
+              openai.chat.completions.create({
+                model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+                messages: [
+                  {
+                    role: "system",
+                    content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}). JSON format: {\"BrandName\": [\"Model1\", \"Model2\"]}`
+                  },
+                  {
+                    role: "user",
+                    content: prompt
+                  }
+                ],
+                response_format: { type: "json_object" },
+                max_completion_tokens: 1000
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('OpenAI request timeout after 30 seconds')), 30000)
+              )
+            ]) as OpenAI.Chat.Completions.ChatCompletion;
           } catch (apiError) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
               brands: batch,
@@ -457,7 +463,7 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
             // Wait before retrying with exponential backoff
             const backoffDelay = Math.min(1500 * Math.pow(1.5, attempt - 1), 5000);
             this.logGenerationStep(`Waiting ${backoffDelay}ms before retry...`);
-            await this.delay(backoffDelay);
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
           }
         }
       }
