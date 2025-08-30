@@ -237,7 +237,7 @@ export default function KanbanTickets() {
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>) => {
-      return await apiRequest("POST", "/api/clients", clientData) as Client;
+      return await apiRequest("POST", "/api/clients", clientData);
     },
     onSuccess: (newClient: Client) => {
       setSelectedClient(newClient);
@@ -1214,7 +1214,7 @@ export default function KanbanTickets() {
                             isLoading={modelsLoading}
                             allowCustomInput={true}
                             disabled={!formData.deviceType || !formData.deviceBrand}
-                            emptyMessage={
+                            emptyText={
                               !formData.deviceType || !formData.deviceBrand 
                                 ? t("select_device_type_brand_first", "Select device type and brand first") 
                                 : t("configs.no_models_available", "No models available for this brand")
