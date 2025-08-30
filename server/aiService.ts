@@ -4,8 +4,8 @@ import type { InsertAutoGenList } from "@shared/schema";
 
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 20000, // Much shorter timeout - 20 seconds
-  maxRetries: 1 // Only one retry to prevent long waits
+  timeout: 60000, // Increase timeout to 60 seconds
+  maxRetries: 0 // No automatic retries, we handle retries manually
 });
 
 // Generation status tracking
@@ -374,28 +374,23 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
           // Try OpenAI with timeout protection
           let response;
           try {
-            // Add timeout wrapper to prevent hanging
-            response = await Promise.race([
-              openai.chat.completions.create({
-                model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-                messages: [
-                  {
-                    role: "system",
-                    content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}). JSON format: {\"BrandName\": [\"Model1\", \"Model2\"]}`
-                  },
-                  {
-                    role: "user",
-                    content: prompt
-                  }
-                ],
-                response_format: { type: "json_object" },
-                max_completion_tokens: 1000
-              }),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('OpenAI request timeout after 30 seconds')), 30000)
-              )
-            ]) as OpenAI.Chat.Completions.ChatCompletion;
-          } catch (apiError) {
+            // Use GPT-4o for better reliability while GPT-5 may have issues
+            response = await openai.chat.completions.create({
+              model: "gpt-4o", // Using GPT-4o for better reliability 
+              messages: [
+                {
+                  role: "system",
+                  content: `You are an expert in device models for repair shops. Provide device model lists in JSON format.`
+                },
+                {
+                  role: "user",
+                  content: `List ${batch.join(' and ')} ${deviceType} models from ${startYear}-${currentYear} for repair shops. JSON format: {"${batch[0]}": ["Model1", "Model2"], "${batch[1] || batch[0]}": ["Model3", "Model4"]}. Include 3-5 models per brand.`
+                }
+              ],
+              response_format: { type: "json_object" },
+              max_completion_tokens: 1500
+            });
+          } catch (apiError: any) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
               brands: batch,
               batchNumber,
@@ -406,8 +401,16 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
           }
           
           // Validate response
+          console.log(`🔍 Raw OpenAI response:`, JSON.stringify(response, null, 2));
           const content = response.choices[0]?.message?.content;
           if (!content) {
+            console.error(`❌ OpenAI response missing content:`, {
+              hasChoices: !!response.choices,
+              choicesLength: response.choices?.length,
+              firstChoice: response.choices?.[0],
+              hasMessage: !!response.choices?.[0]?.message,
+              messageContent: response.choices?.[0]?.message?.content
+            });
             throw new Error('Empty response from OpenAI');
           }
           
@@ -438,7 +441,7 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
             deviceType
           });
           
-        } catch (error) {
+        } catch (error: any) {
           this.logGenerationStep(`Batch ${batchNumber} attempt ${attempt} failed: ${error.message}`, { 
             batchNumber, 
             attempt, 
