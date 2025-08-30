@@ -23,6 +23,63 @@ interface BatchModelGenerationResult {
 
 export class AIService {
   /**
+   * Analyze routing errors and provide intelligent suggestions
+   */
+  async analyzeRoutingError(diagnosticInfo: any): Promise<{ suggestions: any[] }> {
+    const prompt = `Analyze this web app routing error and suggest solutions:
+
+Path: ${diagnosticInfo.currentPath}
+Error: ${diagnosticInfo.errorMessage || 'Page not found'}
+Available routes: ${diagnosticInfo.availableRoutes.join(', ')}
+Referrer: ${diagnosticInfo.referrer}
+
+Provide 3-4 helpful suggestions in JSON format:
+{"suggestions": [{"type": "route|action|info", "title": "Short title", "description": "Helpful description", "path": "/route" or null, "confidence": 0.0-1.0}]}
+
+Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content: "Routing expert. Analyze navigation errors and suggest helpful solutions for web apps."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
+      return {
+        suggestions: result.suggestions || []
+      };
+    } catch (error) {
+      console.error('Failed to analyze routing error:', error);
+      return {
+        suggestions: [
+          {
+            type: 'route',
+            title: 'Go to Dashboard',
+            description: 'Return to the main application dashboard',
+            path: '/',
+            confidence: 0.9
+          },
+          {
+            type: 'action',
+            title: 'Refresh Page',
+            description: 'Try refreshing the page to resolve temporary issues',
+            confidence: 0.6
+          }
+        ]
+      };
+    }
+  }
+  /**
    * Generate device models for multiple brands at once (cost-optimized batch processing)
    */
   async generateBatchDeviceModels(deviceType: string, brands: string[]): Promise<BatchModelGenerationResult> {

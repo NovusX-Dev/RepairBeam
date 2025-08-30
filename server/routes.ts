@@ -311,7 +311,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Shop image upload routes
+  // AI routing error analysis endpoint
+  app.post("/api/ai/analyze-routing-error", async (req, res) => {
+    try {
+      const diagnosticInfo = req.body;
+      console.log('🤖 Analyzing routing error with AI...');
+      
+      const analysis = await aiService.analyzeRoutingError(diagnosticInfo);
+      res.json(analysis);
+    } catch (error) {
+      console.error('Error analyzing routing error:', error);
+      res.status(500).json({ 
+        error: 'Failed to analyze routing error',
+        suggestions: [
+          {
+            type: 'route',
+            title: 'Go to Dashboard',
+            description: 'Return to the main dashboard',
+            path: '/',
+            confidence: 0.9
+          }
+        ]
+      });
+    }
+  });
+
+  // Shop image upload routes"}
   app.post("/api/shop-images/upload", isAuthenticated, async (req, res) => {
     try {
       const objectStorageService = new ObjectStorageService();

@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import Layout from "@/components/Layout";
@@ -44,25 +45,27 @@ function Router() {
   const needsTenantSetup = isAuthenticated && user && !hasValidTenant;
 
   return (
-    <Switch>
-      {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : needsTenantSetup ? (
-        <Route path="/" component={TenantSetup} />
-      ) : (
-        <>
-          <Route path="/" component={() => <Layout><Dashboard /></Layout>} />
-          <Route path="/clients" component={() => <Layout><Clients /></Layout>} />
-          <Route path="/kanban" component={() => <Layout><KanbanTickets /></Layout>} />
-          <Route path="/inventory" component={() => <Layout><Inventory /></Layout>} />
-          <Route path="/pos" component={() => <Layout><POS /></Layout>} />
-          <Route path="/support" component={() => <Layout><Support /></Layout>} />
-          <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
-          <Route path="/users" component={() => <Layout><Users /></Layout>} />
-        </>
-      )}
-      <Route component={NotFound} />
-    </Switch>
+    <ErrorBoundary>
+      <Switch>
+        {!isAuthenticated ? (
+          <Route path="/" component={Landing} />
+        ) : needsTenantSetup ? (
+          <Route path="/" component={TenantSetup} />
+        ) : (
+          <>
+            <Route path="/" component={() => <Layout><Dashboard /></Layout>} />
+            <Route path="/clients" component={() => <Layout><Clients /></Layout>} />
+            <Route path="/kanban" component={() => <Layout><KanbanTickets /></Layout>} />
+            <Route path="/inventory" component={() => <Layout><Inventory /></Layout>} />
+            <Route path="/pos" component={() => <Layout><POS /></Layout>} />
+            <Route path="/support" component={() => <Layout><Support /></Layout>} />
+            <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
+            <Route path="/users" component={() => <Layout><Users /></Layout>} />
+          </>
+        )}
+        <Route component={NotFound} />
+      </Switch>
+    </ErrorBoundary>
   );
 }
 
