@@ -30,8 +30,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
+import { useDeviceBrands } from "@/hooks/useDeviceBrands";
 
 // Kanban column configuration
 const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
@@ -206,6 +208,11 @@ export default function KanbanTickets() {
     enabled: clientSearchQuery.length >= 2,
     retry: false,
   });
+
+  // Device brands query - fetches AI-generated brand list based on device type
+  const { data: deviceBrands, isLoading: brandsLoading } = useDeviceBrands(
+    formData.deviceType || null
+  );
 
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
@@ -1141,19 +1148,32 @@ export default function KanbanTickets() {
                       </div>
                   
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <Label htmlFor="deviceBrand">{t("device_brand", "Brand")}</Label>
-                          <Input
-                            id="deviceBrand"
+                        <FormFieldWithTooltip
+                          label={t("device_brand", "Brand")}
+                          tooltip={t("device_brand_tooltip", "Select the device manufacturer/brand from our AI-curated list. This list is automatically updated weekly with popular brands from the repair industry. If you don't see the brand, you can type it manually.")}
+                          required
+                          hasError={!!formErrors.deviceBrand}
+                          isValid={fieldValidation.deviceBrand?.isValid && formData.deviceBrand.length > 0}
+                        >
+                          <SearchableSelect
                             value={formData.deviceBrand || ''}
-                            onChange={(e) => handleInputChange('deviceBrand', e.target.value)}
-                            placeholder={t("device_brand_placeholder", "e.g., Apple, Samsung, Dell")}
-                            data-testid="input-device-brand"
+                            placeholder={t("device_brand_placeholder", "Select or search for brand...")}
+                            searchPlaceholder={t("brand_search_placeholder", "Search brands...")}
+                            emptyText={t("no_brands_found", "No brands found")}
+                            items={deviceBrands?.items || []}
+                            isLoading={brandsLoading}
+                            onValueChange={(value) => handleInputChange('deviceBrand', value)}
+                            data-testid="select-device-brand"
                           />
-                        </div>
+                        </FormFieldWithTooltip>
                         
-                        <div>
-                          <Label htmlFor="deviceModel">{t("device_model", "Model")}</Label>
+                        <FormFieldWithTooltip
+                          label={t("device_model", "Model")}
+                          tooltip={t("device_model_tooltip", "Enter the specific model number or name of the device. Be as specific as possible (e.g., iPhone 13 Pro, Galaxy S21 Ultra, MacBook Pro 16-inch). This helps with accurate parts identification and repair procedures.")}
+                          required
+                          hasError={!!formErrors.deviceModel}
+                          isValid={fieldValidation.deviceModel?.isValid && formData.deviceModel.length > 0}
+                        >
                           <Input
                             id="deviceModel"
                             value={formData.deviceModel || ''}
@@ -1161,10 +1181,14 @@ export default function KanbanTickets() {
                             placeholder={t("device_model_placeholder", "e.g., iPhone 13, Galaxy S21")}
                             data-testid="input-device-model"
                           />
-                        </div>
+                        </FormFieldWithTooltip>
                         
-                        <div>
-                          <Label htmlFor="serialNumber">{t("serial_number", "Serial Number")}</Label>
+                        <FormFieldWithTooltip
+                          label={t("serial_number", "Serial Number")}
+                          tooltip={t("serial_number_tooltip", "Optional field for the device's serial number if available. This helps with warranty verification, authenticity checks, and tracking specific device history. The serial number is usually found in device settings or on a label.")}
+                          hasError={!!formErrors.serialNumber}
+                          isValid={fieldValidation.serialNumber?.isValid && formData.serialNumber.length > 0}
+                        >
                           <Input
                             id="serialNumber"
                             value={formData.serialNumber || ''}
@@ -1172,7 +1196,7 @@ export default function KanbanTickets() {
                             placeholder={t("serial_placeholder", "Optional - if available")}
                             data-testid="input-serial-number"
                           />
-                        </div>
+                        </FormFieldWithTooltip>
                       </div>
                     </div>
                   )}

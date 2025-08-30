@@ -7,6 +7,7 @@ import {
   transactions,
   supportTickets,
   localizations,
+  autoGenLists,
   type User,
   type UpsertUser,
   type Tenant,
@@ -23,6 +24,8 @@ import {
   type InsertSupportTicket,
   type Localization,
   type InsertLocalization,
+  type AutoGenList,
+  type InsertAutoGenList,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
@@ -99,6 +102,12 @@ export interface IStorage {
   getLocalizationsByKey(key: string): Promise<Localization[]>;
   createLocalization(localization: InsertLocalization): Promise<Localization>;
   updateLocalization(id: string, localization: Partial<InsertLocalization>): Promise<Localization | undefined>;
+  
+  // Auto-generated list operations
+  getAutoGenList(category: string): Promise<AutoGenList | undefined>;
+  createAutoGenList(list: InsertAutoGenList): Promise<AutoGenList>;
+  updateAutoGenList(id: string, list: Partial<InsertAutoGenList>): Promise<AutoGenList | undefined>;
+  getAutoGenListsForUpdate(): Promise<AutoGenList[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -350,6 +359,7 @@ export class DatabaseStorage implements IStorage {
           alias: tenants.alias,
           shopImageUrl: tenants.shopImageUrl,
           domain: tenants.domain,
+          preferredLanguage: tenants.preferredLanguage,
           settings: tenants.settings,
           createdAt: tenants.createdAt,
           updatedAt: tenants.updatedAt,
@@ -390,6 +400,50 @@ export class DatabaseStorage implements IStorage {
       .where(eq(localizations.id, id))
       .returning();
     return updatedLocalization;
+  }
+
+  // Auto-generated list operations
+  async getAutoGenList(category: string): Promise<AutoGenList | undefined> {
+    return withRetry(async () => {
+      const [list] = await db
+        .select()
+        .from(autoGenLists)
+        .where(and(
+          eq(autoGenLists.category, category),
+          eq(autoGenLists.isActive, true)
+        ));
+      return list;
+    });
+  }
+
+  async createAutoGenList(list: InsertAutoGenList): Promise<AutoGenList> {
+    return withRetry(async () => {
+      const [newList] = await db.insert(autoGenLists).values(list).returning();
+      return newList;
+    });
+  }
+
+  async updateAutoGenList(id: string, list: Partial<InsertAutoGenList>): Promise<AutoGenList | undefined> {
+    return withRetry(async () => {
+      const [updatedList] = await db
+        .update(autoGenLists)
+        .set({ ...list, updatedAt: new Date() })
+        .where(eq(autoGenLists.id, id))
+        .returning();
+      return updatedList;
+    });
+  }
+
+  async getAutoGenListsForUpdate(): Promise<AutoGenList[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(autoGenLists)
+        .where(and(
+          eq(autoGenLists.isActive, true),
+          sql`${autoGenLists.nextUpdate} <= NOW()`
+        ));
+    });
   }
 }
 

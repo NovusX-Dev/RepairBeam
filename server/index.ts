@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import { aiService } from "./aiService";
 
 const app = express();
 app.use(express.json());
@@ -71,6 +72,9 @@ app.use((req, res, next) => {
     
     // Start database keepalive to prevent suspension
     startDatabaseKeepalive();
+    
+    // Start auto-generated lists management system
+    startAutoGenListsManager();
   });
 
   // Database keepalive system
@@ -91,5 +95,33 @@ app.use((req, res, next) => {
     }, keepaliveInterval);
     
     log(`Database keepalive started (every ${keepaliveInterval / 1000}s)`);
+  }
+
+  // Auto-generated lists management system
+  function startAutoGenListsManager() {
+    // Check for expired lists every 6 hours
+    const updateCheckInterval = 6 * 60 * 60 * 1000; // 6 hours
+    
+    // Initial check after 1 minute (let server fully start)
+    setTimeout(async () => {
+      try {
+        log('Checking for expired auto-generated lists...');
+        await aiService.updateExpiredLists();
+      } catch (error) {
+        log(`Auto-gen lists initial check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }, 60 * 1000);
+    
+    // Periodic checks
+    setInterval(async () => {
+      try {
+        log('Checking for expired auto-generated lists...');
+        await aiService.updateExpiredLists();
+      } catch (error) {
+        log(`Auto-gen lists update check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }, updateCheckInterval);
+    
+    log(`Auto-gen lists manager started (checks every ${updateCheckInterval / (60 * 60 * 1000)} hours)`);
   }
 })();

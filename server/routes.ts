@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { aiService } from "./aiService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check routes
@@ -174,7 +175,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: "Doe", 
           email: "john.doe@example.com",
           phone: "+1-555-0123",
-          address: "123 Main St, Anytown, USA",
+          streetAddress: "123 Main St",
+          streetNumber: "123",
         });
         clientId = sampleClient.id;
       } else {
@@ -564,6 +566,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching localizations by key:", error);
       res.status(500).json({ message: "Failed to fetch localizations by key" });
+    }
+  });
+
+  // Auto-generated lists routes (device brands)
+  app.get("/api/auto-gen-lists/:category", async (req, res) => {
+    try {
+      const { category } = req.params;
+      const list = await storage.getAutoGenList(category);
+      
+      if (!list) {
+        return res.status(404).json({ message: "Auto-generated list not found for this category" });
+      }
+
+      res.json(list);
+    } catch (error) {
+      console.error("Error fetching auto-generated list:", error);
+      res.status(500).json({ message: "Failed to fetch auto-generated list" });
+    }
+  });
+
+  // Initialize brand lists if they don't exist
+  app.post("/api/auto-gen-lists/initialize", isAuthenticated, async (req: any, res) => {
+    try {
+      // Check if user has admin privileges (you can add this check later)
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log("Initializing auto-generated brand lists...");
+      await aiService.generateAllDeviceBrandLists();
+      
+      res.json({ message: "Auto-generated lists initialized successfully" });
+    } catch (error) {
+      console.error("Error initializing auto-generated lists:", error);
+      res.status(500).json({ message: "Failed to initialize auto-generated lists" });
+    }
+  });
+
+  // Force update specific category
+  app.post("/api/auto-gen-lists/:category/update", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log(`Force updating brand list for ${category}...`);
+      const { brands } = await aiService.generateDeviceBrands(category);
+      
+      const existingList = await storage.getAutoGenList(category);
+      if (existingList) {
+        await storage.updateAutoGenList(existingList.id, {
+          items: brands,
+          lastGenerated: new Date(),
+          nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+          updatedAt: new Date()
+        });
+      } else {
+        await storage.createAutoGenList({
+          listType: `AutoGen-List-Brands-${category}`,
+          category,
+          items: brands,
+          lastGenerated: new Date(),
+          nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+          isActive: true
+        });
+      }
+
+      res.json({ message: `Brand list for ${category} updated successfully`, brands: brands.length });
+    } catch (error) {
+      console.error(`Error updating brand list for ${req.params.category}:`, error);
+      res.status(500).json({ message: "Failed to update brand list" });
     }
   });
 

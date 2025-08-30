@@ -165,6 +165,22 @@ export const localizations = pgTable("localizations", {
   index("idx_localization_key_language").on(table.key, table.language),
 ]);
 
+// Auto-generated lists table for AI-powered data (brands, etc.)
+export const autoGenLists = pgTable("auto_gen_lists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listType: varchar("list_type").notNull(), // e.g., 'AutoGen-List-Brands-Phone', 'AutoGen-List-Brands-Laptop'
+  category: varchar("category").notNull(), // e.g., 'Phone', 'Laptop', 'Desktop'
+  items: text("items").array().notNull(), // Array of brand names
+  lastGenerated: timestamp("last_generated").defaultNow(),
+  nextUpdate: timestamp("next_update").notNull(), // When to regenerate (weekly)
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_auto_gen_list_type").on(table.listType),
+  index("idx_auto_gen_category").on(table.category),
+]);
+
 // Relations
 export const tenantRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -220,6 +236,8 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = typeof supportTickets.$inferInsert;
 export type Localization = typeof localizations.$inferSelect;
 export type InsertLocalization = typeof localizations.$inferInsert;
+export type AutoGenList = typeof autoGenLists.$inferSelect;
+export type InsertAutoGenList = typeof autoGenLists.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -252,7 +270,14 @@ export const insertLocalizationSchema = createInsertSchema(localizations).omit({
   updatedAt: true,
 });
 
+export const insertAutoGenListSchema = createInsertSchema(autoGenLists).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertTicketType = z.infer<typeof insertTicketSchema>;
 export type InsertLocalizationType = z.infer<typeof insertLocalizationSchema>;
+export type InsertAutoGenListType = z.infer<typeof insertAutoGenListSchema>;
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];
