@@ -196,7 +196,7 @@ export default function Configs() {
   }
 
   return (
-    <div className="container mx-auto p-6 min-h-screen overflow-y-auto">
+    <div className="space-y-8">
       <div className="flex items-center gap-3 mb-6">
         <Bot className="w-8 h-8 text-primary" />
         <div>
