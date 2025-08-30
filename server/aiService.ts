@@ -280,6 +280,7 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
           }
         ],
         response_format: { type: "json_object" },
+        max_completion_tokens: 800
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
@@ -519,6 +520,7 @@ Focus on models actually sold and commonly repaired. Max 40 models, prioritize v
           }
         ],
         response_format: { type: "json_object" },
+        max_completion_tokens: 1200
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
@@ -559,6 +561,7 @@ JSON: {"brands": ["Brand1", "Brand2", ...]}
           }
         ],
         response_format: { type: "json_object" },
+        max_completion_tokens: 800
         // Note: gpt-5 only supports default temperature (1), removed custom temperature
       });
 
@@ -873,7 +876,8 @@ Examples: "Appel"->{"isValid":true,"correctedName":"Apple","confidence":0.9}`;
             content: validationPrompt
           }
         ],
-        response_format: { type: "json_object" }
+        response_format: { type: "json_object" },
+        max_completion_tokens: 200
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
