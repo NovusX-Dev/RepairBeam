@@ -252,9 +252,9 @@ export default function Configs() {
         </Card>
       )}
 
-      {/* Lists Grid */}
+      {/* Brand Lists Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {autoGenLists.map((list) => {
+        {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
           const canUpdate = canUpdateList(list);
           const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
           const isUpdating = updatingList === list.category;
@@ -406,6 +406,9 @@ export default function Configs() {
                 .filter(list => list.listType.includes('Brands'))
                 .map((brandList) => {
                   const isGenerating = generatingModels === brandList.category;
+                  const hasModels = autoGenLists.some(list => 
+                    list.listType.includes('Models') && list.category === brandList.category
+                  );
                   
                   return (
                     <Card key={`models-${brandList.category}`} className="relative">
@@ -414,7 +417,10 @@ export default function Configs() {
                           {brandList.category} {t('configs.models_by_brand', 'Models by Brand')}
                         </CardTitle>
                         <CardDescription>
-                          {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)}
+                          {hasModels 
+                            ? t('configs.models_already_generated', 'Models have been generated for this category')
+                            : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)
+                          }
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
@@ -422,21 +428,43 @@ export default function Configs() {
                           <p className="text-sm text-muted-foreground">
                             {t('available_brands_count', 'Available brands')}: {brandList.items.length}
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            {t('models_will_be_generated', 'Models will be generated for each brand (last 4 years)')}
-                          </p>
+                          {!hasModels && (
+                            <p className="text-sm text-muted-foreground">
+                              {t('models_will_be_generated', 'Models will be generated for each brand (last 4 years)')}
+                            </p>
+                          )}
+                          {hasModels && (
+                            <p className="text-sm text-green-600 dark:text-green-400">
+                              ✅ {t('configs.models_generated_successfully', 'Models generated successfully')}
+                            </p>
+                          )}
                         </div>
+
+                        {hasModels && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                            <RefreshCw className="w-4 h-4" />
+                            <span>
+                              {t('configs.available_in', 'Available in')}: {new Date(brandList.nextUpdate).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
 
                         <Button
                           onClick={() => generateModelsMutation.mutate(brandList.category)}
-                          disabled={isGenerating || generateModelsMutation.isPending}
+                          disabled={hasModels || isGenerating || generateModelsMutation.isPending}
                           className="w-full"
+                          variant={hasModels ? 'secondary' : 'default'}
                           data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
                         >
                           {isGenerating ? (
                             <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               {t('generating_models', 'Generating Models...')}
+                            </>
+                          ) : hasModels ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                              {t('configs.models_already_generated', 'Models Already Generated')}
                             </>
                           ) : (
                             <>
