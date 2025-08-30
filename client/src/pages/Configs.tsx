@@ -15,6 +15,7 @@ export default function Configs() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [updatingList, setUpdatingList] = useState<string | null>(null);
+  const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
 
   // Fetch all auto-generated lists
   const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
@@ -223,6 +224,14 @@ export default function Configs() {
           const canUpdate = canUpdateList(list);
           const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
           const isUpdating = updatingList === list.category;
+          const isExpanded = expandedLists[list.id] || false;
+
+          const toggleExpanded = () => {
+            setExpandedLists(prev => ({
+              ...prev,
+              [list.id]: !prev[list.id]
+            }));
+          };
 
           return (
             <Card key={list.id} className="relative" data-testid={`card-list-${list.category.toLowerCase()}`}>
@@ -241,17 +250,35 @@ export default function Configs() {
                 {/* List Items Preview */}
                 <div className="mb-4">
                   <div className="flex flex-wrap gap-1 mb-2">
-                    {list.items.slice(0, 6).map((brand) => (
+                    {(isExpanded ? list.items : list.items.slice(0, 6)).map((brand) => (
                       <Badge key={brand} variant="outline" className="text-xs">
                         {brand}
                       </Badge>
                     ))}
-                    {list.items.length > 6 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{list.items.length - 6} {t('more', 'more')}
-                      </Badge>
-                    )}
                   </div>
+                  
+                  {/* Expand/Collapse Controls */}
+                  {list.items.length > 6 && (
+                    <div className="flex justify-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleExpanded}
+                        className="text-xs h-6 px-2"
+                        data-testid={`button-${isExpanded ? 'collapse' : 'expand'}-${list.category.toLowerCase()}`}
+                      >
+                        {isExpanded ? (
+                          <>
+                            {t('show_less', 'Show Less')}
+                          </>
+                        ) : (
+                          <>
+                            +{list.items.length - 6} {t('more', 'more')} - {t('show_all', 'Show All')}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Separator className="mb-4" />
