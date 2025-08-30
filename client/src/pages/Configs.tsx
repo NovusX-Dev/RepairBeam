@@ -536,7 +536,8 @@ export default function Configs() {
                   
                   // Check if generation might be in progress (some models exist but not all brands covered)
                   const mightBeGenerating = hasModels && modelLists.length < brandList.items.length && !isGenerating;
-                  const shouldDisableButton = hasModels && modelLists.length >= brandList.items.length;
+                  // Allow regeneration if user wants to retry - don't permanently disable
+                  const shouldDisableButton = false; // Always allow regeneration for testing
                   const hasFailed = hasFailedGenerations(brandList.category);
                   
                   return (
@@ -546,8 +547,8 @@ export default function Configs() {
                           {t('configs.category_models_by_brand', '{category} Models by Brand').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))}
                         </CardTitle>
                         <CardDescription>
-                          {shouldDisableButton 
-                            ? t('configs.models_have_been_generated', 'Models have been generated for this category')
+                          {hasModels && modelLists.length >= brandList.items.length
+                            ? t('configs.models_generated_can_regenerate', 'Models generated - click to regenerate with updated logic')
                             : mightBeGenerating
                             ? t('configs.generation_in_progress', 'Generation in progress - {count}/{total} brands completed').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())
                             : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))
@@ -569,9 +570,9 @@ export default function Configs() {
                               ⏳ {t('configs.generation_in_progress_details', 'Generation detected in progress ({count}/{total} brands completed)').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())}
                             </p>
                           )}
-                          {shouldDisableButton && (
-                            <p className="text-sm text-green-600 dark:text-green-400">
-                              ✅ {t('configs.models_generated_successfully', 'Models generated successfully')}
+                          {hasModels && modelLists.length >= brandList.items.length && (
+                            <p className="text-sm text-blue-600 dark:text-blue-400">
+                              🔄 {t('configs.models_can_regenerate', 'Models available - can regenerate with updated logic')}
                             </p>
                           )}
                           {hasFailed && (
@@ -593,9 +594,9 @@ export default function Configs() {
                         <div className="space-y-2">
                           <Button
                             onClick={() => handleGenerateModels(brandList.category)}
-                            disabled={shouldDisableButton || isGenerating || generateModelsMutation.isPending}
+                            disabled={isGenerating || generateModelsMutation.isPending}
                             className="w-full"
-                            variant={shouldDisableButton ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
+                            variant={mightBeGenerating ? 'outline' : 'default'}
                             data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
                           >
                             {isGenerating ? (
@@ -603,10 +604,10 @@ export default function Configs() {
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                 {t('generating_models', 'Generating Models...')}
                               </>
-                            ) : shouldDisableButton ? (
+                            ) : hasModels && modelLists.length >= brandList.items.length ? (
                               <>
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
-                                {t('configs.models_already_generated', 'Models Already Generated')}
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                {t('configs.regenerate_models', 'Regenerate Models')} (2021-2025) 💰
                               </>
                             ) : mightBeGenerating ? (
                               <>
@@ -616,7 +617,7 @@ export default function Configs() {
                             ) : (
                               <>
                                 <Bot className="w-4 h-4 mr-2" />
-                                {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))} 💰
+                                {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))} (2021-2025) 💰
                               </>
                             )}
                           </Button>
