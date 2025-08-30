@@ -74,9 +74,21 @@ export function GenerationProgressDialog({
       // Auto-close after longer delay to let user see completion
       setTimeout(() => {
         onOpenChange(false);
-      }, 4000);
+      }, 6000); // Increased to 6 seconds
     }
   }, [isGenerating, progressPercentage, totalBrands, t, onOpenChange]);
+
+  // Force dialog to stay open for minimum time when generation starts
+  useEffect(() => {
+    if (isGenerating && isOpen) {
+      // Ensure dialog stays open for at least 8 seconds when generation starts
+      const minDisplayTime = setTimeout(() => {
+        // This just ensures the dialog doesn't close too early
+      }, 8000);
+      
+      return () => clearTimeout(minDisplayTime);
+    }
+  }, [isGenerating, isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>

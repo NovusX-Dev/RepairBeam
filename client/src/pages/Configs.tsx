@@ -33,17 +33,22 @@ export default function Configs() {
         if (response.ok) {
           const status = await response.json();
           setRealTimeProgress(status.processedBrands || 0);
+        } else {
+          // If status endpoint returns 404, count existing models in database
+          queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
         }
       } catch (error) {
-        // Ignore polling errors
+        // Fallback: count existing models in database
+        queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
       }
     };
     
-    // Poll every 2 seconds during generation
-    const interval = setInterval(pollStatus, 2000);
+    // Poll immediately, then every 1 second during generation
+    pollStatus();
+    const interval = setInterval(pollStatus, 1000);
     
     return () => clearInterval(interval);
-  }, [generatingModels, showProgressDialog]);
+  }, [generatingModels, showProgressDialog, queryClient]);
 
   // Fetch all auto-generated lists
   const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
@@ -143,8 +148,10 @@ export default function Configs() {
       });
     },
     onSettled: () => {
-      setGeneratingModels(null);
-      setShowProgressDialog(false);
+      // Don't immediately close dialog - let the completion effect handle it
+      setTimeout(() => {
+        setGeneratingModels(null);
+      }, 1000); // Small delay to ensure final progress is shown
     },
   });
 
