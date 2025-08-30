@@ -19,6 +19,7 @@ interface GenerationProgressDialogProps {
   totalBrands: number;
   isGenerating: boolean;
   completedBrands?: number;
+  errorMessage?: string;
 }
 
 export function GenerationProgressDialog({
@@ -27,7 +28,8 @@ export function GenerationProgressDialog({
   category,
   totalBrands,
   isGenerating,
-  completedBrands = 0
+  completedBrands = 0,
+  errorMessage
 }: GenerationProgressDialogProps) {
   const { t } = useLocalization();
   const [currentBrand, setCurrentBrand] = useState(0);
@@ -94,21 +96,11 @@ export function GenerationProgressDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5 text-primary" />
-              <DialogTitle>
-                {t('progress.generating_models_title', 'Generating AI Models')}
-              </DialogTitle>
-            </div>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              data-testid="close-progress-dialog"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">{t('close', 'Close')}</span>
-            </button>
+          <div className="flex items-center gap-2">
+            <Bot className="w-5 h-5 text-primary" />
+            <DialogTitle>
+              {t('progress.generating_models_title', 'Generating AI Models')}
+            </DialogTitle>
           </div>
           <DialogDescription>
             {t('progress.generating_models_for_category', 'Generating device models for {category}').replace('{category}', category)}
@@ -116,14 +108,27 @@ export function GenerationProgressDialog({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Error Alert */}
+          {errorMessage && (
+            <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
+              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <AlertDescription className="text-red-800 dark:text-red-200">
+                <strong>{t('progress.error_title', 'Error:')}</strong>{' '}
+                {errorMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Warning Alert */}
-          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <AlertDescription className="text-amber-800 dark:text-amber-200">
-              <strong>{t('progress.warning_title', 'Important:')}</strong>{' '}
-              {t('progress.warning_message', 'Do not refresh the page or navigate away during generation. This will stop the process and require starting over.')}
-            </AlertDescription>
-          </Alert>
+          {!errorMessage && (
+            <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>{t('progress.warning_title', 'Important:')}</strong>{' '}
+                {t('progress.warning_message', 'Do not refresh the page or navigate away during generation. This will stop the process and require starting over.')}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Progress Section */}
           <div className="space-y-4">

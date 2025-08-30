@@ -22,6 +22,7 @@ export default function Configs() {
   const [progressCategory, setProgressCategory] = useState<string>("");
   const [progressTotalBrands, setProgressTotalBrands] = useState(0);
   const [realTimeProgress, setRealTimeProgress] = useState(0);
+  const [progressError, setProgressError] = useState<string>("");
 
   // Poll generation status when a generation is running
   useEffect(() => {
@@ -152,6 +153,7 @@ export default function Configs() {
       queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
     },
     onError: (error: Error, category) => {
+      setProgressError(error.message);
       toast({
         title: t('toast.models_generation_failed', 'Failed to generate model lists'),
         description: error.message,
@@ -209,6 +211,7 @@ export default function Configs() {
       setProgressCategory(category);
       setProgressTotalBrands(brandList.items.length);
       setRealTimeProgress(0); // Reset real-time progress
+      setProgressError(""); // Reset error state
       setShowProgressDialog(true);
       generateModelsMutation.mutate(category);
     }
@@ -663,6 +666,7 @@ export default function Configs() {
         completedBrands={generatingModels === progressCategory ? realTimeProgress : autoGenLists.filter(list => 
           list.listType.includes('Models') && list.category === progressCategory
         ).length}
+        errorMessage={progressError}
       />
     </div>
   );

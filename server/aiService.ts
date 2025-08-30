@@ -392,7 +392,7 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
                   }
                 ],
                 response_format: { type: "json_object" },
-                max_tokens: 1000
+                max_completion_tokens: 1000
               }),
               new Promise((_, reject) => 
                 setTimeout(() => reject(new Error('Quick timeout for fast fallback')), 10000)
