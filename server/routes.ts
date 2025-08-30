@@ -796,28 +796,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      console.log(`⚠️  COST WARNING: Generating model lists for ${category} - this will make multiple OpenAI API calls`);
-      await aiService.generateAllDeviceModelLists(category);
-      
-      res.json({ message: `Model lists for ${category} generated successfully` });
-    } catch (error) {
-      console.error(`Error generating model lists for ${req.params.category}:`, error);
-      
-      // Clean up any partial generation state to allow retries
-      try {
-        const allLists = await storage.getAllAutoGenLists();
-        const partialLists = allLists.filter(list => list.category === req.params.category);
-        const modelLists = partialLists.filter(list => list.listType.includes('Models'));
-        for (const list of modelLists) {
-          await storage.updateAutoGenList(list.id, { isActive: false });
-          console.log(`Cleaned up partial model list: ${list.listType}`);
-        }
-      } catch (cleanupError) {
-        console.error('Error during cleanup:', cleanupError);
+      // Check if generation is already in progress
+      const existingStatus = aiService.getGenerationStatus(category) as any;
+      if (existingStatus && existingStatus.status === 'running') {
+        return res.status(409).json({ 
+          message: `Generation already in progress for ${category}`,
+          status: existingStatus
+        });
       }
+
+      console.log(`⚠️  COST WARNING: Generating model lists for ${category} - this will make multiple OpenAI API calls`);
+      
+      // Start generation asynchronously for better responsiveness
+      aiService.generateAllDeviceModelLists(category).catch(error => {
+        console.error(`Async generation failed for ${category}:`, error);
+      });
+      
+      res.json({ 
+        message: `Model generation started for ${category}. Check status endpoint for progress.`,
+        statusEndpoint: `/api/auto-gen-lists/${category}/status`
+      });
+    } catch (error) {
+      console.error(`Error starting model generation for ${req.params.category}:`, error);
+      
+      // Reset generation status on error
+      aiService.resetGenerationStatus(req.params.category);
       
       res.status(500).json({ 
-        message: "Failed to generate model lists. Please try again.", 
+        message: "Failed to start model generation. Please try again.", 
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -866,6 +872,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error(`Error generating model list for ${req.params.brand} ${req.params.category}:`, error);
       res.status(500).json({ message: "Failed to generate model list" });
+    }
+  });
+
+  // Get generation status for monitoring
+  app.get("/api/auto-gen-lists/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const statuses = aiService.getGenerationStatus();
+      res.json({ statuses });
+    } catch (error) {
+      console.error("Error fetching generation status:", error);
+      res.status(500).json({ message: "Failed to fetch generation status" });
+    }
+  });
+
+  // Get specific device type generation status
+  app.get("/api/auto-gen-lists/:category/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category } = req.params;
+      const status = aiService.getGenerationStatus(category);
+      
+      if (!status) {
+        return res.json({ status: 'idle', message: 'No generation in progress' });
+      }
+      
+      res.json({ status });
+    } catch (error) {
+      console.error("Error fetching generation status:", error);
+      res.status(500).json({ message: "Failed to fetch generation status" });
+    }
+  });
+
+  // Cancel stuck generation process
+  app.post("/api/auto-gen-lists/:category/cancel", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const cancelled = aiService.cancelGeneration(category);
+      
+      if (cancelled) {
+        res.json({ message: `Generation cancelled for ${category}` });
+      } else {
+        res.json({ message: `No active generation found for ${category}` });
+      }
+    } catch (error) {
+      console.error("Error cancelling generation:", error);
+      res.status(500).json({ message: "Failed to cancel generation" });
+    }
+  });
+
+  // Reset generation status for recovery
+  app.post("/api/auto-gen-lists/:category/reset", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      aiService.resetGenerationStatus(category);
+      res.json({ message: `Generation status reset for ${category}` });
+    } catch (error) {
+      console.error("Error resetting generation status:", error);
+      res.status(500).json({ message: "Failed to reset generation status" });
     }
   });
 

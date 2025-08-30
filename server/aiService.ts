@@ -3,7 +3,94 @@ import { storage } from "./storage";
 import type { InsertAutoGenList } from "@shared/schema";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY,
+  timeout: 60000, // 60 second timeout
+  maxRetries: 3 // Enable automatic retries
+});
+
+// Generation status tracking
+interface GenerationStatus {
+  deviceType: string;
+  totalBrands: number;
+  processedBrands: number;
+  failedBrands: string[];
+  status: 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+  startTime: Date;
+  lastProgress: Date;
+  errorMessage?: string;
+}
+
+class GenerationStatusManager {
+  private statuses = new Map<string, GenerationStatus>();
+  private readonly STALE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+  startGeneration(deviceType: string, totalBrands: number): void {
+    const status: GenerationStatus = {
+      deviceType,
+      totalBrands,
+      processedBrands: 0,
+      failedBrands: [],
+      status: 'running',
+      startTime: new Date(),
+      lastProgress: new Date()
+    };
+    this.statuses.set(deviceType, status);
+    console.log(`📊 Started generation for ${deviceType} - ${totalBrands} brands`);
+  }
+
+  updateProgress(deviceType: string, processedBrands: number, failedBrands: string[] = []): void {
+    const status = this.statuses.get(deviceType);
+    if (status) {
+      status.processedBrands = processedBrands;
+      status.failedBrands = failedBrands;
+      status.lastProgress = new Date();
+      console.log(`📊 Progress ${deviceType}: ${processedBrands}/${status.totalBrands} (${failedBrands.length} failed)`);
+    }
+  }
+
+  completeGeneration(deviceType: string, success: boolean, errorMessage?: string): void {
+    const status = this.statuses.get(deviceType);
+    if (status) {
+      status.status = success ? 'completed' : 'failed';
+      status.errorMessage = errorMessage;
+      console.log(`📊 ${success ? 'Completed' : 'Failed'} generation for ${deviceType}`);
+    }
+  }
+
+  getStatus(deviceType: string): GenerationStatus | undefined {
+    return this.statuses.get(deviceType);
+  }
+
+  isStale(deviceType: string): boolean {
+    const status = this.statuses.get(deviceType);
+    if (!status || status.status !== 'running') return false;
+    
+    const timeSinceLastProgress = Date.now() - status.lastProgress.getTime();
+    return timeSinceLastProgress > this.STALE_TIMEOUT;
+  }
+
+  cancelStaleGenerations(): void {
+    for (const [deviceType, status] of this.statuses.entries()) {
+      if (this.isStale(deviceType)) {
+        status.status = 'cancelled';
+        status.errorMessage = 'Generation timed out - no progress for 5 minutes';
+        console.log(`⏱️ Cancelled stale generation for ${deviceType}`);
+      }
+    }
+  }
+
+  getAllStatuses(): GenerationStatus[] {
+    return Array.from(this.statuses.values());
+  }
+}
+
+const statusManager = new GenerationStatusManager();
+
+// Periodic cleanup of stale generations
+setInterval(() => {
+  statusManager.cancelStaleGenerations();
+}, 60000); // Check every minute
 
 interface BrandGenerationResult {
   brands: string[];
@@ -22,6 +109,36 @@ interface BatchModelGenerationResult {
 }
 
 export class AIService {
+  /**
+   * Get current generation status for monitoring
+   */
+  getGenerationStatus(deviceType?: string): GenerationStatus | GenerationStatus[] {
+    if (deviceType) {
+      return statusManager.getStatus(deviceType);
+    }
+    return statusManager.getAllStatuses();
+  }
+
+  /**
+   * Cancel a stuck generation process
+   */
+  cancelGeneration(deviceType: string): boolean {
+    const status = statusManager.getStatus(deviceType);
+    if (status && status.status === 'running') {
+      statusManager.completeGeneration(deviceType, false, 'Manually cancelled');
+      console.log(`🛑 Manually cancelled generation for ${deviceType}`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Reset generation status (for recovery)
+   */
+  resetGenerationStatus(deviceType: string): void {
+    statusManager.completeGeneration(deviceType, false, 'Status reset');
+    console.log(`🔄 Reset generation status for ${deviceType}`);
+  }
   /**
    * Analyze routing errors and provide intelligent suggestions
    */
@@ -80,18 +197,39 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
     }
   }
   /**
+   * Enhanced logging for debugging generation process
+   */
+  private logGenerationStep(step: string, details: any = {}) {
+    const timestamp = new Date().toISOString();
+    console.log(`🔍 [${timestamp}] ${step}`, details);
+  }
+
+  /**
    * Generate device models for multiple brands at once (cost-optimized batch processing)
    */
   async generateBatchDeviceModels(deviceType: string, brands: string[]): Promise<BatchModelGenerationResult> {
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 4;
     
-    // Process brands in batches of 5 for optimal token usage
-    const batchSize = 5;
+    // Process brands in batches of 3 for better reliability (reduced from 5)
+    const batchSize = 3;
     const results: { [brand: string]: string[] } = {};
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds between retries
+    
+    this.logGenerationStep(`Starting batch generation`, { 
+      deviceType, 
+      totalBrands: brands.length, 
+      batchSize,
+      brands: brands.slice(0, 5).join(', ') + (brands.length > 5 ? '...' : '')
+    });
     
     for (let i = 0; i < brands.length; i += batchSize) {
       const batch = brands.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(brands.length / batchSize);
+      
+      console.log(`📦 Processing batch ${batchNumber}/${totalBatches}: ${batch.join(', ')}`);
       
       const prompt = `List ${deviceType} models from ${startYear}-${currentYear} for these brands: ${batch.join(', ')}.
 
@@ -99,48 +237,113 @@ JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch[1] || 'Brand2'}": ["Model1"
 
 For each brand, max 30 models, newest first, repair-relevant only.`;
       
-      try {
-        const response = await openai.chat.completions.create({
-          model: "gpt-5",
-          messages: [
-            {
-              role: "system",
-              content: "Device model expert. Provide recent models for repair shops in exact JSON format."
-            },
-            {
-              role: "user",
-              content: prompt
-            }
-          ],
-          response_format: { type: "json_object" },
-        });
-        
-        const batchResults = JSON.parse(response.choices[0].message.content || '{}');
-        
-        // Merge batch results
-        for (const brand of batch) {
-          if (batchResults[brand]) {
-            results[brand] = batchResults[brand].slice(0, 30);
+      let attempt = 0;
+      let success = false;
+      
+      while (attempt < maxRetries && !success) {
+        try {
+          attempt++;
+          this.logGenerationStep(`API request attempt`, { 
+            batchNumber, 
+            attempt, 
+            maxRetries, 
+            brands: batch,
+            deviceType
+          });
+          
+          // Add timeout wrapper
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+          
+          const response = await Promise.race([
+            openai.chat.completions.create({
+              model: "gpt-5",
+              messages: [
+                {
+                  role: "system",
+                  content: "Device model expert. Provide recent models for repair shops in exact JSON format. Be concise and accurate."
+                },
+                {
+                  role: "user",
+                  content: prompt
+                }
+              ],
+              response_format: { type: "json_object" },
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout')), 45000)
+            )
+          ]) as OpenAI.Chat.Completions.ChatCompletion;
+          
+          clearTimeout(timeoutId);
+          
+          // Validate response
+          const content = response.choices[0]?.message?.content;
+          if (!content) {
+            throw new Error('Empty response from OpenAI');
           }
-        }
-        
-        // Shorter delay for batch processing
-        if (i + batchSize < brands.length) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-      } catch (error) {
-        console.error(`Failed to generate batch models for ${batch.join(', ')}:`, error);
-        // Add fallback for failed brands
-        for (const brand of batch) {
-          if (!results[brand]) {
-            const fallback = this.getFallbackModels(deviceType, brand);
-            results[brand] = fallback.models.slice(0, 30);
+          
+          const batchResults = JSON.parse(content);
+          
+          // Validate JSON structure
+          if (typeof batchResults !== 'object' || Array.isArray(batchResults)) {
+            throw new Error('Invalid JSON structure in response');
+          }
+          
+          // Merge batch results with validation
+          for (const brand of batch) {
+            if (batchResults[brand] && Array.isArray(batchResults[brand])) {
+              results[brand] = batchResults[brand].slice(0, 30);
+              console.log(`✅ ${brand}: ${results[brand].length} models`);
+            } else {
+              console.log(`⚠️  ${brand}: No models in response, using fallback`);
+              const fallback = this.getFallbackModels(deviceType, brand);
+              results[brand] = fallback.models.slice(0, 30);
+            }
+          }
+          
+          success = true;
+          this.logGenerationStep(`Batch completed successfully`, { 
+            batchNumber, 
+            totalBatches,
+            processedBrands: batch.length,
+            deviceType
+          });
+          
+        } catch (error) {
+          console.error(`❌ Batch ${batchNumber} attempt ${attempt} failed:`, error);
+          
+          if (attempt === maxRetries) {
+            console.log(`🚨 All attempts failed for batch ${batchNumber}, using fallbacks`);
+            // Add fallback for all failed brands in this batch
+            for (const brand of batch) {
+              if (!results[brand]) {
+                const fallback = this.getFallbackModels(deviceType, brand);
+                results[brand] = fallback.models.slice(0, 30);
+                console.log(`🔄 Fallback for ${brand}: ${results[brand].length} models`);
+              }
+            }
+          } else {
+            // Wait before retry with exponential backoff
+            const waitTime = retryDelay * Math.pow(2, attempt - 1);
+            console.log(`⏱️  Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         }
       }
+      
+      // Progress update
+      const processedCount = i + batchSize;
+      statusManager.updateProgress(deviceType, Math.min(processedCount, brands.length));
+      
+      // Longer delay between batches to respect rate limits
+      if (i + batchSize < brands.length) {
+        console.log(`⏱️  Waiting 1 second before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
     
+    console.log(`🎉 Batch generation completed for ${deviceType}`);
     return {
       results,
       category: deviceType
@@ -243,82 +446,131 @@ JSON: {"brands": ["Brand1", "Brand2", ...]}
     console.log(`⚠️  COST WARNING: Starting AI model list generation for ${deviceType} - this will make OpenAI API calls`);
     
     try {
+      // Check for existing generation and cancel if stale
+      statusManager.cancelStaleGenerations();
+      
+      const existingStatus = statusManager.getStatus(deviceType);
+      if (existingStatus?.status === 'running') {
+        console.log(`⚠️  Generation already in progress for ${deviceType}`);
+        return;
+      }
+      
       // Get existing brand list for this device type
       const brandList = await storage.getAutoGenList(deviceType);
       
       if (!brandList || !brandList.items || brandList.items.length === 0) {
         console.log(`❌ No brand list found for ${deviceType}. Generate brands first.`);
+        statusManager.completeGeneration(deviceType, false, 'No brand list found');
         return;
       }
       
       console.log(`📱 Found ${brandList.items.length} brands for ${deviceType}`);
       
+      // Start status tracking
+      statusManager.startGeneration(deviceType, brandList.items.length);
+      
       const brandsWithoutModels: string[] = [];
       const activeBrands: string[] = [];
+      const failedBrands: string[] = [];
       
-      
-      // Use batch processing for better efficiency
-      console.log(`💡 Using batch processing for ${brandList.items.length} brands`);
-      const batchResults = await this.generateBatchDeviceModels(deviceType, brandList.items);
-      
-      // Process batch results
-      for (const brand of brandList.items) {
-        const models = batchResults.results[brand] || [];
+      try {
+        // Use batch processing for better efficiency
+        console.log(`💡 Using batch processing for ${brandList.items.length} brands`);
+        const batchResults = await this.generateBatchDeviceModels(deviceType, brandList.items);
         
-        if (models.length === 0) {
-          brandsWithoutModels.push(brand);
-          console.log(`🚫 ${brand} has no ${deviceType} models - will be excluded`);
-        } else {
-          activeBrands.push(brand);
-          
-          // Save/update model list
-          const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
-          const existingList = await storage.getAutoGenListByType(listType);
-          
-          if (existingList) {
-            await storage.updateAutoGenList(existingList.id, {
-              items: models,
+        // Process batch results with detailed tracking
+        let processedCount = 0;
+        for (const brand of brandList.items) {
+          try {
+            const models = batchResults.results[brand] || [];
+            
+            if (models.length === 0) {
+              brandsWithoutModels.push(brand);
+              console.log(`🚫 ${brand} has no ${deviceType} models - will be excluded`);
+            } else {
+              activeBrands.push(brand);
+              
+              // Save/update model list with error handling
+              const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+              
+              try {
+                const existingList = await storage.getAutoGenListByType(listType);
+                
+                if (existingList) {
+                  await storage.updateAutoGenList(existingList.id, {
+                    items: models,
+                    lastGenerated: new Date(),
+                    nextUpdate: this.getNextUpdate(),
+                    updatedAt: new Date()
+                  });
+                  console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
+                } else {
+                  const newList: InsertAutoGenList = {
+                    listType,
+                    category: deviceType,
+                    brand,
+                    items: models,
+                    lastGenerated: new Date(),
+                    nextUpdate: this.getNextUpdate('quarterly'),
+                    refreshInterval: 'quarterly',
+                    isActive: true
+                  };
+                  
+                  await storage.createAutoGenList(newList);
+                  console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
+                }
+              } catch (storageError) {
+                console.error(`💾 Storage error for ${brand}:`, storageError);
+                failedBrands.push(brand);
+              }
+            }
+            
+            processedCount++;
+            statusManager.updateProgress(deviceType, processedCount, failedBrands);
+            
+          } catch (brandError) {
+            console.error(`❌ Error processing brand ${brand}:`, brandError);
+            failedBrands.push(brand);
+            processedCount++;
+            statusManager.updateProgress(deviceType, processedCount, failedBrands);
+          }
+        }
+        
+        // Update the brand list to remove brands without models
+        if (brandsWithoutModels.length > 0) {
+          try {
+            const currentExcluded = brandList.excludedBrands || [];
+            const newExcluded = Array.from(new Set([...currentExcluded, ...brandsWithoutModels]));
+            
+            await storage.updateAutoGenList(brandList.id, {
+              items: activeBrands,
+              excludedBrands: newExcluded,
               lastGenerated: new Date(),
               nextUpdate: this.getNextUpdate(),
               updatedAt: new Date()
             });
-            console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
-          } else {
-            const newList: InsertAutoGenList = {
-              listType,
-              category: deviceType,
-              brand,
-              items: models,
-              lastGenerated: new Date(),
-              nextUpdate: this.getNextUpdate('quarterly'),
-              refreshInterval: 'quarterly',
-              isActive: true
-            };
             
-            await storage.createAutoGenList(newList);
-            console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
+            console.log(`🧹 Updated ${deviceType} brand list: ${activeBrands.length} active brands, ${brandsWithoutModels.length} brands excluded`);
+          } catch (updateError) {
+            console.error(`💾 Failed to update brand list:`, updateError);
           }
         }
+        
+        // Mark generation as completed
+        const successMessage = `Completed: ${activeBrands.length} brands with models, ${brandsWithoutModels.length} excluded, ${failedBrands.length} failed`;
+        statusManager.completeGeneration(deviceType, failedBrands.length === 0, failedBrands.length > 0 ? `Some brands failed: ${failedBrands.join(', ')}` : undefined);
+        console.log(`🎉 ${successMessage}`);
+        
+      } catch (batchError) {
+        console.error(`💥 Batch generation failed for ${deviceType}:`, batchError);
+        statusManager.completeGeneration(deviceType, false, `Batch generation failed: ${batchError.message}`);
+        throw batchError;
       }
       
-      // Update the brand list to remove brands without models
-      if (brandsWithoutModels.length > 0 || activeBrands.length !== brandList.items.length) {
-        const currentExcluded = brandList.excludedBrands || [];
-        const newExcluded = Array.from(new Set([...currentExcluded, ...brandsWithoutModels]));
-        
-        await storage.updateAutoGenList(brandList.id, {
-          items: activeBrands,
-          excludedBrands: newExcluded,
-          lastGenerated: new Date(),
-          nextUpdate: this.getNextUpdate(),
-          updatedAt: new Date()
-        });
-        
-        console.log(`🧹 Updated ${deviceType} brand list: ${activeBrands.length} active brands, ${brandsWithoutModels.length} brands excluded`);
-        console.log(`📋 Excluded brands: ${newExcluded.join(', ')}`);
-      }
     } catch (error) {
       console.error(`❌ Failed to generate model lists for ${deviceType}:`, error);
+      statusManager.completeGeneration(deviceType, false, `Generation failed: ${error.message}`);
+      throw error;
     }
     
     console.log(`💰 AI model list generation completed for ${deviceType}`);
