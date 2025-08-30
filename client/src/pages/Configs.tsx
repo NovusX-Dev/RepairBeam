@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
 import type { AutoGenList } from "@shared/schema";
 
 export default function Configs() {
@@ -17,6 +18,9 @@ export default function Configs() {
   const [updatingList, setUpdatingList] = useState<string | null>(null);
   const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
   const [generatingModels, setGeneratingModels] = useState<string | null>(null);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [progressCategory, setProgressCategory] = useState<string>("");
+  const [progressTotalBrands, setProgressTotalBrands] = useState(0);
 
   // Fetch all auto-generated lists
   const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
@@ -117,8 +121,20 @@ export default function Configs() {
     },
     onSettled: () => {
       setGeneratingModels(null);
+      setShowProgressDialog(false);
     },
   });
+
+  // Handle generate models with progress dialog
+  const handleGenerateModels = (category: string) => {
+    const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
+    if (brandList) {
+      setProgressCategory(category);
+      setProgressTotalBrands(brandList.items.length);
+      setShowProgressDialog(true);
+      generateModelsMutation.mutate(category);
+    }
+  };
 
   const canUpdateList = (list: AutoGenList) => {
     const now = new Date();
@@ -450,7 +466,7 @@ export default function Configs() {
                         )}
 
                         <Button
-                          onClick={() => generateModelsMutation.mutate(brandList.category)}
+                          onClick={() => handleGenerateModels(brandList.category)}
                           disabled={hasModels || isGenerating || generateModelsMutation.isPending}
                           className="w-full"
                           variant={hasModels ? 'secondary' : 'default'}
@@ -481,6 +497,15 @@ export default function Configs() {
           </div>
         </>
       )}
+
+      {/* Progress Dialog */}
+      <GenerationProgressDialog
+        isOpen={showProgressDialog}
+        onOpenChange={setShowProgressDialog}
+        category={progressCategory}
+        totalBrands={progressTotalBrands}
+        isGenerating={generatingModels !== null}
+      />
     </div>
   );
 }
