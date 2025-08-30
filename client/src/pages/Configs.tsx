@@ -522,6 +522,9 @@ export default function Configs() {
         category={progressCategory}
         totalBrands={progressTotalBrands}
         isGenerating={generatingModels !== null}
+        completedBrands={autoGenLists.filter(list => 
+          list.listType.includes('Models') && list.category === progressCategory
+        ).length}
       />
     </div>
   );

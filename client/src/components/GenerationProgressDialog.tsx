@@ -18,6 +18,7 @@ interface GenerationProgressDialogProps {
   category: string;
   totalBrands: number;
   isGenerating: boolean;
+  completedBrands?: number;
 }
 
 export function GenerationProgressDialog({
@@ -25,44 +26,40 @@ export function GenerationProgressDialog({
   onOpenChange,
   category,
   totalBrands,
-  isGenerating
+  isGenerating,
+  completedBrands = 0
 }: GenerationProgressDialogProps) {
   const { t } = useLocalization();
   const [currentBrand, setCurrentBrand] = useState(0);
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState("");
 
-  // Simulate progress tracking (in real implementation, this would come from server events)
+  // Update progress based on actual server data
   useEffect(() => {
     if (!isGenerating || !isOpen) {
       setCurrentBrand(0);
       setProgressPercentage(0);
+      setEstimatedTimeRemaining("");
       return;
     }
 
-    // Estimate progress based on time (rough approximation)
-    const startTime = Date.now();
-    const estimatedTotalTime = totalBrands * 30000; // ~30 seconds per brand
+    // Calculate real progress based on completed brands
+    const progress = totalBrands > 0 ? Math.min((completedBrands / totalBrands) * 100, 95) : 0;
+    setProgressPercentage(progress);
+    setCurrentBrand(completedBrands);
     
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min((elapsed / estimatedTotalTime) * 100, 95); // Cap at 95% until complete
-      
-      setProgressPercentage(progress);
-      setCurrentBrand(Math.floor((progress / 100) * totalBrands));
-      
-      const remaining = Math.max(0, estimatedTotalTime - elapsed);
-      const remainingMinutes = Math.ceil(remaining / 60000);
-      
-      if (remainingMinutes > 1) {
-        setEstimatedTimeRemaining(t('progress.estimated_time_minutes', '{minutes} minutes remaining').replace('{minutes}', remainingMinutes.toString()));
-      } else {
-        setEstimatedTimeRemaining(t('progress.estimated_time_soon', 'Almost complete...'));
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isGenerating, isOpen, totalBrands, t]);
+    // Estimate remaining time based on actual progress (4 minutes per brand average)
+    const remainingBrands = totalBrands - completedBrands;
+    const estimatedRemainingMinutes = remainingBrands * 4;
+    
+    if (remainingBrands === 0) {
+      setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
+    } else if (estimatedRemainingMinutes > 1) {
+      setEstimatedTimeRemaining(t('progress.estimated_time_minutes', '{minutes} minutes remaining').replace('{minutes}', estimatedRemainingMinutes.toString()));
+    } else {
+      setEstimatedTimeRemaining(t('progress.estimated_time_soon', 'Almost complete...'));
+    }
+  }, [isGenerating, isOpen, totalBrands, completedBrands, t]);
 
   // Reset when generation completes
   useEffect(() => {
