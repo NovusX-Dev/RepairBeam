@@ -106,7 +106,7 @@ export function SearchableSelect({
             className="h-9"
           />
           <div 
-            className="max-h-[240px] overflow-y-auto"
+            className="max-h-[400px] overflow-y-auto"
             style={{ 
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch'
