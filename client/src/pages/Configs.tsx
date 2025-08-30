@@ -422,9 +422,14 @@ export default function Configs() {
                 .filter(list => list.listType.includes('Brands'))
                 .map((brandList) => {
                   const isGenerating = generatingModels === brandList.category;
-                  const hasModels = autoGenLists.some(list => 
+                  const modelLists = autoGenLists.filter(list => 
                     list.listType.includes('Models') && list.category === brandList.category
                   );
+                  const hasModels = modelLists.length > 0;
+                  
+                  // Check if generation might be in progress (some models exist but not all brands covered)
+                  const mightBeGenerating = hasModels && modelLists.length < brandList.items.length && !isGenerating;
+                  const shouldDisableButton = hasModels && modelLists.length >= brandList.items.length;
                   
                   return (
                     <Card key={`models-${brandList.category}`} className="relative">
@@ -433,8 +438,10 @@ export default function Configs() {
                           {t('configs.category_models_by_brand', '{category} Models by Brand').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))}
                         </CardTitle>
                         <CardDescription>
-                          {hasModels 
+                          {shouldDisableButton 
                             ? t('configs.models_have_been_generated', 'Models have been generated for this category')
+                            : mightBeGenerating
+                            ? t('configs.generation_in_progress', 'Generation in progress - {count}/{total} brands completed').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())
                             : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))
                           }
                         </CardDescription>
@@ -444,19 +451,24 @@ export default function Configs() {
                           <p className="text-sm text-muted-foreground">
                             {t('available_brands_count', 'Available brands')}: {brandList.items.length}
                           </p>
-                          {!hasModels && (
+                          {!hasModels && !mightBeGenerating && (
                             <p className="text-sm text-muted-foreground">
                               {t('models_will_be_generated', 'Models will be generated for each brand (last 4 years)')}
                             </p>
                           )}
-                          {hasModels && (
+                          {mightBeGenerating && (
+                            <p className="text-sm text-amber-600 dark:text-amber-400">
+                              ⏳ {t('configs.generation_in_progress_details', 'Generation detected in progress ({count}/{total} brands completed)').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())}
+                            </p>
+                          )}
+                          {shouldDisableButton && (
                             <p className="text-sm text-green-600 dark:text-green-400">
                               ✅ {t('configs.models_generated_successfully', 'Models generated successfully')}
                             </p>
                           )}
                         </div>
 
-                        {hasModels && (
+                        {shouldDisableButton && (
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
                             <RefreshCw className="w-4 h-4" />
                             <span>
@@ -467,9 +479,9 @@ export default function Configs() {
 
                         <Button
                           onClick={() => handleGenerateModels(brandList.category)}
-                          disabled={hasModels || isGenerating || generateModelsMutation.isPending}
+                          disabled={shouldDisableButton || isGenerating || generateModelsMutation.isPending}
                           className="w-full"
-                          variant={hasModels ? 'secondary' : 'default'}
+                          variant={shouldDisableButton ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
                           data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
                         >
                           {isGenerating ? (
@@ -477,10 +489,15 @@ export default function Configs() {
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               {t('generating_models', 'Generating Models...')}
                             </>
-                          ) : hasModels ? (
+                          ) : shouldDisableButton ? (
                             <>
                               <CheckCircle2 className="w-4 h-4 mr-2" />
                               {t('configs.models_already_generated', 'Models Already Generated')}
+                            </>
+                          ) : mightBeGenerating ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              {t('configs.continue_generation', 'Continue Generation')} ({modelLists.length}/{brandList.items.length}) 💰
                             </>
                           ) : (
                             <>
