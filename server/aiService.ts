@@ -400,8 +400,8 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
             ]) as OpenAI.Chat.Completions.ChatCompletion;
           } catch (apiError) {
             this.logGenerationStep(`API call failed (${apiError.message}), using fallbacks immediately`, { 
-              brands: brandBatch,
-              batch,
+              brands: batch,
+              batchNumber,
               attempt
             });
             // Immediate fallback on any API error

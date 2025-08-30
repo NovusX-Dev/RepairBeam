@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Bot, Loader2, Clock } from "lucide-react";
+import { AlertTriangle, Bot, Loader2, Clock, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface GenerationProgressDialogProps {
@@ -71,10 +71,10 @@ export function GenerationProgressDialog({
       setCurrentBrand(totalBrands);
       setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
       
-      // Auto-close after longer delay to let user see completion
+      // Auto-close quickly when generation completes
       setTimeout(() => {
         onOpenChange(false);
-      }, 6000); // Increased to 6 seconds
+      }, 1000); // Close quickly after completion
     }
   }, [isGenerating, progressPercentage, totalBrands, t, onOpenChange]);
 
@@ -94,11 +94,21 @@ export function GenerationProgressDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Bot className="w-5 h-5 text-primary" />
-            <DialogTitle>
-              {t('progress.generating_models_title', 'Generating AI Models')}
-            </DialogTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bot className="w-5 h-5 text-primary" />
+              <DialogTitle>
+                {t('progress.generating_models_title', 'Generating AI Models')}
+              </DialogTitle>
+            </div>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="rounded-sm opacity-70 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              data-testid="close-progress-dialog"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">{t('close', 'Close')}</span>
+            </button>
           </div>
           <DialogDescription>
             {t('progress.generating_models_for_category', 'Generating device models for {category}').replace('{category}', category)}
