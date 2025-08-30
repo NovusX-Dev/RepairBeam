@@ -91,8 +91,8 @@ Requirements:
             category: deviceType,
             items: brands,
             lastGenerated: new Date(),
-            nextUpdate: this.getNextUpdate('monthly'), // Default to monthly
-            refreshInterval: 'monthly',
+            nextUpdate: this.getNextUpdate('quarterly'), // Default to quarterly
+            refreshInterval: 'quarterly',
             isActive: true
           };
           
@@ -168,6 +168,91 @@ Requirements:
     }
     
     return now;
+  }
+
+  /**
+   * Validate and potentially add a user-entered brand to the list
+   */
+  async validateAndAddBrand(deviceType: string, brandName: string): Promise<{ isValid: boolean; correctedName?: string; added: boolean }> {
+    try {
+      console.log(`🔍 Validating brand "${brandName}" for ${deviceType}...`);
+
+      // Clean up the brand name
+      const cleanBrand = brandName.trim();
+      if (!cleanBrand) {
+        return { isValid: false, added: false };
+      }
+
+      // Check if brand exists and get corrected spelling
+      const validationPrompt = `Is "${cleanBrand}" a real ${deviceType.toLowerCase()} brand/manufacturer? 
+
+Consider:
+- Exact matches (Apple, Samsung, etc.)
+- Common typos (Appel -> Apple, Samsang -> Samsung)
+- Alternative spellings or abbreviations
+- Regional brand names
+
+Respond with JSON in this exact format:
+{
+  "isValid": boolean,
+  "correctedName": "exact brand name" or null if invalid,
+  "confidence": number between 0-1
+}
+
+Examples:
+- "Appel" -> {"isValid": true, "correctedName": "Apple", "confidence": 0.9}
+- "xyz123" -> {"isValid": false, "correctedName": null, "confidence": 0.1}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert in device brands and manufacturers. Validate brand names and correct typos."
+          },
+          {
+            role: "user",
+            content: validationPrompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1 // Very low temperature for consistent validation
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
+      
+      if (result.isValid && result.correctedName) {
+        // Try to add to the existing list
+        const existingList = await storage.getAutoGenList(deviceType);
+        
+        if (existingList && !existingList.items.includes(result.correctedName)) {
+          const updatedItems = [...existingList.items, result.correctedName].sort();
+          await storage.updateAutoGenList(existingList.id, {
+            items: updatedItems,
+            updatedAt: new Date()
+          });
+          
+          console.log(`✅ Added "${result.correctedName}" to ${deviceType} brand list`);
+          return { 
+            isValid: true, 
+            correctedName: result.correctedName, 
+            added: true 
+          };
+        }
+        
+        return { 
+          isValid: true, 
+          correctedName: result.correctedName, 
+          added: false 
+        };
+      }
+
+      return { isValid: false, added: false };
+    } catch (error) {
+      console.error(`❌ Brand validation failed for "${brandName}":`, error);
+      // If validation fails, assume it's valid to not block the user
+      return { isValid: true, correctedName: brandName, added: false };
+    }
   }
 
   /**

@@ -173,7 +173,7 @@ export const autoGenLists = pgTable("auto_gen_lists", {
   items: text("items").array().notNull(), // Array of brand names
   lastGenerated: timestamp("last_generated").defaultNow(),
   nextUpdate: timestamp("next_update").notNull(), // When to regenerate
-  refreshInterval: varchar("refresh_interval").notNull().default('monthly'), // weekly, biweekly, monthly, quarterly
+  refreshInterval: varchar("refresh_interval").notNull().default('quarterly'), // weekly, biweekly, monthly, quarterly
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -87,3 +87,27 @@ export function useInitializeBrandLists() {
     retry: 1,
   });
 }
+
+export function useValidateBrand() {
+  return {
+    validateBrand: async (deviceType: string, brandName: string) => {
+      const response = await fetch(`/api/auto-gen-lists/${deviceType}/validate-brand`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ brandName }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to validate brand');
+      }
+      
+      return response.json() as Promise<{
+        isValid: boolean;
+        correctedName?: string;
+        added: boolean;
+      }>;
+    }
+  };
+}

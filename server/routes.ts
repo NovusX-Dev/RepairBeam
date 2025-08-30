@@ -645,6 +645,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate and add new brand
+  app.post("/api/auto-gen-lists/:category/validate-brand", async (req, res) => {
+    try {
+      const { category } = req.params;
+      const { brandName } = req.body;
+      
+      if (!brandName || typeof brandName !== 'string') {
+        return res.status(400).json({ message: "Brand name is required" });
+      }
+
+      console.log(`💰 Brand validation request for "${brandName}" in ${category} category`);
+      const result = await aiService.validateAndAddBrand(category, brandName);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error validating brand:", error);
+      res.status(500).json({ message: "Failed to validate brand" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

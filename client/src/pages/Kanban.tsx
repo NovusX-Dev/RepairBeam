@@ -33,7 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
-import { useDeviceBrands } from "@/hooks/useDeviceBrands";
+import { useDeviceBrands, useValidateBrand } from "@/hooks/useDeviceBrands";
 
 // Kanban column configuration
 const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
@@ -213,6 +213,9 @@ export default function KanbanTickets() {
   const { data: deviceBrands, isLoading: brandsLoading } = useDeviceBrands(
     formData.deviceType || null
   );
+
+  // Brand validation hook
+  const { validateBrand } = useValidateBrand();
 
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
@@ -1150,7 +1153,7 @@ export default function KanbanTickets() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormFieldWithTooltip
                           label={t("device_brand", "Brand")}
-                          tooltip={t("device_brand_tooltip", "Select the device manufacturer/brand from our AI-curated list. This list is automatically updated weekly with popular brands from the repair industry. If you don't see the brand, you can type it manually.")}
+                          tooltip={t("device_brand_tooltip", "Select the device manufacturer/brand from our AI-curated list. This list is automatically updated quarterly with popular brands from the repair industry. If you don't see the brand, you can type it manually and we'll validate it.")}
                           required
                           hasError={!!formErrors.deviceBrand}
                           isValid={fieldValidation.deviceBrand?.isValid && formData.deviceBrand.length > 0}
@@ -1162,7 +1165,29 @@ export default function KanbanTickets() {
                             emptyText={t("no_brands_found", "No brands found")}
                             items={deviceBrands?.items || []}
                             isLoading={brandsLoading}
+                            allowCustomInput={true}
                             onValueChange={(value) => handleInputChange('deviceBrand', value)}
+                            onCustomValue={async (brandName) => {
+                              try {
+                                console.log(`💰 Validating custom brand: ${brandName}`);
+                                const result = await validateBrand(formData.deviceType, brandName);
+                                
+                                if (result.correctedName) {
+                                  handleInputChange('deviceBrand', result.correctedName);
+                                  if (result.added) {
+                                    // Optionally refresh the brand list to include the new brand
+                                    console.log(`✅ Added new brand: ${result.correctedName}`);
+                                  }
+                                } else {
+                                  // Still allow the user to use the brand even if validation failed
+                                  handleInputChange('deviceBrand', brandName);
+                                }
+                              } catch (error) {
+                                console.error('Brand validation failed:', error);
+                                // Allow user to proceed even if validation fails
+                                handleInputChange('deviceBrand', brandName);
+                              }
+                            }}
                             data-testid="select-device-brand"
                           />
                         </FormFieldWithTooltip>

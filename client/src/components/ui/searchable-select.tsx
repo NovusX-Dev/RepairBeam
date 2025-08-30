@@ -13,6 +13,8 @@ interface SearchableSelectProps {
   items: string[];
   isLoading?: boolean;
   onValueChange?: (value: string) => void;
+  onCustomValue?: (value: string) => void; // For when user types a custom value
+  allowCustomInput?: boolean;
   className?: string;
   disabled?: boolean;
   "data-testid"?: string;
@@ -26,6 +28,8 @@ export function SearchableSelect({
   items = [],
   isLoading = false,
   onValueChange,
+  onCustomValue,
+  allowCustomInput = false,
   className,
   disabled = false,
   "data-testid": testId,
@@ -100,7 +104,29 @@ export function SearchableSelect({
             className="h-9"
           />
           <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandEmpty>
+              {allowCustomInput && searchValue ? (
+                <div className="p-2">
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {emptyText}
+                  </div>
+                  <button
+                    className="w-full p-2 text-left hover:bg-accent rounded text-sm border border-dashed border-muted-foreground/50"
+                    onClick={() => {
+                      if (onCustomValue && searchValue.trim()) {
+                        onCustomValue(searchValue.trim());
+                        setOpen(false);
+                        setSearchValue("");
+                      }
+                    }}
+                  >
+                    Use "{searchValue}" as custom brand
+                  </button>
+                </div>
+              ) : (
+                emptyText
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {filteredItems.map((item) => (
                 <CommandItem
