@@ -8,12 +8,12 @@ export const ANIMATION_DURATIONS = {
 } as const;
 
 export const ANIMATION_EASINGS = {
-  easeOut: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-  easeIn: 'cubic-bezier(0.55, 0.085, 0.68, 0.53)',
-  easeInOut: 'cubic-bezier(0.455, 0.03, 0.515, 0.955)',
-  bounce: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-  elastic: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-  smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+  easeOut: 'easeOut',
+  easeIn: 'easeIn',
+  easeInOut: 'easeInOut',
+  bounce: [0.68, -0.55, 0.265, 1.55],
+  elastic: [0.175, 0.885, 0.32, 1.275],
+  smooth: [0.4, 0, 0.2, 1],
 } as const;
 
 export const ANIMATION_VARIANTS = {
