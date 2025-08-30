@@ -34,6 +34,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand } from "@/hooks/useDeviceBrands";
+import { useDeviceModels } from "@/hooks/useDeviceModels";
 
 // Kanban column configuration
 const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
@@ -212,6 +213,12 @@ export default function KanbanTickets() {
   // Device brands query - fetches AI-generated brand list based on device type
   const { data: deviceBrands, isLoading: brandsLoading } = useDeviceBrands(
     formData.deviceType || null
+  );
+  
+  // Device models query - fetches AI-generated model list based on device type and brand
+  const { data: deviceModels, isLoading: modelsLoading } = useDeviceModels(
+    formData.deviceType || '',
+    formData.deviceBrand || ''
   );
 
   // Brand validation hook
@@ -1194,17 +1201,25 @@ export default function KanbanTickets() {
                         
                         <FormFieldWithTooltip
                           label={t("device_model", "Model")}
-                          tooltip={t("device_model_tooltip", "Enter the specific model number or name of the device. Be as specific as possible (e.g., iPhone 13 Pro, Galaxy S21 Ultra, MacBook Pro 16-inch). This helps with accurate parts identification and repair procedures.")}
+                          tooltip={t("device_model_tooltip", "Select or enter the specific model number or name of the device. Models are automatically generated from the last 4 years for each brand. If your model isn't listed, you can still type it in manually.")}
                           required
                           hasError={!!formErrors.deviceModel}
                           isValid={fieldValidation.deviceModel?.isValid && formData.deviceModel.length > 0}
                         >
-                          <Input
-                            id="deviceModel"
+                          <SearchableSelect
+                            placeholder={t("device_model_placeholder", "Select or type model...")}
                             value={formData.deviceModel || ''}
-                            onChange={(e) => handleInputChange('deviceModel', e.target.value)}
-                            placeholder={t("device_model_placeholder", "e.g., iPhone 13, Galaxy S21")}
-                            data-testid="input-device-model"
+                            onValueChange={(value) => handleInputChange('deviceModel', value)}
+                            items={deviceModels?.items || []}
+                            isLoading={modelsLoading}
+                            allowCustomInput={true}
+                            disabled={!formData.deviceType || !formData.deviceBrand}
+                            emptyMessage={
+                              !formData.deviceType || !formData.deviceBrand 
+                                ? t("select_device_type_brand_first", "Select device type and brand first") 
+                                : t("configs.no_models_available", "No models available for this brand")
+                            }
+                            data-testid="select-device-model"
                           />
                         </FormFieldWithTooltip>
                         

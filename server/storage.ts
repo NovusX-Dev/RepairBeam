@@ -105,6 +105,7 @@ export interface IStorage {
   
   // Auto-generated list operations
   getAutoGenList(category: string): Promise<AutoGenList | undefined>;
+  getAutoGenListByType(listType: string): Promise<AutoGenList | undefined>;
   getAllAutoGenLists(): Promise<AutoGenList[]>;
   createAutoGenList(list: InsertAutoGenList): Promise<AutoGenList>;
   updateAutoGenList(id: string, list: Partial<InsertAutoGenList>): Promise<AutoGenList | undefined>;
@@ -411,6 +412,19 @@ export class DatabaseStorage implements IStorage {
         .from(autoGenLists)
         .where(and(
           eq(autoGenLists.category, category),
+          eq(autoGenLists.isActive, true)
+        ));
+      return list;
+    });
+  }
+
+  async getAutoGenListByType(listType: string): Promise<AutoGenList | undefined> {
+    return withRetry(async () => {
+      const [list] = await db
+        .select()
+        .from(autoGenLists)
+        .where(and(
+          eq(autoGenLists.listType, listType),
           eq(autoGenLists.isActive, true)
         ));
       return list;

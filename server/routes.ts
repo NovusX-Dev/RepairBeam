@@ -676,6 +676,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Model list routes - Get models for a specific brand and category
+  app.get("/api/auto-gen-lists/:category/:brand/models", async (req, res) => {
+    try {
+      const { category, brand } = req.params;
+      const listType = `AutoGen-List-Models-${category}-${brand}`;
+      
+      const list = await storage.getAutoGenListByType(listType);
+      
+      if (!list) {
+        return res.status(404).json({ message: "Model list not found for this brand and category" });
+      }
+
+      res.json(list);
+    } catch (error) {
+      console.error("Error fetching model list:", error);
+      res.status(500).json({ message: "Failed to fetch model list" });
+    }
+  });
+
+  // Generate model lists for all brands of a specific category
+  app.post("/api/auto-gen-lists/:category/generate-models", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log(`⚠️  COST WARNING: Generating model lists for ${category} - this will make multiple OpenAI API calls`);
+      await aiService.generateAllDeviceModelLists(category);
+      
+      res.json({ message: `Model lists for ${category} generated successfully` });
+    } catch (error) {
+      console.error(`Error generating model lists for ${req.params.category}:`, error);
+      res.status(500).json({ message: "Failed to generate model lists" });
+    }
+  });
+
+  // Generate models for a specific brand and category
+  app.post("/api/auto-gen-lists/:category/:brand/generate-models", isAuthenticated, async (req: any, res) => {
+    try {
+      const { category, brand } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log(`💰 Making OpenAI API call for ${brand} ${category} models...`);
+      const { models } = await aiService.generateDeviceModels(category, brand);
+      
+      // Check if model list already exists for this brand
+      const listType = `AutoGen-List-Models-${category}-${brand}`;
+      const existingList = await storage.getAutoGenListByType(listType);
+      
+      if (existingList) {
+        // Update existing list
+        await storage.updateAutoGenList(existingList.id, {
+          items: models,
+          lastGenerated: new Date(),
+          nextUpdate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now (quarterly)
+          updatedAt: new Date()
+        });
+      } else {
+        // Create new list
+        await storage.createAutoGenList({
+          listType,
+          category,
+          brand,
+          items: models,
+          lastGenerated: new Date(),
+          nextUpdate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days from now
+          refreshInterval: 'quarterly',
+          isActive: true
+        });
+      }
+
+      res.json({ message: `Model list for ${brand} ${category} updated successfully`, models: models.length });
+    } catch (error) {
+      console.error(`Error generating model list for ${req.params.brand} ${req.params.category}:`, error);
+      res.status(500).json({ message: "Failed to generate model list" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

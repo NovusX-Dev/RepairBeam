@@ -165,12 +165,13 @@ export const localizations = pgTable("localizations", {
   index("idx_localization_key_language").on(table.key, table.language),
 ]);
 
-// Auto-generated lists table for AI-powered data (brands, etc.)
+// Auto-generated lists table for AI-powered data (brands, models, etc.)
 export const autoGenLists = pgTable("auto_gen_lists", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  listType: varchar("list_type").notNull(), // e.g., 'AutoGen-List-Brands-Phone', 'AutoGen-List-Brands-Laptop'
+  listType: varchar("list_type").notNull(), // e.g., 'AutoGen-List-Brands-Phone', 'AutoGen-List-Models-Phone-Apple'
   category: varchar("category").notNull(), // e.g., 'Phone', 'Laptop', 'Desktop'
-  items: text("items").array().notNull(), // Array of brand names
+  brand: varchar("brand"), // e.g., 'Apple', 'Samsung' - null for brand lists, specific for model lists
+  items: text("items").array().notNull(), // Array of brand names or model names
   lastGenerated: timestamp("last_generated").defaultNow(),
   nextUpdate: timestamp("next_update").notNull(), // When to regenerate
   refreshInterval: varchar("refresh_interval").notNull().default('quarterly'), // weekly, biweekly, monthly, quarterly
@@ -180,6 +181,7 @@ export const autoGenLists = pgTable("auto_gen_lists", {
 }, (table) => [
   index("idx_auto_gen_list_type").on(table.listType),
   index("idx_auto_gen_category").on(table.category),
+  index("idx_auto_gen_brand").on(table.brand),
 ]);
 
 // Relations

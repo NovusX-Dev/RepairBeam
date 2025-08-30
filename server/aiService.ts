@@ -10,7 +10,66 @@ interface BrandGenerationResult {
   category: string;
 }
 
+interface ModelGenerationResult {
+  models: string[];
+  brand: string;
+  category: string;
+}
+
 export class AIService {
+  /**
+   * Generate comprehensive device model lists for a specific brand and device type using AI
+   * Limited to models from the last 4 years to focus on relevant devices
+   */
+  async generateDeviceModels(deviceType: string, brand: string): Promise<ModelGenerationResult> {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 4; // 4 years back
+
+    const prompt = `Generate a comprehensive list of ${brand} ${deviceType} models released from ${startYear} to ${currentYear} (last 4 years). Focus on models that are commonly repaired or serviced in repair shops.
+
+For ${brand} ${deviceType} devices from ${startYear}-${currentYear}, provide a JSON response with an array of model names/numbers.
+
+Response format: { "models": ["Model1", "Model2", ...] }
+
+Requirements:
+- Include only models released between ${startYear} and ${currentYear}
+- Include both popular and less common models that might need repairs
+- Use official model names/numbers as they appear on the device
+- Include different storage variants if they have different model numbers
+- Include both consumer and professional models
+- Sort chronologically from newest to oldest
+- Limit to 30-50 models to keep the list manageable`;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert in device models and repair industry knowledge. Provide comprehensive, accurate model lists for repair management systems focusing on recent models from the last 4 years."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
+      
+      return {
+        models: (result.models || []).slice(0, 50), // Limit to 50 models
+        brand,
+        category: deviceType
+      };
+    } catch (error) {
+      console.error(`Failed to generate models for ${brand} ${deviceType}:`, error);
+      // Fallback models if AI generation fails
+      return this.getFallbackModels(deviceType, brand);
+    }
+  }
+
   /**
    * Generate comprehensive brand lists for device types using AI
    */
@@ -56,6 +115,74 @@ Requirements:
       // Fallback brands if AI generation fails
       return this.getFallbackBrands(deviceType);
     }
+  }
+
+  /**
+   * Generate model lists for all brands of a specific device type
+   * WARNING: This makes OpenAI API calls which cost money - only use when explicitly requested
+   */
+  async generateAllDeviceModelLists(deviceType: string): Promise<void> {
+    console.log(`⚠️  COST WARNING: Starting AI model list generation for ${deviceType} - this will make OpenAI API calls`);
+    
+    try {
+      // Get existing brand list for this device type
+      const brandList = await storage.getAutoGenList(deviceType);
+      
+      if (!brandList || !brandList.items || brandList.items.length === 0) {
+        console.log(`❌ No brand list found for ${deviceType}. Generate brands first.`);
+        return;
+      }
+      
+      console.log(`📱 Found ${brandList.items.length} brands for ${deviceType}`);
+      
+      for (const brand of brandList.items) {
+        try {
+          console.log(`💰 Making OpenAI API call for ${brand} ${deviceType} models...`);
+          
+          const { models } = await this.generateDeviceModels(deviceType, brand);
+          
+          // Check if model list already exists for this brand
+          const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+          const existingList = await storage.getAutoGenListByType(listType);
+          
+          if (existingList) {
+            // Update existing list
+            await storage.updateAutoGenList(existingList.id, {
+              items: models,
+              lastGenerated: new Date(),
+              nextUpdate: this.getNextUpdate(),
+              updatedAt: new Date()
+            });
+            console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
+          } else {
+            // Create new list
+            const newList: InsertAutoGenList = {
+              listType,
+              category: deviceType,
+              brand,
+              items: models,
+              lastGenerated: new Date(),
+              nextUpdate: this.getNextUpdate('quarterly'), // Default to quarterly
+              refreshInterval: 'quarterly',
+              isActive: true
+            };
+            
+            await storage.createAutoGenList(newList);
+            console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
+          }
+          
+          // Add a small delay between API calls to be respectful
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.error(`❌ Failed to generate/update model list for ${brand} ${deviceType}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Failed to generate model lists for ${deviceType}:`, error);
+    }
+    
+    console.log(`💰 AI model list generation completed for ${deviceType}`);
   }
 
   /**
@@ -253,6 +380,43 @@ Examples:
       // If validation fails, assume it's valid to not block the user
       return { isValid: true, correctedName: brandName, added: false };
     }
+  }
+
+  /**
+   * Fallback model lists if AI generation fails
+   */
+  private getFallbackModels(deviceType: string, brand: string): ModelGenerationResult {
+    const fallbackModels: Record<string, Record<string, string[]>> = {
+      Phone: {
+        Apple: ['iPhone 15 Pro Max', 'iPhone 15 Pro', 'iPhone 15', 'iPhone 14 Pro Max', 'iPhone 14 Pro', 'iPhone 14', 'iPhone 13 Pro Max', 'iPhone 13 Pro', 'iPhone 13'],
+        Samsung: ['Galaxy S24 Ultra', 'Galaxy S24+', 'Galaxy S24', 'Galaxy S23 Ultra', 'Galaxy S23+', 'Galaxy S23', 'Galaxy S22 Ultra', 'Galaxy S22+', 'Galaxy S22'],
+        Google: ['Pixel 8 Pro', 'Pixel 8', 'Pixel 7 Pro', 'Pixel 7', 'Pixel 6 Pro', 'Pixel 6'],
+        OnePlus: ['OnePlus 12', 'OnePlus 11', 'OnePlus 10 Pro', 'OnePlus 9 Pro', 'OnePlus 9'],
+        Xiaomi: ['Xiaomi 14 Ultra', 'Xiaomi 14', 'Xiaomi 13 Ultra', 'Xiaomi 13', 'Xiaomi 12 Ultra']
+      },
+      Laptop: {
+        Apple: ['MacBook Pro 16" M3', 'MacBook Pro 14" M3', 'MacBook Air 15" M2', 'MacBook Air 13" M2', 'MacBook Pro 13" M2'],
+        Dell: ['XPS 13 Plus', 'XPS 15', 'XPS 17', 'Inspiron 15 3000', 'Latitude 7420'],
+        HP: ['Spectre x360', 'Envy 13', 'Pavilion 15', 'EliteBook 840', 'ProBook 450'],
+        Lenovo: ['ThinkPad X1 Carbon', 'ThinkPad T14', 'IdeaPad 5', 'Legion 5', 'Yoga 9i'],
+        Asus: ['ZenBook 14', 'VivoBook S15', 'ROG Zephyrus G14', 'TUF Gaming A15']
+      },
+      Desktop: {
+        Dell: ['Inspiron 3880', 'XPS 8950', 'OptiPlex 7090', 'Alienware Aurora R13'],
+        HP: ['Pavilion Desktop', 'OMEN 45L', 'EliteDesk 800', 'Workstation Z4'],
+        Lenovo: ['IdeaCentre 5', 'Legion Tower 5i', 'ThinkCentre M90q', 'ThinkStation P340'],
+        Asus: ['VivoPC', 'ROG Strix GT35', 'Mini PC PN50', 'ExpertCenter D5'],
+        MSI: ['Codex R', 'Aegis RS 12', 'Creator P100X', 'Infinite S3']
+      }
+    };
+
+    const models = fallbackModels[deviceType]?.[brand] || [`${brand} Model 1`, `${brand} Model 2`, `${brand} Model 3`];
+    
+    return {
+      models: models.sort(),
+      brand,
+      category: deviceType
+    };
   }
 
   /**

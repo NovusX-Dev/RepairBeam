@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { AutoGenList } from "@shared/schema";
@@ -16,6 +16,7 @@ export default function Configs() {
   const queryClient = useQueryClient();
   const [updatingList, setUpdatingList] = useState<string | null>(null);
   const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
+  const [generatingModels, setGeneratingModels] = useState<string | null>(null);
 
   // Fetch all auto-generated lists
   const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
@@ -83,6 +84,39 @@ export default function Configs() {
         description: error.message,
         variant: 'destructive',
       });
+    },
+  });
+
+  // Generate models for a category mutation
+  const generateModelsMutation = useMutation({
+    mutationFn: async (category: string) => {
+      setGeneratingModels(category);
+      const response = await fetch(`/api/auto-gen-lists/${category}/generate-models`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate models');
+      }
+      return response.json();
+    },
+    onSuccess: (data, category) => {
+      toast({
+        title: t('toast.models_updated_successfully', 'Model list updated successfully'),
+        description: t('models_generation_complete', `Model lists for ${category} have been generated successfully.`),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
+    },
+    onError: (error: Error, category) => {
+      toast({
+        title: t('toast.models_generation_failed', 'Failed to generate model lists'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      setGeneratingModels(null);
     },
   });
 
@@ -336,6 +370,89 @@ export default function Configs() {
           );
         })}
       </div>
+
+      {/* Model Lists Section */}
+      {autoGenLists.filter(list => list.listType.includes('Brands')).length > 0 && (
+        <>
+          <Separator className="my-8" />
+          
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Smartphone className="w-8 h-8 text-primary" />
+              <div>
+                <h2 className="text-2xl font-bold">{t('configs.autogen_models', 'Device Models')}</h2>
+                <p className="text-muted-foreground">
+                  {t('configs.autogen_models_description', 'AI-generated device model lists organized by brand (last 4 years)')}
+                </p>
+              </div>
+            </div>
+
+            {/* Model Lists Cost Warning */}
+            <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+              <CardContent className="pt-4">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-medium">{t('cost_warning', '💰 Cost Warning')}</span>
+                </div>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                  {t('configs.models_cost_warning', 'Generating model lists makes OpenAI API calls and costs money')}. {t('models_4_year_limit', 'Models are limited to the last 4 years to focus on relevant devices.')}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Model Generation by Category */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {autoGenLists
+                .filter(list => list.listType.includes('Brands'))
+                .map((brandList) => {
+                  const isGenerating = generatingModels === brandList.category;
+                  
+                  return (
+                    <Card key={`models-${brandList.category}`} className="relative">
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          {brandList.category} {t('configs.models_by_brand', 'Models by Brand')}
+                        </CardTitle>
+                        <CardDescription>
+                          {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="mb-4">
+                          <p className="text-sm text-muted-foreground">
+                            {t('available_brands_count', 'Available brands')}: {brandList.items.length}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {t('models_will_be_generated', 'Models will be generated for each brand (last 4 years)')}
+                          </p>
+                        </div>
+
+                        <Button
+                          onClick={() => generateModelsMutation.mutate(brandList.category)}
+                          disabled={isGenerating || generateModelsMutation.isPending}
+                          className="w-full"
+                          data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {t('generating_models', 'Generating Models...')}
+                            </>
+                          ) : (
+                            <>
+                              <Bot className="w-4 h-4 mr-2" />
+                              {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)} 💰
+                            </>
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
