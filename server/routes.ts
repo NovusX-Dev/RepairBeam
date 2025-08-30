@@ -944,6 +944,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Emergency reset all generations
+  app.post("/api/auto-gen-lists/reset-all", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const cancelledCount = aiService.cancelAllGenerations();
+      res.json({ 
+        message: `Emergency reset completed. Cancelled ${cancelledCount} running generations.`,
+        cancelled: cancelledCount
+      });
+    } catch (error) {
+      console.error("Error performing emergency reset:", error);
+      res.status(500).json({ message: "Failed to perform emergency reset" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

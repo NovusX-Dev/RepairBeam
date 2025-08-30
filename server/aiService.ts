@@ -133,6 +133,21 @@ export class AIService {
   }
 
   /**
+   * Cancel all running generations (for emergency reset)
+   */
+  cancelAllGenerations(): number {
+    const allStatuses = statusManager.getAllStatuses();
+    const runningGenerations = allStatuses.filter(s => s.status === 'running');
+    
+    runningGenerations.forEach(status => {
+      statusManager.completeGeneration(status.deviceType, false, 'Bulk cancelled - system reset');
+      console.log(`🛑 Emergency cancelled generation for ${status.deviceType}`);
+    });
+    
+    return runningGenerations.length;
+  }
+
+  /**
    * Reset generation status (for recovery)
    */
   resetGenerationStatus(deviceType: string): void {
@@ -452,7 +467,15 @@ JSON: {"brands": ["Brand1", "Brand2", ...]}
       const existingStatus = statusManager.getStatus(deviceType);
       if (existingStatus?.status === 'running') {
         console.log(`⚠️  Generation already in progress for ${deviceType}`);
-        return;
+        throw new Error(`Generation already in progress for ${deviceType}`);
+      }
+      
+      // Check for any running generations globally to prevent overload
+      const allStatuses = statusManager.getAllStatuses();
+      const runningGenerations = allStatuses.filter(s => s.status === 'running');
+      if (runningGenerations.length > 0) {
+        console.log(`⚠️  Another generation is running: ${runningGenerations[0].deviceType}`);
+        throw new Error(`Another generation is running for ${runningGenerations[0].deviceType}. Please wait for it to complete.`);
       }
       
       // Get existing brand list for this device type
