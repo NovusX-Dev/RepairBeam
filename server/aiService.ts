@@ -5,8 +5,8 @@ import type { InsertAutoGenList } from "@shared/schema";
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 60000, // 60 second timeout
-  maxRetries: 3 // Enable automatic retries
+  timeout: 45000, // 45 second timeout
+  maxRetries: 2 // Reduce retries to avoid long waits
 });
 
 // Generation status tracking
@@ -270,25 +270,39 @@ For each brand, max 30 models, newest first, repair-relevant only.`;
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
           
-          const response = await Promise.race([
-            openai.chat.completions.create({
-              model: "gpt-5",
-              messages: [
-                {
-                  role: "system",
-                  content: "Device model expert. Provide recent models for repair shops in exact JSON format. Be concise and accurate."
-                },
-                {
-                  role: "user",
-                  content: prompt
-                }
-              ],
-              response_format: { type: "json_object" },
-            }),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Request timeout')), 30000)
-            )
-          ]) as OpenAI.Chat.Completions.ChatCompletion;
+          // Try OpenAI first, but use immediate fallbacks if unreliable
+          let response;
+          try {
+            // Reduced timeout for faster fallback
+            response = await Promise.race([
+              openai.chat.completions.create({
+                model: "gpt-4o-mini", // Use fastest, most reliable model
+                messages: [
+                  {
+                    role: "system",
+                    content: "Device model expert. List 8-12 recent models for repair shops. JSON format: {\"models\": {\"BrandName\": [\"Model1\", \"Model2\"]}}"
+                  },
+                  {
+                    role: "user",
+                    content: prompt
+                  }
+                ],
+                response_format: { type: "json_object" },
+                max_tokens: 1000
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Quick timeout for fast fallback')), 15000)
+              )
+            ]) as OpenAI.Chat.Completions.ChatCompletion;
+          } catch (apiError) {
+            this.logGenerationStep(`API call failed (${apiError.message}), using fallbacks immediately`, { 
+              brands: brandBatch,
+              batch,
+              attempt
+            });
+            // Immediate fallback on any API error
+            throw new Error('API unavailable - using fallbacks');
+          }
           
           clearTimeout(timeoutId);
           

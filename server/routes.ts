@@ -813,8 +813,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       res.json({ 
-        message: `Model generation started for ${category}. Check status endpoint for progress.`,
-        statusEndpoint: `/api/auto-gen-lists/${category}/status`
+        message: `Model generation started for ${category}. This may take 2-3 minutes to complete.`,
+        statusEndpoint: `/api/auto-gen-lists/${category}/status`,
+        isAsync: true,
+        estimatedTime: "2-3 minutes"
       });
     } catch (error) {
       console.error(`Error starting model generation for ${req.params.category}:`, error);
