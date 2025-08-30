@@ -430,12 +430,12 @@ export default function Configs() {
                     <Card key={`models-${brandList.category}`} className="relative">
                       <CardHeader>
                         <CardTitle className="text-lg">
-                          {brandList.category} {t('configs.models_by_brand', 'Models by Brand')}
+                          {t('configs.category_models_by_brand', '{category} Models by Brand').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))}
                         </CardTitle>
                         <CardDescription>
                           {hasModels 
                             ? t('configs.models_have_been_generated', 'Models have been generated for this category')
-                            : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)
+                            : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))
                           }
                         </CardDescription>
                       </CardHeader>
@@ -485,7 +485,7 @@ export default function Configs() {
                           ) : (
                             <>
                               <Bot className="w-4 h-4 mr-2" />
-                              {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', brandList.category)} 💰
+                              {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))} 💰
                             </>
                           )}
                         </Button>
