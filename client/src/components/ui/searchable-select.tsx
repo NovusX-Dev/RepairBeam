@@ -38,6 +38,7 @@ export function SearchableSelect({
   const [searchValue, setSearchValue] = useState("");
   const [filteredItems, setFilteredItems] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Filter items based on search value
   useEffect(() => {
@@ -70,6 +71,22 @@ export function SearchableSelect({
     }
   };
 
+  // Ensure proper wheel event handling
+  useEffect(() => {
+    const listElement = listRef.current;
+    if (listElement && open) {
+      const handleWheel = (e: WheelEvent) => {
+        e.stopPropagation();
+        // Allow default scrolling behavior
+      };
+      
+      listElement.addEventListener('wheel', handleWheel, { passive: true });
+      return () => {
+        listElement.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [open]);
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
@@ -96,7 +113,7 @@ export function SearchableSelect({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-full p-0 max-h-80 overflow-hidden" align="start">
         <Command>
           <CommandInput
             ref={inputRef}
@@ -105,8 +122,9 @@ export function SearchableSelect({
             onValueChange={setSearchValue}
             className="h-9"
           />
-          <CommandList className="max-h-60 overflow-y-auto overscroll-contain">
-            <CommandEmpty>
+          <div className="max-h-60 overflow-y-auto">
+            <CommandList ref={listRef}>
+              <CommandEmpty>
               {allowCustomInput && searchValue ? (
                 <div className="p-2">
                   <div className="text-sm text-muted-foreground mb-2">
@@ -146,8 +164,9 @@ export function SearchableSelect({
                   {item}
                 </CommandItem>
               ))}
-            </CommandGroup>
-          </CommandList>
+              </CommandGroup>
+            </CommandList>
+          </div>
         </Command>
       </PopoverContent>
     </Popover>
