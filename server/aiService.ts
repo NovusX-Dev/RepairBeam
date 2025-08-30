@@ -16,7 +16,80 @@ interface ModelGenerationResult {
   category: string;
 }
 
+interface BatchModelGenerationResult {
+  results: { [brand: string]: string[] };
+  category: string;
+}
+
 export class AIService {
+  /**
+   * Generate device models for multiple brands at once (cost-optimized batch processing)
+   */
+  async generateBatchDeviceModels(deviceType: string, brands: string[]): Promise<BatchModelGenerationResult> {
+    const currentYear = new Date().getFullYear();
+    const startYear = currentYear - 4;
+    
+    // Process brands in batches of 5 for optimal token usage
+    const batchSize = 5;
+    const results: { [brand: string]: string[] } = {};
+    
+    for (let i = 0; i < brands.length; i += batchSize) {
+      const batch = brands.slice(i, i + batchSize);
+      
+      const prompt = `List ${deviceType} models from ${startYear}-${currentYear} for these brands: ${batch.join(', ')}.
+
+JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch[1] || 'Brand2'}": ["Model1", "Model2"], ...}
+
+For each brand, max 30 models, newest first, repair-relevant only.`;
+      
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "Device model expert. Provide recent models for repair shops in exact JSON format."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+        });
+        
+        const batchResults = JSON.parse(response.choices[0].message.content || '{}');
+        
+        // Merge batch results
+        for (const brand of batch) {
+          if (batchResults[brand]) {
+            results[brand] = batchResults[brand].slice(0, 30);
+          }
+        }
+        
+        // Shorter delay for batch processing
+        if (i + batchSize < brands.length) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+      } catch (error) {
+        console.error(`Failed to generate batch models for ${batch.join(', ')}:`, error);
+        // Add fallback for failed brands
+        for (const brand of batch) {
+          if (!results[brand]) {
+            const fallback = this.getFallbackModels(deviceType, brand);
+            results[brand] = fallback.models.slice(0, 30);
+          }
+        }
+      }
+    }
+    
+    return {
+      results,
+      category: deviceType
+    };
+  }
+
   /**
    * Generate comprehensive device model lists for a specific brand and device type using AI
    * Limited to models from the last 4 years to focus on relevant devices
@@ -25,20 +98,15 @@ export class AIService {
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 4; // 4 years back
 
-    const prompt = `Generate a comprehensive list of ${brand} ${deviceType} models released from ${startYear} to ${currentYear} (last 4 years). Focus on models that are commonly repaired or serviced in repair shops.
+    const prompt = `List ${brand} ${deviceType} models from ${startYear}-${currentYear} for repair shops.
 
-For ${brand} ${deviceType} devices from ${startYear}-${currentYear}, provide a JSON response with an array of model names/numbers.
+JSON format: {"models": ["Model1", "Model2", ...]}
 
-Response format: { "models": ["Model1", "Model2", ...] }
-
-Requirements:
-- Include only models released between ${startYear} and ${currentYear}
-- Include both popular and less common models that might need repairs
-- Use official model names/numbers as they appear on the device
-- Include different storage variants if they have different model numbers
-- Include both consumer and professional models
-- Sort chronologically from newest to oldest
-- Limit to 30-50 models to keep the list manageable`;
+Include:
+- Official model names/numbers
+- Popular and repair-relevant models
+- Consumer and professional variants
+- Max 40 models, newest first`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -46,7 +114,7 @@ Requirements:
         messages: [
           {
             role: "system",
-            content: "You are an expert in device models and repair industry knowledge. Provide comprehensive, accurate model lists for repair management systems focusing on recent models from the last 4 years."
+            content: "Expert in device models for repair shops. Provide accurate, recent model lists."
           },
           {
             role: "user",
@@ -59,7 +127,7 @@ Requirements:
       const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
       
       return {
-        models: (result.models || []).slice(0, 50), // Limit to 50 models
+        models: (result.models || []).slice(0, 40), // Limit to 40 models for efficiency
         brand,
         category: deviceType
       };
@@ -74,18 +142,11 @@ Requirements:
    * Generate comprehensive brand lists for device types using AI
    */
   async generateDeviceBrands(deviceType: string): Promise<BrandGenerationResult> {
-    const prompt = `Generate a comprehensive list of popular device brands for ${deviceType} devices. Include both well-known international brands and regional brands. Focus on brands that are commonly repaired or serviced.
+    const prompt = `List popular ${deviceType} brands for repair shops.
 
-For ${deviceType} devices, provide a JSON response with an array of brand names. Include brands like major manufacturers, mid-range brands, and budget brands that are frequently encountered in repair shops.
+JSON: {"brands": ["Brand1", "Brand2", ...]}
 
-Response format: { "brands": ["Brand1", "Brand2", ...] }
-
-Requirements:
-- Include 30-50 popular brands
-- Mix of premium, mid-range, and budget brands
-- Include both current and legacy brands that might still need repairs
-- Focus on brands commonly seen in repair shops
-- Sort alphabetically`;
+30-40 brands: premium, mid-range, budget. Include current and legacy brands commonly repaired.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -93,7 +154,7 @@ Requirements:
         messages: [
           {
             role: "system",
-            content: "You are an expert in device brands and repair industry knowledge. Provide comprehensive, accurate brand lists for repair management systems."
+            content: "Device brand expert for repair shops. Provide accurate brand lists."
           },
           {
             role: "user",
@@ -138,60 +199,52 @@ Requirements:
       const brandsWithoutModels: string[] = [];
       const activeBrands: string[] = [];
       
+      
+      // Use batch processing for better efficiency
+      console.log(`💡 Using batch processing for ${brandList.items.length} brands`);
+      const batchResults = await this.generateBatchDeviceModels(deviceType, brandList.items);
+      
+      // Process batch results
       for (const brand of brandList.items) {
-        try {
-          console.log(`💰 Making OpenAI API call for ${brand} ${deviceType} models...`);
+        const models = batchResults.results[brand] || [];
+        
+        if (models.length === 0) {
+          brandsWithoutModels.push(brand);
+          console.log(`🚫 ${brand} has no ${deviceType} models - will be excluded`);
+        } else {
+          activeBrands.push(brand);
           
-          const { models } = await this.generateDeviceModels(deviceType, brand);
+          // Save/update model list
+          const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+          const existingList = await storage.getAutoGenListByType(listType);
           
-          if (models.length === 0) {
-            // Brand has no models - track for removal
-            console.log(`🚫 ${brand} has no ${deviceType} models - will be excluded from brand list`);
-            brandsWithoutModels.push(brand);
+          if (existingList) {
+            await storage.updateAutoGenList(existingList.id, {
+              items: models,
+              lastGenerated: new Date(),
+              nextUpdate: this.getNextUpdate(),
+              updatedAt: new Date()
+            });
+            console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
           } else {
-            // Brand has models - keep it active
-            activeBrands.push(brand);
+            const newList: InsertAutoGenList = {
+              listType,
+              category: deviceType,
+              brand,
+              items: models,
+              lastGenerated: new Date(),
+              nextUpdate: this.getNextUpdate('quarterly'),
+              refreshInterval: 'quarterly',
+              isActive: true
+            };
             
-            // Check if model list already exists for this brand
-            const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
-            const existingList = await storage.getAutoGenListByType(listType);
-            
-            if (existingList) {
-              // Update existing list
-              await storage.updateAutoGenList(existingList.id, {
-                items: models,
-                lastGenerated: new Date(),
-                nextUpdate: this.getNextUpdate(),
-                updatedAt: new Date()
-              });
-              console.log(`✅ Updated ${brand} ${deviceType} model list with ${models.length} models`);
-            } else {
-              // Create new list
-              const newList: InsertAutoGenList = {
-                listType,
-                category: deviceType,
-                brand,
-                items: models,
-                lastGenerated: new Date(),
-                nextUpdate: this.getNextUpdate('quarterly'), // Default to quarterly
-                refreshInterval: 'quarterly',
-                isActive: true
-              };
-              
-              await storage.createAutoGenList(newList);
-              console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
-            }
+            await storage.createAutoGenList(newList);
+            console.log(`✅ Created ${brand} ${deviceType} model list with ${models.length} models`);
           }
-          
-          // Add a small delay between API calls to be respectful
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-        } catch (error) {
-          console.error(`❌ Failed to generate/update model list for ${brand} ${deviceType}:`, error);
         }
       }
       
-      // Update the brand list to remove brands without models and track excluded brands
+      // Update the brand list to remove brands without models
       if (brandsWithoutModels.length > 0 || activeBrands.length !== brandList.items.length) {
         const currentExcluded = brandList.excludedBrands || [];
         const newExcluded = Array.from(new Set([...currentExcluded, ...brandsWithoutModels]));
@@ -204,7 +257,7 @@ Requirements:
           updatedAt: new Date()
         });
         
-        console.log(`🧹 Updated ${deviceType} brand list: ${activeBrands.length} active brands, ${brandsWithoutModels.length} brands excluded (no models)`);
+        console.log(`🧹 Updated ${deviceType} brand list: ${activeBrands.length} active brands, ${brandsWithoutModels.length} brands excluded`);
         console.log(`📋 Excluded brands: ${newExcluded.join(', ')}`);
       }
     } catch (error) {
@@ -348,31 +401,18 @@ Requirements:
       }
 
       // Check if brand exists and get corrected spelling
-      const validationPrompt = `Is "${cleanBrand}" a real ${deviceType.toLowerCase()} brand/manufacturer? 
+      const validationPrompt = `Validate "${cleanBrand}" as ${deviceType} brand. Check typos, abbreviations.
 
-Consider:
-- Exact matches (Apple, Samsung, etc.)
-- Common typos (Appel -> Apple, Samsang -> Samsung)
-- Alternative spellings or abbreviations
-- Regional brand names
+JSON: {"isValid": boolean, "correctedName": "exact name" or null, "confidence": 0-1}
 
-Respond with JSON in this exact format:
-{
-  "isValid": boolean,
-  "correctedName": "exact brand name" or null if invalid,
-  "confidence": number between 0-1
-}
-
-Examples:
-- "Appel" -> {"isValid": true, "correctedName": "Apple", "confidence": 0.9}
-- "xyz123" -> {"isValid": false, "correctedName": null, "confidence": 0.1}`;
+Examples: "Appel"->{"isValid":true,"correctedName":"Apple","confidence":0.9}`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-5",
         messages: [
           {
             role: "system",
-            content: "You are an expert in device brands and manufacturers. Validate brand names and correct typos."
+            content: "Brand validator. Fix typos, validate manufacturers."
           },
           {
             role: "user",
@@ -380,7 +420,6 @@ Examples:
           }
         ],
         response_format: { type: "json_object" }
-        // Note: gpt-5 only supports default temperature (1), removed custom temperature
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
