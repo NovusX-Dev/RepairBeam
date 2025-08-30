@@ -13,6 +13,7 @@ import {
   Settings,
   UserCog,
   ChevronLeft,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,6 +31,7 @@ const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
   { name: t("inventory", "Inventory"), href: "/inventory", icon: Package, id: "inventory", translationKey: "inventory" },
   { name: t("pos", "Point of Sale"), href: "/pos", icon: CreditCard, id: "pos", translationKey: "pos" },
   { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support" },
+  { name: t("animations", "Animations"), href: "/animations", icon: Sparkles, id: "animations", translationKey: "animations" },
   { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs" },
   { name: t("user_management", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "user_management" },
 ];
