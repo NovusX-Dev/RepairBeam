@@ -324,8 +324,8 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 4;
     
-    // Process brands in batches of 2 for maximum reliability (reduced from 3)
-    const batchSize = 2;
+    // Process brands individually for maximum quality and consistency
+    const batchSize = 1;
     const results: { [brand: string]: string[] } = {};
     const maxRetries = 2; // Reduced retries to avoid long waits
     const retryDelay = 1500; // Shorter delay between retries
