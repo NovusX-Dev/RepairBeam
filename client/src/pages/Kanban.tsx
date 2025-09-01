@@ -275,7 +275,7 @@ export default function KanbanTickets() {
 
   // Auto-calculate costs when relevant fields change
   useEffect(() => {
-    if (formData.costEstimation || formData.warrantyType) {
+    if (formData.costEstimation || formData.warrantyType !== 'standard' || tenant) {
       calculateCosts();
     }
   }, [formData.costEstimation, formData.warrantyType, tenant?.settings?.extendedWarrantyPrice]);
@@ -658,7 +658,10 @@ export default function KanbanTickets() {
     
     // Recalculate costs when cost estimation or warranty type changes
     if (field === 'costEstimation' || field === 'warrantyType') {
-      setTimeout(calculateCosts, 10); // Small delay to ensure state is updated
+      // Use a longer delay to ensure state is properly updated and tenant data is available
+      setTimeout(() => {
+        calculateCosts();
+      }, 50);
     }
   };
 
@@ -1888,19 +1891,13 @@ export default function KanbanTickets() {
                       tooltip={t("warranty_cost_tooltip", "Cost for the selected warranty type. Standard warranty is free, extended warranty has an additional cost.")}
                     >
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-md border">
                           <span className="text-sm text-muted-foreground">
                             {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
                           </span>
-                          <Input
-                            type="number"
-                            id="warrantyCost"
-                            value={formData.warrantyCost}
-                            readOnly
-                            placeholder="0.00"
-                            data-testid="input-warranty-cost"
-                            className="flex-1 bg-background border-input text-foreground"
-                          />
+                          <span className="text-base font-medium text-foreground" data-testid="text-warranty-cost">
+                            {formData.warrantyCost || '0.00'}
+                          </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {formData.warrantyType === 'extended' 
@@ -1920,15 +1917,11 @@ export default function KanbanTickets() {
                         <span className="text-sm text-muted-foreground">
                           {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
                         </span>
-                        <Input
-                          type="number"
-                          id="totalCost"
-                          value={formData.totalCost}
-                          readOnly
-                          placeholder="0.00"
-                          data-testid="input-total-cost"
-                          className="flex-1 bg-background border-input text-foreground font-semibold"
-                        />
+                        <div className="flex-1 p-3 bg-primary/10 rounded-md border border-primary/30">
+                          <span className="text-lg font-bold text-primary" data-testid="text-total-cost">
+                            {formData.totalCost || '0.00'}
+                          </span>
+                        </div>
                       </div>
                     </FormFieldWithTooltip>
 
