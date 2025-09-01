@@ -42,6 +42,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
@@ -1814,7 +1815,7 @@ export default function KanbanTickets() {
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {formData.clientDeadline 
-                                ? format(new Date(formData.clientDeadline), "PPP")
+                                ? format(new Date(formData.clientDeadline), "PPP", { locale: currentLanguage === 'pt-BR' ? ptBR : undefined })
                                 : t("pick_date", "Pick a date")
                               }
                             </Button>
@@ -1837,6 +1838,7 @@ export default function KanbanTickets() {
                               disabled={(date) =>
                                 date < new Date(new Date().setHours(0, 0, 0, 0))
                               }
+                              locale={currentLanguage}
                               initialFocus
                             />
                           </PopoverContent>
@@ -2044,7 +2046,7 @@ export default function KanbanTickets() {
                         {(checklistTemplate.components as string[]).map((component: string) => (
                           <div key={component} className="flex items-center justify-between p-4 border border-border rounded-lg bg-card">
                             <Label className="font-medium text-sm capitalize" htmlFor={`component-${component}`}>
-                              {component.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                              {t(component.toLowerCase().replace(/\s+/g, '_'), component.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))}
                             </Label>
                             <Select
                               value={formData.deviceComponents[component] || ''}
