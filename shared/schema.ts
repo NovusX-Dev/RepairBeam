@@ -188,6 +188,21 @@ export const autoGenLists = pgTable("auto_gen_lists", {
   index("idx_auto_gen_brand").on(table.brand),
 ]);
 
+// Device colors table - stores color information for specific devices
+export const deviceColors = pgTable("device_colors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deviceType: varchar("device_type").notNull(), // 'Phone', 'Tablet', 'Laptop'
+  brand: varchar("brand").notNull(), // 'Apple', 'Samsung', etc.
+  model: varchar("model").notNull(), // 'iPhone 15 Pro', 'Galaxy S24', etc.
+  colors: text("colors").array().notNull(), // Array of available colors
+  source: varchar("source").notNull().default('manual'), // 'gsmarena', 'manual', 'fonoapi', etc.
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_device_colors_lookup").on(table.deviceType, table.brand, table.model),
+  index("idx_device_colors_brand").on(table.brand),
+]);
+
 // Relations
 export const tenantRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -245,6 +260,8 @@ export type Localization = typeof localizations.$inferSelect;
 export type InsertLocalization = typeof localizations.$inferInsert;
 export type AutoGenList = typeof autoGenLists.$inferSelect;
 export type InsertAutoGenList = typeof autoGenLists.$inferInsert;
+export type DeviceColor = typeof deviceColors.$inferSelect;
+export type InsertDeviceColor = typeof deviceColors.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -281,6 +298,11 @@ export const insertAutoGenListSchema = createInsertSchema(autoGenLists).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertDeviceColorSchema = createInsertSchema(deviceColors).omit({
+  id: true,
+  createdAt: true,
 });
 
 // User progress tracking for gamification
@@ -374,5 +396,6 @@ export type InsertUserActivity = z.infer<typeof userActivityInsertSchema>;
 export type InsertTicketType = z.infer<typeof insertTicketSchema>;
 export type InsertLocalizationType = z.infer<typeof insertLocalizationSchema>;
 export type InsertAutoGenListType = z.infer<typeof insertAutoGenListSchema>;
+export type InsertDeviceColorType = z.infer<typeof insertDeviceColorSchema>;
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];

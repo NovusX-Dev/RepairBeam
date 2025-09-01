@@ -8,6 +8,7 @@ import {
   supportTickets,
   localizations,
   autoGenLists,
+  deviceColors,
   userProgress,
   achievements,
   userAchievements,
@@ -30,6 +31,8 @@ import {
   type InsertLocalization,
   type AutoGenList,
   type InsertAutoGenList,
+  type DeviceColor,
+  type InsertDeviceColor,
   type UserProgress,
   type InsertUserProgress,
   type Achievement,
@@ -122,6 +125,11 @@ export interface IStorage {
   createAutoGenList(list: InsertAutoGenList): Promise<AutoGenList>;
   updateAutoGenList(id: string, list: Partial<InsertAutoGenList>): Promise<AutoGenList | undefined>;
   getAutoGenListsForUpdate(): Promise<AutoGenList[]>;
+  
+  // Device color operations
+  getDeviceColors(deviceType: string, brand: string, model: string): Promise<DeviceColor | undefined>;
+  createDeviceColor(deviceColor: InsertDeviceColor): Promise<DeviceColor>;
+  updateDeviceColors(deviceType: string, brand: string, model: string, colors: string[], source: string): Promise<DeviceColor | undefined>;
   
   // Gamification operations
   getUserProgress(userId: string, tenantId: string): Promise<UserProgress | undefined>;
@@ -499,6 +507,47 @@ export class DatabaseStorage implements IStorage {
           eq(autoGenLists.isActive, true),
           sql`${autoGenLists.nextUpdate} <= NOW()`
         ));
+    });
+  }
+
+  // Device color methods implementation
+  async getDeviceColors(deviceType: string, brand: string, model: string): Promise<DeviceColor | undefined> {
+    return withRetry(async () => {
+      const [deviceColor] = await db
+        .select()
+        .from(deviceColors)
+        .where(and(
+          ilike(deviceColors.deviceType, deviceType),
+          ilike(deviceColors.brand, brand),
+          ilike(deviceColors.model, model)
+        ));
+      return deviceColor;
+    });
+  }
+
+  async createDeviceColor(deviceColor: InsertDeviceColor): Promise<DeviceColor> {
+    return withRetry(async () => {
+      const [newDeviceColor] = await db.insert(deviceColors).values(deviceColor).returning();
+      return newDeviceColor;
+    });
+  }
+
+  async updateDeviceColors(deviceType: string, brand: string, model: string, colors: string[], source: string): Promise<DeviceColor | undefined> {
+    return withRetry(async () => {
+      const [updatedDeviceColor] = await db
+        .update(deviceColors)
+        .set({ 
+          colors, 
+          source, 
+          lastUpdated: new Date() 
+        })
+        .where(and(
+          eq(deviceColors.deviceType, deviceType),
+          eq(deviceColors.brand, brand),
+          eq(deviceColors.model, model)
+        ))
+        .returning();
+      return updatedDeviceColor;
     });
   }
 

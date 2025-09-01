@@ -1,9 +1,11 @@
 // @ts-ignore - No type definitions available for gsmarena-api
 import gsmarena from 'gsmarena-api';
+import { storage } from './storage.js';
 
 interface DeviceColors {
   colors: string[];
   fromCache: boolean;
+  source: 'database' | 'api' | 'fallback';
 }
 
 interface DeviceColorCacheEntry {
@@ -17,6 +19,31 @@ class DeviceColorService {
 
   private getCacheKey(deviceType: string, brand: string, model: string): string {
     return `${deviceType.toLowerCase()}-${brand.toLowerCase()}-${model.toLowerCase()}`;
+  }
+
+  private async searchDatabaseColors(deviceType: string, brand: string, model: string): Promise<string[]> {
+    try {
+      console.log(`🗄️  Searching database for ${brand} ${model} (${deviceType})`);
+      
+      const result = await db.query.deviceColors.findFirst({
+        where: and(
+          eq(deviceColors.deviceType, deviceType),
+          eq(deviceColors.brand, brand),
+          eq(deviceColors.model, model)
+        )
+      });
+      
+      if (result && result.colors && result.colors.length > 0) {
+        console.log(`🎯 Found ${result.colors.length} colors in database for ${brand} ${model}:`, result.colors);
+        return result.colors;
+      }
+      
+      console.log(`❌ No colors found in database for ${brand} ${model}`);
+      return [];
+    } catch (error) {
+      console.error(`❌ Database error searching colors for ${brand} ${model}:`, error);
+      return [];
+    }
   }
 
   private isValidCacheEntry(entry: DeviceColorCacheEntry): boolean {
@@ -90,29 +117,61 @@ class DeviceColorService {
   }
 
   async getDeviceColors(deviceType: string, brand: string, model: string): Promise<DeviceColors> {
-    const cacheKey = this.getCacheKey(deviceType, brand, model);
+    console.log(`🎨 Hybrid lookup for ${brand} ${model} (${deviceType})`);
     
-    // Check cache first
+    // Step 1: Check database first (fastest, most reliable)
+    try {
+      const dbEntry = await storage.getDeviceColors(deviceType, brand, model);
+      if (dbEntry && dbEntry.colors.length > 0) {
+        console.log(`💾 Found ${dbEntry.colors.length} colors in database for ${brand} ${model}:`, dbEntry.colors);
+        return {
+          colors: dbEntry.colors,
+          fromCache: true
+        };
+      }
+    } catch (error) {
+      console.error(`❌ Database lookup failed for ${brand} ${model}:`, error);
+    }
+    
+    // Step 2: Check memory cache (for recent API results)
+    const cacheKey = this.getCacheKey(deviceType, brand, model);
     const cachedEntry = this.cache.get(cacheKey);
     if (cachedEntry && this.isValidCacheEntry(cachedEntry)) {
-      console.log(`📦 Returning cached colors for ${brand} ${model}`);
+      console.log(`📦 Returning memory cached colors for ${brand} ${model}`);
       return {
         colors: cachedEntry.colors,
         fromCache: true
       };
     }
     
-    // Search for device colors
-    const colors = await this.searchDeviceColors(deviceType, brand, model);
+    // Step 3: Try API search (only if database doesn't have the model)
+    console.log(`🌐 Trying API lookup for ${brand} ${model}...`);
+    const apiColors = await this.searchDeviceColors(deviceType, brand, model);
     
-    // Cache the results
+    // Step 4: Save API results to database for future use
+    if (apiColors.length > 0) {
+      try {
+        await storage.createDeviceColor({
+          deviceType,
+          brand,
+          model,
+          colors: apiColors,
+          source: 'gsmarena'
+        });
+        console.log(`💾 Saved ${apiColors.length} API colors to database for ${brand} ${model}`);
+      } catch (error) {
+        console.error(`❌ Failed to save colors to database:`, error);
+      }
+    }
+    
+    // Cache API results in memory
     this.cache.set(cacheKey, {
-      colors,
+      colors: apiColors,
       timestamp: Date.now()
     });
     
     return {
-      colors,
+      colors: apiColors,
       fromCache: false
     };
   }
