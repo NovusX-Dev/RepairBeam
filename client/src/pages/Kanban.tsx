@@ -56,9 +56,9 @@ const getTicketSteps = (t: (key: string, fallback?: string) => string) => [
   { id: 'client_info', title: t('client_information', 'Client Information'), icon: User },
   { id: 'device_details', title: t('device_specifications', 'Device Specifications'), icon: Clock },
   { id: 'problem_description', title: t('issue_assessment', 'Issue Assessment'), icon: DollarSign },
+  { id: 'service_timeline', title: t('service_timeline', 'Service Timeline & Coverage'), icon: Clock },
   { id: 'price_estimation', title: t('price_estimation', 'Price Estimation'), icon: DollarSign },
   { id: 'service_checklist', title: t('service_checklist', 'Service Checklist'), icon: Check },
-  { id: 'service_timeline', title: t('service_timeline', 'Service Timeline & Coverage'), icon: Clock },
   { id: 'client_authorization', title: t('client_authorization', 'Client Authorization'), icon: Check },
 ];
 
@@ -1583,8 +1583,19 @@ export default function KanbanTickets() {
                 </div>
               )}
 
-              {/* Price Estimation Step */}
+              {/* Service Timeline & Coverage Step */}
               {currentStep === 3 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  <div className="space-y-4">
+                    <div className="text-6xl">⏰</div>
+                    <h3 className="text-lg font-semibold">{t("service_timeline", "Service Timeline & Coverage")}</h3>
+                    <p>{t("step_under_development", "This step is currently under development")}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Price Estimation Step */}
+              {currentStep === 4 && (
                 <div className="text-center py-12 text-muted-foreground">
                   <div className="space-y-4">
                     <div className="text-6xl">💰</div>
@@ -1595,22 +1606,11 @@ export default function KanbanTickets() {
               )}
 
               {/* Service Checklist Step */}
-              {currentStep === 4 && (
+              {currentStep === 5 && (
                 <div className="text-center py-12 text-muted-foreground">
                   <div className="space-y-4">
                     <div className="text-6xl">✅</div>
                     <h3 className="text-lg font-semibold">{t("service_checklist", "Service Checklist")}</h3>
-                    <p>{t("step_under_development", "This step is currently under development")}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Service Timeline & Coverage Step */}
-              {currentStep === 5 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="space-y-4">
-                    <div className="text-6xl">⏰</div>
-                    <h3 className="text-lg font-semibold">{t("service_timeline", "Service Timeline & Coverage")}</h3>
                     <p>{t("step_under_development", "This step is currently under development")}</p>
                   </div>
                 </div>
