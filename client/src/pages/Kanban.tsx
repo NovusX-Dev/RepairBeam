@@ -1832,6 +1832,7 @@ export default function KanbanTickets() {
                                 <SelectItem value="poor">{t("poor", "Poor")}</SelectItem>
                                 <SelectItem value="damaged">{t("damaged", "Damaged")}</SelectItem>
                                 <SelectItem value="missing">{t("missing", "Missing")}</SelectItem>
+                                <SelectItem value="not_applicable">{t("not_applicable", "N/A - Not Applicable")}</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
