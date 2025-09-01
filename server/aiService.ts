@@ -354,16 +354,18 @@ JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3"], "${batch[1] || batc
 
 REQUIRED CRITERIA:
 - Include models from EVERY year: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
+- IMPORTANT: Include 2025 releases like Samsung Galaxy S25 series, iPhone 16 series if available
 - If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
 - If uncertain about a model's existence or release date, DO NOT include it
-- DO NOT fake or fabricate models
+- DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 10-15 models per brand covering all 4 years
-- Include ALL major variants (Pro, Max, Plus, mini, etc.)
+- Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
+- Focus on models actually released and sold, not rumored or upcoming models
 
-Generate complete authentic model lineup covering full 4-year period.`;
+Generate complete authentic model lineup covering full 4-year period including latest 2025 releases.`;
       
       let attempt = 0;
       let success = false;
@@ -399,14 +401,16 @@ JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3"]}
 
 REQUIRED CRITERIA:
 - Include models from EVERY year: ${currentYear - 4}, ${currentYear - 3}, ${currentYear - 2}, ${currentYear - 1}, ${currentYear}
+- IMPORTANT: Include 2025 releases like Samsung Galaxy S25 series, iPhone 16 series if available
 - If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
 - If uncertain about a model's existence or release date, DO NOT include it
-- DO NOT fake or fabricate models
+- DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 10-15 models per brand covering all 4 years
-- Include ALL major variants (Pro, Max, Plus, mini, etc.)
+- Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
+- Focus on models actually released and sold, not rumored or upcoming models
 
-Generate complete authentic model lineup covering full 4-year period.`
+Generate complete authentic model lineup covering full 4-year period including latest 2025 releases.`
                 }
               ],
               response_format: { type: "json_object" },
@@ -530,16 +534,18 @@ JSON format: {"models": ["Model1", "Model2", "Model3"]}
 
 REQUIRED CRITERIA:
 - Include models from EVERY year: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
+- IMPORTANT: Include 2025 releases like Samsung Galaxy S25 series, iPhone 16 series if available
 - If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
 - If uncertain about a model's existence or release date, DO NOT include it
-- DO NOT fake or fabricate models
+- DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 10-15 models covering all 4 years
-- Include ALL major variants (Pro, Max, Plus, mini, etc.)
+- Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
+- Focus on models actually released and sold, not rumored or upcoming models
 
-Generate complete authentic model lineup covering full 4-year period.`;
+Generate complete authentic model lineup covering full 4-year period including latest 2025 releases.`;
 
     try {
       const response = await openai.chat.completions.create({
