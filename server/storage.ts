@@ -472,11 +472,14 @@ export class DatabaseStorage implements IStorage {
 
   async getAllAutoGenLists(): Promise<AutoGenList[]> {
     return withRetry(async () => {
-      return db
+      console.log('🔍 Storage: Fetching all auto-gen lists...');
+      const result = await db
         .select()
         .from(autoGenLists)
         .where(eq(autoGenLists.isActive, true))
         .orderBy(asc(autoGenLists.category), desc(autoGenLists.lastGenerated));
+      console.log(`🔍 Storage: Found ${result.length} auto-gen lists`);
+      return result;
     });
   }
 

@@ -906,6 +906,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to test auto-gen lists retrieval
+  app.get("/api/debug/auto-gen-lists", async (req, res) => {
+    try {
+      console.log("🔍 Debug: Starting auto-gen lists test...");
+      const allLists = await storage.getAllAutoGenLists();
+      console.log(`🔍 Debug: Found ${allLists.length} auto-gen lists`);
+      
+      const modelLists = allLists.filter(list => 
+        list.list_type?.includes('Models-') && 
+        list.is_active && 
+        list.brand && 
+        list.items && 
+        list.items.length > 0
+      );
+      
+      const sample = allLists.slice(0, 5).map(l => ({
+        list_type: l.list_type,
+        brand: l.brand,
+        is_active: l.is_active,
+        item_count: l.items?.length || 0
+      }));
+      
+      res.json({
+        total: allLists.length,
+        modelLists: modelLists.length,
+        sample
+      });
+    } catch (error) {
+      console.error("Debug endpoint error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Bulk populate device colors for all auto-gen list devices
+  app.post("/api/device-colors/bulk-populate", async (req, res) => {
+    try {
+      console.log("🎨 Starting bulk population of device colors...");
+
+      // Get all active auto-gen lists for models (not brands)
+      const allLists = await storage.getAllAutoGenLists();
+      console.log(`🔍 Found ${allLists.length} total auto-gen lists`);
+      
+      if (allLists.length === 0) {
+        return res.json({
+          success: true,
+          message: "No auto-gen lists found to process",
+          summary: {
+            totalDevicesProcessed: 0,
+            totalColorsAdded: 0,
+            skippedExisting: 0,
+            categoriesProcessed: 0
+          },
+          results: []
+        });
+      }
+      
+      const modelLists = allLists.filter(list => 
+        list.listType?.includes('Models-') && 
+        list.isActive && 
+        list.brand && 
+        list.items && 
+        list.items.length > 0
+      );
+
+      console.log(`📋 Found ${modelLists.length} model lists to process`);
+      console.log('📝 Sample model lists:', modelLists.slice(0, 3).map(l => ({
+        listType: l.listType,
+        brand: l.brand,
+        isActive: l.isActive,
+        item_count: l.items?.length || 0
+      })));
+
+      let totalDevicesProcessed = 0;
+      let totalColorsAdded = 0;
+      let skippedExisting = 0;
+      
+      const results = [];
+
+      for (const list of modelLists) {
+        // Extract category and brand from list type
+        // Format: AutoGen-List-Models-{Category}-{Brand}
+        const parts = list.listType!.split('-');
+        if (parts.length < 4) continue;
+        
+        const category = parts[3]; // Phone, Laptop, Desktop
+        const brand = list.brand!;
+        
+        console.log(`\n🔄 Processing ${brand} ${category} models (${list.items!.length} models)...`);
+        
+        let categoryResults = {
+          category,
+          brand,
+          processed: 0,
+          colorsAdded: 0,
+          skipped: 0,
+          errors: []
+        };
+
+        for (const model of list.items!) {
+          try {
+            totalDevicesProcessed++;
+            
+            // Check if this device already has colors
+            const existingColors = await storage.getDeviceColors(category, brand, model);
+            
+            if (existingColors && existingColors.colors.length > 0) {
+              skippedExisting++;
+              categoryResults.skipped++;
+              continue;
+            }
+
+            // Get colors using the device color service
+            const colorResult = await deviceColorService.getDeviceColors(category, brand, model);
+            
+            if (colorResult.colors && colorResult.colors.length > 0) {
+              totalColorsAdded++;
+              categoryResults.colorsAdded++;
+              console.log(`  ✅ Added ${colorResult.colors.length} colors for ${brand} ${model}`);
+            } else {
+              // If no colors found via API, add common colors as fallback
+              const commonColors = deviceColorService.getCommonColors(category);
+              await storage.createDeviceColor({
+                deviceType: category,
+                brand,
+                model,
+                colors: commonColors,
+                source: 'fallback_common'
+              });
+              totalColorsAdded++;
+              categoryResults.colorsAdded++;
+              console.log(`  🔄 Added common colors for ${brand} ${model}`);
+            }
+            
+            categoryResults.processed++;
+            
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`  ❌ Error processing ${brand} ${model}:`, errorMsg);
+            categoryResults.errors.push(`${model}: ${errorMsg}`);
+          }
+        }
+        
+        results.push(categoryResults);
+        console.log(`✅ Completed ${brand} ${category}: ${categoryResults.processed} processed, ${categoryResults.colorsAdded} colors added, ${categoryResults.skipped} skipped`);
+      }
+
+      console.log(`\n🎉 Bulk population complete!`);
+      console.log(`📊 Total devices processed: ${totalDevicesProcessed}`);
+      console.log(`🎨 Total colors added: ${totalColorsAdded}`);
+      console.log(`⏭️ Skipped existing: ${skippedExisting}`);
+
+      res.json({
+        success: true,
+        message: "Bulk population completed",
+        summary: {
+          totalDevicesProcessed,
+          totalColorsAdded,
+          skippedExisting,
+          categoriesProcessed: results.length
+        },
+        results
+      });
+
+    } catch (error) {
+      console.error("Error during bulk population:", error);
+      res.status(500).json({ 
+        message: "Bulk population failed",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Model list routes - Get models for a specific brand and category
   app.get("/api/auto-gen-lists/:category/:brand/models", async (req, res) => {
     try {
