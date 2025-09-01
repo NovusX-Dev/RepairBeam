@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, HelpCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle, CheckCircle, HelpCircle, AlertTriangle, MessageSquare } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -49,6 +50,7 @@ export function IssueAssessment({
   const { t } = useLocalization();
   const queryClient = useQueryClient();
   const [responses, setResponses] = useState<Record<string, any>>({});
+  const [noComments, setNoComments] = useState<Record<string, string>>({});
   const [additionalComments, setAdditionalComments] = useState("");
   const [deviceTurnsOn, setDeviceTurnsOn] = useState<boolean | null>(null);
 
@@ -92,10 +94,18 @@ export function IssueAssessment({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/issue-responses', ticketId] });
       if (onComplete) {
-        const formattedResponses = Object.entries(responses).map(([questionId, answer]) => ({
-          questionId,
-          answer,
-        }));
+        const formattedResponses = Object.entries(responses).map(([questionId, answer]) => {
+          // If answer is false and there's a comment, include it in the response
+          const comment = noComments[questionId];
+          const responseValue = answer === false && comment ? 
+            { answer: false, comment } : 
+            answer;
+          
+          return {
+            questionId,
+            answer: responseValue,
+          };
+        });
         onComplete(formattedResponses);
       }
     },
@@ -110,16 +120,38 @@ export function IssueAssessment({
     if (question?.questionOrder === 1) {
       setDeviceTurnsOn(value);
     }
+    
+    // Clear comment if answer changes from No to Yes
+    if (question && question.questionOrder > 1 && value === true) {
+      setNoComments(prev => {
+        const newComments = { ...prev };
+        delete newComments[questionId];
+        return newComments;
+      });
+    }
+  };
+  
+  // Handle comment change for "No" responses
+  const handleNoCommentChange = (questionId: string, comment: string) => {
+    setNoComments(prev => ({ ...prev, [questionId]: comment }));
   };
 
   // Handle save responses
   const handleSaveResponses = () => {
     if (!ticketId) return;
     
-    const formattedResponses = Object.entries(responses).map(([questionId, answer]) => ({
-      questionId,
-      answer,
-    }));
+    const formattedResponses = Object.entries(responses).map(([questionId, answer]) => {
+      // If answer is false and there's a comment, include it in the response
+      const comment = noComments[questionId];
+      const responseValue = answer === false && comment ? 
+        { answer: false, comment } : 
+        answer;
+      
+      return {
+        questionId,
+        answer: responseValue,
+      };
+    });
 
     saveResponsesMutation.mutate({
       ticketId,
@@ -196,25 +228,51 @@ export function IssueAssessment({
         </CardHeader>
         <CardContent className="pt-0">
           {question.questionType === 'boolean' && (
-            <RadioGroup
-              value={value?.toString() || ""}
-              onValueChange={(val) => handleResponseChange(question.id, val === "true")}
-              disabled={readOnly}
-              data-testid={`question-${question.questionOrder}`}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="true" id={`${question.id}-yes`} />
-                <Label htmlFor={`${question.id}-yes`} className="cursor-pointer">
-                  {t("yes", "Yes")}
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="false" id={`${question.id}-no`} />
-                <Label htmlFor={`${question.id}-no`} className="cursor-pointer">
-                  {t("no", "No")}
-                </Label>
-              </div>
-            </RadioGroup>
+            <div className="space-y-3">
+              <RadioGroup
+                value={value?.toString() || ""}
+                onValueChange={(val) => handleResponseChange(question.id, val === "true")}
+                disabled={readOnly}
+                data-testid={`question-${question.questionOrder}`}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="true" id={`${question.id}-yes`} />
+                  <Label htmlFor={`${question.id}-yes`} className="cursor-pointer">
+                    {t("yes", "Yes")}
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id={`${question.id}-no`} />
+                  <Label htmlFor={`${question.id}-no`} className="cursor-pointer">
+                    {t("no", "No")}
+                  </Label>
+                </div>
+              </RadioGroup>
+              
+              {/* Show comment field when "No" is selected for questions 2-10 */}
+              {value === false && question.questionOrder > 1 && (
+                <div className="ml-6 mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2 text-orange-700 dark:text-orange-300">
+                    <MessageSquare className="h-4 w-4" />
+                    <Label className="text-sm font-medium">
+                      {t("describe_issue", "Please describe what's not working")}
+                    </Label>
+                  </div>
+                  <Input
+                    value={noComments[question.id] || ""}
+                    onChange={(e) => handleNoCommentChange(question.id, e.target.value)}
+                    placeholder={t("no_comment_placeholder", "Briefly describe the issue (max 300 characters)...")}
+                    maxLength={300}
+                    disabled={readOnly}
+                    className="text-sm"
+                    data-testid={`comment-${question.questionOrder}`}
+                  />
+                  <div className="text-xs text-muted-foreground mt-1 text-right">
+                    {(noComments[question.id] || "").length}/300
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {question.questionType === 'single_choice' && question.options && (
