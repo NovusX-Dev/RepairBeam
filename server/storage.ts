@@ -9,6 +9,7 @@ import {
   localizations,
   autoGenLists,
   deviceColors,
+  deviceChecklistTemplates,
   userProgress,
   achievements,
   userAchievements,
@@ -35,6 +36,8 @@ import {
   type InsertAutoGenList,
   type DeviceColor,
   type InsertDeviceColor,
+  type DeviceChecklistTemplate,
+  type InsertDeviceChecklistTemplate,
   type UserProgress,
   type InsertUserProgress,
   type Achievement,
@@ -566,6 +569,52 @@ export class DatabaseStorage implements IStorage {
         ))
         .returning();
       return updatedDeviceColor;
+    });
+  }
+
+  // Device Checklist Templates
+  async getDeviceChecklistTemplate(deviceType: string): Promise<DeviceChecklistTemplate | undefined> {
+    return withRetry(async () => {
+      const [template] = await db
+        .select()
+        .from(deviceChecklistTemplates)
+        .where(and(
+          eq(deviceChecklistTemplates.deviceType, deviceType),
+          eq(deviceChecklistTemplates.isActive, true)
+        ));
+      return template;
+    });
+  }
+
+  async createDeviceChecklistTemplate(template: InsertDeviceChecklistTemplate): Promise<DeviceChecklistTemplate> {
+    return withRetry(async () => {
+      const [newTemplate] = await db.insert(deviceChecklistTemplates).values(template).returning();
+      return newTemplate;
+    });
+  }
+
+  async updateDeviceChecklistTemplate(deviceType: string, components: string[]): Promise<DeviceChecklistTemplate | undefined> {
+    return withRetry(async () => {
+      const [updatedTemplate] = await db
+        .update(deviceChecklistTemplates)
+        .set({ 
+          components,
+          updatedAt: new Date() 
+        })
+        .where(eq(deviceChecklistTemplates.deviceType, deviceType))
+        .returning();
+      return updatedTemplate;
+    });
+  }
+
+  async getAllDeviceChecklistTemplates(): Promise<DeviceChecklistTemplate[]> {
+    return withRetry(async () => {
+      const templates = await db
+        .select()
+        .from(deviceChecklistTemplates)
+        .where(eq(deviceChecklistTemplates.isActive, true))
+        .orderBy(asc(deviceChecklistTemplates.deviceType));
+      return templates;
     });
   }
 

@@ -88,6 +88,9 @@ interface TicketFormData {
   warrantyType: string;
   costEstimation: string;
   costExplanation: string;
+  // Service Checklist
+  deviceComponents: { [component: string]: string }; // component -> condition mapping
+  additionalNotes: string;
 }
 
 type TicketWithClient = Ticket & { client?: Client };
@@ -199,6 +202,9 @@ export default function KanbanTickets() {
     warrantyType: 'standard',
     costEstimation: '',
     costExplanation: '',
+    // Service Checklist
+    deviceComponents: {},
+    additionalNotes: '',
   });
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
@@ -216,6 +222,12 @@ export default function KanbanTickets() {
   const queryClient = useQueryClient();
   const { t, currentLanguage } = useLocalization();
   const { toast } = useToast();
+
+  // Device checklist template query
+  const { data: checklistTemplate, isLoading: isLoadingChecklist } = useQuery<any>({
+    queryKey: ['/api/device-checklist-templates', formData.deviceType],
+    enabled: !!formData.deviceType && currentStep === 5,
+  });
   
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
@@ -309,6 +321,9 @@ export default function KanbanTickets() {
         warrantyType: 'standard',
         costEstimation: '',
         costExplanation: '',
+        // Service Checklist defaults
+        deviceComponents: {},
+        additionalNotes: '',
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -702,6 +717,11 @@ export default function KanbanTickets() {
       warrantyType: formData.warrantyType as 'standard' | 'extended',
       costEstimation: formData.costEstimation || null,
       costExplanation: formData.costExplanation || null,
+      // Service Checklist data
+      serviceChecklist: {
+        components: formData.deviceComponents,
+        additionalNotes: formData.additionalNotes
+      },
     };
     
     createTicketMutation.mutate(ticketData);
@@ -763,6 +783,9 @@ export default function KanbanTickets() {
         warrantyType: 'standard',
         costEstimation: '',
         costExplanation: '',
+        // Service Checklist defaults
+        deviceComponents: {},
+        additionalNotes: '',
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -1692,7 +1715,7 @@ export default function KanbanTickets() {
                         <RadioGroupItem value="extended" id="warranty-extended" />
                         <Label htmlFor="warranty-extended" className="flex-1 cursor-pointer">
                           <div className="font-medium">
-                            {t("extended_warranty", `Extended (6 months, ${formatCurrency(tenant?.settings?.extendedWarrantyPrice || 50, currentLanguage)})`)}
+                            {t("extended_warranty", `Extended (6 months, ${formatCurrency(tenant?.settings?.extendedWarrantyPrice || 50, currentLanguage.code)})`)}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {t("extended_warranty_desc", "6-month warranty for additional peace of mind")}
@@ -1725,7 +1748,7 @@ export default function KanbanTickets() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          {currentLanguage === 'pt-BR' ? 'R$' : '$'}
+                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
                         </span>
                         <Input
                           type="number"
@@ -1762,12 +1785,84 @@ export default function KanbanTickets() {
 
               {/* Service Checklist Step */}
               {currentStep === 5 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="space-y-4">
-                    <div className="text-6xl">✅</div>
-                    <h3 className="text-lg font-semibold">{t("service_checklist", "Service Checklist")}</h3>
-                    <p>{t("step_under_development", "This step is currently under development")}</p>
+                <div className="space-y-6">
+                  <div className="text-center mb-6">
+                    <h3 className="text-xl font-semibold text-[#00FFFF] mb-2">{t("service_checklist", "Service Checklist")}</h3>
+                    <p className="text-muted-foreground">
+                      {t("checklist_description", "Document the current condition of each component to ensure accountability when returning the device to the client.")}
+                    </p>
                   </div>
+
+                  {isLoadingChecklist ? (
+                    <div className="space-y-4">
+                      {[...Array(6)].map((_, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-8 w-32" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : checklistTemplate?.components && Array.isArray(checklistTemplate.components) ? (
+                    <div className="space-y-4">
+                      <div className="grid gap-4">
+                        {(checklistTemplate.components as string[]).map((component: string) => (
+                          <div key={component} className="flex items-center justify-between p-4 border border-border rounded-lg bg-card">
+                            <Label className="font-medium text-sm capitalize" htmlFor={`component-${component}`}>
+                              {component.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                            </Label>
+                            <Select
+                              value={formData.deviceComponents[component] || ''}
+                              onValueChange={(value) => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  deviceComponents: {
+                                    ...prev.deviceComponents,
+                                    [component]: value
+                                  }
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="w-48" data-testid={`select-component-${component.toLowerCase()}`}>
+                                <SelectValue placeholder={t("select_condition", "Select condition")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="excellent">{t("excellent", "Excellent")}</SelectItem>
+                                <SelectItem value="good">{t("good", "Good")}</SelectItem>
+                                <SelectItem value="fair">{t("fair", "Fair")}</SelectItem>
+                                <SelectItem value="poor">{t("poor", "Poor")}</SelectItem>
+                                <SelectItem value="damaged">{t("damaged", "Damaged")}</SelectItem>
+                                <SelectItem value="missing">{t("missing", "Missing")}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Additional Notes */}
+                      <FormFieldWithTooltip
+                        label={t("additional_notes", "Additional Notes")}
+                        tooltip={t("additional_notes_tooltip", "Any additional observations about the device condition or specific damage details.")}
+                      >
+                        <Textarea
+                          id="additionalNotes"
+                          value={formData.additionalNotes}
+                          onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
+                          placeholder={t("additional_notes_placeholder", "Example: Small scratch on back cover near camera, screen has minor scuffs but fully functional...")}
+                          rows={4}
+                          data-testid="textarea-additional-notes"
+                          className="resize-none"
+                        />
+                      </FormFieldWithTooltip>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <div className="space-y-4">
+                        <AlertTriangle className="w-12 h-12 mx-auto" />
+                        <h3 className="text-lg font-semibold">{t("no_checklist_template", "No Checklist Template Available")}</h3>
+                        <p>{t("no_checklist_message", "Please select a device type in the previous step to load the appropriate checklist.")}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

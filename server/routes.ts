@@ -1400,6 +1400,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Device Checklist Templates endpoint
+  app.get("/api/device-checklist-templates/:deviceType", async (req, res) => {
+    try {
+      const { deviceType } = req.params;
+      
+      if (!deviceType) {
+        return res.status(400).json({ message: "Device type is required" });
+      }
+
+      const template = await storage.getDeviceChecklistTemplate(deviceType);
+      
+      if (!template) {
+        // Return fallback template for unknown device types
+        return res.json({
+          deviceType,
+          components: ["Overall Condition", "Power Button", "Charging Port", "Screen/Display"],
+          fallback: true
+        });
+      }
+
+      res.json({
+        deviceType: template.deviceType,
+        components: template.components,
+        fallback: false
+      });
+    } catch (error) {
+      console.error("Error fetching device checklist template:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch device checklist template",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Initialize device checklist templates
+  app.post("/api/device-checklist-templates/init", async (req, res) => {
+    try {
+      console.log("🔧 Initializing device checklist templates...");
+      
+      const templates = [
+        {
+          deviceType: "Phone",
+          components: [
+            "Overall Physical Condition",
+            "Screen Condition", 
+            "Home Button",
+            "Volume Buttons",
+            "Power Button",
+            "Charging Port",
+            "Headphone Jack",
+            "Speaker",
+            "Microphone",
+            "Camera (Front)",
+            "Camera (Rear)",
+            "Flash",
+            "Fingerprint Sensor",
+            "SIM Tray",
+            "Back Cover",
+            "Battery Status",
+            "Water Damage Indicators"
+          ]
+        },
+        {
+          deviceType: "Laptop", 
+          components: [
+            "Overall Physical Condition",
+            "Screen Condition",
+            "Keyboard",
+            "Trackpad",
+            "Power Button", 
+            "Charging Port",
+            "USB Ports",
+            "HDMI Port",
+            "Audio Jack",
+            "Speakers",
+            "Microphone",
+            "Webcam",
+            "Hinges",
+            "Battery Status",
+            "Hard Drive/SSD",
+            "RAM",
+            "Fan/Cooling System",
+            "Wi-Fi Card"
+          ]
+        },
+        {
+          deviceType: "Desktop",
+          components: [
+            "Overall Physical Condition",
+            "Power Button",
+            "Power Supply",
+            "Motherboard", 
+            "CPU",
+            "RAM",
+            "Hard Drive/SSD",
+            "Graphics Card",
+            "Front USB Ports",
+            "Rear USB Ports", 
+            "Audio Ports",
+            "Ethernet Port",
+            "HDMI/Display Ports",
+            "Optical Drive",
+            "Case Fans",
+            "Cable Management",
+            "BIOS/UEFI"
+          ]
+        },
+        {
+          deviceType: "Tablet",
+          components: [
+            "Overall Physical Condition",
+            "Screen Condition",
+            "Home Button",
+            "Volume Buttons", 
+            "Power Button",
+            "Charging Port",
+            "Headphone Jack",
+            "Speaker",
+            "Microphone",
+            "Front Camera",
+            "Rear Camera",
+            "Fingerprint Sensor",
+            "Back Cover",
+            "Battery Status",
+            "Water Damage Indicators"
+          ]
+        }
+      ];
+
+      let created = 0;
+      let updated = 0;
+
+      for (const template of templates) {
+        const existing = await storage.getDeviceChecklistTemplate(template.deviceType);
+        
+        if (existing) {
+          // Update existing template
+          await storage.updateDeviceChecklistTemplate(template.deviceType, template.components);
+          updated++;
+          console.log(`📝 Updated template for ${template.deviceType}`);
+        } else {
+          // Create new template
+          await storage.createDeviceChecklistTemplate(template);
+          created++;
+          console.log(`✅ Created template for ${template.deviceType} with ${template.components.length} components`);
+        }
+      }
+
+      console.log(`🎉 Checklist templates initialization complete: ${created} created, ${updated} updated`);
+      
+      res.json({
+        success: true,
+        message: `Checklist templates initialized successfully`,
+        summary: {
+          created,
+          updated,
+          total: templates.length
+        }
+      });
+
+    } catch (error) {
+      console.error("Error initializing device checklist templates:", error);
+      res.status(500).json({ 
+        message: "Failed to initialize device checklist templates",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Issue Assessment routes - device-specific diagnostic questions
   app.get("/api/issue-questions/:deviceType", async (req, res) => {
     try {

@@ -117,6 +117,8 @@ export const tickets = pgTable("tickets", {
   warrantyType: varchar("warranty_type").default('standard'),
   costEstimation: decimal("cost_estimation", { precision: 10, scale: 2 }),
   costExplanation: text("cost_explanation"),
+  // Service Checklist - JSON storing component conditions when device was received
+  serviceChecklist: jsonb("service_checklist"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -199,6 +201,18 @@ export const autoGenLists = pgTable("auto_gen_lists", {
   index("idx_auto_gen_brand").on(table.brand),
 ]);
 
+// Device checklist templates - defines what components to check for each device type
+export const deviceChecklistTemplates = pgTable("device_checklist_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deviceType: varchar("device_type").notNull(), // e.g., 'Phone', 'Laptop', 'Desktop'
+  components: text("components").array().notNull(), // Array of component names to check
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_device_checklist_type").on(table.deviceType),
+]);
+
 // Device colors table - stores color information for specific devices
 export const deviceColors = pgTable("device_colors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -277,6 +291,12 @@ export const insertAutoGenListSchema = createInsertSchema(autoGenLists).omit({
 export const insertDeviceColorSchema = createInsertSchema(deviceColors).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertDeviceChecklistTemplateSchema = createInsertSchema(deviceChecklistTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // User progress tracking for gamification
@@ -415,6 +435,8 @@ export type InsertTicketType = z.infer<typeof insertTicketSchema>;
 export type InsertLocalizationType = z.infer<typeof insertLocalizationSchema>;
 export type InsertAutoGenListType = z.infer<typeof insertAutoGenListSchema>;
 export type InsertDeviceColorType = z.infer<typeof insertDeviceColorSchema>;
+export type DeviceChecklistTemplate = typeof deviceChecklistTemplates.$inferSelect;
+export type InsertDeviceChecklistTemplate = z.infer<typeof insertDeviceChecklistTemplateSchema>;
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];
 export type WarrantyType = (typeof warrantyTypeEnum)[number];
