@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
+import { deviceColorService } from "./deviceColorService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check routes
@@ -783,6 +784,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error validating model:", error);
       res.status(500).json({ message: "Failed to validate model" });
+    }
+  });
+
+  // Device colors route - Get available colors for a specific device
+  app.get("/api/device-colors/:deviceType/:brand/:model", async (req, res) => {
+    try {
+      const { deviceType, brand, model } = req.params;
+      
+      if (!deviceType || !brand || !model) {
+        return res.status(400).json({ message: "Device type, brand, and model are required" });
+      }
+
+      console.log(`🎨 Color lookup request for ${brand} ${model} (${deviceType})`);
+      const result = await deviceColorService.getDeviceColors(deviceType, brand, model);
+      
+      // If no colors found, provide common fallbacks
+      if (result.colors.length === 0) {
+        const commonColors = deviceColorService.getCommonColors(deviceType);
+        return res.json({
+          colors: commonColors,
+          fromCache: false,
+          fallback: true,
+          message: "Using common colors as fallback"
+        });
+      }
+      
+      res.json({
+        colors: result.colors,
+        fromCache: result.fromCache,
+        fallback: false
+      });
+    } catch (error) {
+      console.error("Error fetching device colors:", error);
+      
+      // Return common colors as fallback on error
+      const { deviceType } = req.params;
+      const commonColors = deviceColorService.getCommonColors(deviceType);
+      
+      res.json({
+        colors: commonColors,
+        fromCache: false,
+        fallback: true,
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

@@ -34,7 +34,9 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
+import { useDeviceColors } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
+import { useToast } from "@/hooks/use-toast";
 
 // Kanban column configuration
 const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
@@ -193,6 +195,7 @@ export default function KanbanTickets() {
   
   const queryClient = useQueryClient();
   const { t, currentLanguage } = useLocalization();
+  const { toast } = useToast();
   
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
@@ -225,6 +228,13 @@ export default function KanbanTickets() {
   const { data: deviceModels, isLoading: modelsLoading } = useDeviceModels(
     formData.deviceType || '',
     formData.deviceBrand || ''
+  );
+
+  // Device colors query - fetches colors from free API based on device type, brand, and model
+  const { data: deviceColors, isLoading: colorsLoading } = useDeviceColors(
+    formData.deviceType || '',
+    formData.deviceBrand || '',
+    formData.deviceModel || ''
   );
 
   // Brand and model validation hooks
@@ -640,21 +650,19 @@ export default function KanbanTickets() {
     
     const ticketData = {
       clientId: selectedClient.id,
+      title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
+      description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
+      status: 'backlog' as const,
+      priority: 'medium' as const,
+      assignedTo: null,
+      estimatedCost: null,
+      actualCost: null,
       deviceType: formData.deviceType,
-      deviceBrand: formData.deviceBrand,
       deviceModel: formData.deviceModel,
       deviceColor: formData.deviceColor,
       deviceMemory: formData.deviceMemory || null,
       deviceStorageCapacity: formData.deviceStorageCapacity || null,
-      serialNumber: formData.serialNumber || null,
-      status: 'open' as const,
-      priority: 'medium' as const,
-      title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
-      description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
-      estimatedCost: null,
-      actualCost: null,
-      technicianNotes: null,
-      assignedUserId: null,
+      issueDescription: null,
     };
     
     createTicketMutation.mutate(ticketData);
@@ -1386,12 +1394,20 @@ export default function KanbanTickets() {
                           hasError={!!formErrors.deviceColor}
                           isValid={fieldValidation.deviceColor?.isValid && formData.deviceColor.length > 0}
                         >
-                          <Input
-                            id="deviceColor"
+                          <SearchableSelect
                             value={formData.deviceColor || ''}
-                            onChange={(e) => handleInputChange('deviceColor', e.target.value)}
-                            placeholder={t("device_color_placeholder", "e.g., Space Gray, White, Black")}
-                            data-testid="input-device-color"
+                            onValueChange={(value) => handleInputChange('deviceColor', value)}
+                            items={deviceColors?.colors || []}
+                            isLoading={colorsLoading}
+                            allowCustomInput={true}
+                            disabled={!formData.deviceType || !formData.deviceBrand || !formData.deviceModel}
+                            emptyText={
+                              !formData.deviceType || !formData.deviceBrand || !formData.deviceModel
+                                ? t("select_device_model_first", "Select device model first") 
+                                : t("configs.no_colors_available", "No colors available for this model")
+                            }
+                            placeholder={t("device_color_placeholder", "Select or enter color")}
+                            data-testid="select-device-color"
                           />
                         </FormFieldWithTooltip>
 
