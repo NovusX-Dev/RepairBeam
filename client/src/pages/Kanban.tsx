@@ -33,7 +33,14 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { IssueAssessment } from "@/components/IssueAssessment";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
@@ -87,6 +94,8 @@ interface TicketFormData {
   technicianEstimatedHours: string;
   warrantyType: string;
   costEstimation: string;
+  warrantyCost: string;
+  totalCost: string;
   costExplanation: string;
   // Service Checklist
   deviceComponents: { [component: string]: string }; // component -> condition mapping
@@ -201,6 +210,8 @@ export default function KanbanTickets() {
     technicianEstimatedHours: '',
     warrantyType: 'standard',
     costEstimation: '',
+    warrantyCost: '0',
+    totalCost: '',
     costExplanation: '',
     // Service Checklist
     deviceComponents: {},
@@ -209,6 +220,9 @@ export default function KanbanTickets() {
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
   const [fieldValidation, setFieldValidation] = useState<Record<string, { isValid: boolean; hasError: boolean }>>({});
+  
+  // Date picker state
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   // Client search state
   const [clientSearchQuery, setClientSearchQuery] = useState('');
@@ -222,6 +236,21 @@ export default function KanbanTickets() {
   const queryClient = useQueryClient();
   const { t, currentLanguage } = useLocalization();
   const { toast } = useToast();
+
+  // Calculate warranty cost and total cost
+  const calculateCosts = () => {
+    const basePrice = parseFloat(formData.costEstimation) || 0;
+    const warrantyPrice = formData.warrantyType === 'extended' 
+      ? (tenant?.settings?.extendedWarrantyPrice || 50)
+      : 0;
+    const total = basePrice + warrantyPrice;
+    
+    setFormData(prev => ({
+      ...prev,
+      warrantyCost: warrantyPrice.toString(),
+      totalCost: total.toString()
+    }));
+  };
 
   // Device checklist template query
   const { data: checklistTemplate, isLoading: isLoadingChecklist } = useQuery<any>({
@@ -320,6 +349,8 @@ export default function KanbanTickets() {
         technicianEstimatedHours: '',
         warrantyType: 'standard',
         costEstimation: '',
+        warrantyCost: '0',
+        totalCost: '',
         costExplanation: '',
         // Service Checklist defaults
         deviceComponents: {},
@@ -617,6 +648,11 @@ export default function KanbanTickets() {
       ...prev,
       [field]: { isValid, hasError: false }
     }));
+    
+    // Recalculate costs when cost estimation or warranty type changes
+    if (field === 'costEstimation' || field === 'warrantyType') {
+      setTimeout(calculateCosts, 10); // Small delay to ensure state is updated
+    }
   };
 
   // Handle CPF input with formatting
@@ -782,6 +818,8 @@ export default function KanbanTickets() {
         technicianEstimatedHours: '',
         warrantyType: 'standard',
         costEstimation: '',
+        warrantyCost: '0',
+        totalCost: '',
         costExplanation: '',
         // Service Checklist defaults
         deviceComponents: {},
@@ -1658,14 +1696,67 @@ export default function KanbanTickets() {
                       label={t("client_deadline", "Client's Deadline")}
                       tooltip={t("client_deadline_tooltip", "When does the client need the device repaired? This helps prioritize work and set expectations.")}
                     >
-                      <Input
-                        type="datetime-local"
-                        id="clientDeadline"
-                        value={formData.clientDeadline}
-                        onChange={(e) => handleInputChange('clientDeadline', e.target.value)}
-                        data-testid="input-client-deadline"
-                        className="w-full"
-                      />
+                      <div className="space-y-3">
+                        {/* Date Picker */}
+                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={`w-full justify-start text-left font-normal ${
+                                !formData.clientDeadline && "text-muted-foreground"
+                              }`}
+                              data-testid="button-client-deadline-date"
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {formData.clientDeadline 
+                                ? format(new Date(formData.clientDeadline), "PPP")
+                                : t("pick_date", "Pick a date")
+                              }
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={formData.clientDeadline ? new Date(formData.clientDeadline) : undefined}
+                              onSelect={(date) => {
+                                if (date) {
+                                  // Preserve existing time if any, otherwise set to current time
+                                  const existingDate = formData.clientDeadline ? new Date(formData.clientDeadline) : new Date();
+                                  const newDate = new Date(date);
+                                  newDate.setHours(existingDate.getHours());
+                                  newDate.setMinutes(existingDate.getMinutes());
+                                  handleInputChange('clientDeadline', newDate.toISOString().slice(0, 16));
+                                }
+                                setIsCalendarOpen(false);
+                              }}
+                              disabled={(date) =>
+                                date < new Date(new Date().setHours(0, 0, 0, 0))
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        
+                        {/* Time Picker */}
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="time"
+                            id="clientDeadlineTime"
+                            value={formData.clientDeadline ? new Date(formData.clientDeadline).toTimeString().slice(0, 5) : ''}
+                            onChange={(e) => {
+                              const time = e.target.value;
+                              const currentDate = formData.clientDeadline ? new Date(formData.clientDeadline) : new Date();
+                              const [hours, minutes] = time.split(':').map(Number);
+                              currentDate.setHours(hours, minutes);
+                              handleInputChange('clientDeadline', currentDate.toISOString().slice(0, 16));
+                            }}
+                            data-testid="input-client-deadline-time"
+                            className="flex-1 max-w-32"
+                            placeholder="--:--"
+                          />
+                        </div>
+                      </div>
                     </FormFieldWithTooltip>
 
                     {/* Technician Estimated Time */}
@@ -1760,6 +1851,48 @@ export default function KanbanTickets() {
                           step="0.01"
                           data-testid="input-cost-estimation"
                           className="flex-1"
+                        />
+                      </div>
+                    </FormFieldWithTooltip>
+
+                    {/* Warranty Cost */}
+                    <FormFieldWithTooltip
+                      label={t("warranty_cost", "Warranty Cost")}
+                      tooltip={t("warranty_cost_tooltip", "Cost for the selected warranty type. Standard warranty is free, extended warranty has an additional cost.")}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
+                        </span>
+                        <Input
+                          type="number"
+                          id="warrantyCost"
+                          value={formData.warrantyCost}
+                          readOnly
+                          placeholder="0.00"
+                          data-testid="input-warranty-cost"
+                          className="flex-1 bg-muted/50"
+                        />
+                      </div>
+                    </FormFieldWithTooltip>
+
+                    {/* Total Cost */}
+                    <FormFieldWithTooltip
+                      label={t("total_cost", "Total Cost")}
+                      tooltip={t("total_cost_tooltip", "Total cost including repair estimate and warranty cost.")}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
+                        </span>
+                        <Input
+                          type="number"
+                          id="totalCost"
+                          value={formData.totalCost}
+                          readOnly
+                          placeholder="0.00"
+                          data-testid="input-total-cost"
+                          className="flex-1 bg-muted/50 font-semibold text-primary"
                         />
                       </div>
                     </FormFieldWithTooltip>
