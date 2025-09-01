@@ -33,7 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
-import { useDeviceBrands, useValidateBrand } from "@/hooks/useDeviceBrands";
+import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceModels } from "@/hooks/useDeviceModels";
 
 // Kanban column configuration
@@ -221,8 +221,9 @@ export default function KanbanTickets() {
     formData.deviceBrand || ''
   );
 
-  // Brand validation hook
+  // Brand and model validation hooks
   const { validateBrand } = useValidateBrand();
+  const { validateModel } = useValidateModel();
 
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
@@ -1249,6 +1250,27 @@ export default function KanbanTickets() {
                                 ? t("select_device_type_brand_first", "Select device type and brand first") 
                                 : t("configs.no_models_available", "No models available for this brand")
                             }
+                            onCustomValue={async (modelName) => {
+                              try {
+                                console.log(`💰 Validating custom model: ${modelName}`);
+                                const result = await validateModel(formData.deviceType, formData.deviceBrand, modelName);
+                                
+                                if (result.correctedName) {
+                                  handleInputChange('deviceModel', result.correctedName);
+                                  if (result.added) {
+                                    // Optionally refresh the model list to include the new model
+                                    console.log(`✅ Added new model: ${result.correctedName}`);
+                                  }
+                                } else {
+                                  // Still allow the user to use the model even if validation failed
+                                  handleInputChange('deviceModel', modelName);
+                                }
+                              } catch (error) {
+                                console.error('Model validation failed:', error);
+                                // Allow user to proceed even if validation fails
+                                handleInputChange('deviceModel', modelName);
+                              }
+                            }}
                             data-testid="select-device-model"
                           />
                         </FormFieldWithTooltip>

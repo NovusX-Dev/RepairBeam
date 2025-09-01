@@ -767,6 +767,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auto-gen-lists/:category/:brand/validate-model", async (req, res) => {
+    try {
+      const { category, brand } = req.params;
+      const { modelName } = req.body;
+      
+      if (!modelName || typeof modelName !== 'string') {
+        return res.status(400).json({ message: "Model name is required" });
+      }
+
+      console.log(`💰 Model validation request for "${modelName}" in ${brand} ${category} category`);
+      const result = await aiService.validateAndAddModel(category, brand, modelName);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error validating model:", error);
+      res.status(500).json({ message: "Failed to validate model" });
+    }
+  });
+
   // Model list routes - Get models for a specific brand and category
   app.get("/api/auto-gen-lists/:category/:brand/models", async (req, res) => {
     try {
@@ -990,7 +1009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error(`Error starting retry for ${req.params.category}:`, error);
-      res.status(500).json({ message: error.message || "Failed to start retry" });
+      res.status(500).json({ message: (error as Error).message || "Failed to start retry" });
     }
   });
 

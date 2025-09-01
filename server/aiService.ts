@@ -1077,6 +1077,94 @@ Example: "FakeBrand" -> {"isValid": false, "correctedName": null, "confidence": 
   }
 
   /**
+   * Validate and potentially add a user-entered model to the list
+   */
+  async validateAndAddModel(deviceType: string, brandName: string, modelName: string): Promise<{ isValid: boolean; correctedName?: string; added: boolean }> {
+    try {
+      console.log(`🔍 Validating model "${modelName}" for ${brandName} ${deviceType}...`);
+
+      // Clean up the model name
+      const cleanModel = modelName.trim();
+      if (!cleanModel) {
+        return { isValid: false, added: false };
+      }
+
+      // Check if model exists and get corrected spelling
+      const validationPrompt = `Validate device model name for repair shop database.
+
+Device Type: ${deviceType}
+Brand: ${brandName}
+Model Name: "${cleanModel}"
+
+JSON format: {"isValid": boolean, "correctedName": "exact name" or null, "confidence": 0.0}
+
+REQUIRED CRITERIA:
+- Validate this is a real ${brandName} ${deviceType} model that was actually released
+- Check for typos, abbreviations, and common naming variations
+- If uncertain about model existence, mark as invalid
+- DO NOT fabricate or guess model names
+- Provide exact official model name/number if correcting
+- Include generation/year info if part of official name
+- No trailing commas, comments, or extra wrapper keys
+
+Example: "iphone 14 pro max" -> {"isValid": true, "correctedName": "iPhone 14 Pro Max", "confidence": 0.95}
+Example: "MacBook Pro M3 16" -> {"isValid": true, "correctedName": "MacBook Pro 16\" M3", "confidence": 0.9}
+Example: "FakeModel123" -> {"isValid": false, "correctedName": null, "confidence": 0.0}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `Model validator specialist. Expert in ${brandName} ${deviceType} product lines, official nomenclature, and release history. Fix typos, validate authentic models.`
+          },
+          {
+            role: "user",
+            content: validationPrompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 500,
+        temperature: 0.1 // Low temperature for consistent validation
+      });
+
+      const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
+      
+      if (result.isValid && result.correctedName) {
+        // Try to add to the existing model list
+        const existingList = await storage.getAutoGenList(`${deviceType}_${brandName}_models`);
+        
+        if (existingList && !existingList.items.includes(result.correctedName)) {
+          const updatedItems = [...existingList.items, result.correctedName].sort();
+          await storage.updateAutoGenList(existingList.id, {
+            items: updatedItems,
+            updatedAt: new Date()
+          });
+          
+          console.log(`✅ Added "${result.correctedName}" to ${brandName} ${deviceType} model list`);
+          return { 
+            isValid: true, 
+            correctedName: result.correctedName, 
+            added: true 
+          };
+        }
+        
+        return { 
+          isValid: true, 
+          correctedName: result.correctedName, 
+          added: false 
+        };
+      }
+
+      return { isValid: false, added: false };
+    } catch (error) {
+      console.error(`❌ Model validation failed for "${modelName}":`, error);
+      // If validation fails, assume it's valid to not block the user
+      return { isValid: true, correctedName: modelName, added: false };
+    }
+  }
+
+  /**
    * Fallback model lists if AI generation fails
    */
   private getFallbackModels(deviceType: string, brand: string): ModelGenerationResult {

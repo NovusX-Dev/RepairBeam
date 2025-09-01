@@ -111,3 +111,27 @@ export function useValidateBrand() {
     }
   };
 }
+
+export function useValidateModel() {
+  return {
+    validateModel: async (deviceType: string, brandName: string, modelName: string) => {
+      const response = await fetch(`/api/auto-gen-lists/${deviceType}/${brandName}/validate-model`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ modelName }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to validate model');
+      }
+      
+      return response.json() as Promise<{
+        isValid: boolean;
+        correctedName?: string;
+        added: boolean;
+      }>;
+    }
+  };
+}
