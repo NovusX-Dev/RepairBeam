@@ -827,7 +827,7 @@ export default function KanbanTickets() {
         deviceStorageCapacity: formData.deviceStorageCapacity || null,
         issueDescription: null,
         // Service Timeline & Coverage fields with form data
-        clientDeadline: formData.clientDeadline || null,
+        clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
         warrantyType: formData.warrantyType as 'standard' | 'extended',
         costEstimation: formData.costEstimation || null,
@@ -2525,25 +2525,26 @@ export default function KanbanTickets() {
               <Check className="w-5 h-5 text-green-500" />
               {t("confirm_ticket_creation", "Create Repair Ticket?")}
             </DialogTitle>
-            <DialogDescription className="space-y-3">
-              <p>{t("confirmation_message", "Are you sure you want to create this repair ticket?")}</p>
-              
-              <div className="text-sm space-y-1">
-                <p className="font-medium text-foreground">{t("this_will", "This will:")}</p>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>{t("create_ticket_backlog", "Create a new ticket in the BackLog")}</li>
-                  <li>{t("lock_service_details", "Lock in the agreed service details and cost")}</li>
-                  <li>{t("begin_repair_process", "Begin the repair process")}</li>
-                </ul>
-              </div>
-
-              <div className="bg-muted/20 p-3 rounded-md space-y-1 text-sm">
-                <div><strong>{t("client", "Client")}:</strong> {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : `${formData.firstName} ${formData.lastName}`}</div>
-                <div><strong>{t("device", "Device")}:</strong> {formData.deviceType} {formData.deviceBrand} {formData.deviceModel}</div>
-                <div><strong>{t("total_cost", "Total Cost")}:</strong> ${formData.totalCost}</div>
-              </div>
+            <DialogDescription>
+              {t("confirmation_message", "Are you sure you want to create this repair ticket?")}
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm space-y-1">
+              <p className="font-medium text-foreground">{t("this_will", "This will:")}</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>{t("create_ticket_backlog", "Create a new ticket in the BackLog")}</li>
+                <li>{t("lock_service_details", "Lock in the agreed service details and cost")}</li>
+                <li>{t("begin_repair_process", "Begin the repair process")}</li>
+              </ul>
+            </div>
+
+            <div className="bg-muted/20 p-3 rounded-md space-y-1 text-sm">
+              <div><strong>{t("client", "Client")}:</strong> {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : `${formData.firstName} ${formData.lastName}`}</div>
+              <div><strong>{t("device", "Device")}:</strong> {formData.deviceType} {formData.deviceBrand} {formData.deviceModel}</div>
+              <div><strong>{t("total_cost", "Total Cost")}:</strong> ${formData.totalCost}</div>
+            </div>
+          </div>
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
             <Button variant="outline" onClick={() => setShowCreateConfirmation(false)}>
               {t("cancel", "Cancel")}
