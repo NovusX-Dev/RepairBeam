@@ -592,7 +592,7 @@ REQUIRED CRITERIA:
 - Include 30-50 authentic brands only
 - Cover premium, mid-range, and budget segments
 - Include current and legacy brands commonly repaired
-- If uncertain about a brand's existence, DO NOT include it
+- Include all known brands that manufacture devices
 - DO NOT fake or fabricate brands
 - No trailing commas, comments, or extra wrapper keys
 - Focus on brands actually sold and commonly repaired
