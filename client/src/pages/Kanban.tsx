@@ -1259,7 +1259,18 @@ export default function KanbanTickets() {
                     </Label>
                     <Select
                       value={formData.deviceType}
-                      onValueChange={(value) => handleInputChange('deviceType', value)}
+                      onValueChange={(value) => {
+                        // Reset dependent fields when device type changes
+                        setFormData(prev => ({
+                          ...prev,
+                          deviceType: value,
+                          deviceBrand: '',
+                          deviceModel: '',
+                          deviceColor: '',
+                          deviceMemory: '',
+                          deviceStorageCapacity: ''
+                        }));
+                      }}
                       data-testid="select-device-type"
                     >
                       <SelectTrigger className={`mt-2 ${formErrors.deviceType ? 'border-red-500' : ''}`}>
@@ -1317,26 +1328,58 @@ export default function KanbanTickets() {
                             items={deviceBrands?.items || []}
                             isLoading={brandsLoading}
                             allowCustomInput={true}
-                            onValueChange={(value) => handleInputChange('deviceBrand', value)}
+                            onValueChange={(value) => {
+                              // Reset dependent fields when brand changes
+                              setFormData(prev => ({
+                                ...prev,
+                                deviceBrand: value,
+                                deviceModel: '',
+                                deviceColor: '',
+                                deviceMemory: '',
+                                deviceStorageCapacity: ''
+                              }));
+                            }}
                             onCustomValue={async (brandName) => {
                               try {
                                 console.log(`💰 Validating custom brand: ${brandName}`);
                                 const result = await validateBrand(formData.deviceType, brandName);
                                 
                                 if (result.correctedName) {
-                                  handleInputChange('deviceBrand', result.correctedName);
+                                  // Reset dependent fields when brand changes via custom value
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    deviceBrand: result.correctedName || '',
+                                    deviceModel: '',
+                                    deviceColor: '',
+                                    deviceMemory: '',
+                                    deviceStorageCapacity: ''
+                                  }));
                                   if (result.added) {
                                     // Optionally refresh the brand list to include the new brand
                                     console.log(`✅ Added new brand: ${result.correctedName}`);
                                   }
                                 } else {
                                   // Still allow the user to use the brand even if validation failed
-                                  handleInputChange('deviceBrand', brandName);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    deviceBrand: brandName,
+                                    deviceModel: '',
+                                    deviceColor: '',
+                                    deviceMemory: '',
+                                    deviceStorageCapacity: ''
+                                  }));
                                 }
                               } catch (error) {
                                 console.error('Brand validation failed:', error);
-                                // Allow user to proceed even if validation fails
-                                handleInputChange('deviceBrand', brandName);
+                                // Allow user to proceed even if validation fails, but reset dependent fields
+                                setFormData(prev => ({
+                                  ...prev,
+                                  deviceBrand: brandName,
+                                  deviceModel: '',
+                                  deviceColor: '',
+                                  deviceMemory: '',
+                                  deviceStorageCapacity: ''
+                                }));
                               }
                             }}
                             data-testid="select-device-brand"
@@ -1353,7 +1396,16 @@ export default function KanbanTickets() {
                           <SearchableSelect
                             placeholder={t("device_model_placeholder", "Select or type model...")}
                             value={formData.deviceModel || ''}
-                            onValueChange={(value) => handleInputChange('deviceModel', value)}
+                            onValueChange={(value) => {
+                              // Reset dependent fields when model changes
+                              setFormData(prev => ({
+                                ...prev,
+                                deviceModel: value,
+                                deviceColor: '',
+                                deviceMemory: '',
+                                deviceStorageCapacity: ''
+                              }));
+                            }}
                             items={deviceModels?.items || []}
                             isLoading={modelsLoading}
                             allowCustomInput={true}
@@ -1369,19 +1421,38 @@ export default function KanbanTickets() {
                                 const result = await validateModel(formData.deviceType, formData.deviceBrand, modelName);
                                 
                                 if (result.correctedName) {
-                                  handleInputChange('deviceModel', result.correctedName);
+                                  // Reset dependent fields when model changes via custom value
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    deviceModel: result.correctedName || '',
+                                    deviceColor: '',
+                                    deviceMemory: '',
+                                    deviceStorageCapacity: ''
+                                  }));
                                   if (result.added) {
                                     // Optionally refresh the model list to include the new model
                                     console.log(`✅ Added new model: ${result.correctedName}`);
                                   }
                                 } else {
                                   // Still allow the user to use the model even if validation failed
-                                  handleInputChange('deviceModel', modelName);
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    deviceModel: modelName,
+                                    deviceColor: '',
+                                    deviceMemory: '',
+                                    deviceStorageCapacity: ''
+                                  }));
                                 }
                               } catch (error) {
                                 console.error('Model validation failed:', error);
-                                // Allow user to proceed even if validation fails
-                                handleInputChange('deviceModel', modelName);
+                                // Allow user to proceed even if validation fails, but reset dependent fields
+                                setFormData(prev => ({
+                                  ...prev,
+                                  deviceModel: modelName,
+                                  deviceColor: '',
+                                  deviceMemory: '',
+                                  deviceStorageCapacity: ''
+                                }));
                               }
                             }}
                             data-testid="select-device-model"
