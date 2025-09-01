@@ -247,8 +247,8 @@ export default function KanbanTickets() {
     
     setFormData(prev => ({
       ...prev,
-      warrantyCost: warrantyPrice.toString(),
-      totalCost: total.toString()
+      warrantyCost: warrantyPrice.toFixed(2),
+      totalCost: total.toFixed(2)
     }));
   };
 
@@ -1887,19 +1887,27 @@ export default function KanbanTickets() {
                       label={t("warranty_cost", "Warranty Cost")}
                       tooltip={t("warranty_cost_tooltip", "Cost for the selected warranty type. Standard warranty is free, extended warranty has an additional cost.")}
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">
-                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
-                        </span>
-                        <Input
-                          type="number"
-                          id="warrantyCost"
-                          value={formData.warrantyCost}
-                          readOnly
-                          placeholder="0.00"
-                          data-testid="input-warranty-cost"
-                          className="flex-1 bg-muted/50"
-                        />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
+                            {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
+                          </span>
+                          <Input
+                            type="number"
+                            id="warrantyCost"
+                            value={formData.warrantyCost}
+                            readOnly
+                            placeholder="0.00"
+                            data-testid="input-warranty-cost"
+                            className="flex-1 bg-background border-input text-foreground"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formData.warrantyType === 'extended' 
+                            ? t("extended_warranty_selected", "Extended Warranty (6 months) selected")
+                            : t("standard_warranty_selected", "Standard Warranty (3 months, free) selected")
+                          }
+                        </div>
                       </div>
                     </FormFieldWithTooltip>
 
@@ -1919,7 +1927,7 @@ export default function KanbanTickets() {
                           readOnly
                           placeholder="0.00"
                           data-testid="input-total-cost"
-                          className="flex-1 bg-muted/50 font-semibold text-primary"
+                          className="flex-1 bg-background border-input text-foreground font-semibold"
                         />
                       </div>
                     </FormFieldWithTooltip>
