@@ -65,6 +65,18 @@ export function GenerationProgressDialog({
     return () => clearInterval(interval);
   }, [isGenerating, isOpen, category, onOpenChange, errorMessage]);
 
+  // Additional check: Listen for the isGenerating state change to detect completion
+  useEffect(() => {
+    // When isGenerating changes from true to false, it means generation completed
+    if (!isGenerating && isOpen && !errorMessage) {
+      setIsCheckingCompletion(true);
+      setTimeout(() => {
+        onOpenChange(false);
+        setIsCheckingCompletion(false);
+      }, 1500);
+    }
+  }, [isGenerating, isOpen, errorMessage, onOpenChange]);
+
   // Auto-close on error after delay
   useEffect(() => {
     if (errorMessage && isOpen) {
@@ -83,11 +95,11 @@ export function GenerationProgressDialog({
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-primary" />
             <DialogTitle>
-              {t('progress.generating_models_title', 'Generating AI Models')}
+              {t('generation_dialog.title', 'Generating AI Models')}
             </DialogTitle>
           </div>
           <DialogDescription>
-            {t('progress.generating_models_for_category', 'Generating device models for {category}').replace('{category}', category)}
+            {t('generation_dialog.description', 'Generating device models for {category}').replace('{category}', t(`category.${category.toLowerCase()}`, category))}
           </DialogDescription>
         </DialogHeader>
 
@@ -97,7 +109,7 @@ export function GenerationProgressDialog({
             <Alert className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950">
               <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
               <AlertDescription className="text-red-800 dark:text-red-200">
-                <strong>{t('progress.error_title', 'Error:')}</strong>{' '}
+                <strong>{t('generation_dialog.error_title', 'Error:')}</strong>{' '}
                 {errorMessage}
               </AlertDescription>
             </Alert>
@@ -108,8 +120,8 @@ export function GenerationProgressDialog({
             <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <AlertDescription className="text-amber-800 dark:text-amber-200">
-                <strong>{t('progress.warning_title', 'Important:')}</strong>{' '}
-                {t('progress.warning_message', 'Do not refresh the page or navigate away during generation. This will stop the process and require starting over.')}
+                <strong>{t('generation_dialog.warning_title', 'Important:')}</strong>{' '}
+                {t('generation_dialog.warning_message', 'Do not refresh the page or navigate away during generation. This will stop the process and require starting over.')}
               </AlertDescription>
             </Alert>
           )}
@@ -122,21 +134,21 @@ export function GenerationProgressDialog({
                   <>
                     <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                     <span className="text-lg font-medium text-green-600 dark:text-green-400">
-                      {t('progress.completing', 'Completing...')}
+                      {t('generation_dialog.completing', 'Completing...')}
                     </span>
                   </>
                 ) : (
                   <>
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     <span className="text-lg font-medium">
-                      {t('progress.generating', 'Generating models, please wait...')}
+                      {t('generation_dialog.generating', 'Generating models, please wait...')}
                     </span>
                   </>
                 )}
               </div>
               
               <div className="text-center text-sm text-muted-foreground">
-                {t('progress.processing_message', 'This may take 2-3 minutes to complete')}
+                {t('generation_dialog.processing_message', 'This may take 2-3 minutes to complete')}
               </div>
             </div>
           )}
@@ -145,7 +157,7 @@ export function GenerationProgressDialog({
           <Alert>
             <Bot className="h-4 w-4" />
             <AlertDescription>
-              {t('progress.cost_info', 'This process uses OpenAI API calls. Each brand requires a separate API request to generate accurate model lists.')}
+              {t('generation_dialog.cost_info', 'This process uses OpenAI API calls. Each brand requires a separate API request to generate accurate model lists.')}
             </AlertDescription>
           </Alert>
         </div>

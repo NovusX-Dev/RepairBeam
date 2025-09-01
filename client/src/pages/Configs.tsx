@@ -107,10 +107,7 @@ export default function Configs() {
       return response.json();
     },
     onSuccess: (data, category) => {
-      toast({
-        title: t('toast.models_updated_successfully', 'Model list updated successfully'),
-        description: t('models_generation_complete', `Model lists for ${category} have been generated successfully.`),
-      });
+      // Don't show immediate toast - let the dialog handle completion feedback
       queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
     },
     onError: (error: Error, category) => {
