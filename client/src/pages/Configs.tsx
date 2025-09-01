@@ -560,9 +560,9 @@ export default function Configs() {
                         <div className="space-y-2">
                           <Button
                             onClick={() => handleGenerateModels(brandList.category)}
-                            disabled={isGenerating || generateModelsMutation.isPending || (hasModels && modelLists.length >= brandList.items.length)}
+                            disabled={isGenerating || generateModelsMutation.isPending || (brandList.category === 'Phone' && hasModels && modelLists.length >= brandList.items.length)}
                             className="w-full"
-                            variant={hasModels && modelLists.length >= brandList.items.length ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
+                            variant={brandList.category === 'Phone' && hasModels && modelLists.length >= brandList.items.length ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
                             data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
                           >
                             {isGenerating ? (
@@ -571,10 +571,17 @@ export default function Configs() {
                                 {t('generating_models', 'Generating Models...')}
                               </>
                             ) : hasModels && modelLists.length >= brandList.items.length ? (
-                              <>
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
-                                {t('configs.models_complete', 'Models Complete')} ✅
-                              </>
+                              brandList.category === 'Phone' ? (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  {t('configs.models_complete', 'Models Complete')} ✅
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  {t('configs.regenerate_models', 'Regenerate Models')} (2021-2025) 💰
+                                </>
+                              )
                             ) : mightBeGenerating ? (
                               <>
                                 <RefreshCw className="w-4 h-4 mr-2" />
