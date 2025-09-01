@@ -446,11 +446,12 @@ export class DatabaseStorage implements IStorage {
   // Auto-generated list operations
   async getAutoGenList(category: string): Promise<AutoGenList | undefined> {
     return withRetry(async () => {
+      // Look specifically for brand lists for the given category
       const [list] = await db
         .select()
         .from(autoGenLists)
         .where(and(
-          eq(autoGenLists.category, category),
+          eq(autoGenLists.listType, `AutoGen-List-Brands-${category}`),
           eq(autoGenLists.isActive, true)
         ));
       return list;
