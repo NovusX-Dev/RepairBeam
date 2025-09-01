@@ -387,7 +387,7 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
           try {
             // Use GPT-4o with much higher token limit to avoid reasoning token exhaustion
             response = await openai.chat.completions.create({
-              model: "gpt-4o", // Using GPT-4o - no reasoning tokens issue
+              model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
               messages: [
                 {
                   role: "system",
@@ -658,30 +658,51 @@ Generate the most comprehensive ${brand} ${deviceType} catalog possible for prof
    * Generate comprehensive brand lists for device types using AI
    */
   async generateDeviceBrands(deviceType: string): Promise<BrandGenerationResult> {
-    const prompt = `Generate comprehensive ${deviceType} brand list for repair shops.
-
-Device Type: ${deviceType}
-
-JSON format: {"brands": ["Brand1", "Brand2", "Brand3"]}
-
-REQUIRED CRITERIA:
-- Include 30-50 authentic brands only
-- Cover premium, mid-range, and budget segments
-- Include current and legacy brands commonly repaired
-- Include all known brands that manufacture devices
-- DO NOT fake or fabricate brands
-- No trailing commas, comments, or extra wrapper keys
-- Focus on brands actually sold and commonly repaired
-
-Generate complete authentic brand list for repair shop operations.`;
-
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o", // Use GPT-4o to avoid reasoning token exhaustion
+        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         messages: [
           {
+            role: "system",
+            content: `You are an expert device catalog specialist for repair shops with comprehensive knowledge of consumer electronics manufacturing. Your expertise includes:
+
+EXPERTISE AREAS:
+- Complete manufacturer landscape across all market segments
+- Brand recognition and authenticity validation
+- Repair industry market knowledge and commonly serviced brands
+- Legacy and current manufacturer information
+- Regional and global brand presence`
+          },
+          {
             role: "user",
-            content: prompt
+            content: `Generate comprehensive ${deviceType} brand list for repair shop inventory operations.
+
+TASK SPECIFICATIONS:
+---
+Device Category: ${deviceType}
+Target Scope: Global manufacturer landscape
+Output Format: JSON object with brands array
+
+COMPREHENSIVE REQUIREMENTS:
+---
+MANUFACTURER COVERAGE:
+- Include 30-50 authentic brands spanning all market segments
+- Cover premium, mid-range, and budget tier manufacturers
+- Include current active brands and legacy brands still in repair circulation
+- Global and regional manufacturers with significant market presence
+
+QUALITY STANDARDS:
+- Authentic manufacturer names only (official company names)
+- No speculation about fictional or unconfirmed brands
+- Focus on brands actually manufacturing and selling devices
+- Include brands commonly brought to repair shops
+
+OUTPUT FORMAT:
+\`\`\`json
+{"brands": ["Brand1", "Brand2", "Brand3", ...]}
+\`\`\`
+
+Generate complete authentic manufacturer catalog for repair shop operations.`
           }
         ],
         response_format: { type: "json_object" },
