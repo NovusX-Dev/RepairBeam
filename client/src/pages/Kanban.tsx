@@ -151,11 +151,12 @@ function FormFieldWithTooltip({
               </TooltipTrigger>
               <TooltipContent 
                 side="top"
-                sideOffset={5}
-                alignOffset={0}
+                sideOffset={8}
+                align="center"
                 avoidCollisions={true}
+                collisionPadding={20}
                 sticky="always"
-                className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20 z-50 animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+                className="max-w-xs bg-[#0A192F] border-[#00FFFF] text-white shadow-lg shadow-[#00FFFF]/20 z-[9999] animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
               >
                 <p className="text-sm">{tooltip}</p>
               </TooltipContent>
