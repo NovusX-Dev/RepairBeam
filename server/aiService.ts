@@ -280,7 +280,8 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 2500 // Higher limit for comprehensive model lists
+        max_completion_tokens: 2500, // Higher limit for comprehensive model lists
+        temperature: 0.1 // Low temperature for consistent, comprehensive output
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
@@ -1011,7 +1012,8 @@ Example: "FakeBrand" -> {"isValid": false, "correctedName": null, "confidence": 
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 200
+        max_completion_tokens: 500, // Higher limit for comprehensive validation
+        temperature: 0.1 // Low temperature for consistent validation
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
