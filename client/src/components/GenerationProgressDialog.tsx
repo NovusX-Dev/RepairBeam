@@ -73,10 +73,10 @@ export function GenerationProgressDialog({
       setCurrentBrand(totalBrands);
       setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
       
-      // Auto-close quickly when generation completes
+      // Auto-close after user can see completion status
       setTimeout(() => {
         onOpenChange(false);
-      }, 1000); // Close quickly after completion
+      }, 3000); // Give user time to see completion status
     }
   }, [isGenerating, progressPercentage, totalBrands, t, onOpenChange]);
 

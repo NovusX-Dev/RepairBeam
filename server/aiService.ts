@@ -380,7 +380,7 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
               messages: [
                 {
                   role: "user",
-                  content: `List ${batch.join(' and ')} ${deviceType} models from ${startYear}-${currentYear}. JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch.length > 1 ? batch[1] : batch[0]}": ["Model3", "Model4"]}. 3-5 popular repair models per brand.`
+                  content: `List ${batch.join(' and ')} ${deviceType} models from 2021-2025 (4 year range). JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch.length > 1 ? batch[1] : batch[0]}": ["Model3", "Model4"]}. Include 3-5 popular models per brand from each year 2021, 2022, 2023, 2024, 2025.`
                 }
               ],
               response_format: { type: "json_object" },
