@@ -380,7 +380,16 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
               messages: [
                 {
                   role: "user",
-                  content: `List ${batch.join(' and ')} ${deviceType} models from 2021-2025 (4 year range). JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch.length > 1 ? batch[1] : batch[0]}": ["Model3", "Model4"]}. Include 3-5 popular models per brand from each year 2021, 2022, 2023, 2024, 2025.`
+                  content: `Generate COMPREHENSIVE ${deviceType} model lists for ${batch.join(' and ')} covering 2021-2025 period. JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3", "Model4", "Model5", "Model6", "Model7", "Model8", "Model9", "Model10"]}. 
+
+REQUIREMENTS:
+- MINIMUM 10-20 models per brand
+- MUST include models from ALL years: 2021, 2022, 2023, 2024, 2025
+- Include ALL major variants (Pro, Max, Plus, mini, etc.)
+
+For Apple: iPhone 12/12 mini/12 Pro/12 Pro Max (2021), iPhone 13/13 mini/13 Pro/13 Pro Max (2022), iPhone 14/14 Plus/14 Pro/14 Pro Max (2023), iPhone 15/15 Plus/15 Pro/15 Pro Max (2024-2025)
+
+Generate complete model lineup - DO NOT limit to just 5 models.`
                 }
               ],
               response_format: { type: "json_object" },
