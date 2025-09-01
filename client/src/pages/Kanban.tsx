@@ -2129,22 +2129,39 @@ export default function KanbanTickets() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <span className="text-sm text-muted-foreground">{t("full_name", "Full Name")}:</span>
-                          <p className="text-white font-medium">{formData.firstName} {formData.lastName}</p>
+                          <p className="text-white font-medium">
+                            {selectedClient 
+                              ? `${selectedClient.firstName} ${selectedClient.lastName}`
+                              : formData.firstName && formData.lastName 
+                                ? `${formData.firstName} ${formData.lastName}`
+                                : 'N/A'
+                            }
+                          </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("cpf", "CPF")}:</span>
-                          <p className="text-white font-medium">{displayCPF || formData.cpf}</p>
+                          <p className="text-white font-medium">
+                            {selectedClient?.cpf || displayCPF || formData.cpf || 'N/A'}
+                          </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("email", "Email")}:</span>
-                          <p className="text-white font-medium">{formData.email}</p>
+                          <p className="text-white font-medium">
+                            {selectedClient?.email || formData.email || 'N/A'}
+                          </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("address", "Address")}:</span>
                           <p className="text-white font-medium">
-                            {formData.streetAddress && formData.streetNumber 
-                              ? `${formData.streetAddress}, ${formData.streetNumber}${formData.apartment ? `, ${formData.apartment}` : ''}`
-                              : 'N/A'
+                            {selectedClient 
+                              ? (selectedClient.streetAddress && selectedClient.streetNumber 
+                                  ? `${selectedClient.streetAddress}, ${selectedClient.streetNumber}${selectedClient.apartment ? `, ${selectedClient.apartment}` : ''}`
+                                  : 'N/A'
+                                )
+                              : (formData.streetAddress && formData.streetNumber 
+                                  ? `${formData.streetAddress}, ${formData.streetNumber}${formData.apartment ? `, ${formData.apartment}` : ''}`
+                                  : 'N/A'
+                                )
                             }
                           </p>
                         </div>
