@@ -14,15 +14,12 @@ Preferred communication style: Simple, everyday language.
 - **Comprehensive Debugging**: During debugging, check ALL places that could cause the issue, not just obvious ones
 - **Consistency Validation**: Always check for inconsistencies with work and fixes across the entire codebase
 - **Double-Check Protocol**: Always verify work thoroughly before considering tasks complete
-- **Localization Requirements**: Always add localizations and translations when necessary, ensuring support for only the configured languages (currently: en, pt-BR, es, fr, pt)
+- **Localization Requirements**: Always add localizations and translations when necessary, ensuring support for only the configured languages (currently: en, pt-BR)
 
 ### Supported Languages
 Based on database analysis, the platform supports:
 - English (en)
-- Portuguese Brazil (pt-BR) 
-- Portuguese (pt)
-- Spanish (es)
-- French (fr)
+- Portuguese Brazil (pt-BR)
 
 ## System Architecture
 
