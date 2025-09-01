@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -81,9 +82,26 @@ interface TicketFormData {
   deviceMemory: string;
   deviceStorageCapacity: string;
   serialNumber: string;
+  // Service Timeline & Coverage
+  clientDeadline: string;
+  technicianEstimatedHours: string;
+  warrantyType: string;
+  costEstimation: string;
+  costExplanation: string;
 }
 
 type TicketWithClient = Ticket & { client?: Client };
+
+// Currency formatting utility
+const formatCurrency = (amount: number, language: string = 'en') => {
+  const locale = language === 'pt-BR' ? 'pt-BR' : 'en-US';
+  const currency = language === 'pt-BR' ? 'BRL' : 'USD';
+  
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: currency,
+  }).format(amount);
+};
 
 // Helper component for form field with tooltip
 interface FormFieldWithTooltipProps {
@@ -180,6 +198,12 @@ export default function KanbanTickets() {
     deviceMemory: '',
     deviceStorageCapacity: '',
     serialNumber: '',
+    // Service Timeline & Coverage defaults
+    clientDeadline: '',
+    technicianEstimatedHours: '',
+    warrantyType: 'standard',
+    costEstimation: '',
+    costExplanation: '',
   });
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
@@ -204,6 +228,12 @@ export default function KanbanTickets() {
   // Fetch tickets with client information
   const { data: tickets = [], isLoading } = useQuery<TicketWithClient[]>({
     queryKey: ["/api/tickets"],
+    retry: false,
+  });
+
+  // Tenant settings query for extended warranty price
+  const { data: tenant } = useQuery({
+    queryKey: ["/api/tenants/current"],
     retry: false,
   });
 
@@ -278,6 +308,12 @@ export default function KanbanTickets() {
         deviceMemory: '',
         deviceStorageCapacity: '',
         serialNumber: '',
+        // Service Timeline & Coverage defaults
+        clientDeadline: '',
+        technicianEstimatedHours: '',
+        warrantyType: 'standard',
+        costEstimation: '',
+        costExplanation: '',
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -665,6 +701,12 @@ export default function KanbanTickets() {
       deviceMemory: formData.deviceMemory || null,
       deviceStorageCapacity: formData.deviceStorageCapacity || null,
       issueDescription: null,
+      // Service Timeline & Coverage fields with form data
+      clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
+      technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
+      warrantyType: formData.warrantyType as const,
+      costEstimation: formData.costEstimation ? parseFloat(formData.costEstimation) : null,
+      costExplanation: formData.costExplanation || null,
     };
     
     createTicketMutation.mutate(ticketData);
@@ -720,6 +762,12 @@ export default function KanbanTickets() {
         deviceMemory: '',
         deviceStorageCapacity: '',
         serialNumber: '',
+        // Service Timeline & Coverage defaults
+        clientDeadline: '',
+        technicianEstimatedHours: '',
+        warrantyType: 'standard',
+        costEstimation: '',
+        costExplanation: '',
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -1585,12 +1633,118 @@ export default function KanbanTickets() {
 
               {/* Service Timeline & Coverage Step */}
               {currentStep === 3 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="space-y-4">
-                    <div className="text-6xl">⏰</div>
-                    <h3 className="text-lg font-semibold">{t("service_timeline", "Service Timeline & Coverage")}</h3>
-                    <p>{t("step_under_development", "This step is currently under development")}</p>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Client's Deadline */}
+                    <FormFieldWithTooltip
+                      label={t("client_deadline", "Client's Deadline")}
+                      tooltip={t("client_deadline_tooltip", "When does the client need the device repaired? This helps prioritize work and set expectations.")}
+                    >
+                      <Input
+                        type="datetime-local"
+                        id="clientDeadline"
+                        value={formData.clientDeadline}
+                        onChange={(e) => handleInputChange('clientDeadline', e.target.value)}
+                        data-testid="input-client-deadline"
+                        className="w-full"
+                      />
+                    </FormFieldWithTooltip>
+
+                    {/* Technician Estimated Time */}
+                    <FormFieldWithTooltip
+                      label={t("technician_estimated_time", "Estimated Time to Complete")}
+                      tooltip={t("technician_estimated_time_tooltip", "How many hours do you estimate this repair will take? Consider complexity, parts availability, and current workload.")}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          id="technicianEstimatedHours"
+                          value={formData.technicianEstimatedHours}
+                          onChange={(e) => handleInputChange('technicianEstimatedHours', e.target.value)}
+                          placeholder="8"
+                          min="1"
+                          max="200"
+                          data-testid="input-estimated-hours"
+                          className="flex-1"
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {t("hours", "hours")}
+                        </span>
+                      </div>
+                    </FormFieldWithTooltip>
                   </div>
+
+                  {/* Warranty Coverage */}
+                  <FormFieldWithTooltip
+                    label={t("warranty_coverage", "Warranty Coverage")}
+                    tooltip={t("warranty_coverage_tooltip", "Select the warranty type. Standard is free for 3 months, Extended is paid for 6 months.")}
+                  >
+                    <RadioGroup 
+                      value={formData.warrantyType} 
+                      onValueChange={(value) => handleInputChange('warrantyType', value)}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                    >
+                      <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                        <RadioGroupItem value="standard" id="warranty-standard" />
+                        <Label htmlFor="warranty-standard" className="flex-1 cursor-pointer">
+                          <div className="font-medium">{t("standard_warranty", "Standard (3 months, free)")}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t("standard_warranty_desc", "3-month warranty included at no additional cost")}
+                          </div>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                        <RadioGroupItem value="extended" id="warranty-extended" />
+                        <Label htmlFor="warranty-extended" className="flex-1 cursor-pointer">
+                          <div className="font-medium">
+                            {t("extended_warranty", `Extended (6 months, ${formatCurrency(tenant?.settings?.extendedWarrantyPrice || 50, currentLanguage)})`)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {t("extended_warranty_desc", "6-month warranty for additional peace of mind")}
+                          </div>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </FormFieldWithTooltip>
+
+                  {/* Cost Estimation */}
+                  <FormFieldWithTooltip
+                    label={t("cost_estimation", "Cost Estimation")}
+                    tooltip={t("cost_estimation_tooltip", "Provide an estimated total cost for this repair including parts and labor.")}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {currentLanguage === 'pt-BR' ? 'R$' : '$'}
+                      </span>
+                      <Input
+                        type="number"
+                        id="costEstimation"
+                        value={formData.costEstimation}
+                        onChange={(e) => handleInputChange('costEstimation', e.target.value)}
+                        placeholder="280.00"
+                        min="0"
+                        step="0.01"
+                        data-testid="input-cost-estimation"
+                        className="flex-1"
+                      />
+                    </div>
+                  </FormFieldWithTooltip>
+
+                  {/* Cost Explanation */}
+                  <FormFieldWithTooltip
+                    label={t("cost_explanation", "Cost Breakdown")}
+                    tooltip={t("cost_explanation_tooltip", "Explain how you calculated the cost. Include details about parts, labor time, and any additional fees.")}
+                  >
+                    <Textarea
+                      id="costExplanation"
+                      value={formData.costExplanation}
+                      onChange={(e) => handleInputChange('costExplanation', e.target.value)}
+                      placeholder={t("cost_explanation_placeholder", "Example: Labor (3 hours @ $50/hr) + Screen replacement part ($120) + diagnostic fee ($30) = $280 total")}
+                      rows={4}
+                      data-testid="textarea-cost-explanation"
+                      className="resize-none"
+                    />
+                  </FormFieldWithTooltip>
                 </div>
               )}
 

@@ -88,6 +88,11 @@ export const ticketPriorityEnum = [
   'urgent'
 ] as const;
 
+export const warrantyTypeEnum = [
+  'standard',  // 3 months, free
+  'extended'   // 6 months, paid
+] as const;
+
 // Tickets table for Kanban board
 export const tickets = pgTable("tickets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -106,6 +111,12 @@ export const tickets = pgTable("tickets", {
   deviceMemory: varchar("device_memory"),
   deviceStorageCapacity: varchar("device_storage_capacity"),
   issueDescription: text("issue_description"),
+  // Service Timeline & Coverage fields
+  clientDeadline: timestamp("client_deadline"),
+  technicianEstimatedHours: integer("technician_estimated_hours"),
+  warrantyType: varchar("warranty_type").default('standard'),
+  costEstimation: decimal("cost_estimation", { precision: 10, scale: 2 }),
+  costExplanation: text("cost_explanation"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -406,6 +417,7 @@ export type InsertAutoGenListType = z.infer<typeof insertAutoGenListSchema>;
 export type InsertDeviceColorType = z.infer<typeof insertDeviceColorSchema>;
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];
+export type WarrantyType = (typeof warrantyTypeEnum)[number];
 
 // Relations - moved to end after all tables are defined
 export const tenantRelations = relations(tenants, ({ many }) => ({
