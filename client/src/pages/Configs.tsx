@@ -502,8 +502,12 @@ export default function Configs() {
                   
                   // Check if generation might be in progress (some models exist but not all brands covered)
                   const mightBeGenerating = hasModels && modelLists.length < brandList.items.length && !isGenerating;
-                  // Allow regeneration if user wants to retry - don't permanently disable
-                  const shouldDisableButton = false; // Always allow regeneration for testing
+                  
+                  // Find a representative model list to check regeneration timing
+                  const sampleModelList = modelLists.length > 0 ? modelLists[0] : null;
+                  const canRegenerateModels = sampleModelList ? canUpdateList(sampleModelList) : true;
+                  const timeUntilRegeneration = sampleModelList && !canRegenerateModels ? getTimeUntilNextUpdate(sampleModelList.nextUpdate) : null;
+                  
                   const hasFailed = hasFailedGenerations(brandList.category);
                   
                   return (
@@ -514,7 +518,9 @@ export default function Configs() {
                         </CardTitle>
                         <CardDescription>
                           {hasModels && modelLists.length >= brandList.items.length
-                            ? t('configs.models_completed', '✅ All models generated successfully ({count} brands completed)').replace('{count}', brandList.items.length.toString())
+                            ? canRegenerateModels
+                              ? t('configs.models_can_regenerate', '✅ Models generated - regeneration available')
+                              : t('configs.models_completed_waiting', '✅ All models generated successfully ({count} brands completed)').replace('{count}', brandList.items.length.toString())
                             : mightBeGenerating
                             ? t('configs.generation_in_progress', 'Generation in progress - {count}/{total} brands completed').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())
                             : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))
@@ -537,9 +543,22 @@ export default function Configs() {
                             </p>
                           )}
                           {hasModels && modelLists.length >= brandList.items.length && (
-                            <p className="text-sm text-green-600 dark:text-green-400">
-                              ✅ {t('configs.models_completed_status', 'All {count} brands have model lists generated (2021-2025)').replace('{count}', brandList.items.length.toString())}
-                            </p>
+                            canRegenerateModels ? (
+                              <p className="text-sm text-blue-600 dark:text-blue-400">
+                                🔄 {t('configs.models_ready_for_regeneration', 'Models ready for regeneration with updated logic')}
+                              </p>
+                            ) : (
+                              <div className="space-y-1">
+                                <p className="text-sm text-green-600 dark:text-green-400">
+                                  ✅ {t('configs.models_completed_status', 'All {count} brands have model lists generated (2021-2025)').replace('{count}', brandList.items.length.toString())}
+                                </p>
+                                {timeUntilRegeneration && (
+                                  <p className="text-sm text-muted-foreground">
+                                    🕒 {t('configs.next_regeneration_in', 'Next regeneration available in')}: {timeUntilRegeneration}
+                                  </p>
+                                )}
+                              </div>
+                            )
                           )}
                           {hasFailed && (
                             <p className="text-sm text-orange-600 dark:text-orange-400">
@@ -548,21 +567,13 @@ export default function Configs() {
                           )}
                         </div>
 
-                        {shouldDisableButton && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                            <RefreshCw className="w-4 h-4" />
-                            <span>
-                              {t('configs.available_in', 'Available in')}: {new Date(brandList.nextUpdate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        )}
 
                         <div className="space-y-2">
                           <Button
                             onClick={() => handleGenerateModels(brandList.category)}
-                            disabled={isGenerating || generateModelsMutation.isPending || (brandList.category === 'Phone' && hasModels && modelLists.length >= brandList.items.length)}
+                            disabled={isGenerating || generateModelsMutation.isPending || (hasModels && modelLists.length >= brandList.items.length && !canRegenerateModels)}
                             className="w-full"
-                            variant={brandList.category === 'Phone' && hasModels && modelLists.length >= brandList.items.length ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
+                            variant={hasModels && modelLists.length >= brandList.items.length && !canRegenerateModels ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
                             data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
                           >
                             {isGenerating ? (
@@ -571,15 +582,15 @@ export default function Configs() {
                                 {t('generating_models', 'Generating Models...')}
                               </>
                             ) : hasModels && modelLists.length >= brandList.items.length ? (
-                              brandList.category === 'Phone' ? (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                                  {t('configs.models_complete', 'Models Complete')} ✅
-                                </>
-                              ) : (
+                              canRegenerateModels ? (
                                 <>
                                   <RefreshCw className="w-4 h-4 mr-2" />
                                   {t('configs.regenerate_models', 'Regenerate Models')} (2021-2025) 💰
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                  {t('configs.models_complete', 'Models Complete')} ✅
                                 </>
                               )
                             ) : mightBeGenerating ? (
