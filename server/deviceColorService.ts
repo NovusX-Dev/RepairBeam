@@ -1,6 +1,9 @@
 // @ts-ignore - No type definitions available for gsmarena-api
 import gsmarena from 'gsmarena-api';
 import { storage } from './storage.js';
+import { db } from './db.js';
+import { deviceColors } from '@shared/schema.js';
+import { and, eq } from 'drizzle-orm';
 
 interface DeviceColors {
   colors: string[];
@@ -148,7 +151,8 @@ class DeviceColorService {
       console.log(`❌ Device ${brand} ${model} (${deviceType}) not found in auto-gen lists - no colors available`);
       return {
         colors: [],
-        fromCache: false
+        fromCache: false,
+        source: 'fallback'
       };
     }
     
@@ -161,7 +165,8 @@ class DeviceColorService {
         console.log(`💾 Found ${dbEntry.colors.length} colors in database for ${brand} ${model}:`, dbEntry.colors);
         return {
           colors: dbEntry.colors,
-          fromCache: true
+          fromCache: true,
+          source: 'database'
         };
       }
     } catch (error) {
@@ -175,7 +180,8 @@ class DeviceColorService {
       console.log(`📦 Returning memory cached colors for ${brand} ${model}`);
       return {
         colors: cachedEntry.colors,
-        fromCache: true
+        fromCache: true,
+        source: 'api'
       };
     }
     
@@ -207,7 +213,8 @@ class DeviceColorService {
     
     return {
       colors: apiColors,
-      fromCache: false
+      fromCache: false,
+      source: 'api'
     };
   }
 

@@ -914,17 +914,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔍 Debug: Found ${allLists.length} auto-gen lists`);
       
       const modelLists = allLists.filter(list => 
-        list.list_type?.includes('Models-') && 
-        list.is_active && 
+        list.listType?.includes('Models-') && 
+        list.isActive && 
         list.brand && 
         list.items && 
         list.items.length > 0
       );
       
       const sample = allLists.slice(0, 5).map(l => ({
-        list_type: l.list_type,
+        list_type: l.listType,
         brand: l.brand,
-        is_active: l.is_active,
+        is_active: l.isActive,
         item_count: l.items?.length || 0
       }));
       
@@ -1001,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processed: 0,
           colorsAdded: 0,
           skipped: 0,
-          errors: []
+          errors: [] as string[]
         };
 
         for (const model of list.items!) {
@@ -1114,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processed: 0,
           colorsAdded: 0,
           skipped: 0,
-          errors: []
+          errors: [] as string[]
         };
 
         for (const model of list.items!) {
