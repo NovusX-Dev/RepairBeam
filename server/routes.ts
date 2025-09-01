@@ -799,17 +799,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🎨 Color lookup request for ${brand} ${model} (${deviceType})`);
       const result = await deviceColorService.getDeviceColors(deviceType, brand, model);
       
-      // If no colors found, provide common fallbacks
-      if (result.colors.length === 0) {
-        const commonColors = deviceColorService.getCommonColors(deviceType);
-        return res.json({
-          colors: commonColors,
-          fromCache: false,
-          fallback: true,
-          message: "API temporarily unavailable - showing common colors"
-        });
-      }
-      
       res.json({
         colors: result.colors,
         fromCache: result.fromCache,
@@ -817,15 +806,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error fetching device colors:", error);
-      
-      // Return common colors as fallback on error
-      const { deviceType } = req.params;
-      const commonColors = deviceColorService.getCommonColors(deviceType);
-      
-      res.json({
-        colors: commonColors,
-        fromCache: false,
-        fallback: true,
+      res.status(500).json({ 
+        message: "Failed to fetch device colors",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -847,6 +829,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const trimmedColor = color.trim();
       console.log(`🎨 Adding custom color "${trimmedColor}" to ${brand} ${model} (${deviceType})`);
+
+      // First check if device exists in auto-gen lists
+      const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+      const autoGenList = await storage.getAutoGenListByType(listType);
+      
+      if (!autoGenList || !autoGenList.items) {
+        return res.status(404).json({ 
+          message: `Device brand ${brand} not found in ${deviceType} auto-gen lists` 
+        });
+      }
+      
+      const modelExists = autoGenList.items.some(item => 
+        item.toLowerCase() === model.toLowerCase()
+      );
+      
+      if (!modelExists) {
+        return res.status(404).json({ 
+          message: `Model ${model} not found in ${brand} ${deviceType} auto-gen lists` 
+        });
+      }
+
+      console.log(`✅ Device ${brand} ${model} (${deviceType}) exists in auto-gen lists`);
 
       // Check if device colors entry exists
       const deviceColor = await storage.getDeviceColors(deviceType, brand, model);

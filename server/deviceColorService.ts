@@ -116,8 +116,43 @@ class DeviceColorService {
     }
   }
 
+  // Check if device exists in auto-gen lists
+  private async isDeviceInAutoGenLists(deviceType: string, brand: string, model: string): Promise<boolean> {
+    try {
+      const listType = `AutoGen-List-Models-${deviceType}-${brand}`;
+      const autoGenList = await storage.getAutoGenListByType(listType);
+      
+      if (!autoGenList || !autoGenList.items) {
+        return false;
+      }
+      
+      // Check if model exists in the items array (case-insensitive)
+      const modelExists = autoGenList.items.some(item => 
+        item.toLowerCase() === model.toLowerCase()
+      );
+      
+      return modelExists;
+    } catch (error) {
+      console.error(`Error checking auto-gen list for ${deviceType}-${brand}-${model}:`, error);
+      return false;
+    }
+  }
+
   async getDeviceColors(deviceType: string, brand: string, model: string): Promise<DeviceColors> {
-    console.log(`🎨 Hybrid lookup for ${brand} ${model} (${deviceType})`);
+    console.log(`🎨 Auto-gen list dependent lookup for ${brand} ${model} (${deviceType})`);
+    
+    // Step 0: Check if device exists in auto-gen lists first
+    const deviceExistsInAutoGen = await this.isDeviceInAutoGenLists(deviceType, brand, model);
+    
+    if (!deviceExistsInAutoGen) {
+      console.log(`❌ Device ${brand} ${model} (${deviceType}) not found in auto-gen lists - no colors available`);
+      return {
+        colors: [],
+        fromCache: false
+      };
+    }
+    
+    console.log(`✅ Device ${brand} ${model} (${deviceType}) exists in auto-gen lists`);
     
     // Step 1: Check database first (fastest, most reliable)
     try {
