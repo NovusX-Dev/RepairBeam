@@ -491,15 +491,18 @@ input[type="time"]::-webkit-datetime-edit-text {
 }
 
 input[type="time"]::-webkit-datetime-edit-hour-field,
-input[type="time"]::-webkit-datetime-edit-minute-field {
+input[type="time"]::-webkit-datetime-edit-minute-field,
+input[type="time"]::-webkit-datetime-edit-ampm-field {
   color: hsl(var(--foreground));
   background-color: hsl(var(--accent));
   border-radius: 4px;
   padding: 2px 4px;
+  min-width: fit-content;
 }
 
 input[type="time"]::-webkit-datetime-edit-hour-field:focus,
-input[type="time"]::-webkit-datetime-edit-minute-field:focus {
+input[type="time"]::-webkit-datetime-edit-minute-field:focus,
+input[type="time"]::-webkit-datetime-edit-ampm-field:focus {
   background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
   outline: none;
