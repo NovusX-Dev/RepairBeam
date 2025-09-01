@@ -389,32 +389,61 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
               model: "gpt-4o", // Using GPT-4o - no reasoning tokens issue
               messages: [
                 {
+                  role: "system",
+                  content: `You are an expert device catalog specialist for repair shops with comprehensive knowledge of consumer electronics. Your task is to generate complete, accurate device model lists spanning multiple years for repair inventory management.
+
+EXPERTISE AREAS:
+- Consumer electronics release cycles and model nomenclature
+- Regional variants and market-specific models
+- Device lineup evolution and variant relationships
+- Repair shop inventory requirements`
+                },
+                {
                   role: "user",
-                  content: `Generate comprehensive ${deviceType} model lists for: ${batch.join(', ')}
+                  content: `Generate comprehensive ${deviceType} model catalog for repair shop inventory covering brands: ${batch.join(', ')}
 
-Device Type: ${deviceType}
-Device Brands: ${batch.join(', ')}
-Start Date: ${currentYear - 4}
-End Date: ${currentYear}
+TASK SPECIFICATIONS:
+---
+Device Category: ${deviceType}
+Target Brands: ${batch.join(', ')}  
+Coverage Period: ${currentYear - 4} through ${currentYear} (5-year span, INCLUSIVE)
+Output Format: JSON object with brand names as keys, model arrays as values
 
-JSON format: {"Brand": ["Model1", "Model2", "Model3"]}
+COMPREHENSIVE REQUIREMENTS:
+---
+TEMPORAL COVERAGE:
+- Include models from ALL years: ${currentYear - 4}, ${currentYear - 3}, ${currentYear - 2}, ${currentYear - 1}, ${currentYear}
+- INCLUSIVE date range: both start year (${currentYear - 4}) and end year (${currentYear}) models must be included
+- Prioritize complete year-by-year coverage over any other constraint
 
-REQUIRED CRITERIA:
-- Include models from EVERY year: ${currentYear - 4}, ${currentYear - 3}, ${currentYear - 2}, ${currentYear - 1}, ${currentYear}
-- Date ranges are INCLUSIVE: models released in start year AND end year must both be included
-- If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
-- Include all known models released in the specified years
-- DO NOT fabricate or invent models that don't exist yet
-- No trailing commas, comments, or extra wrapper keys
-- MINIMUM 15-25 models per brand covering all 4 years to ensure comprehensive repair shop coverage
-- Include ALL major variants and model configurations
-- Focus on models actually released and sold, not rumored or upcoming models
+MODEL INCLUSION CRITERIA:
+- All mainstream consumer models sold in major markets
+- All variant configurations (storage, color, regional versions)
+- All size variants (mini, plus, pro, max, ultra, etc.)
+- All special editions and limited releases
+- Carrier-specific variants where applicable
+- Successor and predecessor relationships
 
-Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
+QUALITY STANDARDS:
+- Authentic model names only (official manufacturer designations)
+- No speculation about unreleased or unconfirmed models
+- Include discontinued models still in repair circulation
+- Target 20-30 models per brand for comprehensive repair coverage
+
+OUTPUT FORMAT:
+\`\`\`json
+{
+  "Brand1": ["Model 1", "Model 2", "Model 3", ...],
+  "Brand2": ["Model A", "Model B", "Model C", ...]
+}
+\`\`\`
+
+Generate the most comprehensive authentic model catalog possible for repair shop operations.`
                 }
               ],
               response_format: { type: "json_object" },
-              max_completion_tokens: 4000 // Higher limit for comprehensive model lists
+              max_completion_tokens: 6000, // Much higher limit for comprehensive model lists
+              temperature: 0.1 // Low temperature for consistent, comprehensive output
             });
           } catch (apiError: any) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
@@ -553,15 +582,61 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
         messages: [
           {
             role: "system",
-            content: `Expert in device models for repair shops. Provide accurate model lists spanning the full 4-year range (${startYear}-${currentYear}).`
+            content: `You are an expert device catalog specialist for repair shops with comprehensive knowledge of ${brand} ${deviceType} products. Your expertise includes:
+
+SPECIALIZATION:
+- Complete ${brand} product line knowledge across all years and regions
+- Variant identification and model nomenclature systems
+- Repair industry requirements and commonly serviced models
+- Release chronology and market availability
+
+TASK: Generate comprehensive ${brand} ${deviceType} model catalog for repair shop inventory spanning ${startYear}-${currentYear}.`
           },
           {
-            role: "user",
-            content: prompt
+            role: "user", 
+            content: `Generate complete ${brand} ${deviceType} model catalog for repair shop inventory.
+
+SPECIFICATIONS:
+---
+Brand: ${brand}
+Device Category: ${deviceType}
+Coverage Period: ${startYear} through ${currentYear} (INCLUSIVE 5-year span)
+Output: JSON with "models" array containing all model names
+
+COMPREHENSIVE REQUIREMENTS:
+---
+TEMPORAL COVERAGE:
+- Include models from ALL years: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
+- INCLUSIVE range: both ${startYear} and ${currentYear} models must be included
+- Prioritize complete year-by-year coverage over any other constraint
+
+MODEL INCLUSION:
+- All mainstream consumer models sold globally
+- All variant configurations (storage, color options, carrier versions)
+- All size and performance variants (mini, plus, pro, max, ultra, lite, etc.)
+- Special and limited editions still in circulation
+- Regional variants and market-specific models
+- Both current and discontinued models in repair circulation
+
+QUALITY STANDARDS:
+- Official ${brand} model designations only
+- No speculation about unconfirmed or unreleased models
+- Include models commonly brought to repair shops
+- Target 25-35 models for comprehensive repair coverage
+
+OUTPUT FORMAT:
+\`\`\`json
+{
+  "models": ["Model Name 1", "Model Name 2", "Model Name 3", ...]
+}
+\`\`\`
+
+Generate the most comprehensive ${brand} ${deviceType} catalog possible for professional repair operations.`
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 3000 // Higher limit for comprehensive model lists
+        max_completion_tokens: 4000, // Higher limit for comprehensive model lists  
+        temperature: 0.1 // Low temperature for consistent, comprehensive output
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
@@ -609,7 +684,8 @@ Generate complete authentic brand list for repair shop operations.`;
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 3000 // Higher limit for comprehensive model lists
+        max_completion_tokens: 4000, // Higher limit for comprehensive model lists  
+        temperature: 0.1 // Low temperature for consistent, comprehensive output
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
