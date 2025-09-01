@@ -178,7 +178,7 @@ export class AIService {
       // Start retry generation tracking
       statusManager.startGeneration(deviceType, status.totalBrands);
       
-      const results = await this.generateModelsBatch(deviceType, failedBrands);
+      const results = await this.generateBatchDeviceModels(deviceType, failedBrands);
       const successfulBrands: string[] = [];
       const stillFailedBrands: string[] = [];
 
@@ -213,7 +213,7 @@ export class AIService {
         stillFailedBrands
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Retry failed for ${deviceType}:`, error);
       statusManager.completeGeneration(deviceType, false, `Retry failed: ${error.message}`);
       throw error;
@@ -343,19 +343,29 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
       
       console.log(`📦 Processing batch ${batchNumber}/${totalBatches}: ${batch.join(', ')}`);
       
-      const prompt = `List comprehensive ${deviceType} models released from ${startYear} to ${currentYear} (inclusive) for these brands: ${batch.join(', ')}.
+      const prompt = `Generate comprehensive ${deviceType} model lists for: ${batch.join(', ')}
 
-JSON: {"${batch[0]}": ["Model1", "Model2"], "${batch[1] || 'Brand2'}": ["Model1", "Model2"], ...}
+Device Type: ${deviceType}
+Device Brands: ${batch.join(', ')}
+Start Date: ${startYear}
+End Date: ${currentYear}
 
-Include ALL models from this 4-year period (${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}):
-- Recent models from ${currentYear} and ${currentYear - 1}
-- Mid-period models from ${currentYear - 2} and ${currentYear - 3}
-- Earlier models from ${startYear}
-- Both consumer and professional variants
+JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3"], "${batch[1] || batch[0]}": ["Model4", "Model5", "Model6"]}
+
+REQUIRED CRITERIA:
+- Include models from EVERY year: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
+- If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
+- If uncertain about a model's existence or release date, DO NOT include it
+- DO NOT fake or fabricate models
+- No trailing commas, comments, or extra wrapper keys
+- MINIMUM 10-15 models per brand covering all 4 years
+- Include ALL major variants (Pro, Max, Plus, mini, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
 
-For each brand, max 30 models, prioritize variety across all years ${startYear}-${currentYear}.`;
+For Apple specifically: Must include iPhone 12 series (${startYear}), iPhone 13 series (${startYear + 1}), iPhone 14 series (${startYear + 2}), iPhone 15 series (${startYear + 3}-${currentYear}).
+
+Generate complete authentic model lineup covering full 4-year period.`;
       
       let attempt = 0;
       let success = false;
@@ -380,16 +390,27 @@ For each brand, max 30 models, prioritize variety across all years ${startYear}-
               messages: [
                 {
                   role: "user",
-                  content: `Generate COMPREHENSIVE ${deviceType} model lists for ${batch.join(' and ')} covering 2021-2025 period. JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3", "Model4", "Model5", "Model6", "Model7", "Model8", "Model9", "Model10"]}. 
+                  content: `Generate comprehensive ${deviceType} model lists for: ${batch.join(', ')}
 
-REQUIREMENTS:
-- MINIMUM 10-20 models per brand
-- MUST include models from ALL years: 2021, 2022, 2023, 2024, 2025
+Device Type: ${deviceType}
+Device Brands: ${batch.join(', ')}
+Start Date: ${currentYear - 4}
+End Date: ${currentYear}
+
+JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3"]}
+
+REQUIRED CRITERIA:
+- Include models from EVERY year: ${currentYear - 4}, ${currentYear - 3}, ${currentYear - 2}, ${currentYear - 1}, ${currentYear}
+- If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
+- If uncertain about a model's existence or release date, DO NOT include it
+- DO NOT fake or fabricate models
+- No trailing commas, comments, or extra wrapper keys
+- MINIMUM 10-15 models per brand covering all 4 years
 - Include ALL major variants (Pro, Max, Plus, mini, etc.)
 
-For Apple: iPhone 12/12 mini/12 Pro/12 Pro Max (2021), iPhone 13/13 mini/13 Pro/13 Pro Max (2022), iPhone 14/14 Plus/14 Pro/14 Pro Max (2023), iPhone 15/15 Plus/15 Pro/15 Pro Max (2024-2025)
+For Apple specifically: Must include iPhone 12 series (2021), iPhone 13 series (2022), iPhone 14 series (2023), iPhone 15 series (2024-2025).
 
-Generate complete model lineup - DO NOT limit to just 5 models.`
+Generate complete authentic model lineup covering full 4-year period.`
                 }
               ],
               response_format: { type: "json_object" },
@@ -502,19 +523,29 @@ Generate complete model lineup - DO NOT limit to just 5 models.`
     const currentYear = new Date().getFullYear();
     const startYear = currentYear - 4; // 4 years back from current year
 
-    const prompt = `List comprehensive ${brand} ${deviceType} models released from ${startYear} to ${currentYear} (inclusive) for repair shops.
+    const prompt = `Generate comprehensive ${brand} ${deviceType} model list.
 
-JSON format: {"models": ["Model1", "Model2", ...]}
+Device Type: ${deviceType}
+Device Brand: ${brand}
+Start Date: ${startYear}
+End Date: ${currentYear}
 
-Include ALL models from this 4-year period (${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}):
-- Recent models from ${currentYear} and ${currentYear - 1}
-- Mid-period models from ${currentYear - 2} and ${currentYear - 3}  
-- Earlier models from ${startYear}
-- Both consumer and professional variants
+JSON format: {"models": ["Model1", "Model2", "Model3"]}
+
+REQUIRED CRITERIA:
+- Include models from EVERY year: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
+- If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
+- If uncertain about a model's existence or release date, DO NOT include it
+- DO NOT fake or fabricate models
+- No trailing commas, comments, or extra wrapper keys
+- MINIMUM 10-15 models covering all 4 years
+- Include ALL major variants (Pro, Max, Plus, mini, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
 
-Focus on models actually sold and commonly repaired. Max 40 models, prioritize variety across all years ${startYear}-${currentYear}.`;
+For Apple specifically: Must include iPhone 12 series (${startYear}), iPhone 13 series (${startYear + 1}), iPhone 14 series (${startYear + 2}), iPhone 15 series (${startYear + 3}-${currentYear}).
+
+Generate complete authentic model lineup covering full 4-year period.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -551,11 +582,22 @@ Focus on models actually sold and commonly repaired. Max 40 models, prioritize v
    * Generate comprehensive brand lists for device types using AI
    */
   async generateDeviceBrands(deviceType: string): Promise<BrandGenerationResult> {
-    const prompt = `List popular ${deviceType} brands for repair shops.
+    const prompt = `Generate comprehensive ${deviceType} brand list for repair shops.
 
-JSON: {"brands": ["Brand1", "Brand2", ...]}
+Device Type: ${deviceType}
 
-30-40 brands: premium, mid-range, budget. Include current and legacy brands commonly repaired.`;
+JSON format: {"brands": ["Brand1", "Brand2", "Brand3"]}
+
+REQUIRED CRITERIA:
+- Include 30-50 authentic brands only
+- Cover premium, mid-range, and budget segments
+- Include current and legacy brands commonly repaired
+- If uncertain about a brand's existence, DO NOT include it
+- DO NOT fake or fabricate brands
+- No trailing commas, comments, or extra wrapper keys
+- Focus on brands actually sold and commonly repaired
+
+Generate complete authentic brand list for repair shop operations.`;
 
     try {
       const response = await openai.chat.completions.create({
@@ -863,11 +905,22 @@ JSON: {"brands": ["Brand1", "Brand2", ...]}
       }
 
       // Check if brand exists and get corrected spelling
-      const validationPrompt = `Validate "${cleanBrand}" as ${deviceType} brand. Check typos, abbreviations.
+      const validationPrompt = `Validate device brand name for repair shop database.
 
-JSON: {"isValid": boolean, "correctedName": "exact name" or null, "confidence": 0-1}
+Device Type: ${deviceType}
+Brand Name: "${cleanBrand}"
 
-Examples: "Appel"->{"isValid":true,"correctedName":"Apple","confidence":0.9}`;
+JSON format: {"isValid": boolean, "correctedName": "exact name" or null, "confidence": 0.0}
+
+REQUIRED CRITERIA:
+- Check for typos and common abbreviations
+- If uncertain about brand existence, mark as invalid
+- DO NOT fabricate or guess brand names
+- Provide exact official brand name if correcting
+- No trailing commas, comments, or extra wrapper keys
+
+Example: "Appel" -> {"isValid": true, "correctedName": "Apple", "confidence": 0.9}
+Example: "FakeBrand" -> {"isValid": false, "correctedName": null, "confidence": 0.0}`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-5",
