@@ -1400,6 +1400,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Issue Assessment routes - device-specific diagnostic questions
+  app.get("/api/issue-questions/:deviceType", async (req, res) => {
+    try {
+      const { deviceType } = req.params;
+      
+      if (!['Phone', 'Laptop', 'Desktop'].includes(deviceType)) {
+        return res.status(400).json({ message: "Invalid device type. Must be Phone, Laptop, or Desktop" });
+      }
+
+      const questions = await storage.getIssueQuestions(deviceType);
+      res.json(questions);
+    } catch (error) {
+      console.error("Error fetching issue questions:", error);
+      res.status(500).json({ message: "Failed to fetch issue questions" });
+    }
+  });
+
+  app.post("/api/issue-responses", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId, responses } = req.body;
+      
+      if (!ticketId || !responses || !Array.isArray(responses)) {
+        return res.status(400).json({ message: "ticketId and responses array are required" });
+      }
+
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify ticket belongs to user's tenant
+      const ticket = await storage.getTicket(ticketId, user.tenantId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Save all responses
+      const savedResponses = [];
+      for (const response of responses) {
+        const saved = await storage.createIssueResponse({
+          ticketId,
+          questionId: response.questionId,
+          response: JSON.stringify(response.answer)
+        });
+        savedResponses.push(saved);
+      }
+
+      res.json({ 
+        message: "Issue assessment saved successfully",
+        responses: savedResponses
+      });
+    } catch (error) {
+      console.error("Error saving issue responses:", error);
+      res.status(500).json({ message: "Failed to save issue responses" });
+    }
+  });
+
+  app.get("/api/issue-responses/:ticketId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify ticket belongs to user's tenant
+      const ticket = await storage.getTicket(ticketId, user.tenantId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      const responses = await storage.getIssueResponses(ticketId);
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching issue responses:", error);
+      res.status(500).json({ message: "Failed to fetch issue responses" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

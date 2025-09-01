@@ -13,6 +13,8 @@ import {
   achievements,
   userAchievements,
   userActivities,
+  issueQuestions,
+  issueResponses,
   type User,
   type UpsertUser,
   type Tenant,
@@ -41,6 +43,10 @@ import {
   type InsertUserAchievement,
   type UserActivity,
   type InsertUserActivity,
+  type IssueQuestion,
+  type InsertIssueQuestion,
+  type IssueResponse,
+  type InsertIssueResponse,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -149,6 +155,11 @@ export interface IStorage {
   getUserActivities(userId: string, tenantId: string, limit?: number): Promise<UserActivity[]>;
   recordActivity(activity: InsertUserActivity): Promise<UserActivity>;
   getActivityStats(userId: string, tenantId: string, activityType?: string): Promise<{ count: number; totalExperience: number }>;
+  
+  // Issue assessment operations
+  getIssueQuestions(deviceType: string): Promise<IssueQuestion[]>;
+  createIssueResponse(response: InsertIssueResponse): Promise<IssueResponse>;
+  getIssueResponses(ticketId: string): Promise<IssueResponse[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -779,6 +790,36 @@ export class DatabaseStorage implements IStorage {
         count: Number(result[0]?.count || 0),
         totalExperience: Number(result[0]?.totalExperience || 0),
       };
+    });
+  }
+
+  // Issue assessment implementations
+  async getIssueQuestions(deviceType: string): Promise<IssueQuestion[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(issueQuestions)
+        .where(eq(issueQuestions.deviceType, deviceType))
+        .orderBy(asc(issueQuestions.questionOrder));
+    });
+  }
+
+  async createIssueResponse(response: InsertIssueResponse): Promise<IssueResponse> {
+    return withRetry(async () => {
+      const [newResponse] = await db
+        .insert(issueResponses)
+        .values(response)
+        .returning();
+      return newResponse;
+    });
+  }
+
+  async getIssueResponses(ticketId: string): Promise<IssueResponse[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(issueResponses)
+        .where(eq(issueResponses.ticketId, ticketId));
     });
   }
 }

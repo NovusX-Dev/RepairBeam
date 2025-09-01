@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { IssueAssessment } from "@/components/IssueAssessment";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
@@ -1569,8 +1570,21 @@ export default function KanbanTickets() {
                 </div>
               )}
 
+              {/* Issue Assessment Step */}
+              {currentStep === 2 && (
+                <div className="space-y-6">
+                  <IssueAssessment 
+                    deviceType={formData.deviceType}
+                    onComplete={() => {
+                      // Auto-proceed to next step after completion
+                      setCurrentStep(currentStep + 1);
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Other steps - Under Construction */}
-              {currentStep > 1 && (
+              {currentStep > 2 && (
                 <div className="text-center py-12 text-muted-foreground">
                   <div className="space-y-4">
                     <div className="text-6xl">🚧</div>

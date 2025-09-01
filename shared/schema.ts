@@ -203,43 +203,6 @@ export const deviceColors = pgTable("device_colors", {
   index("idx_device_colors_brand").on(table.brand),
 ]);
 
-// Relations
-export const tenantRelations = relations(tenants, ({ many }) => ({
-  users: many(users),
-  clients: many(clients),
-  tickets: many(tickets),
-  inventoryItems: many(inventoryItems),
-  transactions: many(transactions),
-  supportTickets: many(supportTickets),
-}));
-
-export const userRelations = relations(users, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [users.tenantId],
-    references: [tenants.id],
-  }),
-}));
-
-export const clientRelations = relations(clients, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [clients.tenantId],
-    references: [tenants.id],
-  }),
-  tickets: many(tickets),
-  transactions: many(transactions),
-  supportTickets: many(supportTickets),
-}));
-
-export const ticketRelations = relations(tickets, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [tickets.tenantId],
-    references: [tenants.id],
-  }),
-  client: one(clients, {
-    fields: [tickets.clientId],
-    references: [clients.id],
-  }),
-}));
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -345,6 +308,35 @@ export const userAchievements = pgTable("user_achievements", {
   index("idx_user_achievements_tenant").on(table.tenantId),
 ]);
 
+// Issue assessment questions - device-specific diagnostic questions
+export const issueQuestions = pgTable("issue_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  deviceType: varchar("device_type").notNull(), // 'Phone', 'Laptop', 'Desktop'
+  questionOrder: integer("question_order").notNull(), // 1-10 for ordering
+  questionKey: varchar("question_key").notNull(), // for localization
+  questionType: varchar("question_type").notNull().default('boolean'), // 'boolean', 'text', 'single_choice', 'multiple_choice'
+  isConditional: boolean("is_conditional").notNull().default(false), // shows only if device turns on
+  isRequired: boolean("is_required").notNull().default(true),
+  options: text("options").array(), // for choice questions
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_issue_questions_device_type").on(table.deviceType),
+  index("idx_issue_questions_order").on(table.questionOrder),
+]);
+
+// Issue assessment responses - stores client answers for tickets
+export const issueResponses = pgTable("issue_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").notNull(),
+  questionId: varchar("question_id").notNull(),
+  response: text("response").notNull(), // JSON string for complex responses
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_issue_responses_ticket").on(table.ticketId),
+  index("idx_issue_responses_question").on(table.questionId),
+]);
+
 // Activity tracking for gamification
 export const userActivities = pgTable("user_activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -384,6 +376,17 @@ export const userActivityInsertSchema = createInsertSchema(userActivities).omit(
   createdAt: true,
 });
 
+export const issueQuestionInsertSchema = createInsertSchema(issueQuestions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const issueResponseInsertSchema = createInsertSchema(issueResponses).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type UserProgress = typeof userProgress.$inferSelect;
 export type InsertUserProgress = z.infer<typeof userProgressInsertSchema>;
 export type Achievement = typeof achievements.$inferSelect;
@@ -392,6 +395,10 @@ export type UserAchievement = typeof userAchievements.$inferSelect;
 export type InsertUserAchievement = z.infer<typeof userAchievementInsertSchema>;
 export type UserActivity = typeof userActivities.$inferSelect;
 export type InsertUserActivity = z.infer<typeof userActivityInsertSchema>;
+export type IssueQuestion = typeof issueQuestions.$inferSelect;
+export type InsertIssueQuestion = z.infer<typeof issueQuestionInsertSchema>;
+export type IssueResponse = typeof issueResponses.$inferSelect;
+export type InsertIssueResponse = z.infer<typeof issueResponseInsertSchema>;
 
 export type InsertTicketType = z.infer<typeof insertTicketSchema>;
 export type InsertLocalizationType = z.infer<typeof insertLocalizationSchema>;
@@ -399,3 +406,58 @@ export type InsertAutoGenListType = z.infer<typeof insertAutoGenListSchema>;
 export type InsertDeviceColorType = z.infer<typeof insertDeviceColorSchema>;
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];
+
+// Relations - moved to end after all tables are defined
+export const tenantRelations = relations(tenants, ({ many }) => ({
+  users: many(users),
+  clients: many(clients),
+  tickets: many(tickets),
+  inventoryItems: many(inventoryItems),
+  transactions: many(transactions),
+  supportTickets: many(supportTickets),
+}));
+
+export const userRelations = relations(users, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [users.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const clientRelations = relations(clients, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [clients.tenantId],
+    references: [tenants.id],
+  }),
+  tickets: many(tickets),
+  transactions: many(transactions),
+  supportTickets: many(supportTickets),
+  issueResponses: many(issueResponses),
+}));
+
+export const ticketRelations = relations(tickets, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [tickets.tenantId],
+    references: [tenants.id],
+  }),
+  client: one(clients, {
+    fields: [tickets.clientId],
+    references: [clients.id],
+  }),
+  issueResponses: many(issueResponses),
+}));
+
+export const issueQuestionRelations = relations(issueQuestions, ({ many }) => ({
+  responses: many(issueResponses),
+}));
+
+export const issueResponseRelations = relations(issueResponses, ({ one }) => ({
+  ticket: one(tickets, {
+    fields: [issueResponses.ticketId],
+    references: [tickets.id],
+  }),
+  question: one(issueQuestions, {
+    fields: [issueResponses.questionId],
+    references: [issueQuestions.id],
+  }),
+}));
