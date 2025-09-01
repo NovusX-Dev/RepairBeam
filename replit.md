@@ -8,6 +8,22 @@ Repair Beam is a comprehensive SaaS platform designed to streamline operations f
 
 Preferred communication style: Simple, everyday language.
 
+### Work Methodology Requirements
+- **Methodological Approach**: Always follow systematic, step-by-step processes when working on tasks
+- **Research & Documentation**: Research documentation whenever necessary and add findings to memory for future optimization
+- **Comprehensive Debugging**: During debugging, check ALL places that could cause the issue, not just obvious ones
+- **Consistency Validation**: Always check for inconsistencies with work and fixes across the entire codebase
+- **Double-Check Protocol**: Always verify work thoroughly before considering tasks complete
+- **Localization Requirements**: Always add localizations and translations when necessary, ensuring support for only the configured languages (currently: en, pt-BR, es, fr, pt)
+
+### Supported Languages
+Based on database analysis, the platform supports:
+- English (en)
+- Portuguese Brazil (pt-BR) 
+- Portuguese (pt)
+- Spanish (es)
+- French (fr)
+
 ## System Architecture
 
 ### Frontend Architecture
