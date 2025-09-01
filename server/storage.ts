@@ -542,9 +542,9 @@ export class DatabaseStorage implements IStorage {
           lastUpdated: new Date() 
         })
         .where(and(
-          eq(deviceColors.deviceType, deviceType),
-          eq(deviceColors.brand, brand),
-          eq(deviceColors.model, model)
+          ilike(deviceColors.deviceType, deviceType),
+          ilike(deviceColors.brand, brand),
+          ilike(deviceColors.model, model)
         ))
         .returning();
       return updatedDeviceColor;

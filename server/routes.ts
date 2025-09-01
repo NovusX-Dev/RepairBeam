@@ -831,6 +831,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save custom device color - Add a user-submitted color to the database
+  app.post("/api/device-colors/:deviceType/:brand/:model/add-color", async (req, res) => {
+    try {
+      const { deviceType, brand, model } = req.params;
+      const { color } = req.body;
+      
+      if (!deviceType || !brand || !model || !color) {
+        return res.status(400).json({ message: "Device type, brand, model, and color are required" });
+      }
+
+      if (typeof color !== 'string' || color.trim().length === 0) {
+        return res.status(400).json({ message: "Color must be a non-empty string" });
+      }
+
+      const trimmedColor = color.trim();
+      console.log(`🎨 Adding custom color "${trimmedColor}" to ${brand} ${model} (${deviceType})`);
+
+      // Check if device colors entry exists
+      const deviceColor = await storage.getDeviceColors(deviceType, brand, model);
+      
+      if (deviceColor) {
+        // Check if color already exists (case-insensitive)
+        const existingColors = deviceColor.colors.map(c => c.toLowerCase());
+        if (existingColors.includes(trimmedColor.toLowerCase())) {
+          return res.json({
+            success: true,
+            message: "Color already exists",
+            colors: deviceColor.colors
+          });
+        }
+
+        // Add new color to existing list
+        const updatedColors = [...deviceColor.colors, trimmedColor];
+        const updated = await storage.updateDeviceColors(deviceType, brand, model, updatedColors, 'user_contributed');
+        
+        if (updated) {
+          console.log(`✅ Added custom color "${trimmedColor}" to existing ${brand} ${model}`);
+          return res.json({
+            success: true,
+            message: "Color added successfully",
+            colors: updated.colors
+          });
+        }
+      } else {
+        // Create new device color entry with the custom color
+        const newDeviceColor = await storage.createDeviceColor({
+          deviceType,
+          brand,
+          model,
+          colors: [trimmedColor],
+          source: 'user_contributed'
+        });
+        
+        console.log(`✅ Created new device color entry for ${brand} ${model} with color "${trimmedColor}"`);
+        return res.json({
+          success: true,
+          message: "Device and color added successfully",
+          colors: newDeviceColor.colors
+        });
+      }
+
+      res.status(500).json({ message: "Failed to save color" });
+    } catch (error) {
+      console.error("Error saving custom device color:", error);
+      res.status(500).json({ 
+        message: "Failed to save custom color",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Model list routes - Get models for a specific brand and category
   app.get("/api/auto-gen-lists/:category/:brand/models", async (req, res) => {
     try {

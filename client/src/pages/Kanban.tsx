@@ -34,7 +34,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
-import { useDeviceColors } from '@/hooks/useDeviceColors';
+import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
 import { useToast } from "@/hooks/use-toast";
 
@@ -240,6 +240,7 @@ export default function KanbanTickets() {
   // Brand and model validation hooks
   const { validateBrand } = useValidateBrand();
   const { validateModel } = useValidateModel();
+  const { saveCustomColor } = useSaveCustomColor();
 
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
@@ -1408,6 +1409,34 @@ export default function KanbanTickets() {
                                   : t("configs.no_colors_available", "No colors available for this model")
                               }
                               placeholder={t("device_color_placeholder", "Select or enter color")}
+                              onCustomValue={async (colorName) => {
+                                try {
+                                  console.log(`🎨 Saving custom color: ${colorName} for ${formData.deviceBrand} ${formData.deviceModel}`);
+                                  
+                                  // First set the color in the form
+                                  handleInputChange('deviceColor', colorName);
+                                  
+                                  // Then save it to the database
+                                  const result = await saveCustomColor(
+                                    formData.deviceType, 
+                                    formData.deviceBrand, 
+                                    formData.deviceModel, 
+                                    colorName
+                                  );
+                                  
+                                  if (result.success) {
+                                    console.log(`✅ Custom color saved: ${result.message}`);
+                                    toast({
+                                      title: t("color_saved", "Color saved!"),
+                                      description: t("color_saved_description", "This color is now available for future use with this device model."),
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error('Failed to save custom color:', error);
+                                  // Still allow the user to use the color even if saving fails
+                                  handleInputChange('deviceColor', colorName);
+                                }
+                              }}
                               data-testid="select-device-color"
                             />
                             {deviceColors?.fallback && (
