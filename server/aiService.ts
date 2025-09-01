@@ -281,7 +281,7 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 2500, // Higher limit for comprehensive model lists
-        temperature: 0.1 // Low temperature for consistent, comprehensive output
+        reasoning_effort: "medium" // Medium reasoning effort for consistent analysis
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
@@ -444,7 +444,7 @@ Generate the most comprehensive authentic model catalog possible for repair shop
               ],
               response_format: { type: "json_object" },
               max_completion_tokens: 6000, // Much higher limit for comprehensive model lists
-              temperature: 0.1 // Low temperature for consistent, comprehensive output
+              reasoning_effort: "medium" // Medium reasoning effort for consistent results
             });
           } catch (apiError: any) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
@@ -637,7 +637,7 @@ Generate the most comprehensive ${brand} ${deviceType} catalog possible for prof
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 4000, // Higher limit for comprehensive model lists  
-        temperature: 0.1 // Low temperature for consistent, comprehensive output
+        reasoning_effort: "medium" // Medium reasoning effort for consistent results
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
@@ -707,7 +707,7 @@ Generate complete authentic manufacturer catalog for repair shop operations.`
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 4000, // Higher limit for comprehensive model lists  
-        temperature: 0.1 // Low temperature for consistent, comprehensive output
+        reasoning_effort: "medium" // Medium reasoning effort for consistent results
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
@@ -1034,7 +1034,7 @@ Example: "FakeBrand" -> {"isValid": false, "correctedName": null, "confidence": 
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 500, // Higher limit for comprehensive validation
-        temperature: 0.1 // Low temperature for consistent validation
+        reasoning_effort: "low" // Low reasoning effort for simple validation
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
