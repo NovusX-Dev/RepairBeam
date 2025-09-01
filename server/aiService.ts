@@ -363,8 +363,6 @@ REQUIRED CRITERIA:
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
 
-For Apple specifically: Must include iPhone 12 series (${startYear}), iPhone 13 series (${startYear + 1}), iPhone 14 series (${startYear + 2}), iPhone 15 series (${startYear + 3}-${currentYear}).
-
 Generate complete authentic model lineup covering full 4-year period.`;
       
       let attempt = 0;
@@ -407,8 +405,6 @@ REQUIRED CRITERIA:
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 10-15 models per brand covering all 4 years
 - Include ALL major variants (Pro, Max, Plus, mini, etc.)
-
-For Apple specifically: Must include iPhone 12 series (2021), iPhone 13 series (2022), iPhone 14 series (2023), iPhone 15 series (2024-2025).
 
 Generate complete authentic model lineup covering full 4-year period.`
                 }
@@ -542,8 +538,6 @@ REQUIRED CRITERIA:
 - Include ALL major variants (Pro, Max, Plus, mini, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
-
-For Apple specifically: Must include iPhone 12 series (${startYear}), iPhone 13 series (${startYear + 1}), iPhone 14 series (${startYear + 2}), iPhone 15 series (${startYear + 3}-${currentYear}).
 
 Generate complete authentic model lineup covering full 4-year period.`;
 
