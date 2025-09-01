@@ -780,6 +780,26 @@ export default function KanbanTickets() {
       // Validate device info before proceeding
       if (!validateDeviceInfo()) return;
       setCurrentStep(currentStep + 1);
+    } else if (currentStep === 5) {
+      // Service Checklist step - auto-set unselected components to N/A
+      if (checklistTemplate && checklistTemplate.components) {
+        const updatedComponents = { ...formData.deviceComponents };
+        
+        // Set any unselected components to "not_applicable" (N/A)
+        checklistTemplate.components.forEach((component: string) => {
+          if (!updatedComponents[component]) {
+            updatedComponents[component] = 'not_applicable';
+          }
+        });
+        
+        // Update form data with auto-set components
+        setFormData(prev => ({
+          ...prev,
+          deviceComponents: updatedComponents
+        }));
+      }
+      
+      setCurrentStep(currentStep + 1);
     } else if (currentStep < ticketSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
