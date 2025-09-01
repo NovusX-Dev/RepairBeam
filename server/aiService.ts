@@ -70,7 +70,7 @@ class GenerationStatusManager {
   }
 
   cancelStaleGenerations(): void {
-    for (const [deviceType, status] of this.statuses.entries()) {
+    for (const [deviceType, status] of Array.from(this.statuses.entries())) {
       if (this.isStale(deviceType)) {
         status.status = 'cancelled';
         status.errorMessage = 'Generation timed out - no progress for 5 minutes';
@@ -113,7 +113,8 @@ export class AIService {
    */
   getGenerationStatus(deviceType?: string): GenerationStatus | GenerationStatus[] {
     if (deviceType) {
-      return statusManager.getStatus(deviceType);
+      const status = statusManager.getStatus(deviceType);
+      return status || { deviceType, status: 'idle', startTime: new Date(), lastProgress: new Date(), processedBrands: 0, totalBrands: 0, failedBrands: [] };
     }
     return statusManager.getAllStatuses();
   }
@@ -856,13 +857,15 @@ Generate complete authentic manufacturer catalog for repair shop operations.`
         
       } catch (batchError) {
         console.error(`💥 Batch generation failed for ${deviceType}:`, batchError);
-        statusManager.completeGeneration(deviceType, false, `Batch generation failed: ${batchError.message}`);
+        const errorMessage = batchError instanceof Error ? batchError.message : String(batchError);
+        statusManager.completeGeneration(deviceType, false, `Batch generation failed: ${errorMessage}`);
         throw batchError;
       }
       
     } catch (error) {
       console.error(`❌ Failed to generate model lists for ${deviceType}:`, error);
-      statusManager.completeGeneration(deviceType, false, `Generation failed: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      statusManager.completeGeneration(deviceType, false, `Generation failed: ${errorMessage}`);
       throw error;
     }
     
