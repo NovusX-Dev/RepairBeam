@@ -127,6 +127,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check if ticket ID exists (for unique ID generation)
+  app.get("/api/tickets/check-id/:ticketId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const exists = await storage.checkTicketIdExists(ticketId, user.tenantId);
+      res.json({ exists });
+    } catch (error) {
+      console.error("Error checking ticket ID:", error);
+      res.status(500).json({ message: "Failed to check ticket ID" });
+    }
+  });
+
+  // Create new ticket
+  app.post("/api/tickets", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const ticketData = {
+        ...req.body,
+        tenantId: user.tenantId
+      };
+
+      const newTicket = await storage.createTicket(ticketData);
+      res.status(201).json(newTicket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ message: "Failed to create ticket" });
+    }
+  });
+
   app.put("/api/tickets/:ticketId/status", isAuthenticated, async (req: any, res) => {
     try {
       const { ticketId } = req.params;

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +40,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone } from "lucide-react";
 import { format } from "date-fns";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
@@ -100,6 +101,8 @@ interface TicketFormData {
   // Service Checklist
   deviceComponents: { [component: string]: string }; // component -> condition mapping
   additionalNotes: string;
+  // Client Authorization
+  clientApproved: boolean;
 }
 
 type TicketWithClient = Ticket & { client?: Client };
@@ -214,6 +217,8 @@ export default function KanbanTickets() {
     // Service Checklist
     deviceComponents: {},
     additionalNotes: '',
+    // Client Authorization
+    clientApproved: false,
   });
   const [displayCPF, setDisplayCPF] = useState('');
   const [formErrors, setFormErrors] = useState<Partial<TicketFormData>>({});
@@ -361,6 +366,8 @@ export default function KanbanTickets() {
         // Service Checklist defaults
         deviceComponents: {},
         additionalNotes: '',
+        // Client Authorization defaults
+        clientApproved: false,
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -734,6 +741,7 @@ export default function KanbanTickets() {
   };
 
   const handleCreateTicket = () => {
+    // Validate client selection
     if (!selectedClient) {
       toast({
         title: t("error", "Error"),
@@ -743,37 +751,99 @@ export default function KanbanTickets() {
       return;
     }
 
+    // Validate device info
     if (!validateDeviceInfo()) return;
     
-    const ticketData = {
-      clientId: selectedClient.id,
-      title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
-      description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
-      status: 'backlog' as const,
-      priority: 'medium' as const,
-      assignedTo: null,
-      estimatedCost: null,
-      actualCost: null,
-      deviceType: formData.deviceType,
-      deviceModel: formData.deviceModel,
-      deviceColor: formData.deviceColor,
-      deviceMemory: formData.deviceMemory || null,
-      deviceStorageCapacity: formData.deviceStorageCapacity || null,
-      issueDescription: null,
-      // Service Timeline & Coverage fields with form data
-      clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
-      technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
-      warrantyType: formData.warrantyType as 'standard' | 'extended',
-      costEstimation: formData.costEstimation || null,
-      costExplanation: formData.costExplanation || null,
-      // Service Checklist data
-      serviceChecklist: {
-        components: formData.deviceComponents,
-        additionalNotes: formData.additionalNotes
-      },
+    // Check for client approval
+    if (!formData.clientApproved) {
+      toast({
+        title: t("authorization_required", "Authorization Required"),
+        description: t("client_approval_required", "Client approval is required before creating the ticket. Please enable the authorization toggle."),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      t("confirm_ticket_creation", "Are you sure you want to create this repair ticket?\n\nThis will:\n• Create a new ticket in the Backlog\n• Lock in the agreed service details and cost\n• Begin the repair process\n\nClient: {clientName}\nDevice: {deviceInfo}\nTotal Cost: ${totalCost}")
+        .replace('{clientName}', `${formData.firstName} ${formData.lastName}`)
+        .replace('{deviceInfo}', `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel}`)
+        .replace('{totalCost}', formData.totalCost)
+    );
+
+    if (!confirmed) return;
+
+    // Generate unique ticket ID with collision protection
+    const generateUniqueTicketId = async (): Promise<string> => {
+      const generateId = () => {
+        const timestamp = Date.now().toString(36);
+        const randomPart = Math.random().toString(36).substr(2, 9);
+        return `TK-${timestamp}-${randomPart}`.toUpperCase();
+      };
+
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        const ticketId = generateId();
+        
+        // Check if ID already exists
+        try {
+          const response = await fetch(`/api/tickets/check-id/${ticketId}`);
+          const { exists } = await response.json();
+          
+          if (!exists) {
+            return ticketId;
+          }
+        } catch (error) {
+          console.warn('Error checking ticket ID uniqueness:', error);
+        }
+        
+        attempts++;
+      }
+      
+      // Fallback: use timestamp + random number if all attempts fail
+      return `TK-${Date.now()}-${Math.floor(Math.random() * 999999)}`;
+    };
+
+    const createTicketWithUniqueId = async () => {
+      const uniqueId = await generateUniqueTicketId();
+      
+      const ticketData = {
+        id: uniqueId,
+        clientId: selectedClient.id,
+        title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
+        description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
+        status: 'backlog' as const,
+        priority: 'medium' as const,
+        assignedTo: null,
+        estimatedCost: null,
+        actualCost: null,
+        deviceType: formData.deviceType,
+        deviceModel: formData.deviceModel,
+        deviceColor: formData.deviceColor,
+        deviceMemory: formData.deviceMemory || null,
+        deviceStorageCapacity: formData.deviceStorageCapacity || null,
+        issueDescription: null,
+        // Service Timeline & Coverage fields with form data
+        clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
+        technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
+        warrantyType: formData.warrantyType as 'standard' | 'extended',
+        costEstimation: formData.costEstimation || null,
+        costExplanation: formData.costExplanation || null,
+        // Service Checklist data
+        serviceChecklist: {
+          components: formData.deviceComponents,
+          additionalNotes: formData.additionalNotes
+        },
+      };
+      
+      createTicketMutation.mutate(ticketData);
     };
     
-    createTicketMutation.mutate(ticketData);
+    // Execute the ticket creation
+    createTicketWithUniqueId();
   };
 
   // Handle next step
@@ -857,6 +927,8 @@ export default function KanbanTickets() {
         // Service Checklist defaults
         deviceComponents: {},
         additionalNotes: '',
+        // Client Authorization defaults
+        clientApproved: false,
       });
       setDisplayCPF('');
       setFormErrors({});
@@ -2033,11 +2105,160 @@ export default function KanbanTickets() {
 
               {/* Client Authorization Step */}
               {currentStep === 6 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="space-y-4">
-                    <div className="text-6xl">📋</div>
-                    <h3 className="text-lg font-semibold">{t("client_authorization", "Client Authorization")}</h3>
-                    <p>{t("step_under_development", "This step is currently under development")}</p>
+                <div className="space-y-6">
+                  <div className="text-center mb-8">
+                    <div className="text-6xl mb-4">✅</div>
+                    <h3 className="text-2xl font-semibold text-white mb-2">
+                      {t("client_authorization", "Client Authorization")}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {t("authorization_subtitle", "Review all details and obtain client approval")}
+                    </p>
+                  </div>
+
+                  {/* Comprehensive Summary */}
+                  <div className="grid gap-6">
+                    {/* Client Information Summary */}
+                    <div className="space-y-4 bg-muted/20 rounded-lg p-6 border border-[#00FFFF]/20">
+                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
+                        <User className="w-5 h-5" />
+                        {t("client_information_summary", "Client Information")}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("full_name", "Full Name")}:</span>
+                          <p className="text-white font-medium">{formData.firstName} {formData.lastName}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("cpf", "CPF")}:</span>
+                          <p className="text-white font-medium">{displayCPF}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("email", "Email")}:</span>
+                          <p className="text-white font-medium">{formData.email}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("address", "Address")}:</span>
+                          <p className="text-white font-medium">
+                            {formData.streetAddress}, {formData.streetNumber}
+                            {formData.apartment && `, ${formData.apartment}`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Device Information Summary */}
+                    <div className="space-y-4 bg-muted/20 rounded-lg p-6 border border-[#00FFFF]/20">
+                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
+                        <Smartphone className="w-5 h-5" />
+                        {t("device_information_summary", "Device Information")}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("device_type", "Device Type")}:</span>
+                          <p className="text-white font-medium">{formData.deviceType}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("brand_model", "Brand & Model")}:</span>
+                          <p className="text-white font-medium">{formData.deviceBrand} {formData.deviceModel}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("color", "Color")}:</span>
+                          <p className="text-white font-medium">{formData.deviceColor || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("memory_storage", "Memory & Storage")}:</span>
+                          <p className="text-white font-medium">
+                            {formData.deviceMemory && `${formData.deviceMemory} RAM`}
+                            {formData.deviceMemory && formData.deviceStorageCapacity && ', '}
+                            {formData.deviceStorageCapacity && `${formData.deviceStorageCapacity} Storage`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Service & Cost Summary */}
+                    <div className="space-y-4 bg-muted/20 rounded-lg p-6 border border-[#00FFFF]/20">
+                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
+                        <DollarSign className="w-5 h-5" />
+                        {t("service_cost_summary", "Service & Cost Summary")}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("estimated_cost", "Estimated Cost")}:</span>
+                          <p className="text-white font-medium">${formData.costEstimation}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("warranty_type", "Warranty")}:</span>
+                          <p className="text-white font-medium">
+                            {formData.warrantyType === 'extended' 
+                              ? `${t("extended_warranty", "Extended")} (+$${formData.warrantyCost})`
+                              : t("standard_warranty", "Standard (Free)")
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("total_cost", "Total Cost")}:</span>
+                          <p className="text-2xl font-bold text-[#00FFFF]">${formData.totalCost}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">{t("estimated_hours", "Est. Hours")}:</span>
+                          <p className="text-white font-medium">{formData.technicianEstimatedHours}h</p>
+                        </div>
+                      </div>
+                      {formData.costExplanation && (
+                        <div className="mt-4 pt-4 border-t border-muted/20">
+                          <span className="text-sm text-muted-foreground">{t("cost_breakdown", "Cost Breakdown")}:</span>
+                          <p className="text-white mt-1">{formData.costExplanation}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Client Approval Section */}
+                    <div className="space-y-4 bg-gradient-to-r from-[#00FFFF]/10 to-[#0A192F]/50 rounded-lg p-6 border-2 border-[#00FFFF]/30">
+                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
+                        <Shield className="w-5 h-5" />
+                        {t("authorization_required", "Authorization Required")}
+                      </h4>
+                      
+                      <FormFieldWithTooltip
+                        label={t("client_approval", "Client Authorization")}
+                        tooltip={t("client_approval_tooltip", "The client must approve all service details, costs, and conditions before the repair ticket can be created. This serves as their consent to proceed with the repair.")}
+                        required
+                      >
+                        <div className="flex items-center space-x-3 p-4 bg-muted/30 rounded-md border">
+                          <Switch
+                            checked={formData.clientApproved}
+                            onCheckedChange={(checked) => {
+                              setFormData(prev => ({ ...prev, clientApproved: checked }));
+                            }}
+                            data-testid="switch-client-approved"
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor="client-approved" className="text-base font-medium cursor-pointer">
+                              {t("client_has_approved", "Client has reviewed and approved all details")}
+                            </Label>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {t("approval_confirmation", "By enabling this, you confirm the client has agreed to the service terms, cost, and timeline.")}
+                            </p>
+                          </div>
+                          {formData.clientApproved && (
+                            <div className="text-green-500">
+                              <Check className="w-6 h-6" />
+                            </div>
+                          )}
+                        </div>
+                      </FormFieldWithTooltip>
+
+                      {!formData.clientApproved && (
+                        <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                          <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                          <p className="text-sm text-yellow-300">
+                            {t("approval_warning", "Client approval is required before creating the repair ticket.")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
