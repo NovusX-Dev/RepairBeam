@@ -514,7 +514,7 @@ export default function Configs() {
                         </CardTitle>
                         <CardDescription>
                           {hasModels && modelLists.length >= brandList.items.length
-                            ? t('configs.models_generated_can_regenerate', 'Models generated - click to regenerate with updated logic')
+                            ? t('configs.models_completed', '✅ All models generated successfully ({count} brands completed)').replace('{count}', brandList.items.length.toString())
                             : mightBeGenerating
                             ? t('configs.generation_in_progress', 'Generation in progress - {count}/{total} brands completed').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())
                             : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))
@@ -537,8 +537,8 @@ export default function Configs() {
                             </p>
                           )}
                           {hasModels && modelLists.length >= brandList.items.length && (
-                            <p className="text-sm text-blue-600 dark:text-blue-400">
-                              🔄 {t('configs.models_can_regenerate', 'Models available - can regenerate with updated logic')}
+                            <p className="text-sm text-green-600 dark:text-green-400">
+                              ✅ {t('configs.models_completed_status', 'All {count} brands have model lists generated (2021-2025)').replace('{count}', brandList.items.length.toString())}
                             </p>
                           )}
                           {hasFailed && (
@@ -560,9 +560,9 @@ export default function Configs() {
                         <div className="space-y-2">
                           <Button
                             onClick={() => handleGenerateModels(brandList.category)}
-                            disabled={isGenerating || generateModelsMutation.isPending}
+                            disabled={isGenerating || generateModelsMutation.isPending || (hasModels && modelLists.length >= brandList.items.length)}
                             className="w-full"
-                            variant={mightBeGenerating ? 'outline' : 'default'}
+                            variant={hasModels && modelLists.length >= brandList.items.length ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
                             data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
                           >
                             {isGenerating ? (
@@ -572,8 +572,8 @@ export default function Configs() {
                               </>
                             ) : hasModels && modelLists.length >= brandList.items.length ? (
                               <>
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                {t('configs.regenerate_models', 'Regenerate Models')} (2021-2025) 💰
+                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                                {t('configs.models_complete', 'Models Complete')} ✅
                               </>
                             ) : mightBeGenerating ? (
                               <>
