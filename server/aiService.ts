@@ -184,11 +184,11 @@ export class AIService {
 
       // Process retry results and save to database
       for (const brand of failedBrands) {
-        if (results[brand] && results[brand].length > 0) {
+        if (results.results[brand] && results.results[brand].length > 0) {
           try {
-            await this.saveModelListToDatabase(deviceType, brand, results[brand]);
+            await this.saveModelListToDatabase(deviceType, brand, results.results[brand]);
             successfulBrands.push(brand);
-            console.log(`✅ Retry successful for ${brand}: ${results[brand].length} models`);
+            console.log(`✅ Retry successful for ${brand}: ${results.results[brand].length} models`);
           } catch (error) {
             console.error(`💾 Storage error during retry for ${brand}:`, error);
             stillFailedBrands.push(brand);
