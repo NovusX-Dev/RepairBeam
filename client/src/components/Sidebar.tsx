@@ -33,7 +33,7 @@ const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
   { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support" },
   { name: t("animations", "Animations"), href: "/animations", icon: Sparkles, id: "animations", translationKey: "animations" },
   { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs" },
-  { name: t("user_management", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "user_management" },
+  { name: t("userManagement", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "userManagement" },
 ];
 
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {

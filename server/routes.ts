@@ -922,7 +922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       const sample = allLists.slice(0, 5).map(l => ({
-        list_type: l.listType,
+        listType: l.listType,
         brand: l.brand,
         is_active: l.isActive,
         item_count: l.items?.length || 0

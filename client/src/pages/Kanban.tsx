@@ -1255,7 +1255,7 @@ export default function KanbanTickets() {
                   {/* Device Type Selection - Primary Field */}
                   <div className="mb-8">
                     <Label htmlFor="deviceType" className="text-base font-medium">
-                      {t("device_type", "Device Type")} *
+                      {t("deviceType", "Device Type")} *
                     </Label>
                     <Select
                       value={formData.deviceType}
@@ -1263,32 +1263,32 @@ export default function KanbanTickets() {
                       data-testid="select-device-type"
                     >
                       <SelectTrigger className={`mt-2 ${formErrors.deviceType ? 'border-red-500' : ''}`}>
-                        <SelectValue placeholder={t("select_device_type", "Select device type...")} />
+                        <SelectValue placeholder={t("selectDeviceType", "Select device type...")} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Phone">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">📱</span>
-                            {t("device_type_phone", "Phone")}
+                            {t("deviceTypePhone", "Phone")}
                           </div>
                         </SelectItem>
                         <SelectItem value="Laptop">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">💻</span>
-                            {t("device_type_laptop", "Laptop")}
+                            {t("deviceTypeLaptop", "Laptop")}
                           </div>
                         </SelectItem>
                         <SelectItem value="Desktop">
                           <div className="flex items-center gap-2">
                             <span className="text-lg">🖥️</span>
-                            {t("device_type_desktop", "Desktop")}
+                            {t("deviceTypeDesktop", "Desktop")}
                           </div>
                         </SelectItem>
                       </SelectContent>
                     </Select>
                     {formErrors.deviceType && (
                       <div className="text-sm text-red-500 mt-1">
-                        {t("device_type_required", "Please select a device type")}
+                        {t("deviceTypeRequired", "Please select a device type")}
                       </div>
                     )}
                   </div>
@@ -1360,7 +1360,7 @@ export default function KanbanTickets() {
                             disabled={!formData.deviceType || !formData.deviceBrand}
                             emptyText={
                               !formData.deviceType || !formData.deviceBrand 
-                                ? t("select_device_type_brand_first", "Select device type and brand first") 
+                                ? t("selectDeviceTypeBrandFirst", "Select device type and brand first") 
                                 : t("configs.no_models_available", "No models available for this brand")
                             }
                             onCustomValue={async (modelName) => {

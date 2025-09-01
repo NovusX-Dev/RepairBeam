@@ -93,3 +93,21 @@ Based on database analysis, the platform supports:
 - **TanStack Query**: Server state management and caching
 - **React Hook Form**: Form state management with validation
 - **Zod**: Runtime type validation and schema validation
+
+## Naming Convention Standards
+
+### Established Patterns
+- **TypeScript Variables/Properties**: camelCase (e.g., `deviceType`, `listType`, `isActive`)
+- **CSS Classes/File Names**: kebab-case (e.g., `device-color`, `search-input`)
+- **React Components/Types**: PascalCase (e.g., `DeviceSelector`, `TicketType`)
+- **Constants**: SCREAMING_SNAKE_CASE (e.g., `API_BASE_URL`, `MAX_RETRIES`)
+- **Database Fields**: camelCase in TypeScript schema, snake_case in actual SQL
+- **API Endpoints**: kebab-case paths (e.g., `/api/device-colors`)
+- **Function Names**: camelCase (e.g., `getDeviceColors`, `validateInput`)
+- **Event Handlers**: camelCase with handle prefix (e.g., `handleSubmit`, `handleChange`)
+
+### Critical Rules
+- Never mix naming conventions within the same context
+- Database schema must use camelCase for TypeScript compatibility
+- API responses should use camelCase for consistency with frontend
+- File names use kebab-case for web compatibility
