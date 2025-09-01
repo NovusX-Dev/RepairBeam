@@ -1025,18 +1025,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               categoryResults.colorsAdded++;
               console.log(`  ✅ Added ${colorResult.colors.length} colors for ${brand} ${model}`);
             } else {
-              // If no colors found via API, add common colors as fallback
-              const commonColors = deviceColorService.getCommonColors(category);
-              await storage.createDeviceColor({
-                deviceType: category,
-                brand,
-                model,
-                colors: commonColors,
-                source: 'fallback_common'
-              });
-              totalColorsAdded++;
-              categoryResults.colorsAdded++;
-              console.log(`  🔄 Added common colors for ${brand} ${model}`);
+              // Don't add fallback colors during bulk population - let API be called naturally when needed
+              console.log(`  ⏸️ No colors available for ${brand} ${model} - will be populated on demand`);
+              categoryResults.skipped++;
             }
             
             categoryResults.processed++;
@@ -1138,18 +1129,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               categoryResults.colorsAdded++;
               console.log(`  ✅ Added ${colorResult.colors.length} colors for ${brand} ${model}`);
             } else {
-              // If no colors found via API, add common colors as fallback
-              const commonColors = deviceColorService.getCommonColors(category);
-              await storage.createDeviceColor({
-                deviceType: category,
-                brand,
-                model,
-                colors: commonColors,
-                source: 'fallback_common'
-              });
-              totalColorsAdded++;
-              categoryResults.colorsAdded++;
-              console.log(`  🔄 Added common colors for ${brand} ${model}`);
+              // Don't add fallback colors during bulk population - let API be called naturally when needed
+              console.log(`  ⏸️ No colors available for ${brand} ${model} - will be populated on demand`);
+              categoryResults.skipped++;
             }
             
             categoryResults.processed++;

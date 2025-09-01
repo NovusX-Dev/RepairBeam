@@ -189,7 +189,7 @@ class DeviceColorService {
     console.log(`🌐 Trying API lookup for ${brand} ${model}...`);
     const apiColors = await this.searchDeviceColors(deviceType, brand, model);
     
-    // Step 4: Save API results to database for future use
+    // Step 4: Save API results to database for future use (only if we got actual colors)
     if (apiColors.length > 0) {
       try {
         await storage.createDeviceColor({
@@ -200,19 +200,27 @@ class DeviceColorService {
           source: 'gsmarena'
         });
         console.log(`💾 Saved ${apiColors.length} API colors to database for ${brand} ${model}`);
+        
+        // Cache successful API results in memory
+        this.cache.set(cacheKey, {
+          colors: apiColors,
+          timestamp: Date.now()
+        });
+        
+        return {
+          colors: apiColors,
+          fromCache: false,
+          source: 'api'
+        };
       } catch (error) {
         console.error(`❌ Failed to save colors to database:`, error);
       }
     }
     
-    // Cache API results in memory
-    this.cache.set(cacheKey, {
-      colors: apiColors,
-      timestamp: Date.now()
-    });
-    
+    // If no colors found from API, return empty result (don't save fallback colors)
+    console.log(`⚠️ No device-specific colors found for ${brand} ${model}`);
     return {
-      colors: apiColors,
+      colors: [],
       fromCache: false,
       source: 'api'
     };
