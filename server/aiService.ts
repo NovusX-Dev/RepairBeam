@@ -350,17 +350,17 @@ Device Brands: ${batch.join(', ')}
 Start Date: ${startYear}
 End Date: ${currentYear}
 
-JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3"], "${batch[1] || batch[0]}": ["Model4", "Model5", "Model6"]}
+JSON format: {"Brand1": ["Model1", "Model2", "Model3"], "Brand2": ["Model4", "Model5", "Model6"]}
 
 REQUIRED CRITERIA:
 - Include models from EVERY year: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
 - Date ranges are INCLUSIVE: models released in start year AND end year must both be included
 - If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
-- If uncertain about a model's existence or release date, DO NOT include it
+- Include all known models released in the specified years
 - DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 15-25 models per brand covering all 4 years to ensure comprehensive repair shop coverage
-- Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
+- Include ALL major variants and model configurations
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
 - Focus on models actually released and sold, not rumored or upcoming models
@@ -397,17 +397,17 @@ Device Brands: ${batch.join(', ')}
 Start Date: ${currentYear - 4}
 End Date: ${currentYear}
 
-JSON format: {"${batch[0]}": ["Model1", "Model2", "Model3"]}
+JSON format: {"Brand": ["Model1", "Model2", "Model3"]}
 
 REQUIRED CRITERIA:
 - Include models from EVERY year: ${currentYear - 4}, ${currentYear - 3}, ${currentYear - 2}, ${currentYear - 1}, ${currentYear}
 - Date ranges are INCLUSIVE: models released in start year AND end year must both be included
 - If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
-- If uncertain about a model's existence or release date, DO NOT include it
+- Include all known models released in the specified years
 - DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 15-25 models per brand covering all 4 years to ensure comprehensive repair shop coverage
-- Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
+- Include ALL major variants and model configurations
 - Focus on models actually released and sold, not rumored or upcoming models
 
 Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
@@ -536,11 +536,11 @@ REQUIRED CRITERIA:
 - Include models from EVERY year: ${startYear}, ${startYear + 1}, ${startYear + 2}, ${startYear + 3}, ${currentYear}
 - Date ranges are INCLUSIVE: models released in start year AND end year must both be included
 - If two devices are the same model rebranded for another region, keep one and set rebrand_of on the other(s)
-- If uncertain about a model's existence or release date, DO NOT include it
+- Include all known models released in the specified years
 - DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
 - MINIMUM 15-25 models covering all 4 years to ensure comprehensive repair shop coverage
-- Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
+- Include ALL major variants and model configurations
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
 - Focus on models actually released and sold, not rumored or upcoming models
