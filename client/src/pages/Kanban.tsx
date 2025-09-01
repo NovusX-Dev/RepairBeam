@@ -2131,7 +2131,7 @@ export default function KanbanTickets() {
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("cpf", "CPF")}:</span>
-                          <p className="text-white font-medium">{displayCPF}</p>
+                          <p className="text-white font-medium">{displayCPF || formData.cpf}</p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("email", "Email")}:</span>
@@ -2140,8 +2140,10 @@ export default function KanbanTickets() {
                         <div>
                           <span className="text-sm text-muted-foreground">{t("address", "Address")}:</span>
                           <p className="text-white font-medium">
-                            {formData.streetAddress}, {formData.streetNumber}
-                            {formData.apartment && `, ${formData.apartment}`}
+                            {formData.streetAddress && formData.streetNumber 
+                              ? `${formData.streetAddress}, ${formData.streetNumber}${formData.apartment ? `, ${formData.apartment}` : ''}`
+                              : 'N/A'
+                            }
                           </p>
                         </div>
                       </div>
@@ -2203,7 +2205,7 @@ export default function KanbanTickets() {
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("estimated_hours", "Est. Hours")}:</span>
-                          <p className="text-white font-medium">{formData.technicianEstimatedHours}h</p>
+                          <p className="text-white font-medium">{formData.technicianEstimatedHours || 'N/A'}h</p>
                         </div>
                       </div>
                       {formData.costExplanation && (
