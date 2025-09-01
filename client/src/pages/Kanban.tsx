@@ -1772,7 +1772,7 @@ export default function KanbanTickets() {
                               handleInputChange('clientDeadline', currentDate.toISOString().slice(0, 16));
                             }}
                             data-testid="input-client-deadline-time"
-                            className="flex-1 max-w-32"
+                            className="flex-1 max-w-32 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-0 [&::-webkit-calendar-picker-indicator]:opacity-70 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 dark:[&::-webkit-calendar-picker-indicator]:invert-0 dark:[&::-webkit-calendar-picker-indicator]:brightness-200 dark:[&::-webkit-calendar-picker-indicator]:opacity-80"
                             placeholder="--:--"
                           />
                         </div>

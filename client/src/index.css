@@ -475,3 +475,43 @@ textarea:hover {
     transform: translateY(-4px);
   }
 }
+
+/* Time picker styling to match theme */
+input[type="time"] {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
+}
+
+input[type="time"]::-webkit-datetime-edit {
+  color: hsl(var(--foreground));
+}
+
+input[type="time"]::-webkit-datetime-edit-text {
+  color: hsl(var(--muted-foreground));
+}
+
+input[type="time"]::-webkit-datetime-edit-hour-field,
+input[type="time"]::-webkit-datetime-edit-minute-field {
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--accent));
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+input[type="time"]::-webkit-datetime-edit-hour-field:focus,
+input[type="time"]::-webkit-datetime-edit-minute-field:focus {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  outline: none;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) saturate(100%) invert(64%) sepia(76%) saturate(5073%) hue-rotate(168deg) brightness(101%) contrast(101%);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(64%) sepia(76%) saturate(5073%) hue-rotate(168deg) brightness(120%) contrast(101%);
+}
