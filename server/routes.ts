@@ -1078,6 +1078,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Populate laptop and phone colors specifically
+  app.post("/api/device-colors/populate-laptops-phones", async (req, res) => {
+    try {
+      console.log("🎨 Starting laptop and phone color population...");
+
+      const allLists = await storage.getAllAutoGenLists();
+      const laptopAndPhoneLists = allLists.filter(list => 
+        (list.listType?.includes('Models-Laptop-') || list.listType?.includes('Models-Phone-')) &&
+        list.isActive && 
+        list.brand && 
+        list.items && 
+        list.items.length > 0
+      );
+
+      console.log(`📋 Found ${laptopAndPhoneLists.length} laptop and phone model lists to process`);
+
+      let totalDevicesProcessed = 0;
+      let totalColorsAdded = 0;
+      let skippedExisting = 0;
+      const results = [];
+
+      for (const list of laptopAndPhoneLists) {
+        const parts = list.listType!.split('-');
+        if (parts.length < 4) continue;
+        
+        const category = parts[3]; // Laptop or Phone
+        const brand = list.brand!;
+        
+        console.log(`\n🔄 Processing ${brand} ${category} models (${list.items!.length} models)...`);
+        
+        let categoryResults = {
+          category,
+          brand,
+          processed: 0,
+          colorsAdded: 0,
+          skipped: 0,
+          errors: []
+        };
+
+        for (const model of list.items!) {
+          try {
+            totalDevicesProcessed++;
+            
+            // Check if this device already has colors
+            const existingColors = await storage.getDeviceColors(category, brand, model);
+            
+            if (existingColors && existingColors.colors.length > 0) {
+              skippedExisting++;
+              categoryResults.skipped++;
+              continue;
+            }
+
+            // Get colors using the device color service
+            const colorResult = await deviceColorService.getDeviceColors(category, brand, model);
+            
+            if (colorResult.colors && colorResult.colors.length > 0) {
+              totalColorsAdded++;
+              categoryResults.colorsAdded++;
+              console.log(`  ✅ Added ${colorResult.colors.length} colors for ${brand} ${model}`);
+            } else {
+              // If no colors found via API, add common colors as fallback
+              const commonColors = deviceColorService.getCommonColors(category);
+              await storage.createDeviceColor({
+                deviceType: category,
+                brand,
+                model,
+                colors: commonColors,
+                source: 'fallback_common'
+              });
+              totalColorsAdded++;
+              categoryResults.colorsAdded++;
+              console.log(`  🔄 Added common colors for ${brand} ${model}`);
+            }
+            
+            categoryResults.processed++;
+            
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`  ❌ Error processing ${brand} ${model}:`, errorMsg);
+            categoryResults.errors.push(`${model}: ${errorMsg}`);
+          }
+        }
+        
+        results.push(categoryResults);
+        console.log(`✅ Completed ${brand} ${category}: ${categoryResults.processed} processed, ${categoryResults.colorsAdded} colors added, ${categoryResults.skipped} skipped`);
+      }
+
+      console.log(`\n🎉 Laptop and phone population complete!`);
+      console.log(`📊 Total devices processed: ${totalDevicesProcessed}`);
+      console.log(`🎨 Total colors added: ${totalColorsAdded}`);
+      console.log(`⏭️ Skipped existing: ${skippedExisting}`);
+
+      res.json({
+        success: true,
+        message: "Laptop and phone population completed",
+        summary: {
+          totalDevicesProcessed,
+          totalColorsAdded,
+          skippedExisting,
+          categoriesProcessed: results.length
+        },
+        results
+      });
+
+    } catch (error) {
+      console.error("Error during laptop and phone population:", error);
+      res.status(500).json({ 
+        message: "Laptop and phone population failed",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Model list routes - Get models for a specific brand and category
   app.get("/api/auto-gen-lists/:category/:brand/models", async (req, res) => {
     try {
