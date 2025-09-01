@@ -7,18 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Bot, Loader2, Clock, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, Bot, Loader2 } from "lucide-react";
 
 interface GenerationProgressDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   category: string;
-  totalBrands: number;
   isGenerating: boolean;
-  completedBrands?: number;
   errorMessage?: string;
 }
 
@@ -26,71 +22,59 @@ export function GenerationProgressDialog({
   isOpen,
   onOpenChange,
   category,
-  totalBrands,
   isGenerating,
-  completedBrands = 0,
   errorMessage
 }: GenerationProgressDialogProps) {
   const { t } = useLocalization();
-  const [currentBrand, setCurrentBrand] = useState(0);
-  const [progressPercentage, setProgressPercentage] = useState(0);
-  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState("");
+  const [isCheckingCompletion, setIsCheckingCompletion] = useState(false);
 
-  // Update progress based on actual server data
+  // Poll for completion by checking the generation status
   useEffect(() => {
-    if (!isGenerating || !isOpen) {
-      setCurrentBrand(0);
-      setProgressPercentage(0);
-      setEstimatedTimeRemaining("");
-      return;
-    }
+    if (!isGenerating || !isOpen || errorMessage) return;
 
-    // Calculate real progress based on completed brands
-    const progress = totalBrands > 0 ? Math.min((completedBrands / totalBrands) * 100, 95) : 0;
-    setProgressPercentage(progress);
-    setCurrentBrand(completedBrands);
-    
-    // Estimate remaining time based on actual progress (30 seconds per brand average - much faster now)
-    const remainingBrands = totalBrands - completedBrands;
-    const estimatedRemainingSeconds = remainingBrands * 2; // 2 seconds per brand average
-    
-    if (remainingBrands === 0) {
-      setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
-    } else if (estimatedRemainingSeconds > 60) {
-      const minutes = Math.ceil(estimatedRemainingSeconds / 60);
-      setEstimatedTimeRemaining(t('progress.estimated_time_minutes', '{minutes} minutes remaining').replace('{minutes}', minutes.toString()));
-    } else if (estimatedRemainingSeconds > 10) {
-      setEstimatedTimeRemaining(t('progress.estimated_time_seconds', '{seconds} seconds remaining').replace('{seconds}', estimatedRemainingSeconds.toString()));
-    } else {
-      setEstimatedTimeRemaining(t('progress.estimated_time_soon', 'Almost complete...'));
-    }
-  }, [isGenerating, isOpen, totalBrands, completedBrands, t]);
+    const checkCompletion = async () => {
+      try {
+        const response = await fetch(`/api/auto-gen-lists/${category}/status`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const status = await response.json();
+          // Check if generation is actually completed
+          if (status && (status.status === 'completed' || status.status === 'failed')) {
+            setIsCheckingCompletion(true);
+            // Small delay to allow UI to update and user to see completion
+            setTimeout(() => {
+              onOpenChange(false);
+              setIsCheckingCompletion(false);
+            }, 1500);
+          }
+        }
+      } catch (error) {
+        // Continue checking - network errors shouldn't stop the check
+        console.log('Status check failed, continuing...');
+      }
+    };
 
-  // Reset when generation completes
+    // Check every 2 seconds during generation
+    const interval = setInterval(checkCompletion, 2000);
+    
+    return () => clearInterval(interval);
+  }, [isGenerating, isOpen, category, onOpenChange, errorMessage]);
+
+  // Auto-close on error after delay
   useEffect(() => {
-    if (!isGenerating && progressPercentage > 0) {
-      setProgressPercentage(100);
-      setCurrentBrand(totalBrands);
-      setEstimatedTimeRemaining(t('progress.completed', 'Completed!'));
-      
-      // Auto-close after user can see completion status
-      setTimeout(() => {
+    if (errorMessage && isOpen) {
+      const timer = setTimeout(() => {
         onOpenChange(false);
-      }, 3000); // Give user time to see completion status
-    }
-  }, [isGenerating, progressPercentage, totalBrands, t, onOpenChange]);
-
-  // Force dialog to stay open for minimum time when generation starts
-  useEffect(() => {
-    if (isGenerating && isOpen) {
-      // Ensure dialog stays open for at least 8 seconds when generation starts
-      const minDisplayTime = setTimeout(() => {
-        // This just ensures the dialog doesn't close too early
-      }, 8000);
+      }, 5000); // 5 seconds for error reading
       
-      return () => clearTimeout(minDisplayTime);
+      return () => clearTimeout(timer);
     }
-  }, [isGenerating, isOpen]);
+  }, [errorMessage, isOpen, onOpenChange]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -130,42 +114,32 @@ export function GenerationProgressDialog({
             </Alert>
           )}
 
-          {/* Progress Section */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                {t('progress.processing_brands', 'Processing brands')}
-              </span>
-              <Badge variant="outline">
-                {currentBrand} / {totalBrands}
-              </Badge>
-            </div>
-            
-            <Progress value={progressPercentage} className="h-3" />
-            
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <div className="flex items-center gap-2">
-                {isGenerating ? (
+          {/* Simple Generation Status */}
+          {!errorMessage && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-3 py-8">
+                {isCheckingCompletion ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{t('progress.generating', 'Generating...')}</span>
+                    <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-lg font-medium text-green-600 dark:text-green-400">
+                      {t('progress.completing', 'Completing...')}
+                    </span>
                   </>
                 ) : (
                   <>
-                    <Clock className="w-4 h-4" />
-                    <span>{t('progress.completed', 'Completed!')}</span>
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="text-lg font-medium">
+                      {t('progress.generating', 'Generating models, please wait...')}
+                    </span>
                   </>
                 )}
               </div>
-              <span>{Math.round(progressPercentage)}%</span>
-            </div>
-
-            {estimatedTimeRemaining && (
+              
               <div className="text-center text-sm text-muted-foreground">
-                {estimatedTimeRemaining}
+                {t('progress.processing_message', 'This may take 2-3 minutes to complete')}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Cost Info */}
           <Alert>

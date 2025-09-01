@@ -20,47 +20,8 @@ export default function Configs() {
   const [generatingModels, setGeneratingModels] = useState<string | null>(null);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [progressCategory, setProgressCategory] = useState<string>("");
-  const [progressTotalBrands, setProgressTotalBrands] = useState(0);
-  const [realTimeProgress, setRealTimeProgress] = useState(0);
   const [progressError, setProgressError] = useState<string>("");
 
-  // Poll generation status when a generation is running
-  useEffect(() => {
-    if (!generatingModels || !showProgressDialog) return;
-    
-    const pollStatus = async () => {
-      try {
-        const response = await fetch(`/api/auto-gen-lists/${generatingModels}/status`, {
-          credentials: 'include', // Include authentication cookies
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-        if (response.ok) {
-          const status = await response.json();
-          // Status now returns the GenerationStatus object directly
-          if (status && typeof status.processedBrands === 'number') {
-            setRealTimeProgress(status.processedBrands);
-          } else {
-            // Fallback: count existing models in database
-            queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
-          }
-        } else {
-          // If status endpoint fails, count existing models in database
-          queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
-        }
-      } catch (error) {
-        // Fallback: count existing models in database
-        queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
-      }
-    };
-    
-    // Poll immediately, then every 1 second during generation
-    pollStatus();
-    const interval = setInterval(pollStatus, 1000);
-    
-    return () => clearInterval(interval);
-  }, [generatingModels, showProgressDialog, queryClient]);
 
   // Fetch all auto-generated lists
   const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
@@ -206,27 +167,18 @@ export default function Configs() {
 
   // Handle generate models with progress dialog
   const handleGenerateModels = (category: string) => {
-    const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
-    if (brandList) {
-      setProgressCategory(category);
-      setProgressTotalBrands(brandList.items.length);
-      setRealTimeProgress(0); // Reset real-time progress
-      setProgressError(""); // Reset error state
-      setShowProgressDialog(true);
-      generateModelsMutation.mutate(category);
-    }
+    setProgressCategory(category);
+    setProgressError(""); // Reset error state
+    setShowProgressDialog(true);
+    generateModelsMutation.mutate(category);
   };
 
   // Handle retry failed brands with progress dialog
   const handleRetryFailedBrands = (category: string) => {
-    const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
-    if (brandList) {
-      setProgressCategory(category);
-      setProgressTotalBrands(brandList.items.length);
-      setRealTimeProgress(0); // Reset real-time progress
-      setShowProgressDialog(true);
-      retryFailedMutation.mutate(category);
-    }
+    setProgressCategory(category);
+    setProgressError(""); // Reset error state
+    setShowProgressDialog(true);
+    retryFailedMutation.mutate(category);
   };
 
   const canUpdateList = (list: AutoGenList) => {
@@ -661,11 +613,7 @@ export default function Configs() {
         isOpen={showProgressDialog}
         onOpenChange={setShowProgressDialog}
         category={progressCategory}
-        totalBrands={progressTotalBrands}
         isGenerating={generatingModels !== null}
-        completedBrands={generatingModels === progressCategory ? realTimeProgress : autoGenLists.filter(list => 
-          list.listType.includes('Models') && list.category === progressCategory
-        ).length}
         errorMessage={progressError}
       />
     </div>
