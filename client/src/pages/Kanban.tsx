@@ -94,13 +94,8 @@ type TicketWithClient = Ticket & { client?: Client };
 
 // Currency formatting utility
 const formatCurrency = (amount: number, language: string = 'en') => {
-  const locale = language === 'pt-BR' ? 'pt-BR' : 'en-US';
-  const currency = language === 'pt-BR' ? 'BRL' : 'USD';
-  
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: currency,
-  }).format(amount);
+  const currency = language === 'pt-BR' ? 'R$' : '$';
+  return `${currency}${amount.toFixed(2)}`;
 };
 
 // Helper component for form field with tooltip
@@ -231,8 +226,8 @@ export default function KanbanTickets() {
     retry: false,
   });
 
-  // Tenant settings query for extended warranty price
-  const { data: tenant } = useQuery({
+  // Tenant settings query for extended warranty price (temporarily simplified)
+  const { data: tenant } = useQuery<any>({
     queryKey: ["/api/tenants/current"],
     retry: false,
   });
@@ -704,8 +699,8 @@ export default function KanbanTickets() {
       // Service Timeline & Coverage fields with form data
       clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
       technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
-      warrantyType: formData.warrantyType as const,
-      costEstimation: formData.costEstimation ? parseFloat(formData.costEstimation) : null,
+      warrantyType: formData.warrantyType as 'standard' | 'extended',
+      costEstimation: formData.costEstimation || null,
       costExplanation: formData.costExplanation || null,
     };
     
@@ -1707,54 +1702,60 @@ export default function KanbanTickets() {
                     </RadioGroup>
                   </FormFieldWithTooltip>
 
-                  {/* Cost Estimation */}
-                  <FormFieldWithTooltip
-                    label={t("cost_estimation", "Cost Estimation")}
-                    tooltip={t("cost_estimation_tooltip", "Provide an estimated total cost for this repair including parts and labor.")}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {currentLanguage === 'pt-BR' ? 'R$' : '$'}
-                      </span>
-                      <Input
-                        type="number"
-                        id="costEstimation"
-                        value={formData.costEstimation}
-                        onChange={(e) => handleInputChange('costEstimation', e.target.value)}
-                        placeholder="280.00"
-                        min="0"
-                        step="0.01"
-                        data-testid="input-cost-estimation"
-                        className="flex-1"
-                      />
-                    </div>
-                  </FormFieldWithTooltip>
-
-                  {/* Cost Explanation */}
-                  <FormFieldWithTooltip
-                    label={t("cost_explanation", "Cost Breakdown")}
-                    tooltip={t("cost_explanation_tooltip", "Explain how you calculated the cost. Include details about parts, labor time, and any additional fees.")}
-                  >
-                    <Textarea
-                      id="costExplanation"
-                      value={formData.costExplanation}
-                      onChange={(e) => handleInputChange('costExplanation', e.target.value)}
-                      placeholder={t("cost_explanation_placeholder", "Example: Labor (3 hours @ $50/hr) + Screen replacement part ($120) + diagnostic fee ($30) = $280 total")}
-                      rows={4}
-                      data-testid="textarea-cost-explanation"
-                      className="resize-none"
-                    />
-                  </FormFieldWithTooltip>
                 </div>
               )}
 
               {/* Price Estimation Step */}
               {currentStep === 4 && (
-                <div className="text-center py-12 text-muted-foreground">
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h3 className="text-xl font-semibold text-primary mb-2">
+                      {t("price_estimation_title", "Price Estimation")}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {t("price_estimation_desc", "Provide cost estimates and breakdown for this repair")}
+                    </p>
+                  </div>
+                  
                   <div className="space-y-4">
-                    <div className="text-6xl">💰</div>
-                    <h3 className="text-lg font-semibold">{t("price_estimation", "Price Estimation")}</h3>
-                    <p>{t("step_under_development", "This step is currently under development")}</p>
+                    {/* Cost Estimation */}
+                    <FormFieldWithTooltip
+                      label={t("cost_estimation", "Cost Estimation")}
+                      tooltip={t("cost_estimation_tooltip", "Provide an estimated total cost for this repair including parts and labor.")}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {currentLanguage === 'pt-BR' ? 'R$' : '$'}
+                        </span>
+                        <Input
+                          type="number"
+                          id="costEstimation"
+                          value={formData.costEstimation}
+                          onChange={(e) => handleInputChange('costEstimation', e.target.value)}
+                          placeholder="280.00"
+                          min="0"
+                          step="0.01"
+                          data-testid="input-cost-estimation"
+                          className="flex-1"
+                        />
+                      </div>
+                    </FormFieldWithTooltip>
+
+                    {/* Cost Explanation */}
+                    <FormFieldWithTooltip
+                      label={t("cost_explanation", "Cost Breakdown")}
+                      tooltip={t("cost_explanation_tooltip", "Explain how you calculated the cost. Include details about parts, labor time, and any additional fees.")}
+                    >
+                      <Textarea
+                        id="costExplanation"
+                        value={formData.costExplanation}
+                        onChange={(e) => handleInputChange('costExplanation', e.target.value)}
+                        placeholder={t("cost_explanation_placeholder", "Example: Labor (3 hours @ $50/hr) + Screen replacement part ($120) + diagnostic fee ($30) = $280 total")}
+                        rows={4}
+                        data-testid="textarea-cost-explanation"
+                        className="resize-none"
+                      />
+                    </FormFieldWithTooltip>
                   </div>
                 </div>
               )}
