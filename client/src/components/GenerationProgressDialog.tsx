@@ -68,14 +68,38 @@ export function GenerationProgressDialog({
   // Additional check: Listen for the isGenerating state change to detect completion
   useEffect(() => {
     // When isGenerating changes from true to false, it means generation completed
+    // BUT only close if we also confirm via API that it's actually done
     if (!isGenerating && isOpen && !errorMessage) {
-      setIsCheckingCompletion(true);
-      setTimeout(() => {
-        onOpenChange(false);
-        setIsCheckingCompletion(false);
-      }, 1500);
+      // Double-check completion via API before closing
+      const verifyCompletion = async () => {
+        try {
+          const response = await fetch(`/api/auto-gen-lists/${category}/status`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (response.ok) {
+            const status = await response.json();
+            // Only close if generation is actually completed
+            if (status && status.status === 'completed') {
+              setIsCheckingCompletion(true);
+              setTimeout(() => {
+                onOpenChange(false);
+                setIsCheckingCompletion(false);
+              }, 1500);
+            }
+          }
+        } catch (error) {
+          console.log('Completion verification failed, keeping dialog open');
+        }
+      };
+      
+      // Small delay before checking to ensure backend has time to update
+      setTimeout(verifyCompletion, 2000);
     }
-  }, [isGenerating, isOpen, errorMessage, onOpenChange]);
+  }, [isGenerating, isOpen, errorMessage, onOpenChange, category]);
 
   // Auto-close on error after delay
   useEffect(() => {
