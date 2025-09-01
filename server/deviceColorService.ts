@@ -77,7 +77,13 @@ class DeviceColorService {
       console.log(`🎨 Found ${colors.length} colors for ${brand} ${model}:`, colors);
       
       return colors;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle rate limiting specifically
+      if (error?.response?.status === 429) {
+        console.log(`⏰ Rate limited for ${brand} ${model} - API cooldown in effect`);
+        return [];
+      }
+      
       console.error(`❌ Error searching device colors for ${brand} ${model}:`, error);
       return [];
     }

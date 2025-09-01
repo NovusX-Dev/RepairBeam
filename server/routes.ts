@@ -806,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           colors: commonColors,
           fromCache: false,
           fallback: true,
-          message: "Using common colors as fallback"
+          message: "API temporarily unavailable - showing common colors"
         });
       }
       

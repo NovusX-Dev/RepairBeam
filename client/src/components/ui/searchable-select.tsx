@@ -96,7 +96,7 @@ export function SearchableSelect({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start" onWheel={(e) => e.stopPropagation()}>
+      <PopoverContent className="w-full p-0 max-h-[450px]" align="start" onWheel={(e) => e.stopPropagation()}>
         <Command>
           <CommandInput
             ref={inputRef}
@@ -106,7 +106,7 @@ export function SearchableSelect({
             className="h-9"
           />
           <div 
-            className="max-h-[400px] overflow-y-auto"
+            className="max-h-[350px] overflow-y-auto"
             style={{ 
               overscrollBehavior: 'contain',
               WebkitOverflowScrolling: 'touch'

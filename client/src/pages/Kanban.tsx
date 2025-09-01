@@ -1394,21 +1394,29 @@ export default function KanbanTickets() {
                           hasError={!!formErrors.deviceColor}
                           isValid={fieldValidation.deviceColor?.isValid && formData.deviceColor.length > 0}
                         >
-                          <SearchableSelect
-                            value={formData.deviceColor || ''}
-                            onValueChange={(value) => handleInputChange('deviceColor', value)}
-                            items={deviceColors?.colors || []}
-                            isLoading={colorsLoading}
-                            allowCustomInput={true}
-                            disabled={!formData.deviceType || !formData.deviceBrand || !formData.deviceModel}
-                            emptyText={
-                              !formData.deviceType || !formData.deviceBrand || !formData.deviceModel
-                                ? t("select_device_model_first", "Select device model first") 
-                                : t("configs.no_colors_available", "No colors available for this model")
-                            }
-                            placeholder={t("device_color_placeholder", "Select or enter color")}
-                            data-testid="select-device-color"
-                          />
+                          <div className="space-y-1">
+                            <SearchableSelect
+                              value={formData.deviceColor || ''}
+                              onValueChange={(value) => handleInputChange('deviceColor', value)}
+                              items={deviceColors?.colors || []}
+                              isLoading={colorsLoading}
+                              allowCustomInput={true}
+                              disabled={!formData.deviceType || !formData.deviceBrand || !formData.deviceModel}
+                              emptyText={
+                                !formData.deviceType || !formData.deviceBrand || !formData.deviceModel
+                                  ? t("select_device_model_first", "Select device model first") 
+                                  : t("configs.no_colors_available", "No colors available for this model")
+                              }
+                              placeholder={t("device_color_placeholder", "Select or enter color")}
+                              data-testid="select-device-color"
+                            />
+                            {deviceColors?.fallback && (
+                              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                <span>⚠️</span>
+                                {deviceColors.message || t("showing_common_colors", "Showing common colors - device-specific colors temporarily unavailable")}
+                              </p>
+                            )}
+                          </div>
                         </FormFieldWithTooltip>
 
                         <FormFieldWithTooltip
