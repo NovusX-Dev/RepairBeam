@@ -74,6 +74,9 @@ interface TicketFormData {
   deviceType: string;
   deviceBrand: string;
   deviceModel: string;
+  deviceColor: string;
+  deviceMemory: string;
+  deviceStorageCapacity: string;
   serialNumber: string;
 }
 
@@ -170,6 +173,9 @@ export default function KanbanTickets() {
     deviceType: '',
     deviceBrand: '',
     deviceModel: '',
+    deviceColor: '',
+    deviceMemory: '',
+    deviceStorageCapacity: '',
     serialNumber: '',
   });
   const [displayCPF, setDisplayCPF] = useState('');
@@ -256,10 +262,41 @@ export default function KanbanTickets() {
         deviceType: '',
         deviceBrand: '',
         deviceModel: '',
+        deviceColor: '',
+        deviceMemory: '',
+        deviceStorageCapacity: '',
         serialNumber: '',
       });
       setDisplayCPF('');
       setFormErrors({});
+    },
+  });
+
+  const createTicketMutation = useMutation({
+    mutationFn: async (ticketData: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>) => {
+      const response = await apiRequest("POST", "/api/tickets", ticketData);
+      return await response.json();
+    },
+    onSuccess: (newTicket: Ticket) => {
+      // Refresh tickets query to show the new ticket
+      queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+      
+      // Close the dialog and reset form
+      handleDialogChange(false);
+      
+      // Show success toast
+      toast({
+        title: t("success", "Success"),
+        description: t("ticket_created_successfully", "Ticket created successfully!"),
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to create ticket:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("ticket_creation_failed", "Failed to create ticket. Please try again."),
+        variant: "destructive",
+      });
     },
   });
 
@@ -368,6 +405,27 @@ export default function KanbanTickets() {
     return Object.keys(errors).length === 0;
   };
 
+  // Form validation for device info step
+  const validateDeviceInfo = () => {
+    const errors: Partial<TicketFormData> = {};
+    
+    if (!formData.deviceType.trim()) {
+      errors.deviceType = 'required';
+    }
+    if (!formData.deviceBrand.trim()) {
+      errors.deviceBrand = 'required';
+    }
+    if (!formData.deviceModel.trim()) {
+      errors.deviceModel = 'required';
+    }
+    if (!formData.deviceColor.trim()) {
+      errors.deviceColor = 'required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Handle form input changes
   // Date formatting and validation
   const formatDateForLocale = (dateString: string, locale: string) => {
@@ -443,6 +501,11 @@ export default function KanbanTickets() {
         break;
       case 'deviceBrand':
       case 'deviceModel':
+      case 'deviceColor':
+        isValid = value.trim().length > 0;
+        break;
+      case 'deviceMemory':
+      case 'deviceStorageCapacity':
       case 'serialNumber':
         isValid = value.trim().length > 0;
         break;
@@ -563,6 +626,40 @@ export default function KanbanTickets() {
     createClientMutation.mutate(clientData);
   };
 
+  const handleCreateTicket = () => {
+    if (!selectedClient) {
+      toast({
+        title: t("error", "Error"),
+        description: t("no_client_selected", "Please select a client first"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateDeviceInfo()) return;
+    
+    const ticketData = {
+      clientId: selectedClient.id,
+      deviceType: formData.deviceType,
+      deviceBrand: formData.deviceBrand,
+      deviceModel: formData.deviceModel,
+      deviceColor: formData.deviceColor,
+      deviceMemory: formData.deviceMemory || null,
+      deviceStorageCapacity: formData.deviceStorageCapacity || null,
+      serialNumber: formData.serialNumber || null,
+      status: 'open' as const,
+      priority: 'medium' as const,
+      title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
+      description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
+      estimatedCost: null,
+      actualCost: null,
+      technicianNotes: null,
+      assignedUserId: null,
+    };
+    
+    createTicketMutation.mutate(ticketData);
+  };
+
   // Handle next step
   const handleNextStep = () => {
     if (currentStep === 0) {
@@ -576,6 +673,10 @@ export default function KanbanTickets() {
         // No client selected, need to search or add one
         return;
       }
+    } else if (currentStep === 1) {
+      // Validate device info before proceeding
+      if (!validateDeviceInfo()) return;
+      setCurrentStep(currentStep + 1);
     } else if (currentStep < ticketSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
@@ -605,6 +706,9 @@ export default function KanbanTickets() {
         deviceType: '',
         deviceBrand: '',
         deviceModel: '',
+        deviceColor: '',
+        deviceMemory: '',
+        deviceStorageCapacity: '',
         serialNumber: '',
       });
       setDisplayCPF('');
@@ -1276,6 +1380,52 @@ export default function KanbanTickets() {
                         </FormFieldWithTooltip>
                         
                         <FormFieldWithTooltip
+                          label={t("device_color", "Color")}
+                          tooltip={t("device_color_tooltip", "The color of the device. This helps identify the specific device and affects repair parts needed.")}
+                          required
+                          hasError={!!formErrors.deviceColor}
+                          isValid={fieldValidation.deviceColor?.isValid && formData.deviceColor.length > 0}
+                        >
+                          <Input
+                            id="deviceColor"
+                            value={formData.deviceColor || ''}
+                            onChange={(e) => handleInputChange('deviceColor', e.target.value)}
+                            placeholder={t("device_color_placeholder", "e.g., Space Gray, White, Black")}
+                            data-testid="input-device-color"
+                          />
+                        </FormFieldWithTooltip>
+
+                        <FormFieldWithTooltip
+                          label={t("device_memory", "Memory (RAM)")}
+                          tooltip={t("device_memory_tooltip", "The amount of RAM in the device. This information helps with diagnostic and repair procedures. Common values: 4GB, 8GB, 16GB, 32GB.")}
+                          hasError={!!formErrors.deviceMemory}
+                          isValid={fieldValidation.deviceMemory?.isValid && formData.deviceMemory.length > 0}
+                        >
+                          <Input
+                            id="deviceMemory"
+                            value={formData.deviceMemory || ''}
+                            onChange={(e) => handleInputChange('deviceMemory', e.target.value)}
+                            placeholder={t("device_memory_placeholder", "e.g., 8GB, 16GB (optional)")}
+                            data-testid="input-device-memory"
+                          />
+                        </FormFieldWithTooltip>
+
+                        <FormFieldWithTooltip
+                          label={t("device_storage_capacity", "Storage Capacity")}
+                          tooltip={t("device_storage_capacity_tooltip", "The storage capacity of the device. Helps identify the specific model variant and affects data recovery procedures. Common values: 64GB, 128GB, 256GB, 512GB, 1TB.")}
+                          hasError={!!formErrors.deviceStorageCapacity}
+                          isValid={fieldValidation.deviceStorageCapacity?.isValid && formData.deviceStorageCapacity.length > 0}
+                        >
+                          <Input
+                            id="deviceStorageCapacity"
+                            value={formData.deviceStorageCapacity || ''}
+                            onChange={(e) => handleInputChange('deviceStorageCapacity', e.target.value)}
+                            placeholder={t("device_storage_placeholder", "e.g., 256GB, 1TB (optional)")}
+                            data-testid="input-device-storage"
+                          />
+                        </FormFieldWithTooltip>
+                        
+                        <FormFieldWithTooltip
                           label={t("serial_number", "Serial Number")}
                           tooltip={t("serial_number_tooltip", "Optional field for the device's serial number if available. This helps with warranty verification, authenticity checks, and tracking specific device history. The serial number is usually found in device settings or on a label.")}
                           hasError={!!formErrors.serialNumber}
@@ -1355,7 +1505,8 @@ export default function KanbanTickets() {
                   </Button>
                 ) : (
                   <Button 
-                    onClick={() => {/* TODO: Submit ticket */}}
+                    onClick={handleCreateTicket}
+                    disabled={createTicketMutation.isPending}
                     className="btn-next-hover bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 relative overflow-hidden"
                     data-testid="button-create-ticket-final"
                   >
