@@ -15,6 +15,8 @@ Preferred communication style: Simple, everyday language.
 - **Consistency Validation**: Always check for inconsistencies with work and fixes across the entire codebase
 - **Double-Check Protocol**: Always verify work thoroughly before considering tasks complete
 - **Localization Requirements**: Always add localizations and translations when necessary, ensuring support for only the configured languages (currently: en, pt-BR)
+- **Database Query Integrity**: Always ensure that lookups and queries are properly structured and do not break existing lookups
+- **Naming Convention Consistency**: Adhere to the same naming convention throughout the codebase, never mix different naming patterns
 
 ### Supported Languages
 Based on database analysis, the platform supports:
