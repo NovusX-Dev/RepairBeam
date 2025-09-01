@@ -83,7 +83,7 @@ export function GenerationProgressDialog({
           if (response.ok) {
             const status = await response.json();
             // Only close if generation is actually completed
-            if (status && status.status === 'completed') {
+            if (status && (status.status === 'completed' || status.status === 'failed')) {
               setIsCheckingCompletion(true);
               setTimeout(() => {
                 onOpenChange(false);
@@ -97,7 +97,7 @@ export function GenerationProgressDialog({
       };
       
       // Small delay before checking to ensure backend has time to update
-      setTimeout(verifyCompletion, 2000);
+      setTimeout(verifyCompletion, 1000);
     }
   }, [isGenerating, isOpen, errorMessage, onOpenChange, category]);
 

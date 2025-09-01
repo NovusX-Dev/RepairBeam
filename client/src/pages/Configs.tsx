@@ -109,6 +109,7 @@ export default function Configs() {
     onSuccess: (data, category) => {
       // Don't show immediate toast - let the dialog handle completion feedback
       queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists', category] });
     },
     onError: (error: Error, category) => {
       setProgressError(error.message);
@@ -118,10 +119,16 @@ export default function Configs() {
         variant: 'destructive',
       });
     },
-    onSettled: () => {
+    onSettled: (data, error, category) => {
       // Don't immediately close dialog - let the completion effect handle it
       setTimeout(() => {
         setGeneratingModels(null);
+        // If generation completed successfully, close dialog after delay
+        if (!error) {
+          setTimeout(() => {
+            setShowProgressDialog(false);
+          }, 2000);
+        }
       }, 1000); // Small delay to ensure final progress is shown
     },
   });
@@ -146,6 +153,7 @@ export default function Configs() {
         description: t('retry_started_desc', `Retrying failed brands for ${category}. This may take a few minutes.`),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists', category] });
     },
     onError: (error: Error, category) => {
       toast({
@@ -154,10 +162,16 @@ export default function Configs() {
         variant: 'destructive',
       });
     },
-    onSettled: () => {
+    onSettled: (data, error, category) => {
       // Don't immediately close dialog - let the completion effect handle it
       setTimeout(() => {
         setGeneratingModels(null);
+        // If retry completed successfully, close dialog after delay
+        if (!error) {
+          setTimeout(() => {
+            setShowProgressDialog(false);
+          }, 2000);
+        }
       }, 1000); // Small delay to ensure final progress is shown
     },
   });
@@ -608,7 +622,14 @@ export default function Configs() {
       {/* Progress Dialog */}
       <GenerationProgressDialog
         isOpen={showProgressDialog}
-        onOpenChange={setShowProgressDialog}
+        onOpenChange={(open) => {
+          setShowProgressDialog(open);
+          if (!open) {
+            // Reset generating state when dialog closes
+            setGeneratingModels(null);
+            setProgressError("");
+          }
+        }}
         category={progressCategory}
         isGenerating={generatingModels !== null}
         errorMessage={progressError}
