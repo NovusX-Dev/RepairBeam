@@ -268,7 +268,7 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -281,7 +281,7 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 2500, // Higher limit for comprehensive model lists
-        reasoning_effort: "medium" // Medium reasoning effort for consistent analysis
+        temperature: 0.1 // Low temperature for consistent, comprehensive output
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
@@ -387,7 +387,7 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
           try {
             // Use GPT-4o with much higher token limit to avoid reasoning token exhaustion
             response = await openai.chat.completions.create({
-              model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+              model: "gpt-4o", // Using GPT-4o for fast, reliable performance
               messages: [
                 {
                   role: "system",
@@ -444,7 +444,7 @@ Generate the most comprehensive authentic model catalog possible for repair shop
               ],
               response_format: { type: "json_object" },
               max_completion_tokens: 6000, // Much higher limit for comprehensive model lists
-              reasoning_effort: "medium" // Medium reasoning effort for consistent results
+              temperature: 0.1 // Low temperature for consistent, comprehensive output
             });
           } catch (apiError: any) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
@@ -579,7 +579,7 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4o", // Using GPT-4o for fast, reliable performance
         messages: [
           {
             role: "system",
@@ -637,7 +637,7 @@ Generate the most comprehensive ${brand} ${deviceType} catalog possible for prof
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 4000, // Higher limit for comprehensive model lists  
-        reasoning_effort: "medium" // Medium reasoning effort for consistent results
+        temperature: 0.1 // Low temperature for consistent, comprehensive output
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
@@ -660,7 +660,7 @@ Generate the most comprehensive ${brand} ${deviceType} catalog possible for prof
   async generateDeviceBrands(deviceType: string): Promise<BrandGenerationResult> {
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        model: "gpt-4o", // Using GPT-4o for fast, reliable performance
         messages: [
           {
             role: "system",
@@ -707,7 +707,7 @@ Generate complete authentic manufacturer catalog for repair shop operations.`
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 4000, // Higher limit for comprehensive model lists  
-        reasoning_effort: "medium" // Medium reasoning effort for consistent results
+        temperature: 0.1 // Low temperature for consistent, comprehensive output
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
@@ -1021,7 +1021,7 @@ Example: "Appel" -> {"isValid": true, "correctedName": "Apple", "confidence": 0.
 Example: "FakeBrand" -> {"isValid": false, "correctedName": null, "confidence": 0.0}`;
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -1034,7 +1034,7 @@ Example: "FakeBrand" -> {"isValid": false, "correctedName": null, "confidence": 
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 500, // Higher limit for comprehensive validation
-        reasoning_effort: "low" // Low reasoning effort for simple validation
+        temperature: 0.1 // Low temperature for consistent validation
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"isValid": false, "correctedName": null}');
