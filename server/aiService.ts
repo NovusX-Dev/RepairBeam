@@ -280,7 +280,7 @@ Prioritize: 1) Similar routes 2) Common destinations 3) Helpful actions`;
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 800
+        max_completion_tokens: 2500 // Higher limit for comprehensive model lists
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"suggestions": []}');
@@ -359,7 +359,7 @@ REQUIRED CRITERIA:
 - If uncertain about a model's existence or release date, DO NOT include it
 - DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
-- MINIMUM 10-15 models per brand covering all 4 years
+- MINIMUM 15-25 models per brand covering all 4 years to ensure comprehensive repair shop coverage
 - Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
@@ -406,7 +406,7 @@ REQUIRED CRITERIA:
 - If uncertain about a model's existence or release date, DO NOT include it
 - DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
-- MINIMUM 10-15 models per brand covering all 4 years
+- MINIMUM 15-25 models per brand covering all 4 years to ensure comprehensive repair shop coverage
 - Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
 - Focus on models actually released and sold, not rumored or upcoming models
 
@@ -414,7 +414,7 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
                 }
               ],
               response_format: { type: "json_object" },
-              max_completion_tokens: 2000 // Much higher limit for complex requests
+              max_completion_tokens: 4000 // Higher limit for comprehensive model lists
             });
           } catch (apiError: any) {
             this.logGenerationStep(`API call failed (${apiError.message})`, { 
@@ -450,12 +450,12 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
           // Merge batch results with validation
           for (const brand of batch) {
             if (batchResults[brand] && Array.isArray(batchResults[brand])) {
-              results[brand] = batchResults[brand].slice(0, 30);
+              results[brand] = batchResults[brand]; // Remove artificial 30-model limit
               console.log(`✅ ${brand}: ${results[brand].length} models`);
             } else {
               console.log(`⚠️  ${brand}: No models in response, using fallback`);
               const fallback = this.getFallbackModels(deviceType, brand);
-              results[brand] = fallback.models.slice(0, 30);
+              results[brand] = fallback.models; // Remove artificial 30-model limit
             }
           }
           
@@ -483,7 +483,7 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
             // Generate fallback models for all brands in this batch
             for (const brand of batch) {
               const fallback = this.getFallbackModels(deviceType, brand);
-              results[brand] = fallback.models.slice(0, 30);
+              results[brand] = fallback.models; // Remove artificial 30-model limit
               console.log(`🔄 Fallback for ${brand}: ${results[brand].length} models`);
             }
             
@@ -539,7 +539,7 @@ REQUIRED CRITERIA:
 - If uncertain about a model's existence or release date, DO NOT include it
 - DO NOT fabricate or invent models that don't exist yet
 - No trailing commas, comments, or extra wrapper keys
-- MINIMUM 10-15 models covering all 4 years
+- MINIMUM 15-25 models covering all 4 years to ensure comprehensive repair shop coverage
 - Include ALL major variants (Pro, Max, Plus, mini, Ultra, etc.)
 - Popular models commonly brought for repairs
 - Official model names/numbers (not marketing names)
@@ -561,13 +561,13 @@ Generate complete authentic model lineup covering full 4-year INCLUSIVE period.`
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 1200
+        max_completion_tokens: 3000 // Higher limit for comprehensive model lists
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"models": []}');
       
       return {
-        models: (result.models || []).slice(0, 40), // Limit to 40 models for efficiency
+        models: (result.models || []), // Remove artificial 40-model limit
         brand,
         category: deviceType
       };
@@ -609,7 +609,7 @@ Generate complete authentic brand list for repair shop operations.`;
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 1200
+        max_completion_tokens: 3000 // Higher limit for comprehensive model lists
       });
 
       const result = JSON.parse(response.choices[0].message.content || '{"brands": []}');
