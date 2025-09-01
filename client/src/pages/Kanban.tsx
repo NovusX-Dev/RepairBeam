@@ -238,9 +238,9 @@ export default function KanbanTickets() {
   const { toast } = useToast();
 
   // Calculate warranty cost and total cost
-  const calculateCosts = () => {
-    const basePrice = parseFloat(formData.costEstimation) || 0;
-    const warrantyPrice = formData.warrantyType === 'extended' 
+  const calculateCosts = (estimation = formData.costEstimation, warranty = formData.warrantyType) => {
+    const basePrice = parseFloat(estimation) || 0;
+    const warrantyPrice = warranty === 'extended' 
       ? (tenant?.settings?.extendedWarrantyPrice || 50)
       : 0;
     const total = basePrice + warrantyPrice;
@@ -275,8 +275,8 @@ export default function KanbanTickets() {
 
   // Auto-calculate costs when relevant fields change
   useEffect(() => {
-    if (formData.costEstimation || formData.warrantyType !== 'standard' || tenant) {
-      calculateCosts();
+    if ((formData.costEstimation || formData.warrantyType !== 'standard') && tenant) {
+      calculateCosts(formData.costEstimation, formData.warrantyType);
     }
   }, [formData.costEstimation, formData.warrantyType, tenant?.settings?.extendedWarrantyPrice]);
 
@@ -658,10 +658,13 @@ export default function KanbanTickets() {
     
     // Recalculate costs when cost estimation or warranty type changes
     if (field === 'costEstimation' || field === 'warrantyType') {
-      // Use a longer delay to ensure state is properly updated and tenant data is available
+      // Calculate immediately with the new values instead of waiting for state update
+      const newEstimation = field === 'costEstimation' ? value : formData.costEstimation;
+      const newWarrantyType = field === 'warrantyType' ? value : formData.warrantyType;
+      
       setTimeout(() => {
-        calculateCosts();
-      }, 50);
+        calculateCosts(newEstimation, newWarrantyType);
+      }, 10);
     }
   };
 
