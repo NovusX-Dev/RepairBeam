@@ -237,6 +237,9 @@ export default function KanbanTickets() {
   const [showCPFConflict, setShowCPFConflict] = useState(false);
   const [conflictClient, setConflictClient] = useState<Client | null>(null);
   
+  // Ticket creation confirmation state
+  const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
+  
   const queryClient = useQueryClient();
   const { t, currentLanguage } = useLocalization();
   const { toast } = useToast();
@@ -766,14 +769,10 @@ export default function KanbanTickets() {
     }
 
     // Show confirmation dialog
-    const confirmed = window.confirm(
-      t("confirm_ticket_creation", "Are you sure you want to create this repair ticket?\n\nThis will:\n• Create a new ticket in the Backlog\n• Lock in the agreed service details and cost\n• Begin the repair process\n\nClient: {clientName}\nDevice: {deviceInfo}\nTotal Cost: ${totalCost}")
-        .replace('{clientName}', `${formData.firstName} ${formData.lastName}`)
-        .replace('{deviceInfo}', `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel}`)
-        .replace('{totalCost}', formData.totalCost)
-    );
+    setShowCreateConfirmation(true);
+  };
 
-    if (!confirmed) return;
+  const handleConfirmCreateTicket = () => {
 
     // Generate unique ticket ID with collision protection
     const generateUniqueTicketId = async (): Promise<string> => {
@@ -828,7 +827,7 @@ export default function KanbanTickets() {
         deviceStorageCapacity: formData.deviceStorageCapacity || null,
         issueDescription: null,
         // Service Timeline & Coverage fields with form data
-        clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
+        clientDeadline: formData.clientDeadline || null,
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
         warrantyType: formData.warrantyType as 'standard' | 'extended',
         costEstimation: formData.costEstimation || null,
@@ -845,6 +844,7 @@ export default function KanbanTickets() {
     
     // Execute the ticket creation
     createTicketWithUniqueId();
+    setShowCreateConfirmation(false);
   };
 
   // Handle next step
@@ -2516,6 +2516,44 @@ export default function KanbanTickets() {
           </div>
         </div>
       </div>
+
+      {/* Ticket Creation Confirmation Dialog */}
+      <Dialog open={showCreateConfirmation} onOpenChange={setShowCreateConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="w-5 h-5 text-green-500" />
+              {t("confirm_ticket_creation", "Create Repair Ticket?")}
+            </DialogTitle>
+            <DialogDescription className="space-y-3">
+              <p>{t("confirmation_message", "Are you sure you want to create this repair ticket?")}</p>
+              
+              <div className="text-sm space-y-1">
+                <p className="font-medium text-foreground">{t("this_will", "This will:")}</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>{t("create_ticket_backlog", "Create a new ticket in the BackLog")}</li>
+                  <li>{t("lock_service_details", "Lock in the agreed service details and cost")}</li>
+                  <li>{t("begin_repair_process", "Begin the repair process")}</li>
+                </ul>
+              </div>
+
+              <div className="bg-muted/20 p-3 rounded-md space-y-1 text-sm">
+                <div><strong>{t("client", "Client")}:</strong> {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : `${formData.firstName} ${formData.lastName}`}</div>
+                <div><strong>{t("device", "Device")}:</strong> {formData.deviceType} {formData.deviceBrand} {formData.deviceModel}</div>
+                <div><strong>{t("total_cost", "Total Cost")}:</strong> ${formData.totalCost}</div>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+            <Button variant="outline" onClick={() => setShowCreateConfirmation(false)}>
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button onClick={handleConfirmCreateTicket} className="bg-green-600 hover:bg-green-700">
+              {t("create_ticket", "Create Ticket")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </TooltipProvider>
   );
