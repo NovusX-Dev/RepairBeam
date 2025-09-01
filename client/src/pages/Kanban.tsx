@@ -245,6 +245,7 @@ export default function KanbanTickets() {
       : 0;
     const total = basePrice + warrantyPrice;
     
+    // Update both fields in a single state update to prevent timing issues
     setFormData(prev => ({
       ...prev,
       warrantyCost: warrantyPrice.toFixed(2),
@@ -273,12 +274,12 @@ export default function KanbanTickets() {
     retry: false,
   });
 
-  // Auto-calculate costs when relevant fields change
+  // Auto-calculate costs when tenant data loads (initial calculation only)
   useEffect(() => {
-    if ((formData.costEstimation || formData.warrantyType !== 'standard') && tenant) {
+    if (tenant && (formData.costEstimation || formData.warrantyType !== 'standard')) {
       calculateCosts(formData.costEstimation, formData.warrantyType);
     }
-  }, [formData.costEstimation, formData.warrantyType, tenant?.settings?.extendedWarrantyPrice]);
+  }, [tenant?.settings?.extendedWarrantyPrice]); // Only depend on tenant, not form data to avoid conflicts
 
   // Client search query
   const { data: searchResults = [] } = useQuery<Client[]>({
@@ -658,13 +659,14 @@ export default function KanbanTickets() {
     
     // Recalculate costs when cost estimation or warranty type changes
     if (field === 'costEstimation' || field === 'warrantyType') {
-      // Calculate immediately with the new values instead of waiting for state update
+      // Calculate immediately with the new values without any delay
       const newEstimation = field === 'costEstimation' ? value : formData.costEstimation;
       const newWarrantyType = field === 'warrantyType' ? value : formData.warrantyType;
       
-      setTimeout(() => {
+      // Use requestAnimationFrame for immediate but smooth update
+      requestAnimationFrame(() => {
         calculateCosts(newEstimation, newWarrantyType);
-      }, 10);
+      });
     }
   };
 
