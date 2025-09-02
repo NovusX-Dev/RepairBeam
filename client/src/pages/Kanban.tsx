@@ -40,6 +40,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
@@ -2796,7 +2797,7 @@ export default function KanbanTickets() {
                       
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">{t("brand_model", "Brand & Model")}</label>
-                        <p className="text-sm">{selectedTicketSummary.deviceBrand} {selectedTicketSummary.deviceModel}</p>
+                        <p className="text-sm">{selectedTicketSummary.deviceModel}</p>
                       </div>
                       
                       <div>
@@ -2862,11 +2863,7 @@ export default function KanbanTickets() {
                           size="sm"
                           onClick={async () => {
                             try {
-                              await apiRequest(`/api/tickets/${selectedTicketSummary.id}/notes`, {
-                                method: 'POST',
-                                body: JSON.stringify({ content: newNote }),
-                                headers: { 'Content-Type': 'application/json' }
-                              });
+                              await apiRequest(`/api/tickets/${selectedTicketSummary.id}/notes`, 'POST', { content: newNote });
                               setNewNote('');
                               // Refresh notes
                               const updatedNotes = await fetch(`/api/tickets/${selectedTicketSummary.id}/notes`).then(r => r.json());
