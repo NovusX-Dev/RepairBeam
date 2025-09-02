@@ -111,11 +111,15 @@ export default function ProgressVisualization({
     setRenderKey(prev => prev + 1);
   }, [currentStatus]);
   
+  // Recalculate everything when status changes
   const currentIndex = stages.findIndex(stage => stage.id === currentStatus);
   const nextStage = currentIndex < stages.length - 1 ? stages[currentIndex + 1] : null;
   
-  // Calculate progress percentage
-  const progressPercentage = currentIndex >= 0 ? ((currentIndex + 1) / stages.length) * 100 : 0;
+  // Calculate progress percentage - force recalculation
+  const progressPercentage = React.useMemo(() => {
+    const index = stages.findIndex(stage => stage.id === currentStatus);
+    return index >= 0 ? ((index + 1) / stages.length) * 100 : 0;
+  }, [currentStatus, stages, renderKey]);
   
   // Calculate estimated completion time
   const calculateEstimatedCompletion = () => {
@@ -247,9 +251,11 @@ export default function ProgressVisualization({
               {/* Stage indicators */}
               <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
                 {stages.map((stage, index) => {
-                  const isPast = index < currentIndex;
-                  const isCurrent = index === currentIndex;
-                  const isFuture = index > currentIndex;
+                  // Recalculate states based on current status
+                  const currentIdx = stages.findIndex(s => s.id === currentStatus);
+                  const isPast = index < currentIdx;
+                  const isCurrent = index === currentIdx;
+                  const isFuture = index > currentIdx;
                   const StageIcon = stage.icon;
 
                   return (
@@ -378,9 +384,11 @@ export default function ProgressVisualization({
         {/* Stage indicators */}
         <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
           {stages.map((stage, index) => {
-            const isPast = index < currentIndex;
-            const isCurrent = index === currentIndex;
-            const isFuture = index > currentIndex;
+            // Recalculate states based on current status
+            const currentIdx = stages.findIndex(s => s.id === currentStatus);
+            const isPast = index < currentIdx;
+            const isCurrent = index === currentIdx;
+            const isFuture = index > currentIdx;
             const StageIcon = stage.icon;
 
             return (
