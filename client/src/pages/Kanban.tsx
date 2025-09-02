@@ -34,6 +34,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { IssueAssessment } from "@/components/IssueAssessment";
+import RepairTipsTooltip from "@/components/RepairTipsTooltip";
 import {
   Popover,
   PopoverContent,
@@ -2684,11 +2685,18 @@ export default function KanbanTickets() {
                         {ticket.title}
                       </h4>
 
-                      {/* Device info */}
+                      {/* Device info with AI repair tips */}
                       {(ticket.deviceType || ticket.deviceModel) && (
-                        <p className={`text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
-                          {[ticket.deviceType, ticket.deviceModel].filter(Boolean).join(' - ')}
-                        </p>
+                        <RepairTipsTooltip 
+                          deviceType={ticket.deviceType || ''}
+                          deviceModel={ticket.deviceModel || ''}
+                          issueDescription={ticket.description || ''}
+                          ticketStatus={ticket.status}
+                        >
+                          <p className={`text-xs ${getStatusMutedColor(ticket.status)} mb-2 cursor-help hover:text-cyan-500 transition-colors`}>
+                            {[ticket.deviceType, ticket.deviceModel].filter(Boolean).join(' - ')}
+                          </p>
+                        </RepairTipsTooltip>
                       )}
 
                       {/* Client info */}
