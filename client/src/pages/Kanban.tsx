@@ -316,6 +316,17 @@ export default function KanbanTickets() {
     retry: false,
   });
 
+  // Sync selectedTicketSummary with updated tickets data when tickets change
+  useEffect(() => {
+    if (selectedTicketSummary && tickets.length > 0) {
+      const updatedTicket = tickets.find(ticket => ticket.id === selectedTicketSummary.id);
+      if (updatedTicket && updatedTicket.status !== selectedTicketSummary.status) {
+        // Update selectedTicketSummary with fresh data when status changes
+        setSelectedTicketSummary(updatedTicket);
+      }
+    }
+  }, [tickets, selectedTicketSummary]);
+
   // Tenant settings query for extended warranty price (temporarily simplified)
   const { data: tenant } = useQuery<any>({
     queryKey: ["/api/tenants/current"],
