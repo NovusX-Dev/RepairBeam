@@ -257,6 +257,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update ticket priority
+  app.put("/api/tickets/:ticketId/priority", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const { priority } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!priority) {
+        return res.status(400).json({ message: "Priority is required" });
+      }
+
+      const updatedTicket = await storage.updateTicketPriority(ticketId, priority, user.tenantId);
+      
+      if (!updatedTicket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(updatedTicket);
+    } catch (error) {
+      console.error("Error updating ticket priority:", error);
+      res.status(500).json({ message: "Failed to update ticket priority" });
+    }
+  });
+
   // Create sample tickets for testing Kanban (development only)
   app.post("/api/tickets/create-samples", isAuthenticated, async (req: any, res) => {
     try {

@@ -42,7 +42,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
@@ -410,6 +410,56 @@ export default function KanbanTickets() {
     },
   });
 
+  // Update ticket priority mutation
+  const updateTicketPriority = useMutation({
+    mutationFn: async ({ ticketId, priority }: { ticketId: string; priority: TicketPriority }) => {
+      return await apiRequest("PUT", `/api/tickets/${ticketId}/priority`, { priority });
+    },
+    onMutate: async ({ ticketId, priority }) => {
+      // Cancel any outgoing refetches to avoid optimistic update being overwritten
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets"] });
+
+      // Snapshot the previous value
+      const previousTickets = queryClient.getQueryData(["/api/tickets"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(["/api/tickets"], (old: any) => {
+        if (!old) return old;
+        return old.map((ticket: any) =>
+          ticket.id === ticketId ? { ...ticket, priority } : ticket
+        );
+      });
+
+      // Update selected ticket summary if it's the same ticket
+      if (selectedTicketSummary && selectedTicketSummary.id === ticketId) {
+        setSelectedTicketSummary(prev => prev ? { ...prev, priority } : null);
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousTickets };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["/api/tickets"], context.previousTickets);
+      }
+      toast({
+        title: t("error", "Error"),
+        description: t("priority_update_failed", "Failed to update ticket priority"),
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: t("success", "Success"),
+        description: t("priority_updated", "Ticket priority updated successfully"),
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+    },
+  });
+
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: async (clientData: Omit<Client, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>) => {
@@ -556,11 +606,21 @@ export default function KanbanTickets() {
 
   const getPriorityColor = (priority: TicketPriority) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-500';
-      case 'high': return 'bg-orange-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'vip': return 'bg-gradient-to-r from-purple-600 to-pink-600 text-white';
+      case 'critical': return 'bg-gradient-to-r from-red-500 to-red-600 text-white';
+      case 'medium': return 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white';
+      case 'low': return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+
+  const getPriorityLabel = (priority: TicketPriority) => {
+    switch (priority) {
+      case 'vip': return 'VIP';
+      case 'critical': return t('critical', 'Critical');
+      case 'medium': return t('medium', 'Medium');
+      case 'low': return t('low', 'Low');
+      default: return priority;
     }
   };
 
@@ -2848,6 +2908,55 @@ export default function KanbanTickets() {
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">{t("color", "Color")}</label>
                         <p className="text-sm">{selectedTicketSummary.deviceColor || t("not_available", "N/A")}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("priority", "Priority")}</label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Select
+                            value={selectedTicketSummary.priority}
+                            onValueChange={(newPriority) => {
+                              updateTicketPriority.mutate({ 
+                                ticketId: selectedTicketSummary.id, 
+                                priority: newPriority as TicketPriority 
+                              });
+                            }}
+                            data-testid="select-ticket-priority"
+                          >
+                            <SelectTrigger className="w-32">
+                              <SelectValue>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(selectedTicketSummary.priority as TicketPriority)}`}>
+                                  {getPriorityLabel(selectedTicketSummary.priority as TicketPriority)}
+                                </span>
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low" data-testid="priority-low">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('low')}`}>
+                                  {getPriorityLabel('low')}
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="medium" data-testid="priority-medium">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('medium')}`}>
+                                  {getPriorityLabel('medium')}
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="critical" data-testid="priority-critical">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('critical')}`}>
+                                  {getPriorityLabel('critical')}
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="vip" data-testid="priority-vip">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('vip')}`}>
+                                  {getPriorityLabel('vip')}
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {updateTicketPriority.isPending && (
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
                       </div>
                     </div>
                     

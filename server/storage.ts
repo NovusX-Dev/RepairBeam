@@ -107,6 +107,7 @@ export interface IStorage {
   getTicket(id: string, tenantId: string): Promise<Ticket | undefined>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined>;
+  updateTicketPriority(ticketId: string, priority: string, tenantId: string): Promise<Ticket | undefined>;
   checkTicketIdExists(ticketId: string, tenantId: string): Promise<boolean>;
   
   // Inventory operations
@@ -363,6 +364,15 @@ export class DatabaseStorage implements IStorage {
     const [updatedTicket] = await db
       .update(tickets)
       .set({ status, updatedAt: new Date() })
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
+      .returning();
+    return updatedTicket;
+  }
+
+  async updateTicketPriority(ticketId: string, priority: string, tenantId: string): Promise<Ticket | undefined> {
+    const [updatedTicket] = await db
+      .update(tickets)
+      .set({ priority, updatedAt: new Date() })
       .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
       .returning();
     return updatedTicket;

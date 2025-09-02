@@ -84,8 +84,8 @@ export const ticketStatusEnum = [
 export const ticketPriorityEnum = [
   'low',
   'medium', 
-  'high',
-  'urgent'
+  'critical',
+  'vip'
 ] as const;
 
 export const warrantyTypeEnum = [
