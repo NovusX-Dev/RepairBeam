@@ -3145,7 +3145,7 @@ export default function KanbanTickets() {
                             variant="ghost"
                             size="sm"
                             onClick={(e) => toggleCardCollapse(ticket.id, e)}
-                            className={`h-6 w-6 p-0 hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${getStatusMutedColor(ticket.status)} hover:opacity-100`}
+                            className={`h-6 w-6 p-0 hover:bg-[#00FFFF]/20 hover:text-[#00FFFF] transition-colors ${getStatusMutedColor(ticket.status)}`}
                             data-testid={`button-toggle-card-${ticket.id}`}
                           >
                             {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
