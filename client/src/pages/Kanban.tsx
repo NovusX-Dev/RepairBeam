@@ -3030,11 +3030,11 @@ export default function KanbanTickets() {
       )}
 
       {/* Kanban Board Container - Constrained to parent width */}
-      <div className="flex-1 w-full overflow-hidden">
+      <div className="w-full overflow-hidden">
         <div 
-          className="h-full w-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
+          className="w-full overflow-x-auto border border-border rounded-lg bg-muted/20"
         >
-          <div className="flex gap-4 p-2 h-full" style={{ width: 'fit-content' }}>
+          <div className="flex gap-4 p-2" style={{ width: 'fit-content' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
@@ -3043,7 +3043,6 @@ export default function KanbanTickets() {
                   ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg transform scale-[1.02]' 
                   : ''
               }`}
-              style={{ height: '100%' }}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id as TicketStatus)}
@@ -3058,7 +3057,7 @@ export default function KanbanTickets() {
               </div>
 
               {/* Tickets */}
-              <div className="flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll">
+              <div className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll">
                 {ticketsByStatus[column.id]?.map((ticket) => (
                   <Card
                     key={ticket.id}
