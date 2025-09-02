@@ -6,71 +6,95 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useLocalization } from '@/contexts/LocalizationContext';
 import { ChevronRight, Clock, CheckCircle, Circle, ArrowRight, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
 
-// Import the same status definitions as Kanban
+// Smart Repair Status Color-Coding System
 const getProgressStages = (t: (key: string, fallback?: string) => string) => [
   { 
     id: 'backlog', 
     title: t('backlog', 'Backlog'), 
     shortTitle: t('backlog_short', 'Backlog'),
-    color: '#6B7280',
+    color: '#64748B', // Neutral slate - waiting to start
+    bgColor: '#F1F5F9',
+    darkBgColor: '#1E293B',
     icon: Circle,
-    estimatedHours: 0
+    estimatedHours: 0,
+    category: 'waiting'
   },
   { 
     id: 'waiting_diagnostics', 
     title: t('waiting_diagnostics', 'Waiting on Diagnostics'), 
     shortTitle: t('diagnostics_short', 'Diagnostics'),
-    color: '#F59E0B',
+    color: '#F59E0B', // Amber - analysis phase
+    bgColor: '#FEF3C7',
+    darkBgColor: '#451A03',
     icon: Clock,
-    estimatedHours: 2
+    estimatedHours: 2,
+    category: 'analysis'
   },
   { 
     id: 'waiting_client_approval', 
     title: t('waiting_client_approval', 'Waiting on Client Approval'), 
     shortTitle: t('approval_short', 'Approval'),
-    color: '#F97316',
+    color: '#F97316', // Orange - pending decision
+    bgColor: '#FED7AA',
+    darkBgColor: '#431407',
     icon: Clock,
-    estimatedHours: 0
+    estimatedHours: 0,
+    category: 'pending'
   },
   { 
     id: 'approved', 
     title: t('approved', 'Approved'), 
     shortTitle: t('approved_short', 'Approved'),
-    color: '#10B981',
+    color: '#22C55E', // Green - go ahead
+    bgColor: '#DCFCE7',
+    darkBgColor: '#052E16',
     icon: CheckCircle,
-    estimatedHours: 0
+    estimatedHours: 0,
+    category: 'approved'
   },
   { 
     id: 'servicing', 
     title: t('servicing', 'Servicing'), 
     shortTitle: t('servicing_short', 'Servicing'),
-    color: '#3B82F6',
+    color: '#3B82F6', // Blue - active work
+    bgColor: '#DBEAFE',
+    darkBgColor: '#172554',
     icon: Circle,
-    estimatedHours: 8
+    estimatedHours: 8,
+    category: 'active'
   },
   { 
     id: 'quality_check', 
     title: t('quality_check', 'Quality Check'), 
     shortTitle: t('quality_short', 'QC'),
-    color: '#8B5CF6',
+    color: '#8B5CF6', // Purple - verification
+    bgColor: '#EDE9FE',
+    darkBgColor: '#2E1065',
     icon: CheckCircle,
-    estimatedHours: 1
+    estimatedHours: 1,
+    category: 'verification'
   },
   { 
     id: 'final_customer_check', 
     title: t('final_customer_check', 'Final Customer Check'), 
     shortTitle: t('final_check_short', 'Final Check'),
-    color: '#EC4899',
+    color: '#EC4899', // Pink - customer review
+    bgColor: '#FCE7F3',
+    darkBgColor: '#500724',
     icon: CheckCircle,
-    estimatedHours: 0
+    estimatedHours: 0,
+    category: 'review'
   },
   { 
     id: 'finalized', 
     title: t('finalized', 'Finalized / Done'), 
     shortTitle: t('finalized_short', 'Done'),
-    color: '#059669',
+    color: '#059669', // Emerald - completed
+    bgColor: '#D1FAE5',
+    darkBgColor: '#064E3B',
     icon: CheckCircle,
-    estimatedHours: 0
+    estimatedHours: 0,
+    category: 'completed'
   },
 ];
 
@@ -243,10 +267,13 @@ export default function ProgressVisualization({
               {/* Progress line background */}
               <div className="absolute top-5 left-5 right-5 h-0.5 bg-gray-200 dark:bg-gray-700"></div>
               
-              {/* Active progress line */}
+              {/* Smart colored progress line */}
               <div 
-                className="absolute top-5 left-5 h-0.5 bg-[#00FFFF] transition-all duration-500"
-                style={{ width: `calc(${progressPercentage}% - 20px)` }}
+                className="absolute top-5 left-5 h-0.5 transition-all duration-500"
+                style={{ 
+                  width: `calc(${progressPercentage}% - 20px)`,
+                  background: currentIndex >= 0 ? `linear-gradient(to right, ${stages[0].color}, ${stages[Math.min(currentIndex, stages.length - 1)].color})` : '#00FFFF'
+                }}
               ></div>
               
               {/* Stage circles */}
@@ -260,21 +287,28 @@ export default function ProgressVisualization({
                   
                   return (
                     <div key={stage.id} className="flex flex-col items-center relative">
-                      {/* Circle */}
+                      {/* Smart colored circle */}
                       <div className={`
-                        w-10 h-10 rounded-full border-2 flex items-center justify-center bg-white dark:bg-slate-800 relative z-10
-                        ${isPast ? 'border-[#00FFFF] bg-[#00FFFF] text-[#0A192F]' : ''}
-                        ${isCurrent ? 'border-[#00FFFF] text-[#00FFFF] -translate-y-1' : ''}
-                        ${isFuture ? 'border-gray-300 dark:border-gray-600 text-gray-400' : ''}
-                      `}>
+                        w-10 h-10 rounded-full border-2 flex items-center justify-center relative z-10 transition-all duration-300
+                        ${isPast ? `text-white shadow-md` : ''}
+                        ${isCurrent ? `-translate-y-1 ring-2 ring-opacity-30 shadow-lg` : ''}
+                        ${isFuture ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                      `}
+                      style={{
+                        backgroundColor: isPast ? stage.color : (isCurrent ? stage.bgColor : undefined),
+                        borderColor: isPast || isCurrent ? stage.color : undefined,
+                        color: isPast ? 'white' : (isCurrent ? stage.color : undefined),
+                        ringColor: isCurrent ? stage.color + '50' : undefined
+                      }}>
                         {isPast ? <CheckCircle className="h-4 w-4" /> : <StageIcon className="h-4 w-4" />}
                       </div>
                       
                       {/* Label */}
                       <div className="mt-2 text-center">
-                        <div className={`text-xs font-medium ${
-                          isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'
-                        }`}>
+                        <div className={`text-xs font-medium`}
+                             style={{
+                               color: isCurrent || isPast ? stage.color : undefined
+                             }}>
                           {stage.shortTitle}
                         </div>
                         {stage.estimatedHours > 0 && (
@@ -358,10 +392,13 @@ export default function ProgressVisualization({
         {/* Progress line background */}
         <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700"></div>
         
-        {/* Active progress line */}
+        {/* Smart colored progress line */}
         <div 
-          className="absolute top-6 left-6 h-0.5 bg-[#00FFFF] transition-all duration-500"
-          style={{ width: `calc(${progressPercentage}% - 24px)` }}
+          className="absolute top-6 left-6 h-0.5 transition-all duration-500"
+          style={{ 
+            width: `calc(${progressPercentage}% - 24px)`,
+            background: currentIndex >= 0 ? `linear-gradient(to right, ${stages[0].color}, ${stages[Math.min(currentIndex, stages.length - 1)].color})` : '#00FFFF'
+          }}
         ></div>
         
         {/* Stage circles */}
@@ -378,21 +415,28 @@ export default function ProgressVisualization({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex flex-col items-center cursor-help">
-                      {/* Circle */}
+                      {/* Smart colored circle */}
                       <div className={`
-                        w-12 h-12 rounded-full border-2 flex items-center justify-center bg-white dark:bg-slate-800 relative z-10
-                        ${isPast ? 'border-[#00FFFF] bg-[#00FFFF] text-[#0A192F]' : ''}
-                        ${isCurrent ? 'border-[#00FFFF] text-[#00FFFF] -translate-y-1' : ''}
-                        ${isFuture ? 'border-gray-300 dark:border-gray-600 text-gray-400' : ''}
-                      `}>
+                        w-12 h-12 rounded-full border-2 flex items-center justify-center relative z-10 transition-all duration-300
+                        ${isPast ? `text-white shadow-lg` : ''}
+                        ${isCurrent ? `-translate-y-1 ring-2 ring-opacity-30 shadow-xl` : ''}
+                        ${isFuture ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                      `}
+                      style={{
+                        backgroundColor: isPast ? stage.color : (isCurrent ? stage.bgColor : undefined),
+                        borderColor: isPast || isCurrent ? stage.color : undefined,
+                        color: isPast ? 'white' : (isCurrent ? stage.color : undefined),
+                        ringColor: isCurrent ? stage.color + '50' : undefined
+                      }}>
                         {isPast ? <CheckCircle className="h-5 w-5" /> : <StageIcon className="h-5 w-5" />}
                       </div>
                       
                       {/* Label */}
                       <div className="mt-3 text-center">
-                        <div className={`text-xs font-medium ${
-                          isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'
-                        }`}>
+                        <div className={`text-xs font-medium`}
+                             style={{
+                               color: isCurrent || isPast ? stage.color : undefined
+                             }}>
                           {stage.shortTitle}
                         </div>
                         {stage.estimatedHours > 0 && (
