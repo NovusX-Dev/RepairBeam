@@ -162,10 +162,10 @@ export default function ProgressVisualization({
 
   // Smart header component for always-visible progress
   const ProgressHeader = () => (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-3 flex-1">
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center space-x-2 flex-1 min-w-0">
         {/* Progress bar */}
-        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 relative min-w-[120px]">
+        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 relative min-w-[80px] max-w-[120px]">
           <div 
             className="bg-gradient-to-r from-[#00FFFF] to-cyan-400 h-2 rounded-full transition-all duration-500"
             style={{ width: `${progressPercentage}%` }}
@@ -175,7 +175,7 @@ export default function ProgressVisualization({
         {/* Current stage badge */}
         <Badge 
           variant="outline" 
-          className="text-xs font-medium whitespace-nowrap"
+          className="text-xs font-medium whitespace-nowrap shrink-0"
           style={{ 
             backgroundColor: stages[currentIndex]?.color + '20', 
             color: stages[currentIndex]?.color,
@@ -186,13 +186,13 @@ export default function ProgressVisualization({
         </Badge>
         
         {/* Progress percentage */}
-        <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">
+        <span className="text-xs font-mono text-muted-foreground whitespace-nowrap shrink-0">
           {Math.round(progressPercentage)}%
         </span>
 
-        {/* Estimated completion */}
-        {estimatedCompletion && headerStyle === 'detailed' && (
-          <div className="hidden md:flex items-center text-xs text-muted-foreground space-x-1">
+        {/* Estimated completion - hide in compact mode */}
+        {estimatedCompletion && headerStyle === 'detailed' && !compact && (
+          <div className="hidden lg:flex items-center text-xs text-muted-foreground space-x-1 shrink-0">
             <Clock className="h-3 w-3" />
             <span className="whitespace-nowrap">
               {estimatedCompletion.toLocaleDateString()}
@@ -201,7 +201,7 @@ export default function ProgressVisualization({
         )}
       </div>
       
-      <div className="flex items-center space-x-2 ml-3">
+      <div className="flex items-center space-x-1 ml-2 shrink-0">
         {/* Quick advance button */}
         {nextStage && showAdvanceButton && (
           <TooltipProvider>
