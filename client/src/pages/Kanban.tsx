@@ -42,7 +42,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2 } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
@@ -112,6 +112,21 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
       ) : (
         <div className="space-y-3">
           {issueResponses.map((response, index) => {
+            // Handle special case for additional comments
+            if (response.questionId === 'additional_comments') {
+              return (
+                <div key={response.id || index} className="bg-blue-50/50 dark:bg-blue-950/20 p-4 rounded-md border border-blue-200/50 dark:border-blue-800/50">
+                  <div className="font-medium text-sm mb-2 text-foreground flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    {t("additional_comments", "Additional Comments")}
+                  </div>
+                  <div className="text-sm text-muted-foreground italic">
+                    "{response.response}"
+                  </div>
+                </div>
+              );
+            }
+
             const question = questionMap[response.questionId];
             const questionText = question ? t(question.questionKey, question.questionKey) : `${t("question", "Question")} ${index + 1}`;
             const formattedResponse = formatResponse(response.response, question);

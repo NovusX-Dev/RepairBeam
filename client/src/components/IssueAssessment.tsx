@@ -162,6 +162,14 @@ export function IssueAssessment({
       };
     });
 
+    // Add additional comments as a special response entry if they exist
+    if (additionalComments.trim()) {
+      formattedResponses.push({
+        questionId: 'additional_comments', // Special identifier for additional comments
+        answer: additionalComments.trim(),
+      });
+    }
+
     saveResponsesMutation.mutate({
       ticketId,
       responses: formattedResponses,
@@ -183,6 +191,15 @@ export function IssueAssessment({
           answer: responseValue,
         };
       });
+
+      // Add additional comments as a special response entry if they exist
+      if (additionalComments.trim()) {
+        formattedResponses.push({
+          questionId: 'additional_comments', // Special identifier for additional comments
+          answer: additionalComments.trim(),
+        });
+      }
+
       onComplete(formattedResponses);
     }
   };
