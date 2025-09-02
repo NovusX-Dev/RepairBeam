@@ -439,42 +439,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI-powered repair tips endpoint
-  app.post("/api/ai/repair-tips", isAuthenticated, async (req, res) => {
-    try {
-      const { deviceType, deviceModel, issueDescription, ticketStatus } = req.body;
-      
-      if (!deviceType || !deviceModel) {
-        return res.status(400).json({ message: "Device type and model are required" });
-      }
-
-      console.log(`🔧 Generating repair tips for ${deviceType} ${deviceModel}`);
-      const tips = await aiService.generateRepairTips(
-        deviceType, 
-        deviceModel, 
-        issueDescription || '', 
-        ticketStatus || 'backlog'
-      );
-      
-      res.json(tips);
-    } catch (error) {
-      console.error('Error generating repair tips:', error);
-      res.status(500).json({ 
-        error: 'Failed to generate repair tips',
-        tips: [
-          {
-            category: "general",
-            title: "Basic Troubleshooting",
-            description: "Start with basic troubleshooting steps: check power connections, restart the device, and verify all cables are properly connected.",
-            difficulty: "easy",
-            estimatedTime: "5-10 minutes"
-          }
-        ],
-        confidence: 0.5
-      });
-    }
-  });
-
   // Gamification API routes
   app.get("/api/gamification/progress", isAuthenticated, async (req: any, res) => {
     try {
