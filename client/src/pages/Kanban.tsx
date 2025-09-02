@@ -2011,7 +2011,7 @@ export default function KanbanTickets() {
                           handleInputChange('phone', formattedPhone);
                         }}
                         className={formErrors.phone ? 'border-red-500' : ''}
-                        placeholder={t("phone_placeholder", "(11)94048-6530")}
+                        placeholder={t("phone_placeholder", "(xx)xxxxx-xxxx")}
                         maxLength={14}
                         data-testid="input-phone"
                       />
@@ -3811,7 +3811,7 @@ export default function KanbanTickets() {
                   const formattedPhone = formatBrazilianPhone(e.target.value);
                   setEditClientData(prev => ({ ...prev, phone: formattedPhone }));
                 }}
-                placeholder={t("phone_placeholder", "(11)94048-6530")}
+                placeholder={t("phone_placeholder", "(xx)xxxxx-xxxx")}
                 maxLength={14}
                 data-testid="input-edit-phone"
               />
