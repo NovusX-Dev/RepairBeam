@@ -3550,7 +3550,6 @@ export default function KanbanTickets() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
     </TooltipProvider>
   );
 }
