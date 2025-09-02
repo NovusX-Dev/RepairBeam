@@ -812,7 +812,7 @@ export default function KanbanTickets() {
       
       const ticketData = {
         id: uniqueId,
-        clientId: selectedClient.id,
+        clientId: selectedClient?.id || '',
         title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
         description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
         status: 'backlog' as const,
@@ -827,7 +827,7 @@ export default function KanbanTickets() {
         deviceStorageCapacity: formData.deviceStorageCapacity || null,
         issueDescription: null,
         // Service Timeline & Coverage fields with form data
-        clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
+        clientDeadline: formData.clientDeadline && formData.clientDeadline.trim() !== '' ? new Date(formData.clientDeadline) : null,
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
         warrantyType: formData.warrantyType as 'standard' | 'extended',
         costEstimation: formData.costEstimation || null,
@@ -2151,18 +2151,9 @@ export default function KanbanTickets() {
                           </p>
                         </div>
                         <div>
-                          <span className="text-sm text-muted-foreground">{t("address", "Address")}:</span>
+                          <span className="text-sm text-muted-foreground">{t("phone", "Phone")}:</span>
                           <p className="text-white font-medium">
-                            {selectedClient 
-                              ? (selectedClient.streetAddress && selectedClient.streetNumber 
-                                  ? `${selectedClient.streetAddress}, ${selectedClient.streetNumber}${selectedClient.apartment ? `, ${selectedClient.apartment}` : ''}`
-                                  : 'N/A'
-                                )
-                              : (formData.streetAddress && formData.streetNumber 
-                                  ? `${formData.streetAddress}, ${formData.streetNumber}${formData.apartment ? `, ${formData.apartment}` : ''}`
-                                  : 'N/A'
-                                )
-                            }
+                            {selectedClient?.phoneNumber || formData.phoneNumber || 'N/A'}
                           </p>
                         </div>
                       </div>
