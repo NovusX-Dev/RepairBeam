@@ -3196,34 +3196,73 @@ export default function KanbanTickets() {
                         {t("no_checklist_available", "No service checklist available")}
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {checklistComponentOrder.map((component) => {
-                          const condition = selectedTicketSummary.serviceChecklist.components[component];
-                          if (!condition) return null;
-                          return (
-                            <div key={component} className="flex items-center justify-between p-3 bg-muted/10 rounded-md">
-                              <span className="font-medium text-sm capitalize">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
-                              <span className={`text-sm px-2 py-1 rounded-full ${
-                                condition === 'excellent' ? 'bg-emerald-100 text-emerald-800' :
-                                condition === 'good' ? 'bg-green-100 text-green-800' :
-                                condition === 'fair' ? 'bg-yellow-100 text-yellow-800' :
-                                condition === 'poor' ? 'bg-orange-100 text-orange-800' :
-                                condition === 'damaged' ? 'bg-red-100 text-red-800' :
-                                condition === 'missing' ? 'bg-red-200 text-red-900' :
-                                condition === 'not_applicable' ? 'bg-gray-100 text-gray-600' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {condition === 'not_applicable' ? 'N/A' : condition.replace('_', ' ').toLowerCase()}
-                              </span>
-                            </div>
-                          );
-                        })}
+                      <div className="space-y-4">
+                        {/* Compact Grid Layout */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {checklistComponentOrder.map((component) => {
+                            const condition = selectedTicketSummary.serviceChecklist.components[component];
+                            if (!condition) return null;
+                            return (
+                              <div key={component} className="flex items-center justify-between p-2 bg-muted/5 border border-muted/20 rounded-md text-xs">
+                                <span className="font-medium capitalize truncate pr-2">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${
+                                  condition === 'excellent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
+                                  condition === 'good' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' :
+                                  condition === 'fair' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300' :
+                                  condition === 'poor' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
+                                  condition === 'damaged' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' :
+                                  condition === 'missing' ? 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                  condition === 'not_applicable' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
+                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                }`}>
+                                  {condition === 'not_applicable' ? 'N/A' : condition.replace('_', ' ')}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Summary Stats */}
+                        <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm">{t("condition_summary", "Condition Summary")}</h4>
+                            <span className="text-xs text-muted-foreground">
+                              {Object.values(selectedTicketSummary.serviceChecklist.components).filter(c => c && c !== 'not_applicable').length} {t("components_assessed", "components assessed")}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {(() => {
+                              const conditions = Object.values(selectedTicketSummary.serviceChecklist.components).filter(c => c && c !== 'not_applicable');
+                              const conditionCounts = conditions.reduce((acc: any, condition) => {
+                                acc[condition] = (acc[condition] || 0) + 1;
+                                return acc;
+                              }, {});
+                              
+                              return Object.entries(conditionCounts).map(([condition, count]) => (
+                                <span key={condition} className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                  condition === 'excellent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
+                                  condition === 'good' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' :
+                                  condition === 'fair' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300' :
+                                  condition === 'poor' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
+                                  condition === 'damaged' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' :
+                                  condition === 'missing' ? 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                                }`}>
+                                  {count}× {condition.replace('_', ' ')}
+                                </span>
+                              ));
+                            })()}
+                          </div>
+                        </div>
                         
                         {/* Additional Notes */}
                         {selectedTicketSummary.serviceChecklist.additionalNotes && (
-                          <div className="mt-4 p-3 bg-muted/10 rounded-md">
-                            <h4 className="font-medium text-sm mb-2">{t("additional_notes", "Additional Notes")}</h4>
-                            <p className="text-sm text-muted-foreground">{selectedTicketSummary.serviceChecklist.additionalNotes}</p>
+                          <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              <h4 className="font-medium text-sm">{t("additional_notes", "Additional Notes")}</h4>
+                            </div>
+                            <p className="text-sm text-muted-foreground italic">"{selectedTicketSummary.serviceChecklist.additionalNotes}"</p>
                           </div>
                         )}
                       </div>
