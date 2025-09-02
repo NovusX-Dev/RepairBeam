@@ -2863,7 +2863,11 @@ export default function KanbanTickets() {
                           size="sm"
                           onClick={async () => {
                             try {
-                              await apiRequest(`/api/tickets/${selectedTicketSummary.id}/notes`, 'POST', { content: newNote });
+                              await fetch(`/api/tickets/${selectedTicketSummary.id}/notes`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ content: newNote })
+                              });
                               setNewNote('');
                               // Refresh notes
                               const updatedNotes = await fetch(`/api/tickets/${selectedTicketSummary.id}/notes`).then(r => r.json());
