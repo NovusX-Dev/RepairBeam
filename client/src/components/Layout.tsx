@@ -1,16 +1,51 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
+import { useLocalization } from "@/contexts/LocalizationContext";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+const getPageTitleFromRoute = (pathname: string, t: (key: string, fallback?: string) => string) => {
+  switch (pathname) {
+    case "/":
+      return t("dashboard", "Dashboard");
+    case "/clients":
+      return t("clients", "Clients");
+    case "/kanban":
+      return t("kanban_board", "Kanban Board");
+    case "/inventory":
+      return t("inventory", "Inventory");
+    case "/pos":
+      return t("pos", "Point of Sale");
+    case "/support":
+      return t("support", "Customer Support");
+    case "/animations":
+      return t("animations", "Animations");
+    case "/configs":
+      return t("configs", "Configurations");
+    case "/users":
+      return t("userManagement", "User Management");
+    default:
+      return t("dashboard", "Dashboard");
+  }
+};
+
 export default function Layout({ children }: LayoutProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useLocalization();
+  const [location] = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [currentPage, setCurrentPage] = useState("Dashboard");
+
+  // Update current page based on route
+  useEffect(() => {
+    const pageTitle = getPageTitleFromRoute(location, t);
+    setCurrentPage(pageTitle);
+  }, [location, t]);
 
   // Don't use early return here as it can cause hook rendering issues
   // The router should handle authentication checks instead

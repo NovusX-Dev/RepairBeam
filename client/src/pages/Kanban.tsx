@@ -1474,17 +1474,9 @@ export default function KanbanTickets() {
 
   return (
     <TooltipProvider>
-    <div className="h-full w-full flex flex-col overflow-hidden">
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-6 flex-shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-kanban-title">
-            {t("kanban_board", "Kanban Board")}
-          </h1>
-          <p className="text-muted-foreground">
-            {t("kanban_description", "Manage and track repair tickets through your workflow stages")}
-          </p>
-        </div>
+      <div className="h-full w-full flex flex-col overflow-hidden">
+      {/* Action Bar */}
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-3">
           {/* Filter Toggle Button */}
           <Button 
@@ -1501,14 +1493,15 @@ export default function KanbanTickets() {
               </Badge>
             )}
           </Button>
-          
-          <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
-            <DialogTrigger asChild>
-              <Button className="btn-next-hover" data-testid="button-create-ticket">
-                <Plus className="w-4 h-4 mr-2" />
-                {t("new_ticket", "New Ticket")}
-              </Button>
-            </DialogTrigger>
+        </div>
+        
+        <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
+          <DialogTrigger asChild>
+            <Button className="btn-next-hover" data-testid="button-create-ticket">
+              <Plus className="w-4 h-4 mr-2" />
+              {t("new_ticket", "New Ticket")}
+            </Button>
+          </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("create_new_ticket", "Create New Ticket")}</DialogTitle>
@@ -2923,27 +2916,27 @@ export default function KanbanTickets() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="mb-6 p-4 border border-border rounded-lg bg-card shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              {t("filter_options", "Filter Options")}
-            </h3>
+        <div className="mb-4 p-3 border border-border rounded-lg bg-card shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              <span className="font-medium text-sm">{t("filter_options", "Filter Options")}</span>
+            </div>
             {hasActiveFilters && (
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={clearFilters}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground h-7 px-2 text-xs"
                 data-testid="button-clear-filters"
               >
-                <X className="w-4 h-4 mr-1" />
+                <X className="w-3 h-3 mr-1" />
                 {t("clear_filters", "Clear Filters")}
               </Button>
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* Priority Filter */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">{t("filter_by_priority", "Filter by Priority")}</Label>
