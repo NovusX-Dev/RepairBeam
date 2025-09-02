@@ -143,12 +143,12 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
               const formattedResponse = formatResponse(response.response, question);
               
               return (
-                <div key={response.id || index} className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                  <div className="font-medium text-xs mb-1 text-foreground">
+                <div key={response.id || index} className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                  <div className="font-medium text-xs mb-1 text-cyan-400">
                     {questionText}
-                    {question?.isRequired && <span className="text-red-500 ml-1">*</span>}
+                    {question?.isRequired && <span className="text-red-400 ml-1">*</span>}
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-slate-200">
                     {formattedResponse}
                   </div>
                 </div>
@@ -3070,17 +3070,17 @@ export default function KanbanTickets() {
                         {t("device_information", "Device Information")}
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                          <div className="font-medium text-muted-foreground">{t("type", "Type")}</div>
-                          <div className="truncate">{selectedTicketSummary.deviceType}</div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("type", "Type")}</div>
+                          <div className="truncate text-slate-200">{selectedTicketSummary.deviceType}</div>
                         </div>
-                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                          <div className="font-medium text-muted-foreground">{t("model", "Model")}</div>
-                          <div className="truncate">{selectedTicketSummary.deviceModel}</div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("model", "Model")}</div>
+                          <div className="truncate text-slate-200">{selectedTicketSummary.deviceModel}</div>
                         </div>
-                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                          <div className="font-medium text-muted-foreground">{t("color", "Color")}</div>
-                          <div className="truncate">{selectedTicketSummary.deviceColor || "N/A"}</div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("color", "Color")}</div>
+                          <div className="truncate text-slate-200">{selectedTicketSummary.deviceColor || "N/A"}</div>
                         </div>
                       </div>
                     </div>
@@ -3093,21 +3093,21 @@ export default function KanbanTickets() {
                           {t("client_information", "Client Information")}
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                            <div className="font-medium text-muted-foreground">{t("name", "Name")}</div>
-                            <div className="truncate">{selectedTicketSummary.client.firstName} {selectedTicketSummary.client.lastName}</div>
+                          <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                            <div className="font-medium text-cyan-400">{t("name", "Name")}</div>
+                            <div className="truncate text-slate-200">{selectedTicketSummary.client.firstName} {selectedTicketSummary.client.lastName}</div>
                           </div>
-                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                            <div className="font-medium text-muted-foreground">{t("email", "Email")}</div>
-                            <div className="truncate">{selectedTicketSummary.client.email}</div>
+                          <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                            <div className="font-medium text-cyan-400">{t("email", "Email")}</div>
+                            <div className="truncate text-slate-200">{selectedTicketSummary.client.email}</div>
                           </div>
-                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                            <div className="font-medium text-muted-foreground">{t("phone", "Phone")}</div>
-                            <div className="truncate">{selectedTicketSummary.client.phone}</div>
+                          <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                            <div className="font-medium text-cyan-400">{t("phone", "Phone")}</div>
+                            <div className="truncate text-slate-200">{selectedTicketSummary.client.phone}</div>
                           </div>
-                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                            <div className="font-medium text-muted-foreground">{t("cpf", "CPF")}</div>
-                            <div className="truncate">{selectedTicketSummary.client.cpf}</div>
+                          <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                            <div className="font-medium text-cyan-400">{t("cpf", "CPF")}</div>
+                            <div className="truncate text-slate-200">{selectedTicketSummary.client.cpf}</div>
                           </div>
                         </div>
                       </div>
@@ -3120,19 +3120,19 @@ export default function KanbanTickets() {
                         {t("ticket_summary", "Ticket Summary")}
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                          <div className="font-medium text-muted-foreground">{t("estimated_cost", "Estimated Cost")}</div>
-                          <div className="font-bold text-green-600">${selectedTicketSummary.estimatedCost || "N/A"}</div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("estimated_cost", "Estimated Cost")}</div>
+                          <div className="font-bold text-emerald-400">${selectedTicketSummary.estimatedCost || "N/A"}</div>
                         </div>
-                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                          <div className="font-medium text-muted-foreground">{t("created_on", "Created")}</div>
-                          <div>{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("created_on", "Created")}</div>
+                          <div className="text-slate-200">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
                         </div>
                       </div>
                       {selectedTicketSummary.description && (
-                        <div className="mt-2 bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                          <div className="font-medium text-muted-foreground mb-1">{t("description", "Description")}</div>
-                          <div className="text-xs text-muted-foreground italic">"{selectedTicketSummary.description}"</div>
+                        <div className="mt-2 bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400 mb-1">{t("description", "Description")}</div>
+                          <div className="text-xs text-slate-300 italic">"{selectedTicketSummary.description}"</div>
                         </div>
                       )}
                     </div>
@@ -3188,9 +3188,9 @@ export default function KanbanTickets() {
                         </div>
                       ) : (
                         notes.map((note) => (
-                          <div key={note.id} className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
-                            <p className="text-xs">{note.content}</p>
-                            <div className="text-xs text-muted-foreground mt-1">
+                          <div key={note.id} className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                            <p className="text-xs text-slate-200">{note.content}</p>
+                            <div className="text-xs text-cyan-400 mt-1">
                               {new Date(note.createdAt).toLocaleString()}
                             </div>
                           </div>
