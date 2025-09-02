@@ -268,9 +268,7 @@ export default function ProgressVisualization({
                     <TooltipProvider key={stage.id}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className={`flex flex-col items-center space-y-3 cursor-help relative z-20 ${
-                            isCurrent ? '-translate-y-1' : ''
-                          }`}>
+                          <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
                             {/* Clean stage circle with consistent alignment */}
                             <div
                               className={`
@@ -280,7 +278,7 @@ export default function ProgressVisualization({
                                   : ''
                                 }
                                 ${isCurrent 
-                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15' 
+                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
                                   : ''
                                 }
                                 ${isFuture 
@@ -422,9 +420,7 @@ export default function ProgressVisualization({
               <TooltipProvider key={stage.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className={`flex flex-col items-center space-y-3 cursor-help relative z-20 ${
-                      isCurrent ? '-translate-y-1' : ''
-                    }`}>
+                    <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
                       {/* Clean stage circle for full view */}
                       <div
                         className={`
@@ -434,7 +430,7 @@ export default function ProgressVisualization({
                             : ''
                           }
                           ${isCurrent 
-                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15' 
+                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
                             : ''
                           }
                           ${isFuture 
