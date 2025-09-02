@@ -2153,7 +2153,7 @@ export default function KanbanTickets() {
                         <div>
                           <span className="text-sm text-muted-foreground">{t("phone", "Phone")}:</span>
                           <p className="text-white font-medium">
-                            {selectedClient?.phoneNumber || formData.phoneNumber || 'N/A'}
+                            {selectedClient?.phone || formData.phone || 'N/A'}
                           </p>
                         </div>
                       </div>

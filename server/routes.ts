@@ -154,10 +154,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Debug: Log the incoming request body to see timestamp fields
+      console.log("Incoming ticket data:", JSON.stringify(req.body, null, 2));
+
       const ticketData = {
         ...req.body,
         tenantId: user.tenantId
       };
+
+      // Debug: Log the final ticket data being sent to storage
+      console.log("Final ticket data for storage:", JSON.stringify(ticketData, null, 2));
 
       const newTicket = await storage.createTicket(ticketData);
       res.status(201).json(newTicket);
