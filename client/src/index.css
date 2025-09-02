@@ -518,3 +518,8 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
   filter: brightness(0) saturate(100%) invert(64%) sepia(76%) saturate(5073%) hue-rotate(168deg) brightness(120%) contrast(101%);
 }
+
+/* Custom width for Kanban columns */
+.w-84 {
+  width: 21rem; /* 336px */
+}

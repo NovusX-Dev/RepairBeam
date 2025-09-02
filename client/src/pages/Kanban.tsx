@@ -2842,7 +2842,7 @@ export default function KanbanTickets() {
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
-              className={`w-80 ${column.color} rounded-lg p-4 flex flex-col flex-shrink-0 transition-all duration-200 ${
+              className={`w-84 ${column.color} rounded-lg p-4 flex flex-col flex-shrink-0 transition-all duration-200 ${
                 dragHoverColumn === column.id 
                   ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg transform scale-[1.02]' 
                   : ''
@@ -2862,7 +2862,7 @@ export default function KanbanTickets() {
               </div>
 
               {/* Tickets */}
-              <div className="flex-1 space-y-3 min-h-[200px] overflow-y-auto overflow-x-hidden">
+              <div className="flex-1 space-y-3 min-h-[200px] overflow-y-auto overflow-x-hidden pr-3" style={{ scrollbarWidth: 'thin', scrollbarColor: '#9ca3af transparent' }}>
                 {ticketsByStatus[column.id]?.map((ticket) => (
                   <Card
                     key={ticket.id}
