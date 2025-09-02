@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useLocalization } from '@/contexts/LocalizationContext';
-import { ChevronRight, Clock, CheckCircle, Circle, ArrowRight } from 'lucide-react';
+import { ChevronRight, Clock, CheckCircle, Circle, ArrowRight, ChevronDown, ChevronUp, Maximize2, Minimize2 } from 'lucide-react';
 
 // Import the same status definitions as Kanban
 const getProgressStages = (t: (key: string, fallback?: string) => string) => [
@@ -81,6 +82,10 @@ interface ProgressVisualizationProps {
   onAdvanceStatus: (ticketId: string, nextStatus: string) => void;
   isAdvancing?: boolean;
   compact?: boolean;
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
+  showAdvanceButton?: boolean;
+  headerStyle?: 'simple' | 'detailed';
 }
 
 export default function ProgressVisualization({
@@ -90,10 +95,15 @@ export default function ProgressVisualization({
   technicianEstimatedHours,
   onAdvanceStatus,
   isAdvancing = false,
-  compact = false
+  compact = false,
+  collapsible = false,
+  defaultExpanded = true,
+  showAdvanceButton = true,
+  headerStyle = 'detailed'
 }: ProgressVisualizationProps) {
   const { t } = useLocalization();
   const stages = getProgressStages(t);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   
   const currentIndex = stages.findIndex(stage => stage.id === currentStatus);
   const nextStage = currentIndex < stages.length - 1 ? stages[currentIndex + 1] : null;
@@ -116,11 +126,12 @@ export default function ProgressVisualization({
 
   const estimatedCompletion = calculateEstimatedCompletion();
 
-  if (compact) {
-    return (
-      <div className="flex items-center space-x-2">
-        {/* Compact progress bar */}
-        <div className="flex-1 bg-gray-200 rounded-full h-2 relative">
+  // Smart header component for always-visible progress
+  const ProgressHeader = () => (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-3 flex-1">
+        {/* Progress bar */}
+        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 relative min-w-[120px]">
           <div 
             className="bg-gradient-to-r from-[#00FFFF] to-cyan-400 h-2 rounded-full transition-all duration-500"
             style={{ width: `${progressPercentage}%` }}
@@ -129,27 +140,52 @@ export default function ProgressVisualization({
         
         {/* Current stage badge */}
         <Badge 
-          variant="secondary" 
-          className="text-xs"
-          style={{ backgroundColor: stages[currentIndex]?.color + '20', color: stages[currentIndex]?.color }}
+          variant="outline" 
+          className="text-xs font-medium whitespace-nowrap"
+          style={{ 
+            backgroundColor: stages[currentIndex]?.color + '20', 
+            color: stages[currentIndex]?.color,
+            borderColor: stages[currentIndex]?.color 
+          }}
         >
           {stages[currentIndex]?.shortTitle}
         </Badge>
         
+        {/* Progress percentage */}
+        <span className="text-sm font-mono text-muted-foreground whitespace-nowrap">
+          {Math.round(progressPercentage)}%
+        </span>
+
+        {/* Estimated completion */}
+        {estimatedCompletion && headerStyle === 'detailed' && (
+          <div className="hidden md:flex items-center text-xs text-muted-foreground space-x-1">
+            <Clock className="h-3 w-3" />
+            <span className="whitespace-nowrap">
+              {estimatedCompletion.toLocaleDateString()}
+            </span>
+          </div>
+        )}
+      </div>
+      
+      <div className="flex items-center space-x-2 ml-3">
         {/* Quick advance button */}
-        {nextStage && (
+        {nextStage && showAdvanceButton && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="sm"
-                  variant="ghost"
-                  className="h-6 w-6 p-0"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
                   onClick={() => onAdvanceStatus(ticketId, nextStage.id)}
                   disabled={isAdvancing}
-                  data-testid={`advance-${ticketId}`}
+                  data-testid={`quick-advance-${ticketId}`}
                 >
-                  <ChevronRight className="h-3 w-3" />
+                  {isAdvancing ? (
+                    <Clock className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -158,35 +194,175 @@ export default function ProgressVisualization({
             </Tooltip>
           </TooltipProvider>
         )}
+
+        {/* Collapsible toggle */}
+        {collapsible && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0"
+            onClick={() => setIsExpanded(!isExpanded)}
+            data-testid={`toggle-progress-details-${ticketId}`}
+          >
+            {isExpanded ? (
+              <Minimize2 className="h-3 w-3" />
+            ) : (
+              <Maximize2 className="h-3 w-3" />
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  // Compact version for Kanban cards
+  if (compact) {
+    return <ProgressHeader />;
+  }
+
+  // Smart collapsible version for detailed views
+  if (collapsible) {
+    return (
+      <div className="space-y-3">
+        <ProgressHeader />
+        
+        <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+          <CollapsibleContent className="space-y-4 pt-4 border-t border-border">
+            {/* Detailed Visual Timeline */}
+            <div className="relative">
+              {/* Progress line */}
+              <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#00FFFF] to-cyan-400 transition-all duration-700"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+
+              {/* Stage indicators */}
+              <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                {stages.map((stage, index) => {
+                  const isPast = index < currentIndex;
+                  const isCurrent = index === currentIndex;
+                  const isFuture = index > currentIndex;
+                  const StageIcon = stage.icon;
+
+                  return (
+                    <TooltipProvider key={stage.id}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex flex-col items-center space-y-2 cursor-help">
+                            {/* Stage circle */}
+                            <div
+                              className={`
+                                w-10 h-10 md:w-12 md:h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300
+                                ${isPast ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' : ''}
+                                ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20' : ''}
+                                ${isFuture ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                              `}
+                            >
+                              <StageIcon className="h-4 w-4 md:h-5 md:w-5" />
+                            </div>
+                            
+                            {/* Stage label */}
+                            <div className="text-center">
+                              <div className={`text-xs font-medium ${isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'}`}>
+                                {stage.shortTitle}
+                              </div>
+                              {stage.estimatedHours > 0 && (
+                                <div className="text-xs text-gray-400">
+                                  {stage.estimatedHours}h
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="text-center">
+                            <p className="font-medium">{stage.title}</p>
+                            {stage.estimatedHours > 0 && (
+                              <p className="text-xs text-gray-400">
+                                {t('estimated_time', 'Estimated time')}: {stage.estimatedHours} {t('hours', 'hours')}
+                              </p>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* One-click advance section */}
+            {nextStage && showAdvanceButton && (
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-950 rounded-lg border border-cyan-200 dark:border-cyan-800">
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {t('ready_to_advance', 'Ready to advance?')}
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-gray-400" />
+                    <Badge
+                      variant="outline"
+                      style={{ backgroundColor: nextStage.color + '20', color: nextStage.color, borderColor: nextStage.color }}
+                    >
+                      {nextStage.shortTitle}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={() => onAdvanceStatus(ticketId, nextStage.id)}
+                  disabled={isAdvancing}
+                  className="bg-gradient-to-r from-[#00FFFF] to-cyan-400 hover:from-cyan-400 hover:to-[#00FFFF] text-[#0A192F] font-medium"
+                  data-testid={`advance-to-${nextStage.id}`}
+                >
+                  {isAdvancing ? (
+                    <>
+                      <Clock className="h-4 w-4 mr-2 animate-spin" />
+                      {t('advancing', 'Advancing...')}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight className="h-4 w-4 mr-2" />
+                      {t('advance_to', 'Advance to')} {nextStage.shortTitle}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Completion message */}
+            {currentStatus === 'finalized' && (
+              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <div>
+                    <div className="font-medium text-green-800 dark:text-green-200">
+                      {t('repair_completed', 'Repair Completed!')}
+                    </div>
+                    <div className="text-sm text-green-600 dark:text-green-300">
+                      {t('repair_completed_message', 'This repair has been successfully completed and finalized.')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     );
   }
 
+  // Full version (non-collapsible detailed view)
   return (
     <div className="space-y-4">
-      {/* Header with progress percentage and estimated completion */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <h3 className="text-lg font-semibold">{t('repair_progress', 'Repair Progress')}</h3>
-          <Badge variant="outline" className="font-mono">
-            {Math.round(progressPercentage)}%
-          </Badge>
-        </div>
-        
-        {estimatedCompletion && (
-          <div className="text-sm text-muted-foreground flex items-center space-x-1">
-            <Clock className="h-4 w-4" />
-            <span>
-              {t('estimated_completion', 'Est. completion')}: {estimatedCompletion.toLocaleDateString()}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Visual timeline */}
-      <div className="relative">
+      <ProgressHeader />
+      
+      {/* Detailed Visual Timeline */}
+      <div className="relative pt-4">
         {/* Progress line */}
-        <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200">
+        <div className="absolute top-10 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700">
           <div 
             className="h-full bg-gradient-to-r from-[#00FFFF] to-cyan-400 transition-all duration-700"
             style={{ width: `${progressPercentage}%` }}
@@ -194,7 +370,7 @@ export default function ProgressVisualization({
         </div>
 
         {/* Stage indicators */}
-        <div className="flex justify-between relative">
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
           {stages.map((stage, index) => {
             const isPast = index < currentIndex;
             const isCurrent = index === currentIndex;
@@ -211,8 +387,8 @@ export default function ProgressVisualization({
                         className={`
                           w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300
                           ${isPast ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' : ''}
-                          ${isCurrent ? 'bg-white border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20' : ''}
-                          ${isFuture ? 'bg-gray-100 border-gray-300 text-gray-400' : ''}
+                          ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20' : ''}
+                          ${isFuture ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
                         `}
                       >
                         <StageIcon className="h-5 w-5" />
@@ -220,7 +396,7 @@ export default function ProgressVisualization({
                       
                       {/* Stage label */}
                       <div className="text-center">
-                        <div className={`text-xs font-medium ${isCurrent ? 'text-[#00FFFF]' : 'text-gray-600'}`}>
+                        <div className={`text-xs font-medium ${isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'}`}>
                           {stage.shortTitle}
                         </div>
                         {stage.estimatedHours > 0 && (
@@ -249,11 +425,11 @@ export default function ProgressVisualization({
       </div>
 
       {/* One-click advance section */}
-      {nextStage && (
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg border border-cyan-200">
+      {nextStage && showAdvanceButton && (
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-950 rounded-lg border border-cyan-200 dark:border-cyan-800">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              <div className="text-sm font-medium text-gray-700">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('ready_to_advance', 'Ready to advance?')}
               </div>
               <ArrowRight className="h-4 w-4 text-gray-400" />
@@ -289,14 +465,14 @@ export default function ProgressVisualization({
 
       {/* Completion message */}
       {currentStatus === 'finalized' && (
-        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 rounded-lg border border-green-200 dark:border-green-800">
           <div className="flex items-center space-x-3">
             <CheckCircle className="h-5 w-5 text-green-600" />
             <div>
-              <div className="font-medium text-green-800">
+              <div className="font-medium text-green-800 dark:text-green-200">
                 {t('repair_completed', 'Repair Completed!')}
               </div>
-              <div className="text-sm text-green-600">
+              <div className="text-sm text-green-600 dark:text-green-300">
                 {t('repair_completed_message', 'This repair has been successfully completed and finalized.')}
               </div>
             </div>

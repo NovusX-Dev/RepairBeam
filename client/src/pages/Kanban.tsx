@@ -200,7 +200,7 @@ export default function KanbanTickets() {
   const [newNote, setNewNote] = useState('');
   const [notes, setNotes] = useState<any[]>([]);
   const [issueResponses, setIssueResponses] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('progress');
+  const [activeTab, setActiveTab] = useState('general');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<TicketFormData>({
@@ -2720,6 +2720,8 @@ export default function KanbanTickets() {
                           }}
                           isAdvancing={updateTicketStatus.isPending}
                           compact={true}
+                          showAdvanceButton={true}
+                          headerStyle="simple"
                         />
                       </div>
 
@@ -2770,12 +2772,28 @@ export default function KanbanTickets() {
                 </Badge>
               </div>
 
-              {/* Tabs Interface */}
+              {/* Smart Collapsible Progress Section */}
+              <div className="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                <ProgressVisualization
+                  currentStatus={selectedTicketSummary.status}
+                  ticketId={selectedTicketSummary.id}
+                  createdAt={selectedTicketSummary.createdAt}
+                  technicianEstimatedHours={selectedTicketSummary.technicianEstimatedHours}
+                  onAdvanceStatus={(ticketId, nextStatus) => {
+                    updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
+                  }}
+                  isAdvancing={updateTicketStatus.isPending}
+                  compact={false}
+                  collapsible={true}
+                  defaultExpanded={true}
+                  showAdvanceButton={true}
+                  headerStyle="detailed"
+                />
+              </div>
+
+              {/* Tabs Interface - Simplified */}
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="progress" data-testid="tab-progress">
-                    {t("progress", "Progress")}
-                  </TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="general" data-testid="tab-general-info">
                     {t("general_info", "General Info")}
                   </TabsTrigger>
@@ -2786,21 +2804,6 @@ export default function KanbanTickets() {
                     {t("checklist", "Checklist")}
                   </TabsTrigger>
                 </TabsList>
-
-                {/* Progress Tab */}
-                <TabsContent value="progress" className="space-y-6">
-                  <ProgressVisualization
-                    currentStatus={selectedTicketSummary.status}
-                    ticketId={selectedTicketSummary.id}
-                    createdAt={selectedTicketSummary.createdAt}
-                    technicianEstimatedHours={selectedTicketSummary.technicianEstimatedHours}
-                    onAdvanceStatus={(ticketId, nextStatus) => {
-                      updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
-                    }}
-                    isAdvancing={updateTicketStatus.isPending}
-                    compact={false}
-                  />
-                </TabsContent>
 
                 {/* General Info Tab */}
                 <TabsContent value="general" className="space-y-6">
