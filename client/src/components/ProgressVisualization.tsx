@@ -238,18 +238,20 @@ export default function ProgressVisualization({
         
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleContent className="space-y-4 pt-4 border-t border-border">
-            {/* Detailed Visual Timeline */}
-            <div className="relative">
-              {/* Progress line */}
-              <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700">
+            {/* Modern Stepper Timeline */}
+            <div className="relative py-4">
+              {/* Main stepper container with proper line centering */}
+              <div className="flex items-center justify-between relative">
+                {/* Background connection line */}
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
+                
+                {/* Active progress line */}
                 <div 
-                  className="h-full bg-gradient-to-r from-[#00FFFF] to-cyan-400 transition-all duration-700"
+                  className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
                   style={{ width: `${progressPercentage}%` }}
                 />
-              </div>
 
-              {/* Stage indicators */}
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                {/* Stage indicators with modern design */}
                 {stages.map((stage, index) => {
                   // Recalculate states based on current status
                   const currentIdx = stages.findIndex(s => s.id === currentStatus);
@@ -262,17 +264,30 @@ export default function ProgressVisualization({
                     <TooltipProvider key={stage.id}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex flex-col items-center space-y-2 cursor-help">
-                            {/* Stage circle */}
+                          <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
+                            {/* Modern stage circle with proper centering */}
                             <div
                               className={`
-                                w-8 h-8 md:w-10 md:h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300
-                                ${isPast ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' : ''}
-                                ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/20' : ''}
-                                ${isFuture ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                                w-12 h-12 rounded-full border-3 flex items-center justify-center transition-all duration-500 shadow-lg
+                                ${isPast 
+                                  ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F] shadow-[#00FFFF]/30' 
+                                  : ''
+                                }
+                                ${isCurrent 
+                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20 shadow-[#00FFFF]/40 scale-110' 
+                                  : ''
+                                }
+                                ${isFuture 
+                                  ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400 shadow-gray-200 dark:shadow-gray-800' 
+                                  : ''
+                                }
                               `}
                             >
-                              <StageIcon className="h-3 w-3 md:h-4 md:w-4" />
+                              {isPast ? (
+                                <CheckCircle className="h-5 w-5" />
+                              ) : (
+                                <StageIcon className="h-5 w-5" />
+                              )}
                             </div>
                             
                             {/* Stage label */}
@@ -371,18 +386,20 @@ export default function ProgressVisualization({
     <div className="space-y-4">
       <ProgressHeader />
       
-      {/* Detailed Visual Timeline */}
-      <div className="relative pt-4">
-        {/* Progress line */}
-        <div className="absolute top-10 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700">
+      {/* Modern Full Timeline */}
+      <div className="relative py-6">
+        {/* Main stepper container with proper line centering */}
+        <div className="flex items-center justify-between relative">
+          {/* Background connection line */}
+          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
+          
+          {/* Active progress line */}
           <div 
-            className="h-full bg-gradient-to-r from-[#00FFFF] to-cyan-400 transition-all duration-700"
+            className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
             style={{ width: `${progressPercentage}%` }}
           />
-        </div>
 
-        {/* Stage indicators */}
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+          {/* Stage indicators with enhanced design for full view */}
           {stages.map((stage, index) => {
             // Recalculate states based on current status
             const currentIdx = stages.findIndex(s => s.id === currentStatus);
@@ -395,17 +412,30 @@ export default function ProgressVisualization({
               <TooltipProvider key={stage.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex flex-col items-center space-y-2 cursor-help">
-                      {/* Stage circle */}
+                    <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
+                      {/* Enhanced stage circle for full view */}
                       <div
                         className={`
-                          w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300
-                          ${isPast ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' : ''}
-                          ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/20' : ''}
-                          ${isFuture ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                          w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-500 shadow-xl
+                          ${isPast 
+                            ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F] shadow-[#00FFFF]/40 hover:shadow-[#00FFFF]/60' 
+                            : ''
+                          }
+                          ${isCurrent 
+                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-6 ring-[#00FFFF]/20 shadow-[#00FFFF]/50 scale-125 hover:scale-130' 
+                            : ''
+                          }
+                          ${isFuture 
+                            ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400 shadow-gray-200 dark:shadow-gray-800 hover:border-gray-400' 
+                            : ''
+                          }
                         `}
                       >
-                        <StageIcon className="h-4 w-4" />
+                        {isPast ? (
+                          <CheckCircle className="h-6 w-6" />
+                        ) : (
+                          <StageIcon className="h-6 w-6" />
+                        )}
                       </div>
                       
                       {/* Stage label */}
