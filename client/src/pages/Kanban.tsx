@@ -1412,11 +1412,14 @@ export default function KanbanTickets() {
 
   // Handle next step
   const handleNextStep = () => {
-    // Scroll to top when navigating between steps
+    // Smooth scroll to top when navigating between steps
     setTimeout(() => {
       const dialogContent = document.querySelector('[role="dialog"]');
       if (dialogContent) {
-        dialogContent.scrollTop = 0;
+        dialogContent.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
       }
     }, 50);
     
@@ -1465,11 +1468,14 @@ export default function KanbanTickets() {
 
   // Handle previous step
   const handlePreviousStep = () => {
-    // Scroll to top when navigating between steps
+    // Smooth scroll to top when navigating between steps
     setTimeout(() => {
       const dialogContent = document.querySelector('[role="dialog"]');
       if (dialogContent) {
-        dialogContent.scrollTop = 0;
+        dialogContent.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
       }
     }, 50);
     
