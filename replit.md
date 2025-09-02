@@ -120,13 +120,9 @@ A compact, professional design pattern featuring:
 - **Gradient Headers**: Color-coded gradient headers with icons and descriptive subtitles
 - **Consistent Spacing**: 6-unit padding (p-6) and 6-unit gap spacing (space-y-6)
 - **Visual Hierarchy**: Clear separation between header and content areas
-- **Color Themes**: Each section uses distinct gradient combinations:
-  - Blue → Cyan (Primary actions)
-  - Purple → Indigo (Data entry)
-  - Emerald → Teal (Assessment/Analysis)
-  - Orange → Red (Time-sensitive)
-  - Green → Lime (Financial/Success)
-  - Cyan → Blue (Verification)
-  - Violet → Purple (Authorization/Final steps)
+- **Color Themes**: Consistent gradient using the platform's theme colors:
+  - **Primary Gradient**: Dark Navy Blue (#0A192F) → Neon Blue (#00FFFF)
+  - **Text Color**: Cyan-100 for subtitles and descriptions
+  - **Consistent Branding**: All headers use the same gradient for unified appearance
 
 **Usage**: Apply to dialogs, forms, and content areas requiring professional presentation with clear visual organization. Ideal for multi-step workflows and detailed information display.

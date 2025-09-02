@@ -1615,7 +1615,7 @@ export default function KanbanTickets() {
               {t("new_ticket", "New Ticket")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+          <DialogContent className="max-w-5xl h-[90vh] flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
             <DialogHeader className="border-b border-slate-200 dark:border-slate-700 pb-4 mb-0">
               <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
                 {t("create_new_ticket", "Create New Ticket")}
@@ -1630,7 +1630,7 @@ export default function KanbanTickets() {
               {/* Progress Percentage Display with Motivational Messages */}
               <div className="mb-6 text-center space-y-3">
                 <div className="inline-flex items-center gap-3 bg-white dark:bg-slate-700 px-6 py-3 rounded-full shadow-md border border-slate-200 dark:border-slate-600">
-                  <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-[#0A192F] to-[#00FFFF] bg-clip-text text-transparent">
                     {Math.round((currentStep / (ticketSteps.length - 1)) * 100)}%
                   </div>
                   <div className="text-sm text-slate-600 dark:text-slate-400">
@@ -1737,16 +1737,16 @@ export default function KanbanTickets() {
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 overflow-y-auto px-1 py-6 space-y-6">
+            <div className="flex-1 overflow-y-auto px-4 py-6">
               {currentStep === 0 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <User className="w-5 h-5" />
                         {showClientForm ? t("add_new_client", "Add New Client") : t("client_search", "Find Client")}
                       </h3>
-                      <p className="text-blue-100 text-sm mt-1">
+                      <p className="text-cyan-100 text-sm mt-1">
                         {showClientForm 
                           ? t("add_client_subtitle", "Enter the client's information to get started")
                           : t("find_client_subtitle", "Search for an existing client or add a new one")
@@ -2125,12 +2125,12 @@ export default function KanbanTickets() {
               {currentStep === 1 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-500 to-indigo-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Clock className="w-5 h-5" />
                         {ticketSteps[1].title}
                       </h3>
-                      <p className="text-purple-100 text-sm mt-1">
+                      <p className="text-cyan-100 text-sm mt-1">
                         {t("device_specs_description", "Enter details about the device that needs repair")}
                       </p>
                     </div>
@@ -2460,12 +2460,12 @@ export default function KanbanTickets() {
               {currentStep === 2 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <DollarSign className="w-5 h-5" />
                         {ticketSteps[2].title}
                       </h3>
-                      <p className="text-emerald-100 text-sm mt-1">
+                      <p className="text-cyan-100 text-sm mt-1">
                         {t("issue_assessment_subtitle", "Diagnose the problem to provide accurate service")}
                       </p>
                     </div>
@@ -2494,12 +2494,12 @@ export default function KanbanTickets() {
               {currentStep === 3 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Clock className="w-5 h-5" />
                         {ticketSteps[3].title}
                       </h3>
-                      <p className="text-orange-100 text-sm mt-1">
+                      <p className="text-cyan-100 text-sm mt-1">
                         {t("service_timeline_subtitle", "Set expectations and coverage details")}
                       </p>
                     </div>
@@ -2640,12 +2640,12 @@ export default function KanbanTickets() {
               {currentStep === 4 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-500 to-lime-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <DollarSign className="w-5 h-5" />
                         {t("price_estimation_title", "Price Estimation")}
                       </h3>
-                      <p className="text-green-100 text-sm mt-1">
+                      <p className="text-cyan-100 text-sm mt-1">
                         {t("price_estimation_desc", "Provide cost estimates and breakdown for this repair")}
                       </p>
                     </div>
@@ -2741,7 +2741,7 @@ export default function KanbanTickets() {
               {currentStep === 5 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Check className="w-5 h-5" />
                         {t("service_checklist", "Service Checklist")}
@@ -2833,12 +2833,12 @@ export default function KanbanTickets() {
               {currentStep === 6 && (
                 <div className="max-w-4xl mx-auto">
                   <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="bg-gradient-to-r from-violet-500 to-purple-500 px-6 py-4">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Check className="w-5 h-5" />
                         {ticketSteps[6].title}
                       </h3>
-                      <p className="text-violet-100 text-sm mt-1">
+                      <p className="text-cyan-100 text-sm mt-1">
                         {t("authorization_subtitle", "Final authorization and terms agreement")}
                       </p>
                     </div>
@@ -3064,7 +3064,7 @@ export default function KanbanTickets() {
                   <Button 
                     onClick={handleNextStep}
                     disabled={currentStep === 0 && !selectedClient && !showClientForm}
-                    className="btn-next-hover relative overflow-hidden group px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg hover:shadow-xl transition-all duration-200"
+                    className="btn-next-hover relative overflow-hidden group px-6 py-2 bg-gradient-to-r from-[#0A192F] to-[#00FFFF] hover:from-[#0A192F] hover:to-[#00FFFF]/80 shadow-lg hover:shadow-xl hover:shadow-[#00FFFF]/20 transition-all duration-200"
                     data-testid="button-next-step"
                   >
                     <div className="flex items-center gap-2">
