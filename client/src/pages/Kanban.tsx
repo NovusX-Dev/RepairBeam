@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocalization } from "@/contexts/LocalizationContext";
@@ -201,6 +201,7 @@ export default function KanbanTickets() {
   const [notes, setNotes] = useState<any[]>([]);
   const [issueResponses, setIssueResponses] = useState<any[]>([]);
   const [checklistComponentOrder, setChecklistComponentOrder] = useState<string[]>([]);
+  const [shouldCompleteAssessment, setShouldCompleteAssessment] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -1142,6 +1143,9 @@ export default function KanbanTickets() {
       // Validate device info before proceeding
       if (!validateDeviceInfo()) return;
       setCurrentStep(currentStep + 1);
+    } else if (currentStep === 2) {
+      // Issue Assessment step - trigger completion
+      setShouldCompleteAssessment(true);
     } else if (currentStep === 5) {
       // Service Checklist step - auto-set unselected components to N/A
       if (checklistTemplate && checklistTemplate.components) {
@@ -2084,13 +2088,15 @@ export default function KanbanTickets() {
                 <div className="space-y-6">
                   <IssueAssessment 
                     deviceType={formData.deviceType}
+                    shouldComplete={shouldCompleteAssessment}
                     onComplete={(responses) => {
                       // Store issue responses in form data
                       setFormData(prev => ({
                         ...prev,
                         issueResponses: responses
                       }));
-                      // Auto-proceed to next step after completion
+                      // Reset the trigger and move to next step
+                      setShouldCompleteAssessment(false);
                       setCurrentStep(currentStep + 1);
                     }}
                   />

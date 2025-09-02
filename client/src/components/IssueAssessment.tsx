@@ -34,6 +34,7 @@ interface IssueAssessmentProps {
   ticketId?: string;
   onComplete?: (responses: IssueResponse[]) => void;
   readOnly?: boolean;
+  shouldComplete?: boolean;
 }
 
 interface IssueResponse {
@@ -45,7 +46,8 @@ export function IssueAssessment({
   deviceType, 
   ticketId, 
   onComplete, 
-  readOnly = false 
+  readOnly = false,
+  shouldComplete = false
 }: IssueAssessmentProps) {
   const { t } = useLocalization();
   const queryClient = useQueryClient();
@@ -86,6 +88,13 @@ export function IssueAssessment({
       }
     }
   }, [existingResponses, questions]);
+
+  // Trigger completion when shouldComplete is set to true
+  useEffect(() => {
+    if (shouldComplete && onComplete) {
+      handleCompleteAssessment();
+    }
+  }, [shouldComplete]);
 
   // Save responses mutation
   const saveResponsesMutation = useMutation({
@@ -402,19 +411,17 @@ export function IssueAssessment({
         </CardContent>
       </Card>
 
-      {/* Save button for editing mode OR Complete button for new ticket creation */}
-      {!readOnly && (
+      {/* Save button for editing mode only */}
+      {!readOnly && ticketId && (
         <div className="flex justify-end">
           <Button
-            onClick={ticketId ? handleSaveResponses : handleCompleteAssessment}
+            onClick={handleSaveResponses}
             disabled={saveResponsesMutation.isPending}
             data-testid="button-save-assessment"
           >
             {saveResponsesMutation.isPending
               ? t("saving", "Saving...")
-              : ticketId 
-                ? t("save_assessment", "Save Assessment")
-                : t("complete_assessment", "Complete Assessment")}
+              : t("save_assessment", "Save Assessment")}
           </Button>
         </div>
       )}
