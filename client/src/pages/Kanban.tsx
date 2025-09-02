@@ -450,7 +450,7 @@ export default function KanbanTickets() {
     // Set new timeout for hover highlighting
     const timeout = setTimeout(() => {
       setDragHoverColumn(columnId);
-    }, 500); // 0.5 second delay
+    }, 250); // 0.25 second delay
     
     setDragHoverTimeout(timeout);
   };
