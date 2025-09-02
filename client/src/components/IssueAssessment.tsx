@@ -136,7 +136,7 @@ export function IssueAssessment({
     setNoComments(prev => ({ ...prev, [questionId]: comment }));
   };
 
-  // Handle save responses
+  // Handle save responses (for existing tickets)
   const handleSaveResponses = () => {
     if (!ticketId) return;
     
@@ -157,6 +157,25 @@ export function IssueAssessment({
       ticketId,
       responses: formattedResponses,
     });
+  };
+
+  // Handle complete assessment (for new ticket creation)
+  const handleCompleteAssessment = () => {
+    if (onComplete) {
+      const formattedResponses = Object.entries(responses).map(([questionId, answer]) => {
+        // If answer is false and there's a comment, include it in the response
+        const comment = noComments[questionId];
+        const responseValue = answer === false && comment ? 
+          { answer: false, comment } : 
+          answer;
+        
+        return {
+          questionId,
+          answer: responseValue,
+        };
+      });
+      onComplete(formattedResponses);
+    }
   };
 
   // Filter questions based on device power status
@@ -383,17 +402,19 @@ export function IssueAssessment({
         </CardContent>
       </Card>
 
-      {/* Save button for editing mode */}
-      {!readOnly && ticketId && (
+      {/* Save button for editing mode OR Complete button for new ticket creation */}
+      {!readOnly && (
         <div className="flex justify-end">
           <Button
-            onClick={handleSaveResponses}
+            onClick={ticketId ? handleSaveResponses : handleCompleteAssessment}
             disabled={saveResponsesMutation.isPending}
             data-testid="button-save-assessment"
           >
             {saveResponsesMutation.isPending
               ? t("saving", "Saving...")
-              : t("save_assessment", "Save Assessment")}
+              : ticketId 
+                ? t("save_assessment", "Save Assessment")
+                : t("complete_assessment", "Complete Assessment")}
           </Button>
         </div>
       )}
