@@ -102,47 +102,59 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="font-semibold text-lg">{t("problems_identified", "Problems Identified")}</h3>
-      
+    <div className="space-y-4">
       {!issueResponses || issueResponses.length === 0 ? (
-        <div className="text-sm text-muted-foreground">
-          {t("no_problems_recorded", "No problems recorded during ticket creation")}
+        <div className="bg-muted/5 border border-muted/20 rounded-lg p-4 text-center">
+          <AlertTriangle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+          <h3 className="font-semibold text-sm mb-1">{t("problems_identified", "Problems Identified")}</h3>
+          <div className="text-xs text-muted-foreground">
+            {t("no_problems_recorded", "No problems recorded during ticket creation")}
+          </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          {issueResponses.map((response, index) => {
-            // Handle special case for additional comments
-            if (response.questionId === 'additional_comments') {
-              return (
-                <div key={response.id || index} className="bg-blue-50/50 dark:bg-blue-950/20 p-4 rounded-md border border-blue-200/50 dark:border-blue-800/50">
-                  <div className="font-medium text-sm mb-2 text-foreground flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    {t("additional_comments", "Additional Comments")}
+        <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+          <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+            {t("problems_identified", "Problems Identified")}
+            <span className="text-xs text-muted-foreground font-normal">
+              ({issueResponses.length} {t("responses", "responses")})
+            </span>
+          </h3>
+          
+          <div className="space-y-2">
+            {issueResponses.map((response, index) => {
+              // Handle special case for additional comments
+              if (response.questionId === 'additional_comments') {
+                return (
+                  <div key={response.id || index} className="bg-blue-50/50 dark:bg-blue-950/20 p-2 rounded border border-blue-200/50 dark:border-blue-800/50">
+                    <div className="font-medium text-xs mb-1 text-foreground flex items-center gap-2">
+                      <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                      {t("additional_comments", "Additional Comments")}
+                    </div>
+                    <div className="text-xs text-muted-foreground italic">
+                      "{response.response}"
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground italic">
-                    "{response.response}"
+                );
+              }
+
+              const question = questionMap[response.questionId];
+              const questionText = question ? t(question.questionKey, question.questionKey) : `${t("question", "Question")} ${index + 1}`;
+              const formattedResponse = formatResponse(response.response, question);
+              
+              return (
+                <div key={response.id || index} className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                  <div className="font-medium text-xs mb-1 text-foreground">
+                    {questionText}
+                    {question?.isRequired && <span className="text-red-500 ml-1">*</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formattedResponse}
                   </div>
                 </div>
               );
-            }
-
-            const question = questionMap[response.questionId];
-            const questionText = question ? t(question.questionKey, question.questionKey) : `${t("question", "Question")} ${index + 1}`;
-            const formattedResponse = formatResponse(response.response, question);
-            
-            return (
-              <div key={response.id || index} className="bg-muted/10 p-4 rounded-md border border-muted/20">
-                <div className="font-medium text-sm mb-2 text-foreground">
-                  {questionText}
-                  {question?.isRequired && <span className="text-red-500 ml-1">*</span>}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {formattedResponse}
-                </div>
-              </div>
-            );
-          })}
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -3048,89 +3060,99 @@ export default function KanbanTickets() {
                 </TabsList>
 
                 {/* General Info Tab */}
-                <TabsContent value="general" className="space-y-6">
-                  {/* Ticket Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <h3 className="font-semibold text-lg">{t("ticket_details", "Ticket Details")}</h3>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("title", "Title")}</label>
-                        <p className="text-sm">{selectedTicketSummary.title}</p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("description", "Description")}</label>
-                        <p className="text-sm">{selectedTicketSummary.description || t("not_available", "N/A")}</p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("device_type", "Device Type")}</label>
-                        <p className="text-sm">{selectedTicketSummary.deviceType}</p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("brand_model", "Brand & Model")}</label>
-                        <p className="text-sm">{selectedTicketSummary.deviceModel}</p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("color", "Color")}</label>
-                        <p className="text-sm">{selectedTicketSummary.deviceColor || t("not_available", "N/A")}</p>
+                <TabsContent value="general" className="space-y-4">
+                  {/* Compact Info Cards */}
+                  <div className="space-y-4">
+                    {/* Device Information */}
+                    <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                        <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        {t("device_information", "Device Information")}
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                          <div className="font-medium text-muted-foreground">{t("type", "Type")}</div>
+                          <div className="truncate">{selectedTicketSummary.deviceType}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                          <div className="font-medium text-muted-foreground">{t("model", "Model")}</div>
+                          <div className="truncate">{selectedTicketSummary.deviceModel}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                          <div className="font-medium text-muted-foreground">{t("color", "Color")}</div>
+                          <div className="truncate">{selectedTicketSummary.deviceColor || "N/A"}</div>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="space-y-3">
-                      <h3 className="font-semibold text-lg">{t("client_information_summary", "Client Information")}</h3>
-                      
-                      {selectedTicketSummary.client && (
-                        <>
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">{t("full_name", "Full Name")}</label>
-                            <p className="text-sm">{selectedTicketSummary.client.firstName} {selectedTicketSummary.client.lastName}</p>
+
+                    {/* Client Information */}
+                    {selectedTicketSummary.client && (
+                      <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                          <User className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          {t("client_information", "Client Information")}
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                            <div className="font-medium text-muted-foreground">{t("name", "Name")}</div>
+                            <div className="truncate">{selectedTicketSummary.client.firstName} {selectedTicketSummary.client.lastName}</div>
                           </div>
-                          
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">{t("email", "Email")}</label>
-                            <p className="text-sm">{selectedTicketSummary.client.email}</p>
+                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                            <div className="font-medium text-muted-foreground">{t("email", "Email")}</div>
+                            <div className="truncate">{selectedTicketSummary.client.email}</div>
                           </div>
-                          
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">{t("phone", "Phone")}</label>
-                            <p className="text-sm">{selectedTicketSummary.client.phone}</p>
+                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                            <div className="font-medium text-muted-foreground">{t("phone", "Phone")}</div>
+                            <div className="truncate">{selectedTicketSummary.client.phone}</div>
                           </div>
-                          
-                          <div>
-                            <label className="text-sm font-medium text-muted-foreground">{t("cpf", "CPF")}</label>
-                            <p className="text-sm">{selectedTicketSummary.client.cpf}</p>
+                          <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                            <div className="font-medium text-muted-foreground">{t("cpf", "CPF")}</div>
+                            <div className="truncate">{selectedTicketSummary.client.cpf}</div>
                           </div>
-                        </>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ticket Summary */}
+                    <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        {t("ticket_summary", "Ticket Summary")}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                          <div className="font-medium text-muted-foreground">{t("estimated_cost", "Estimated Cost")}</div>
+                          <div className="font-bold text-green-600">${selectedTicketSummary.estimatedCost || "N/A"}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                          <div className="font-medium text-muted-foreground">{t("created_on", "Created")}</div>
+                          <div>{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      {selectedTicketSummary.description && (
+                        <div className="mt-2 bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                          <div className="font-medium text-muted-foreground mb-1">{t("description", "Description")}</div>
+                          <div className="text-xs text-muted-foreground italic">"{selectedTicketSummary.description}"</div>
+                        </div>
                       )}
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("estimated_cost", "Estimated Cost")}</label>
-                        <p className="text-sm">${selectedTicketSummary.estimatedCost || t("not_available", "N/A")}</p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("created_on", "Created on")}</label>
-                        <p className="text-sm">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</p>
-                      </div>
                     </div>
                   </div>
                   
                   {/* Notes Section */}
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-lg">{t("notes", "Notes")}</h3>
+                  <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                    <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      {t("notes", "Notes")}
+                    </h3>
                     
                     {/* Add new note */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 mb-3">
                       <Textarea
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
                         placeholder={t("note_placeholder", "Add a note about this ticket...")}
-                        rows={3}
-                        className="resize-none"
+                        rows={2}
+                        className="resize-none text-xs"
                       />
                       <div className="flex justify-end">
                         <Button
@@ -3151,6 +3173,7 @@ export default function KanbanTickets() {
                             }
                           }}
                           disabled={!newNote.trim()}
+                          className="h-7 text-xs"
                         >
                           {t("save_note", "Save Note")}
                         </Button>
@@ -3158,15 +3181,15 @@ export default function KanbanTickets() {
                     </div>
                     
                     {/* Display existing notes */}
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
                       {notes.length === 0 ? (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-xs text-muted-foreground text-center py-2">
                           {t("no_notes", "No notes yet")}
                         </div>
                       ) : (
                         notes.map((note) => (
-                          <div key={note.id} className="bg-muted/10 p-3 rounded-md">
-                            <p className="text-sm">{note.content}</p>
+                          <div key={note.id} className="bg-white dark:bg-gray-900 p-2 rounded border border-muted/20">
+                            <p className="text-xs">{note.content}</p>
                             <div className="text-xs text-muted-foreground mt-1">
                               {new Date(note.createdAt).toLocaleString()}
                             </div>
