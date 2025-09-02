@@ -3121,9 +3121,21 @@ export default function KanbanTickets() {
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
-                          <div className="font-medium text-cyan-400">{t("estimated_cost", "Estimated Cost")}</div>
-                          <div className="font-bold text-emerald-400">${selectedTicketSummary.estimatedCost || "N/A"}</div>
+                          <div className="font-medium text-cyan-400">{t("total_cost", "Total Cost")}</div>
+                          <div className="font-bold text-emerald-400">
+                            ${selectedTicketSummary.costEstimation || selectedTicketSummary.estimatedCost || "N/A"}
+                          </div>
                         </div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("warranty_type", "Warranty")}</div>
+                          <div className="text-slate-200">
+                            {selectedTicketSummary.warrantyType === 'extended' 
+                              ? t("extended_warranty_short", "Extended (6m)")
+                              : t("standard_warranty_short", "Standard (3m)")}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 text-xs mt-2">
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400">{t("created_on", "Created")}</div>
                           <div className="text-slate-200">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
