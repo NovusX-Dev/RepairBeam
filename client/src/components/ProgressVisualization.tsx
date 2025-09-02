@@ -238,92 +238,50 @@ export default function ProgressVisualization({
         
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleContent className="space-y-4 pt-4 border-t border-border">
-            {/* Modern Stepper Timeline */}
-            <div className="relative py-2">
-              {/* Main stepper container with absolute positioning for perfect alignment */}
-              <div className="relative h-16">
-                {/* Background connection line */}
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
-                
-                {/* Active progress line */}
-                <div 
-                  className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
-                  style={{ width: `${progressPercentage}%` }}
-                />
-
-                {/* Stage indicators with absolute positioning */}
+            {/* Clean Progress Stepper */}
+            <div className="relative py-4">
+              {/* Progress line background */}
+              <div className="absolute top-5 left-5 right-5 h-0.5 bg-gray-200 dark:bg-gray-700"></div>
+              
+              {/* Active progress line */}
+              <div 
+                className="absolute top-5 left-5 h-0.5 bg-[#00FFFF] transition-all duration-500"
+                style={{ width: `calc(${progressPercentage}% - 20px)` }}
+              ></div>
+              
+              {/* Stage circles */}
+              <div className="flex justify-between items-start relative">
                 {stages.map((stage, index) => {
-                  // Recalculate states based on current status
                   const currentIdx = stages.findIndex(s => s.id === currentStatus);
                   const isPast = index < currentIdx;
                   const isCurrent = index === currentIdx;
                   const isFuture = index > currentIdx;
                   const StageIcon = stage.icon;
-
-                  const leftPercentage = (index / (stages.length - 1)) * 100;
                   
                   return (
-                    <TooltipProvider key={stage.id}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div 
-                            className="absolute flex flex-col items-center space-y-2 cursor-help"
-                            style={{ 
-                              left: `${leftPercentage}%`, 
-                              top: '50%',
-                              transform: 'translate(-50%, -50%)'
-                            }}
-                          >
-                            {/* Clean stage circle with perfect alignment */}
-                            <div
-                              className={`
-                                w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative z-20
-                                ${isPast 
-                                  ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' 
-                                  : ''
-                                }
-                                ${isCurrent 
-                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
-                                  : ''
-                                }
-                                ${isFuture 
-                                  ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400' 
-                                  : ''
-                                }
-                              `}
-                            >
-                              {isPast ? (
-                                <CheckCircle className="h-4 w-4" />
-                              ) : (
-                                <StageIcon className="h-4 w-4" />
-                              )}
-                            </div>
-                            
-                            {/* Stage label */}
-                            <div className="text-center">
-                              <div className={`text-xs font-medium ${isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'}`}>
-                                {stage.shortTitle}
-                              </div>
-                              {stage.estimatedHours > 0 && (
-                                <div className="text-xs text-gray-400">
-                                  {stage.estimatedHours}h
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="text-center">
-                            <p className="font-medium">{stage.title}</p>
-                            {stage.estimatedHours > 0 && (
-                              <p className="text-xs text-gray-400">
-                                {t('estimated_time', 'Estimated time')}: {stage.estimatedHours} {t('hours', 'hours')}
-                              </p>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <div key={stage.id} className="flex flex-col items-center relative">
+                      {/* Circle */}
+                      <div className={`
+                        w-10 h-10 rounded-full border-2 flex items-center justify-center bg-white dark:bg-slate-800 relative z-10
+                        ${isPast ? 'border-[#00FFFF] bg-[#00FFFF] text-[#0A192F]' : ''}
+                        ${isCurrent ? 'border-[#00FFFF] text-[#00FFFF] -translate-y-1' : ''}
+                        ${isFuture ? 'border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                      `}>
+                        {isPast ? <CheckCircle className="h-4 w-4" /> : <StageIcon className="h-4 w-4" />}
+                      </div>
+                      
+                      {/* Label */}
+                      <div className="mt-2 text-center">
+                        <div className={`text-xs font-medium ${
+                          isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {stage.shortTitle}
+                        </div>
+                        {stage.estimatedHours > 0 && (
+                          <div className="text-xs text-gray-400">{stage.estimatedHours}h</div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -395,76 +353,50 @@ export default function ProgressVisualization({
     <div className="space-y-4">
       <ProgressHeader />
       
-      {/* Modern Full Timeline */}
-      <div className="relative py-3">
-        {/* Main stepper container with absolute positioning for perfect alignment */}
-        <div className="relative h-20">
-          {/* Background connection line */}
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
-          
-          {/* Active progress line */}
-          <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
-            style={{ width: `${progressPercentage}%` }}
-          />
-
-          {/* Stage indicators with absolute positioning */}
+      {/* Clean Full Progress Stepper */}
+      <div className="relative py-4">
+        {/* Progress line background */}
+        <div className="absolute top-6 left-6 right-6 h-0.5 bg-gray-200 dark:bg-gray-700"></div>
+        
+        {/* Active progress line */}
+        <div 
+          className="absolute top-6 left-6 h-0.5 bg-[#00FFFF] transition-all duration-500"
+          style={{ width: `calc(${progressPercentage}% - 24px)` }}
+        ></div>
+        
+        {/* Stage circles */}
+        <div className="flex justify-between items-start relative">
           {stages.map((stage, index) => {
-            // Recalculate states based on current status
             const currentIdx = stages.findIndex(s => s.id === currentStatus);
             const isPast = index < currentIdx;
             const isCurrent = index === currentIdx;
             const isFuture = index > currentIdx;
             const StageIcon = stage.icon;
-
-            const leftPercentage = (index / (stages.length - 1)) * 100;
             
             return (
               <TooltipProvider key={stage.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div 
-                      className="absolute flex flex-col items-center space-y-2 cursor-help"
-                      style={{ 
-                        left: `${leftPercentage}%`, 
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)'
-                      }}
-                    >
-                      {/* Clean stage circle for full view */}
-                      <div
-                        className={`
-                          w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative z-20
-                          ${isPast 
-                            ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' 
-                            : ''
-                          }
-                          ${isCurrent 
-                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
-                            : ''
-                          }
-                          ${isFuture 
-                            ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400' 
-                            : ''
-                          }
-                        `}
-                      >
-                        {isPast ? (
-                          <CheckCircle className="h-5 w-5" />
-                        ) : (
-                          <StageIcon className="h-5 w-5" />
-                        )}
+                    <div className="flex flex-col items-center cursor-help">
+                      {/* Circle */}
+                      <div className={`
+                        w-12 h-12 rounded-full border-2 flex items-center justify-center bg-white dark:bg-slate-800 relative z-10
+                        ${isPast ? 'border-[#00FFFF] bg-[#00FFFF] text-[#0A192F]' : ''}
+                        ${isCurrent ? 'border-[#00FFFF] text-[#00FFFF] -translate-y-1' : ''}
+                        ${isFuture ? 'border-gray-300 dark:border-gray-600 text-gray-400' : ''}
+                      `}>
+                        {isPast ? <CheckCircle className="h-5 w-5" /> : <StageIcon className="h-5 w-5" />}
                       </div>
                       
-                      {/* Stage label */}
-                      <div className="text-center">
-                        <div className={`text-xs font-medium ${isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'}`}>
+                      {/* Label */}
+                      <div className="mt-3 text-center">
+                        <div className={`text-xs font-medium ${
+                          isCurrent ? 'text-[#00FFFF]' : 'text-gray-600 dark:text-gray-400'
+                        }`}>
                           {stage.shortTitle}
                         </div>
                         {stage.estimatedHours > 0 && (
-                          <div className="text-xs text-gray-400">
-                            {stage.estimatedHours}h
-                          </div>
+                          <div className="text-xs text-gray-400">{stage.estimatedHours}h</div>
                         )}
                       </div>
                     </div>
