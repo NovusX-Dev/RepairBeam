@@ -1254,9 +1254,7 @@ export default function KanbanTickets() {
                               <div>CPF: {selectedClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</div>
                             )}
                             {selectedClient.email && <div>{selectedClient.email}</div>}
-                            {selectedClient.streetAddress && selectedClient.streetNumber && (
-                              <div>{selectedClient.streetAddress}, {selectedClient.streetNumber}</div>
-                            )}
+                            {selectedClient.phone && <div>{selectedClient.phone}</div>}
                           </div>
                         </div>
                         <Button
@@ -2158,26 +2156,26 @@ export default function KanbanTickets() {
                               ? `${selectedClient.firstName} ${selectedClient.lastName}`
                               : formData.firstName && formData.lastName 
                                 ? `${formData.firstName} ${formData.lastName}`
-                                : 'N/A'
+                                : t("not_available", "N/A")
                             }
                           </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("cpf", "CPF")}:</span>
                           <p className="text-white font-medium">
-                            {selectedClient?.cpf || displayCPF || formData.cpf || 'N/A'}
+                            {selectedClient?.cpf || displayCPF || formData.cpf || t("not_available", "N/A")}
                           </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("email", "Email")}:</span>
                           <p className="text-white font-medium">
-                            {selectedClient?.email || formData.email || 'N/A'}
+                            {selectedClient?.email || formData.email || t("not_available", "N/A")}
                           </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("phone", "Phone")}:</span>
                           <p className="text-white font-medium">
-                            {selectedClient?.phone || formData.phone || 'N/A'}
+                            {selectedClient?.phone || formData.phone || t("not_available", "N/A")}
                           </p>
                         </div>
                       </div>
@@ -2200,7 +2198,7 @@ export default function KanbanTickets() {
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("color", "Color")}:</span>
-                          <p className="text-white font-medium">{formData.deviceColor || 'N/A'}</p>
+                          <p className="text-white font-medium">{formData.deviceColor || t("not_available", "N/A")}</p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("memory_storage", "Memory & Storage")}:</span>
@@ -2228,8 +2226,8 @@ export default function KanbanTickets() {
                           <span className="text-sm text-muted-foreground">{t("warranty_type", "Warranty")}:</span>
                           <p className="text-white font-medium">
                             {formData.warrantyType === 'extended' 
-                              ? `${t("extended_warranty", "Extended")} (+$${formData.warrantyCost})`
-                              : t("standard_warranty", "Standard (Free)")
+                              ? `${t("extended_warranty_format", "Extended")} (+$${formData.warrantyCost})`
+                              : t("standard_free", "Standard (Free)")
                             }
                           </p>
                         </div>
@@ -2239,7 +2237,7 @@ export default function KanbanTickets() {
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("estimated_hours", "Est. Hours")}:</span>
-                          <p className="text-white font-medium">{formData.technicianEstimatedHours || 'N/A'}h</p>
+                          <p className="text-white font-medium">{formData.technicianEstimatedHours || t("not_available", "N/A")}h</p>
                         </div>
                       </div>
                       {formData.costExplanation && (
@@ -2317,7 +2315,7 @@ export default function KanbanTickets() {
                 <div className="flex items-center justify-center gap-2 text-green-400">
                   <Check className="w-4 h-4" />
                   <span className="text-sm font-medium">
-                    {`${currentStep} of ${ticketSteps.length} steps completed`}
+                    {`${currentStep} ${t("of", "of")} ${ticketSteps.length} ${t("steps_completed", "steps completed")}`}
                   </span>
                 </div>
               </div>
