@@ -111,3 +111,22 @@ Based on database analysis, the platform supports:
 - Database schema must use camelCase for TypeScript compatibility
 - API responses should use camelCase for consistency with frontend
 - File names use kebab-case for web compatibility
+
+## Design Patterns
+
+### "Aurora Card Layout" Pattern
+A compact, professional design pattern featuring:
+- **Card-based Structure**: White/dark background with rounded corners and subtle shadows
+- **Gradient Headers**: Color-coded gradient headers with icons and descriptive subtitles
+- **Consistent Spacing**: 6-unit padding (p-6) and 6-unit gap spacing (space-y-6)
+- **Visual Hierarchy**: Clear separation between header and content areas
+- **Color Themes**: Each section uses distinct gradient combinations:
+  - Blue → Cyan (Primary actions)
+  - Purple → Indigo (Data entry)
+  - Emerald → Teal (Assessment/Analysis)
+  - Orange → Red (Time-sensitive)
+  - Green → Lime (Financial/Success)
+  - Cyan → Blue (Verification)
+  - Violet → Purple (Authorization/Final steps)
+
+**Usage**: Apply to dialogs, forms, and content areas requiring professional presentation with clear visual organization. Ideal for multi-step workflows and detailed information display.
