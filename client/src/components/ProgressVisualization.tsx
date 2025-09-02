@@ -165,7 +165,7 @@ export default function ProgressVisualization({
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center space-x-2 flex-1 min-w-0">
         {/* Progress bar */}
-        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 relative min-w-[80px] max-w-[120px]">
+        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 relative min-w-[60px] max-w-[100px]">
           <div 
             className="bg-gradient-to-r from-[#00FFFF] to-cyan-400 h-2 rounded-full transition-all duration-500"
             style={{ width: `${progressPercentage}%` }}
