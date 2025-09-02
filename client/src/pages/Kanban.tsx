@@ -333,7 +333,31 @@ export default function KanbanTickets() {
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: TicketStatus }) => {
       return await apiRequest("PUT", `/api/tickets/${ticketId}/status`, { status });
     },
-    onSuccess: () => {
+    onMutate: async ({ ticketId, status }) => {
+      // Cancel any outgoing refetches to avoid optimistic update being overwritten
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets"] });
+
+      // Snapshot the previous value
+      const previousTickets = queryClient.getQueryData(["/api/tickets"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(["/api/tickets"], (old: any) => {
+        if (!old) return old;
+        return old.map((ticket: any) =>
+          ticket.id === ticketId ? { ...ticket, status } : ticket
+        );
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousTickets };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["/api/tickets"], context.previousTickets);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
     },
   });
@@ -2577,7 +2601,7 @@ export default function KanbanTickets() {
               {/* Column Header */}
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-800">{column.title}</h3>
-                <Badge variant="secondary" className="bg-white/80">
+                <Badge variant="secondary" className="bg-[#0A192F] text-[#00FFFF] border border-[#00FFFF]/30 font-semibold shadow-sm">
                   {ticketsByStatus[column.id]?.length || 0}
                 </Badge>
               </div>
