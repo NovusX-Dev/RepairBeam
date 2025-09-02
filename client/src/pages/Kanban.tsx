@@ -2862,7 +2862,7 @@ export default function KanbanTickets() {
               </div>
 
               {/* Tickets */}
-              <div className="flex-1 space-y-3 min-h-[200px]">
+              <div className="flex-1 space-y-3 min-h-[200px] overflow-y-auto overflow-x-hidden">
                 {ticketsByStatus[column.id]?.map((ticket) => (
                   <Card
                     key={ticket.id}
