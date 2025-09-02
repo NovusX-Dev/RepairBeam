@@ -741,7 +741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create or update client endpoint
+  // Create client endpoint
   app.post("/api/clients", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -756,6 +756,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating client:", error);
       res.status(500).json({ message: "Failed to create client" });
+    }
+  });
+
+  // Update client endpoint
+  app.put("/api/clients/:clientId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const client = await storage.updateClient(clientId, req.body, user.tenantId);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      res.json(client);
+    } catch (error) {
+      console.error("Error updating client:", error);
+      res.status(500).json({ message: "Failed to update client" });
     }
   });
 

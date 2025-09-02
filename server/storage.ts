@@ -294,6 +294,15 @@ export class DatabaseStorage implements IStorage {
     return newClient;
   }
 
+  async updateClient(clientId: string, clientData: Partial<InsertClient>, tenantId: string): Promise<Client | null> {
+    const [updatedClient] = await db
+      .update(clients)
+      .set({ ...clientData, updatedAt: new Date() })
+      .where(and(eq(clients.id, clientId), eq(clients.tenantId, tenantId)))
+      .returning();
+    return updatedClient || null;
+  }
+
   // Ticket operations
   async getTickets(tenantId: string): Promise<Ticket[]> {
     return db.select().from(tickets).where(eq(tickets.tenantId, tenantId));

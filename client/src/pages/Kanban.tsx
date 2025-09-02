@@ -42,7 +42,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2 } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
@@ -363,6 +363,16 @@ export default function KanbanTickets() {
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showClientForm, setShowClientForm] = useState(false);
+  
+  // Client editing state
+  const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [editClientData, setEditClientData] = useState({
+    firstName: '',
+    lastName: '',
+    cpf: '',
+    email: '',
+    phone: ''
+  });
   
   // CPF conflict state
   const [showCPFConflict, setShowCPFConflict] = useState(false);
@@ -688,6 +698,34 @@ export default function KanbanTickets() {
       });
       setDisplayCPF('');
       setFormErrors({});
+    },
+  });
+
+  // Update client mutation
+  const updateClientMutation = useMutation({
+    mutationFn: async ({ clientId, clientData }: { clientId: string; clientData: Partial<Client> }) => {
+      const response = await apiRequest("PUT", `/api/clients/${clientId}`, clientData);
+      return await response.json();
+    },
+    onSuccess: (updatedClient: Client) => {
+      setSelectedClient(updatedClient);
+      setShowEditClientModal(false);
+      
+      // Invalidate client searches to refresh any cached data
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      
+      toast({
+        title: t("success", "Success"),
+        description: t("client_updated_successfully", "Client information updated successfully"),
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to update client:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("client_update_failed", "Failed to update client information. Please try again."),
+        variant: "destructive",
+      });
     },
   });
 
@@ -1769,31 +1807,72 @@ export default function KanbanTickets() {
 
                   {/* Selected Client Display */}
                   {selectedClient && !showClientForm && (
-                    <div className="border rounded-lg p-4 bg-green-50 border-green-200">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-green-800">
-                            {t("selected_client", "Selected Client")}
-                          </h4>
-                          <div className="mt-2 space-y-1 text-green-700">
-                            <div className="font-medium">
-                              {selectedClient.firstName} {selectedClient.lastName}
-                            </div>
-                            {selectedClient.cpf && (
-                              <div>CPF: {selectedClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}</div>
-                            )}
-                            {selectedClient.email && <div>{selectedClient.email}</div>}
-                            {selectedClient.phone && <div>{selectedClient.phone}</div>}
-                          </div>
+                    <div className="border rounded-lg p-6 bg-green-50 border-green-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-semibold text-green-800">
+                          {t("selected_client", "Selected Client")}
+                        </h4>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditClientData({
+                                firstName: selectedClient.firstName,
+                                lastName: selectedClient.lastName,
+                                cpf: selectedClient.cpf || '',
+                                email: selectedClient.email || '',
+                                phone: selectedClient.phone || ''
+                              });
+                              setShowEditClientModal(true);
+                            }}
+                            data-testid="button-modify-client"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            {t("modify", "Modify")}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedClient(null)}
+                            data-testid="button-change-client"
+                          >
+                            {t("change", "Change")}
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedClient(null)}
-                          data-testid="button-change-client"
-                        >
-                          {t("change", "Change")}
-                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <span className="text-sm font-medium text-green-600">{t("name", "Name")}:</span>
+                          <p className="text-green-800 font-medium">
+                            {selectedClient.firstName} {selectedClient.lastName}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <span className="text-sm font-medium text-green-600">{t("cpf", "CPF")}:</span>
+                          <p className="text-green-800 font-medium">
+                            {selectedClient.cpf 
+                              ? selectedClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                              : t("not_provided", "Not provided")
+                            }
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <span className="text-sm font-medium text-green-600">{t("email", "Email")}:</span>
+                          <p className="text-green-800 font-medium">
+                            {selectedClient.email || t("not_provided", "Not provided")}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <span className="text-sm font-medium text-green-600">{t("phone", "Phone")}:</span>
+                          <p className="text-green-800 font-medium">
+                            {selectedClient.phone || t("not_provided", "Not provided")}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -3635,6 +3714,115 @@ export default function KanbanTickets() {
             </Button>
             <Button onClick={handleConfirmCreateTicket} className="bg-green-600 hover:bg-green-700">
               {t("create_ticket", "Create Ticket")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Client Edit Modal */}
+      <Dialog open={showEditClientModal} onOpenChange={setShowEditClientModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("modify_client", "Modify Client Information")}</DialogTitle>
+            <DialogDescription>
+              {t("modify_client_description", "Update the client's information below.")}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">{t("first_name", "First Name")}</Label>
+                <Input
+                  id="edit-firstName"
+                  value={editClientData.firstName}
+                  onChange={(e) => setEditClientData(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder={t("first_name", "First Name")}
+                  data-testid="input-edit-first-name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">{t("last_name", "Last Name")}</Label>
+                <Input
+                  id="edit-lastName"
+                  value={editClientData.lastName}
+                  onChange={(e) => setEditClientData(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder={t("last_name", "Last Name")}
+                  data-testid="input-edit-last-name"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-cpf">{t("cpf", "CPF")}</Label>
+              <Input
+                id="edit-cpf"
+                value={editClientData.cpf}
+                onChange={(e) => setEditClientData(prev => ({ ...prev, cpf: e.target.value }))}
+                placeholder={t("cpf", "CPF")}
+                data-testid="input-edit-cpf"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">{t("email", "Email")}</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editClientData.email}
+                onChange={(e) => setEditClientData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder={t("email", "Email")}
+                data-testid="input-edit-email"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">{t("phone", "Phone")}</Label>
+              <Input
+                id="edit-phone"
+                value={editClientData.phone}
+                onChange={(e) => setEditClientData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder={t("phone", "Phone")}
+                data-testid="input-edit-phone"
+              />
+            </div>
+          </div>
+          
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowEditClientModal(false)}
+              data-testid="button-cancel-edit-client"
+            >
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedClient) {
+                  updateClientMutation.mutate({
+                    clientId: selectedClient.id,
+                    clientData: {
+                      firstName: editClientData.firstName,
+                      lastName: editClientData.lastName,
+                      cpf: editClientData.cpf,
+                      email: editClientData.email,
+                      phone: editClientData.phone
+                    }
+                  });
+                }
+              }}
+              disabled={updateClientMutation.isPending}
+              data-testid="button-save-edit-client"
+            >
+              {updateClientMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("saving", "Saving...")}
+                </>
+              ) : (
+                t("save", "Save")
+              )}
             </Button>
           </div>
         </DialogContent>
