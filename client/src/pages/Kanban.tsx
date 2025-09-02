@@ -978,7 +978,11 @@ export default function KanbanTickets() {
         id: uniqueId,
         clientId: selectedClient?.id || '',
         title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
-        description: `Device repair request for ${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} in ${formData.deviceColor}`,
+        description: t("device_repair_request_description", "Device repair request for {deviceType} {deviceBrand} {deviceModel} in {deviceColor}")
+          .replace("{deviceType}", formData.deviceType)
+          .replace("{deviceBrand}", formData.deviceBrand)
+          .replace("{deviceModel}", formData.deviceModel)
+          .replace("{deviceColor}", formData.deviceColor),
         status: 'backlog' as const,
         priority: 'medium' as const,
         assignedTo: null,
