@@ -1474,7 +1474,7 @@ export default function KanbanTickets() {
 
   return (
     <TooltipProvider>
-      <div className="h-full w-full flex flex-col">
+      <div className="w-full flex flex-col">
       {/* Action Bar */}
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <div className="flex items-center gap-3">
