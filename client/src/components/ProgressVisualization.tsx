@@ -265,28 +265,28 @@ export default function ProgressVisualization({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
-                            {/* Modern stage circle with proper centering */}
+                            {/* Clean stage circle with consistent alignment */}
                             <div
                               className={`
-                                w-12 h-12 rounded-full border-3 flex items-center justify-center transition-all duration-500 shadow-lg
+                                w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative z-20
                                 ${isPast 
-                                  ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F] shadow-[#00FFFF]/30' 
+                                  ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' 
                                   : ''
                                 }
                                 ${isCurrent 
-                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20 shadow-[#00FFFF]/40 scale-110' 
+                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
                                   : ''
                                 }
                                 ${isFuture 
-                                  ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400 shadow-gray-200 dark:shadow-gray-800' 
+                                  ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400' 
                                   : ''
                                 }
                               `}
                             >
                               {isPast ? (
-                                <CheckCircle className="h-5 w-5" />
+                                <CheckCircle className="h-4 w-4" />
                               ) : (
-                                <StageIcon className="h-5 w-5" />
+                                <StageIcon className="h-4 w-4" />
                               )}
                             </div>
                             
@@ -413,28 +413,28 @@ export default function ProgressVisualization({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
-                      {/* Enhanced stage circle for full view */}
+                      {/* Clean stage circle for full view */}
                       <div
                         className={`
-                          w-14 h-14 rounded-full border-4 flex items-center justify-center transition-all duration-500 shadow-xl
+                          w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative z-20
                           ${isPast 
-                            ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F] shadow-[#00FFFF]/40 hover:shadow-[#00FFFF]/60' 
+                            ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' 
                             : ''
                           }
                           ${isCurrent 
-                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-6 ring-[#00FFFF]/20 shadow-[#00FFFF]/50 scale-125 hover:scale-130' 
+                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
                             : ''
                           }
                           ${isFuture 
-                            ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400 shadow-gray-200 dark:shadow-gray-800 hover:border-gray-400' 
+                            ? 'bg-white dark:bg-slate-800 border-gray-300 dark:border-gray-600 text-gray-400' 
                             : ''
                           }
                         `}
                       >
                         {isPast ? (
-                          <CheckCircle className="h-6 w-6" />
+                          <CheckCircle className="h-5 w-5" />
                         ) : (
-                          <StageIcon className="h-6 w-6" />
+                          <StageIcon className="h-5 w-5" />
                         )}
                       </div>
                       
