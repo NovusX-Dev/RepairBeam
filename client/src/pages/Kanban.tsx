@@ -42,7 +42,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
@@ -367,6 +367,16 @@ export default function KanbanTickets() {
   // Ticket creation confirmation state
   const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
   
+  // Filter state management
+  const [filters, setFilters] = useState({
+    priority: 'all',
+    name: '',
+    cpf: '',
+    deviceType: 'all',
+    ticketId: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  
   const queryClient = useQueryClient();
   const { t, currentLanguage } = useLocalization();
   const { toast } = useToast();
@@ -679,9 +689,71 @@ export default function KanbanTickets() {
     }
   };
 
-  // Group tickets by status
+  // Filter tickets based on current filter criteria
+  const filteredTickets = tickets.filter(ticket => {
+    // Filter by priority
+    if (filters.priority !== 'all' && ticket.priority !== filters.priority) {
+      return false;
+    }
+    
+    // Filter by client name (search in first name and last name)
+    if (filters.name) {
+      const fullName = `${ticket.client?.firstName || ''} ${ticket.client?.lastName || ''}`.toLowerCase();
+      if (!fullName.includes(filters.name.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    // Filter by CPF
+    if (filters.cpf) {
+      const cleanFilterCPF = filters.cpf.replace(/\D/g, '');
+      const ticketCPF = ticket.client?.cpf?.replace(/\D/g, '') || '';
+      if (!ticketCPF.includes(cleanFilterCPF)) {
+        return false;
+      }
+    }
+    
+    // Filter by device type
+    if (filters.deviceType !== 'all' && ticket.deviceType !== filters.deviceType) {
+      return false;
+    }
+    
+    // Filter by ticket ID (search in ID)
+    if (filters.ticketId) {
+      const ticketIdSearch = filters.ticketId.toLowerCase();
+      const ticketId = ticket.id.toLowerCase();
+      if (!ticketId.includes(ticketIdSearch)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+
+  // Get unique device types for filter dropdown
+  const deviceTypes = Array.from(new Set(
+    tickets
+      .map(ticket => ticket.deviceType)
+      .filter(Boolean)
+  )).sort();
+
+  // Clear filters function
+  const clearFilters = () => {
+    setFilters({
+      priority: 'all',
+      name: '',
+      cpf: '',
+      deviceType: 'all',
+      ticketId: '',
+    });
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = filters.priority !== 'all' || filters.name || filters.cpf || filters.deviceType !== 'all' || filters.ticketId;
+
+  // Group filtered tickets by status
   const ticketsByStatus = kanbanColumns.reduce((acc, column) => {
-    acc[column.id] = tickets.filter(ticket => ticket.status === column.id);
+    acc[column.id] = filteredTickets.filter(ticket => ticket.status === column.id);
     return acc;
   }, {} as Record<string, TicketWithClient[]>);
 
@@ -1413,7 +1485,23 @@ export default function KanbanTickets() {
             {t("kanban_description", "Manage and track repair tickets through your workflow stages")}
           </p>
         </div>
-        <div className="p-2">
+        <div className="flex items-center gap-3">
+          {/* Filter Toggle Button */}
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`transition-all duration-200 ${hasActiveFilters ? 'border-[#00FFFF] bg-[#00FFFF]/10 text-[#00FFFF]' : ''}`}
+            data-testid="button-toggle-filters"
+          >
+            <Filter className="w-4 h-4 mr-2" />
+            {t("filters", "Filters")}
+            {hasActiveFilters && (
+              <Badge variant="secondary" className="ml-2 bg-[#00FFFF] text-[#0A192F] h-5 w-5 p-0 text-xs">
+                {Object.values(filters).filter(v => v && v !== 'all').length}
+              </Badge>
+            )}
+          </Button>
+          
           <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
             <DialogTrigger asChild>
               <Button className="btn-next-hover" data-testid="button-create-ticket">
@@ -2832,6 +2920,121 @@ export default function KanbanTickets() {
         
         </div>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="mb-6 p-4 border border-border rounded-lg bg-card shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              {t("filter_options", "Filter Options")}
+            </h3>
+            {hasActiveFilters && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearFilters}
+                className="text-muted-foreground hover:text-foreground"
+                data-testid="button-clear-filters"
+              >
+                <X className="w-4 h-4 mr-1" />
+                {t("clear_filters", "Clear Filters")}
+              </Button>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Priority Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("filter_by_priority", "Filter by Priority")}</Label>
+              <Select 
+                value={filters.priority} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, priority: value }))}
+              >
+                <SelectTrigger className="w-full" data-testid="select-priority-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all_priorities", "All Priorities")}</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="vip">VIP</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Client Name Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("filter_by_name", "Filter by Client Name")}</Label>
+              <Input
+                placeholder={t("search_by_name", "Search by name...")}
+                value={filters.name}
+                onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full"
+                data-testid="input-name-filter"
+              />
+            </div>
+
+            {/* CPF Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("filter_by_cpf", "Filter by CPF")}</Label>
+              <Input
+                placeholder={t("search_by_cpf", "Search by CPF...")}
+                value={filters.cpf}
+                onChange={(e) => setFilters(prev => ({ ...prev, cpf: e.target.value }))}
+                className="w-full"
+                data-testid="input-cpf-filter"
+              />
+            </div>
+
+            {/* Device Type Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("filter_by_device_type", "Filter by Device Type")}</Label>
+              <Select 
+                value={filters.deviceType} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, deviceType: value }))}
+              >
+                <SelectTrigger className="w-full" data-testid="select-device-type-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all_device_types", "All Device Types")}</SelectItem>
+                  {deviceTypes.map(deviceType => (
+                    <SelectItem key={deviceType} value={deviceType}>
+                      {deviceType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Ticket ID Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("filter_by_ticket_id", "Filter by Ticket ID")}</Label>
+              <Input
+                placeholder={t("search_by_ticket_id", "Search by ticket ID...")}
+                value={filters.ticketId}
+                onChange={(e) => setFilters(prev => ({ ...prev, ticketId: e.target.value }))}
+                className="w-full"
+                data-testid="input-ticket-id-filter"
+              />
+            </div>
+          </div>
+
+          {/* Active Filters Summary */}
+          {hasActiveFilters && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{t("showing_filtered_results", "Showing filtered results")}:</span>
+                <span className="font-medium text-foreground">
+                  {filteredTickets.length} {filteredTickets.length === 1 ? 'ticket' : 'tickets'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Kanban Board Container - Constrained to parent width */}
       <div className="flex-1 min-h-0 w-full overflow-hidden">
