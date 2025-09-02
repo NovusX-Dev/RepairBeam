@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import ProgressVisualization from "@/components/ProgressVisualization";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
@@ -199,7 +200,7 @@ export default function KanbanTickets() {
   const [newNote, setNewNote] = useState('');
   const [notes, setNotes] = useState<any[]>([]);
   const [issueResponses, setIssueResponses] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('progress');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<TicketFormData>({
@@ -2707,29 +2708,25 @@ export default function KanbanTickets() {
                         </div>
                       )}
 
-                      {/* Created date and Next button */}
-                      <div className="flex items-center justify-between">
-                        <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
-                          <Clock className="w-3 h-3 mr-1" />
-                          {new Date(ticket.createdAt!).toLocaleDateString()}
-                        </div>
-                        
-                        {/* Next button - only show if not in final status */}
-                        {getNextStatus(ticket.status) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveToNext(ticket.id, ticket.status);
-                            }}
-                            className={`h-6 px-2 text-xs hover:bg-opacity-20 border-current ${getStatusTextColor(ticket.status)}`}
-                            title={t("move_to_next_stage", "Move to next stage")}
-                            data-testid={`button-next-${ticket.id}`}
-                          >
-                            {t("next", "Next")}
-                          </Button>
-                        )}
+                      {/* Progress Visualization */}
+                      <div className="mb-2">
+                        <ProgressVisualization
+                          currentStatus={ticket.status}
+                          ticketId={ticket.id}
+                          createdAt={ticket.createdAt}
+                          technicianEstimatedHours={ticket.technicianEstimatedHours}
+                          onAdvanceStatus={(ticketId, nextStatus) => {
+                            updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
+                          }}
+                          isAdvancing={updateTicketStatus.isPending}
+                          compact={true}
+                        />
+                      </div>
+
+                      {/* Created date */}
+                      <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
+                        <Clock className="w-3 h-3 mr-1" />
+                        {new Date(ticket.createdAt!).toLocaleDateString()}
                       </div>
                     </CardContent>
                   </Card>
@@ -2775,7 +2772,10 @@ export default function KanbanTickets() {
 
               {/* Tabs Interface */}
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="progress" data-testid="tab-progress">
+                    {t("progress", "Progress")}
+                  </TabsTrigger>
                   <TabsTrigger value="general" data-testid="tab-general-info">
                     {t("general_info", "General Info")}
                   </TabsTrigger>
@@ -2786,6 +2786,21 @@ export default function KanbanTickets() {
                     {t("checklist", "Checklist")}
                   </TabsTrigger>
                 </TabsList>
+
+                {/* Progress Tab */}
+                <TabsContent value="progress" className="space-y-6">
+                  <ProgressVisualization
+                    currentStatus={selectedTicketSummary.status}
+                    ticketId={selectedTicketSummary.id}
+                    createdAt={selectedTicketSummary.createdAt}
+                    technicianEstimatedHours={selectedTicketSummary.technicianEstimatedHours}
+                    onAdvanceStatus={(ticketId, nextStatus) => {
+                      updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
+                    }}
+                    isAdvancing={updateTicketStatus.isPending}
+                    compact={false}
+                  />
+                </TabsContent>
 
                 {/* General Info Tab */}
                 <TabsContent value="general" className="space-y-6">
