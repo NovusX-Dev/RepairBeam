@@ -190,6 +190,8 @@ function FormFieldWithTooltip({
 
 export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
+  const [dragHoverColumn, setDragHoverColumn] = useState<string | null>(null);
+  const [dragHoverTimeout, setDragHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<TicketFormData>({
@@ -437,9 +439,29 @@ export default function KanbanTickets() {
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    
+    // Clear any existing timeout
+    if (dragHoverTimeout) {
+      clearTimeout(dragHoverTimeout);
+    }
+    
+    // Set new timeout for hover highlighting
+    const timeout = setTimeout(() => {
+      setDragHoverColumn(columnId);
+    }, 500); // 0.5 second delay
+    
+    setDragHoverTimeout(timeout);
+  };
+
+  const handleDragLeave = () => {
+    // Clear timeout when leaving
+    if (dragHoverTimeout) {
+      clearTimeout(dragHoverTimeout);
+      setDragHoverTimeout(null);
+    }
+    setDragHoverColumn(null);
   };
 
   const handleDrop = (e: React.DragEvent, newStatus: TicketStatus) => {
@@ -451,6 +473,11 @@ export default function KanbanTickets() {
       }
     }
     setDraggedTicket(null);
+    setDragHoverColumn(null);
+    if (dragHoverTimeout) {
+      clearTimeout(dragHoverTimeout);
+      setDragHoverTimeout(null);
+    }
   };
 
   const getPriorityColor = (priority: TicketPriority) => {
@@ -532,6 +559,26 @@ export default function KanbanTickets() {
         return 'text-green-700';
       default:
         return 'text-gray-600';
+    }
+  };
+
+  // Get the next status in the workflow sequence
+  const getNextStatus = (currentStatus: string): string | null => {
+    const columns = getKanbanColumns(t);
+    const currentIndex = columns.findIndex(col => col.id === currentStatus);
+    
+    if (currentIndex === -1 || currentIndex === columns.length - 1) {
+      return null; // Invalid status or already at the end
+    }
+    
+    return columns[currentIndex + 1].id;
+  };
+
+  // Handle moving ticket to next status
+  const handleMoveToNext = (ticketId: string, currentStatus: string) => {
+    const nextStatus = getNextStatus(currentStatus);
+    if (nextStatus) {
+      updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
     }
   };
 
@@ -2516,9 +2563,14 @@ export default function KanbanTickets() {
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
-              className={`w-80 ${column.color} rounded-lg p-4 flex flex-col flex-shrink-0`}
+              className={`w-80 ${column.color} rounded-lg p-4 flex flex-col flex-shrink-0 transition-all duration-200 ${
+                dragHoverColumn === column.id 
+                  ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg transform scale-[1.02]' 
+                  : ''
+              }`}
               style={{ height: 'calc(100% - 0.5rem)' }}
-              onDragOver={handleDragOver}
+              onDragOver={(e) => handleDragOver(e, column.id)}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id as TicketStatus)}
               data-testid={`column-${column.id}`}
             >
@@ -2580,10 +2632,29 @@ export default function KanbanTickets() {
                         </div>
                       )}
 
-                      {/* Created date */}
-                      <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
-                        <Clock className="w-3 h-3 mr-1" />
-                        {new Date(ticket.createdAt!).toLocaleDateString()}
+                      {/* Created date and Next button */}
+                      <div className="flex items-center justify-between">
+                        <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
+                          <Clock className="w-3 h-3 mr-1" />
+                          {new Date(ticket.createdAt!).toLocaleDateString()}
+                        </div>
+                        
+                        {/* Next button - only show if not in final status */}
+                        {getNextStatus(ticket.status) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMoveToNext(ticket.id, ticket.status);
+                            }}
+                            className={`h-6 px-2 text-xs hover:bg-opacity-20 border-current ${getStatusTextColor(ticket.status)}`}
+                            title={t("move_to_next_stage", "Move to next stage")}
+                            data-testid={`button-next-${ticket.id}`}
+                          >
+                            {t("next", "Next")}
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
