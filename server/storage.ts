@@ -318,6 +318,12 @@ export class DatabaseStorage implements IStorage {
         deviceMemory: tickets.deviceMemory,
         deviceStorageCapacity: tickets.deviceStorageCapacity,
         issueDescription: tickets.issueDescription,
+        serviceChecklist: tickets.serviceChecklist,
+        clientDeadline: tickets.clientDeadline,
+        technicianEstimatedHours: tickets.technicianEstimatedHours,
+        warrantyType: tickets.warrantyType,
+        costEstimation: tickets.costEstimation,
+        costExplanation: tickets.costExplanation,
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
         client: {
