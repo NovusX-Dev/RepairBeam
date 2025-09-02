@@ -239,16 +239,20 @@ export default function ProgressVisualization({
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleContent className="space-y-4 pt-4 border-t border-border">
             {/* Modern Stepper Timeline */}
-            <div className="relative py-4">
+            <div className="relative py-2">
               {/* Main stepper container with proper line centering */}
               <div className="flex items-center justify-between relative">
-                {/* Background connection line */}
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
+                {/* Background connection line - adjusted to merge with circles */}
+                <div className="absolute top-1/2 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" 
+                     style={{ left: '20px', right: '20px' }} />
                 
-                {/* Active progress line */}
+                {/* Active progress line - adjusted to merge with circles */}
                 <div 
-                  className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
-                  style={{ width: `${progressPercentage}%` }}
+                  className="absolute top-1/2 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
+                  style={{ 
+                    left: '20px',
+                    width: `calc(${progressPercentage}% - 20px)` 
+                  }}
                 />
 
                 {/* Stage indicators with modern design */}
@@ -264,7 +268,9 @@ export default function ProgressVisualization({
                     <TooltipProvider key={stage.id}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
+                          <div className={`flex flex-col items-center space-y-3 cursor-help relative z-20 ${
+                            isCurrent ? '-translate-y-1' : ''
+                          }`}>
                             {/* Clean stage circle with consistent alignment */}
                             <div
                               className={`
@@ -274,7 +280,7 @@ export default function ProgressVisualization({
                                   : ''
                                 }
                                 ${isCurrent 
-                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
+                                  ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15' 
                                   : ''
                                 }
                                 ${isFuture 
@@ -387,16 +393,20 @@ export default function ProgressVisualization({
       <ProgressHeader />
       
       {/* Modern Full Timeline */}
-      <div className="relative py-6">
+      <div className="relative py-3">
         {/* Main stepper container with proper line centering */}
         <div className="flex items-center justify-between relative">
-          {/* Background connection line */}
-          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
+          {/* Background connection line - adjusted to merge with circles */}
+          <div className="absolute top-1/2 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" 
+               style={{ left: '24px', right: '24px' }} />
           
-          {/* Active progress line */}
+          {/* Active progress line - adjusted to merge with circles */}
           <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
-            style={{ width: `${progressPercentage}%` }}
+            className="absolute top-1/2 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
+            style={{ 
+              left: '24px',
+              width: `calc(${progressPercentage}% - 24px)` 
+            }}
           />
 
           {/* Stage indicators with enhanced design for full view */}
@@ -412,7 +422,9 @@ export default function ProgressVisualization({
               <TooltipProvider key={stage.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
+                    <div className={`flex flex-col items-center space-y-3 cursor-help relative z-20 ${
+                      isCurrent ? '-translate-y-1' : ''
+                    }`}>
                       {/* Clean stage circle for full view */}
                       <div
                         className={`
@@ -422,7 +434,7 @@ export default function ProgressVisualization({
                             : ''
                           }
                           ${isCurrent 
-                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15 -translate-y-1' 
+                            ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/15' 
                             : ''
                           }
                           ${isFuture 
