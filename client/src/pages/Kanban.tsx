@@ -1615,25 +1615,25 @@ export default function KanbanTickets() {
               {t("new_ticket", "New Ticket")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-5xl h-[90vh] flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-            <DialogHeader className="border-b border-slate-200 dark:border-slate-700 pb-4 mb-0">
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+          <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-[#0A192F] to-slate-900 dark:from-[#0A192F] dark:to-slate-900">
+            <DialogHeader className="border-b border-[#00FFFF]/20 pb-4 mb-0">
+              <DialogTitle className="text-2xl font-bold text-[#00FFFF]">
                 {t("create_new_ticket", "Create New Ticket")}
               </DialogTitle>
-              <DialogDescription className="text-slate-600 dark:text-slate-400 text-base">
+              <DialogDescription className="text-slate-300 text-base">
                 {t("create_ticket_description", "Follow the steps to create a new repair ticket for your client.")}
               </DialogDescription>
             </DialogHeader>
             
             {/* Enhanced Progress Stepper */}
-            <div className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 py-6">
+            <div className="bg-slate-800/50 border-b border-[#00FFFF]/20 py-6">
               {/* Progress Percentage Display with Motivational Messages */}
               <div className="mb-6 text-center space-y-3">
-                <div className="inline-flex items-center gap-3 bg-white dark:bg-slate-700 px-6 py-3 rounded-full shadow-md border border-slate-200 dark:border-slate-600">
+                <div className="inline-flex items-center gap-3 bg-slate-700/80 px-6 py-3 rounded-full shadow-md border border-[#00FFFF]/30">
                   <div className="text-2xl font-bold bg-gradient-to-r from-[#0A192F] to-[#00FFFF] bg-clip-text text-transparent">
                     {Math.round((currentStep / (ticketSteps.length - 1)) * 100)}%
                   </div>
-                  <div className="text-sm text-slate-600 dark:text-slate-400">
+                  <div className="text-sm text-slate-300">
                     {t("progress_complete", "Complete")}
                   </div>
                 </div>
@@ -1737,10 +1737,10 @@ export default function KanbanTickets() {
             </div>
 
             {/* Step Content */}
-            <div className="flex-1 overflow-y-auto px-4 py-6">
+            <div className="px-4 py-6">
               {currentStep === 0 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <User className="w-5 h-5" />
@@ -2124,7 +2124,7 @@ export default function KanbanTickets() {
               {/* Device Specifications Step */}
               {currentStep === 1 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Clock className="w-5 h-5" />
@@ -2459,7 +2459,7 @@ export default function KanbanTickets() {
               {/* Issue Assessment Step */}
               {currentStep === 2 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <DollarSign className="w-5 h-5" />
@@ -2493,7 +2493,7 @@ export default function KanbanTickets() {
               {/* Service Timeline & Coverage Step */}
               {currentStep === 3 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Clock className="w-5 h-5" />
@@ -2639,7 +2639,7 @@ export default function KanbanTickets() {
               {/* Price Estimation Step */}
               {currentStep === 4 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <DollarSign className="w-5 h-5" />
@@ -2740,7 +2740,7 @@ export default function KanbanTickets() {
               {/* Service Checklist Step */}
               {currentStep === 5 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Check className="w-5 h-5" />
@@ -2832,7 +2832,7 @@ export default function KanbanTickets() {
               {/* Client Authorization Step */}
               {currentStep === 6 && (
                 <div className="max-w-4xl mx-auto">
-                  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Check className="w-5 h-5" />
@@ -3038,7 +3038,7 @@ export default function KanbanTickets() {
             )}
             
             {/* Enhanced Navigation Buttons */}
-            <div className="flex justify-between pt-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-6 py-4 rounded-b-xl">
+            <div className="flex justify-between pt-6 border-t border-[#00FFFF]/20 bg-slate-800/50 px-6 py-4">
               <Button 
                 variant="outline" 
                 onClick={handlePreviousStep}
