@@ -240,22 +240,18 @@ export default function ProgressVisualization({
           <CollapsibleContent className="space-y-4 pt-4 border-t border-border">
             {/* Modern Stepper Timeline */}
             <div className="relative py-2">
-              {/* Main stepper container with proper line centering */}
-              <div className="flex items-center justify-between relative">
-                {/* Background connection line - adjusted to merge with circles */}
-                <div className="absolute top-1/2 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" 
-                     style={{ left: '20px', right: '20px' }} />
+              {/* Main stepper container with absolute positioning for perfect alignment */}
+              <div className="relative h-16">
+                {/* Background connection line */}
+                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
                 
-                {/* Active progress line - adjusted to merge with circles */}
+                {/* Active progress line */}
                 <div 
-                  className="absolute top-1/2 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
-                  style={{ 
-                    left: '20px',
-                    width: `calc(${progressPercentage}% - 20px)` 
-                  }}
+                  className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
+                  style={{ width: `${progressPercentage}%` }}
                 />
 
-                {/* Stage indicators with modern design */}
+                {/* Stage indicators with absolute positioning */}
                 {stages.map((stage, index) => {
                   // Recalculate states based on current status
                   const currentIdx = stages.findIndex(s => s.id === currentStatus);
@@ -264,12 +260,21 @@ export default function ProgressVisualization({
                   const isFuture = index > currentIdx;
                   const StageIcon = stage.icon;
 
+                  const leftPercentage = (index / (stages.length - 1)) * 100;
+                  
                   return (
                     <TooltipProvider key={stage.id}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
-                            {/* Clean stage circle with consistent alignment */}
+                          <div 
+                            className="absolute flex flex-col items-center space-y-2 cursor-help"
+                            style={{ 
+                              left: `${leftPercentage}%`, 
+                              top: '50%',
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                          >
+                            {/* Clean stage circle with perfect alignment */}
                             <div
                               className={`
                                 w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300 relative z-20
@@ -392,22 +397,18 @@ export default function ProgressVisualization({
       
       {/* Modern Full Timeline */}
       <div className="relative py-3">
-        {/* Main stepper container with proper line centering */}
-        <div className="flex items-center justify-between relative">
-          {/* Background connection line - adjusted to merge with circles */}
-          <div className="absolute top-1/2 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" 
-               style={{ left: '24px', right: '24px' }} />
+        {/* Main stepper container with absolute positioning for perfect alignment */}
+        <div className="relative h-20">
+          {/* Background connection line */}
+          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 -translate-y-1/2 z-0" />
           
-          {/* Active progress line - adjusted to merge with circles */}
+          {/* Active progress line */}
           <div 
-            className="absolute top-1/2 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
-            style={{ 
-              left: '24px',
-              width: `calc(${progressPercentage}% - 24px)` 
-            }}
+            className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-[#00FFFF] to-cyan-400 -translate-y-1/2 z-10 transition-all duration-700 ease-out"
+            style={{ width: `${progressPercentage}%` }}
           />
 
-          {/* Stage indicators with enhanced design for full view */}
+          {/* Stage indicators with absolute positioning */}
           {stages.map((stage, index) => {
             // Recalculate states based on current status
             const currentIdx = stages.findIndex(s => s.id === currentStatus);
@@ -416,11 +417,20 @@ export default function ProgressVisualization({
             const isFuture = index > currentIdx;
             const StageIcon = stage.icon;
 
+            const leftPercentage = (index / (stages.length - 1)) * 100;
+            
             return (
               <TooltipProvider key={stage.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex flex-col items-center space-y-3 cursor-help relative z-20">
+                    <div 
+                      className="absolute flex flex-col items-center space-y-2 cursor-help"
+                      style={{ 
+                        left: `${leftPercentage}%`, 
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)'
+                      }}
+                    >
                       {/* Clean stage circle for full view */}
                       <div
                         className={`
