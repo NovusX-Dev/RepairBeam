@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -104,6 +104,12 @@ export default function ProgressVisualization({
   const { t } = useLocalization();
   const stages = getProgressStages(t);
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [renderKey, setRenderKey] = useState(0);
+  
+  // Force re-render when status changes
+  useEffect(() => {
+    setRenderKey(prev => prev + 1);
+  }, [currentStatus]);
   
   const currentIndex = stages.findIndex(stage => stage.id === currentStatus);
   const nextStage = currentIndex < stages.length - 1 ? stages[currentIndex + 1] : null;
