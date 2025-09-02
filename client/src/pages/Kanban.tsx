@@ -488,11 +488,8 @@ export default function KanbanTickets() {
         newSet.add(ticketId);
       }
       
-      // Update global state based on remaining collapsed cards
-      const totalTickets = tickets.length;
-      if (totalTickets > 0) {
-        setAllCardsCollapsed(newSet.size === totalTickets);
-      }
+      // Don't update global state when individual cards are toggled
+      // Global state should only change when the global button is clicked
       
       return newSet;
     });
@@ -3148,7 +3145,7 @@ export default function KanbanTickets() {
                             variant="ghost"
                             size="sm"
                             onClick={(e) => toggleCardCollapse(ticket.id, e)}
-                            className={`h-6 w-6 p-0 hover:bg-white/20 ${getStatusMutedColor(ticket.status)}`}
+                            className={`h-6 w-6 p-0 hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${getStatusMutedColor(ticket.status)} hover:opacity-100`}
                             data-testid={`button-toggle-card-${ticket.id}`}
                           >
                             {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
