@@ -45,6 +45,24 @@ import ProgressVisualization from "@/components/ProgressVisualization";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
+
+// Brazilian phone formatting utility
+const formatBrazilianPhone = (value: string): string => {
+  // Remove all non-digits
+  const digits = value.replace(/\D/g, '');
+  
+  // Limit to 11 digits (DDD + 9-digit cellphone)
+  const limitedDigits = digits.slice(0, 11);
+  
+  // Apply formatting based on length
+  if (limitedDigits.length <= 2) {
+    return `(${limitedDigits}`;
+  } else if (limitedDigits.length <= 7) {
+    return `(${limitedDigits.slice(0, 2)})${limitedDigits.slice(2)}`;
+  } else {
+    return `(${limitedDigits.slice(0, 2)})${limitedDigits.slice(2, 7)}-${limitedDigits.slice(7)}`;
+  }
+};
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
@@ -1870,7 +1888,10 @@ export default function KanbanTickets() {
                         <div>
                           <span className="text-sm font-medium text-green-600">{t("phone", "Phone")}:</span>
                           <p className="text-green-800 font-medium">
-                            {selectedClient.phone || t("not_provided", "Not provided")}
+                            {selectedClient.phone 
+                              ? (selectedClient.phone.includes('(') ? selectedClient.phone : formatBrazilianPhone(selectedClient.phone))
+                              : t("not_provided", "Not provided")
+                            }
                           </p>
                         </div>
                       </div>
@@ -1977,7 +1998,7 @@ export default function KanbanTickets() {
                   <div className="grid grid-cols-1 gap-4">
                     <FormFieldWithTooltip
                       label={t("phone", "Phone")}
-                      tooltip={t("phone_tooltip", "Enter the client's mobile or landline phone number. Include area code. This will be used for urgent communications and appointment confirmations. Format: (11) 9 8765-4321")}
+                      tooltip={t("phone_tooltip", "Enter the client's mobile phone number with area code (DDD). Format: (11)94048-6530. Maximum 11 digits including area code.")}
                       required
                       hasError={!!formErrors.phone}
                       isValid={fieldValidation.phone?.isValid && formData.phone.length > 0}
@@ -1985,9 +2006,13 @@ export default function KanbanTickets() {
                       <Input
                         id="phone"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        onChange={(e) => {
+                          const formattedPhone = formatBrazilianPhone(e.target.value);
+                          handleInputChange('phone', formattedPhone);
+                        }}
                         className={formErrors.phone ? 'border-red-500' : ''}
-                        placeholder={t("phone_placeholder", "e.g., (11) 9 8765-4321")}
+                        placeholder={t("phone_placeholder", "(11)94048-6530")}
+                        maxLength={14}
                         data-testid="input-phone"
                       />
                     </FormFieldWithTooltip>
@@ -3782,8 +3807,12 @@ export default function KanbanTickets() {
               <Input
                 id="edit-phone"
                 value={editClientData.phone}
-                onChange={(e) => setEditClientData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder={t("phone", "Phone")}
+                onChange={(e) => {
+                  const formattedPhone = formatBrazilianPhone(e.target.value);
+                  setEditClientData(prev => ({ ...prev, phone: formattedPhone }));
+                }}
+                placeholder={t("phone_placeholder", "(11)94048-6530")}
+                maxLength={14}
                 data-testid="input-edit-phone"
               />
             </div>
