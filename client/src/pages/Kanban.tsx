@@ -3034,7 +3034,7 @@ export default function KanbanTickets() {
         <div 
           className="h-full w-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
         >
-          <div className="flex gap-4 p-2 h-full min-h-[600px]" style={{ width: 'fit-content' }}>
+          <div className="flex gap-4 p-2 h-full" style={{ width: 'fit-content' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
