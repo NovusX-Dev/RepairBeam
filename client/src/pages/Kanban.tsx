@@ -3137,7 +3137,7 @@ export default function KanbanTickets() {
 
                 {/* Empty state */}
                 {(!ticketsByStatus[column.id] || ticketsByStatus[column.id].length === 0) && (
-                  <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                  <div className="flex items-center justify-center text-muted-foreground text-sm py-4">
                     {t("no_tickets_stage", "No tickets in this stage")}
                   </div>
                 )}
