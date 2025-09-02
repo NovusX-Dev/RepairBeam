@@ -83,6 +83,7 @@ interface TicketFormData {
   apartment: string;
   birthday: string;
   email: string;
+  phone: string;
   // Device Information
   deviceType: string;
   deviceBrand: string;
@@ -200,6 +201,7 @@ export default function KanbanTickets() {
     apartment: '',
     birthday: '',
     email: '',
+    phone: '',
     deviceType: '',
     deviceBrand: '',
     deviceModel: '',
@@ -352,6 +354,7 @@ export default function KanbanTickets() {
         apartment: '',
         birthday: '',
         email: '',
+        phone: '',
         deviceType: '',
         deviceBrand: '',
         deviceModel: '',
@@ -733,7 +736,7 @@ export default function KanbanTickets() {
       lastName: formData.lastName,
       cpf: formData.cpf,
       email: formData.email,
-      phone: null,
+      phone: formData.phone,
       streetAddress: formData.streetAddress,
       streetNumber: formData.streetNumber,
       apartment: formData.apartment || null,
@@ -827,7 +830,7 @@ export default function KanbanTickets() {
         deviceStorageCapacity: formData.deviceStorageCapacity || null,
         issueDescription: null,
         // Service Timeline & Coverage fields with form data
-        clientDeadline: formData.clientDeadline && formData.clientDeadline.trim() !== '' ? new Date(formData.clientDeadline) : null,
+        clientDeadline: formData.clientDeadline || null,
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
         warrantyType: formData.warrantyType as 'standard' | 'extended',
         costEstimation: formData.costEstimation || null,
@@ -910,6 +913,7 @@ export default function KanbanTickets() {
         apartment: '',
         birthday: '',
         email: '',
+        phone: '',
         deviceType: '',
         deviceBrand: '',
         deviceModel: '',
@@ -1360,6 +1364,26 @@ export default function KanbanTickets() {
                           {t("email_format_error", "Please enter a valid email address (e.g., name@example.com)")}
                         </div>
                       )}
+                    </FormFieldWithTooltip>
+                  </div>
+
+                  {/* Phone Field */}
+                  <div className="grid grid-cols-1 gap-4">
+                    <FormFieldWithTooltip
+                      label={t("phone", "Phone")}
+                      tooltip={t("phone_tooltip", "Enter the client's mobile or landline phone number. Include area code. This will be used for urgent communications and appointment confirmations. Format: (11) 9 8765-4321")}
+                      required
+                      hasError={!!formErrors.phone}
+                      isValid={fieldValidation.phone?.isValid && formData.phone.length > 0}
+                    >
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        className={formErrors.phone ? 'border-red-500' : ''}
+                        placeholder={t("phone_placeholder", "e.g., (11) 9 8765-4321")}
+                        data-testid="input-phone"
+                      />
                     </FormFieldWithTooltip>
                   </div>
 
