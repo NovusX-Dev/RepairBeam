@@ -463,6 +463,78 @@ export default function KanbanTickets() {
     }
   };
 
+  // Get status-based card styling with good contrast
+  const getStatusCardStyling = (status: string): string => {
+    switch (status) {
+      case 'backlog':
+        return 'bg-gradient-to-br from-slate-50 to-slate-100 border-slate-300 hover:shadow-slate-200';
+      case 'waiting_diagnostics':
+        return 'bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-300 hover:shadow-amber-200';
+      case 'waiting_client_approval':
+        return 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300 hover:shadow-orange-200';
+      case 'approved':
+        return 'bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-300 hover:shadow-emerald-200';
+      case 'servicing':
+        return 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-300 hover:shadow-blue-200';
+      case 'quality_check':
+        return 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300 hover:shadow-purple-200';
+      case 'final_customer_check':
+        return 'bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-300 hover:shadow-indigo-200';
+      case 'finalized':
+        return 'bg-gradient-to-br from-green-50 to-green-100 border-green-300 hover:shadow-green-200';
+      default:
+        return 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300 hover:shadow-gray-200';
+    }
+  };
+
+  // Get status-based text color for good readability
+  const getStatusTextColor = (status: string): string => {
+    switch (status) {
+      case 'backlog':
+        return 'text-slate-700';
+      case 'waiting_diagnostics':
+        return 'text-amber-800';
+      case 'waiting_client_approval':
+        return 'text-orange-800';
+      case 'approved':
+        return 'text-emerald-800';
+      case 'servicing':
+        return 'text-blue-800';
+      case 'quality_check':
+        return 'text-purple-800';
+      case 'final_customer_check':
+        return 'text-indigo-800';
+      case 'finalized':
+        return 'text-green-800';
+      default:
+        return 'text-gray-700';
+    }
+  };
+
+  // Get status-based muted text color for secondary information
+  const getStatusMutedColor = (status: string): string => {
+    switch (status) {
+      case 'backlog':
+        return 'text-slate-600';
+      case 'waiting_diagnostics':
+        return 'text-amber-700';
+      case 'waiting_client_approval':
+        return 'text-orange-700';
+      case 'approved':
+        return 'text-emerald-700';
+      case 'servicing':
+        return 'text-blue-700';
+      case 'quality_check':
+        return 'text-purple-700';
+      case 'final_customer_check':
+        return 'text-indigo-700';
+      case 'finalized':
+        return 'text-green-700';
+      default:
+        return 'text-gray-600';
+    }
+  };
+
   // Email validation helper
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -2463,19 +2535,19 @@ export default function KanbanTickets() {
                 {ticketsByStatus[column.id]?.map((ticket) => (
                   <Card
                     key={ticket.id}
-                    className="cursor-move hover:shadow-md transition-shadow bg-white border border-gray-200"
+                    className={`cursor-move hover:shadow-md transition-all duration-200 ${getStatusCardStyling(ticket.status)}`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, ticket.id)}
                     data-testid={`ticket-${ticket.id}`}
                   >
-                    <CardContent className="p-4">
+                    <CardContent className={`p-4 ${getStatusTextColor(ticket.status)}`}>
                       {/* Priority indicator */}
                       <div className="flex items-center justify-between mb-2">
                         <div
                           className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority as TicketPriority)}`}
                           title={`${t("priority", "Priority")}: ${ticket.priority}`}
                         ></div>
-                        <span className="text-xs text-muted-foreground">
+                        <span className={`text-xs ${getStatusMutedColor(ticket.status)}`}>
                           #{ticket.id.slice(-6).toUpperCase()}
                         </span>
                       </div>
@@ -2487,14 +2559,14 @@ export default function KanbanTickets() {
 
                       {/* Device info */}
                       {(ticket.deviceType || ticket.deviceModel) && (
-                        <p className="text-xs text-muted-foreground mb-2">
+                        <p className={`text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
                           {[ticket.deviceType, ticket.deviceModel].filter(Boolean).join(' - ')}
                         </p>
                       )}
 
                       {/* Client info */}
                       {ticket.client && (
-                        <div className="flex items-center text-xs text-muted-foreground mb-2">
+                        <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
                           <User className="w-3 h-3 mr-1" />
                           {ticket.client.firstName} {ticket.client.lastName}
                         </div>
@@ -2502,14 +2574,14 @@ export default function KanbanTickets() {
 
                       {/* Cost info */}
                       {ticket.estimatedCost && (
-                        <div className="flex items-center text-xs text-muted-foreground mb-2">
+                        <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
                           <DollarSign className="w-3 h-3 mr-1" />
                           {t("estimated_cost_abbrev", "Est")}: ${ticket.estimatedCost}
                         </div>
                       )}
 
                       {/* Created date */}
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
                         <Clock className="w-3 h-3 mr-1" />
                         {new Date(ticket.createdAt!).toLocaleDateString()}
                       </div>
