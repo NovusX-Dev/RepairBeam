@@ -154,14 +154,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      const { issueResponses, ...ticketBody } = req.body;
       const ticketData = {
-        ...req.body,
+        ...ticketBody,
         tenantId: user.tenantId,
         // Convert clientDeadline string to Date object if it exists
         clientDeadline: req.body.clientDeadline ? new Date(req.body.clientDeadline) : null
       };
 
       const newTicket = await storage.createTicket(ticketData);
+
+      // Save issue responses if they exist
+      if (issueResponses && Array.isArray(issueResponses) && issueResponses.length > 0) {
+        for (const response of issueResponses) {
+          await storage.createIssueResponse({
+            ticketId: newTicket.id,
+            questionId: response.questionId,
+            response: JSON.stringify(response.answer)
+          });
+        }
+      }
+
       res.status(201).json(newTicket);
     } catch (error) {
       console.error("Error creating ticket:", error);
