@@ -1474,9 +1474,9 @@ export default function KanbanTickets() {
 
   return (
     <TooltipProvider>
-      <div className="h-full w-full flex flex-col overflow-hidden">
+      <div className="h-full w-full flex flex-col">
       {/* Action Bar */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <div className="flex items-center gap-3">
           {/* Filter Toggle Button */}
           <Button 
@@ -2916,7 +2916,7 @@ export default function KanbanTickets() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="mb-4 p-3 border border-border rounded-lg bg-card shadow-sm">
+        <div className="mb-2 p-3 border border-border rounded-lg bg-card shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4" />
@@ -3030,7 +3030,7 @@ export default function KanbanTickets() {
       )}
 
       {/* Kanban Board Container - Constrained to parent width */}
-      <div className="flex-1 min-h-0 w-full overflow-hidden">
+      <div className="flex-1 w-full overflow-hidden">
         <div 
           className="h-full w-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
         >
