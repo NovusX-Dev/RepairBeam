@@ -3034,16 +3034,16 @@ export default function KanbanTickets() {
         <div 
           className="h-full w-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
         >
-          <div className="flex gap-4 p-4 h-full" style={{ width: 'fit-content' }}>
+          <div className="flex gap-4 p-2 h-full min-h-[600px]" style={{ width: 'fit-content' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
-              className={`w-84 ${column.color} rounded-lg p-4 flex flex-col flex-shrink-0 transition-all duration-200 ${
+              className={`w-84 ${column.color} rounded-lg p-3 flex flex-col flex-shrink-0 transition-all duration-200 ${
                 dragHoverColumn === column.id 
                   ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg transform scale-[1.02]' 
                   : ''
               }`}
-              style={{ height: 'calc(100% - 0.5rem)' }}
+              style={{ height: '100%' }}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id as TicketStatus)}
