@@ -2711,6 +2711,7 @@ export default function KanbanTickets() {
                       {/* Progress Visualization */}
                       <div className="mb-2">
                         <ProgressVisualization
+                          key={`card-progress-${ticket.id}-${ticket.status}`}
                           currentStatus={ticket.status}
                           ticketId={ticket.id}
                           createdAt={ticket.createdAt}
@@ -2773,8 +2774,9 @@ export default function KanbanTickets() {
               </div>
 
               {/* Smart Collapsible Progress Section */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-900 rounded-lg border border-slate-200 dark:border-slate-700">
+              <div className="mb-6 p-3 bg-card/50 border border-border rounded-lg">
                 <ProgressVisualization
+                  key={`progress-${selectedTicketSummary.id}-${selectedTicketSummary.status}`}
                   currentStatus={selectedTicketSummary.status}
                   ticketId={selectedTicketSummary.id}
                   createdAt={selectedTicketSummary.createdAt}

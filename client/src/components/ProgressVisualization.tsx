@@ -254,13 +254,13 @@ export default function ProgressVisualization({
                             {/* Stage circle */}
                             <div
                               className={`
-                                w-10 h-10 md:w-12 md:h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300
+                                w-8 h-8 md:w-10 md:h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300
                                 ${isPast ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' : ''}
-                                ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20' : ''}
+                                ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/20' : ''}
                                 ${isFuture ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
                               `}
                             >
-                              <StageIcon className="h-4 w-4 md:h-5 md:w-5" />
+                              <StageIcon className="h-3 w-3 md:h-4 md:w-4" />
                             </div>
                             
                             {/* Stage label */}
@@ -295,7 +295,7 @@ export default function ProgressVisualization({
 
             {/* One-click advance section */}
             {nextStage && showAdvanceButton && (
-              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-950 rounded-lg border border-cyan-200 dark:border-cyan-800">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-950 rounded-md border border-cyan-200 dark:border-cyan-800">
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
                     <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -385,13 +385,13 @@ export default function ProgressVisualization({
                       {/* Stage circle */}
                       <div
                         className={`
-                          w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300
+                          w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-300
                           ${isPast ? 'bg-[#00FFFF] border-[#00FFFF] text-[#0A192F]' : ''}
-                          ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-4 ring-[#00FFFF]/20' : ''}
+                          ${isCurrent ? 'bg-white dark:bg-slate-800 border-[#00FFFF] text-[#00FFFF] ring-2 ring-[#00FFFF]/20' : ''}
                           ${isFuture ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400' : ''}
                         `}
                       >
-                        <StageIcon className="h-5 w-5" />
+                        <StageIcon className="h-4 w-4" />
                       </div>
                       
                       {/* Stage label */}
@@ -426,7 +426,7 @@ export default function ProgressVisualization({
 
       {/* One-click advance section */}
       {nextStage && showAdvanceButton && (
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-950 rounded-lg border border-cyan-200 dark:border-cyan-800">
+        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-950 rounded-md border border-cyan-200 dark:border-cyan-800">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
