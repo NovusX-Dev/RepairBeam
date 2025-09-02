@@ -1413,10 +1413,12 @@ export default function KanbanTickets() {
   // Handle next step
   const handleNextStep = () => {
     // Scroll to top when navigating between steps
-    const dialogContent = document.querySelector('[role="dialog"] .overflow-y-auto');
-    if (dialogContent) {
-      dialogContent.scrollTop = 0;
-    }
+    setTimeout(() => {
+      const dialogContent = document.querySelector('[role="dialog"]');
+      if (dialogContent) {
+        dialogContent.scrollTop = 0;
+      }
+    }, 50);
     
     if (currentStep === 0) {
       if (selectedClient) {
@@ -1464,10 +1466,12 @@ export default function KanbanTickets() {
   // Handle previous step
   const handlePreviousStep = () => {
     // Scroll to top when navigating between steps
-    const dialogContent = document.querySelector('[role="dialog"] .overflow-y-auto');
-    if (dialogContent) {
-      dialogContent.scrollTop = 0;
-    }
+    setTimeout(() => {
+      const dialogContent = document.querySelector('[role="dialog"]');
+      if (dialogContent) {
+        dialogContent.scrollTop = 0;
+      }
+    }, 50);
     
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
