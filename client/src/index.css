@@ -523,3 +523,27 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
 .w-84 {
   width: 21rem; /* 336px */
 }
+
+/* Custom scrollbar styling for Kanban columns */
+.kanban-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #00FFFF #1e293b;
+}
+
+.kanban-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.kanban-scroll::-webkit-scrollbar-track {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+.kanban-scroll::-webkit-scrollbar-thumb {
+  background: #00FFFF;
+  border-radius: 4px;
+}
+
+.kanban-scroll::-webkit-scrollbar-thumb:hover {
+  background: #00E6E6;
+}

@@ -2862,7 +2862,7 @@ export default function KanbanTickets() {
               </div>
 
               {/* Tickets */}
-              <div className="flex-1 space-y-3 min-h-[200px] overflow-y-auto overflow-x-hidden pr-3" style={{ scrollbarWidth: 'thin', scrollbarColor: '#9ca3af transparent' }}>
+              <div className="flex-1 space-y-3 min-h-[200px] overflow-y-auto overflow-x-hidden pr-3 kanban-scroll">
                 {ticketsByStatus[column.id]?.map((ticket) => (
                   <Card
                     key={ticket.id}
@@ -2872,7 +2872,7 @@ export default function KanbanTickets() {
                     onClick={() => setSelectedTicketSummary(ticket)}
                     data-testid={`ticket-${ticket.id}`}
                   >
-                    <CardContent className={`p-4 ${getStatusTextColor(ticket.status)}`}>
+                    <CardContent className={`p-4 pr-8 ${getStatusTextColor(ticket.status)}`}>
                       {/* Priority indicator */}
                       <div className="flex items-center justify-between mb-2">
                         <div
@@ -2913,7 +2913,7 @@ export default function KanbanTickets() {
                       )}
 
                       {/* Progress Visualization */}
-                      <div className="mb-2">
+                      <div className="mb-2 relative overflow-visible">
                         <ProgressVisualization
                           key={`card-progress-${ticket.id}-${ticket.status}`}
                           currentStatus={ticket.status}
