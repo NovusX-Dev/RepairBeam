@@ -6,6 +6,7 @@ import {
   inventoryItems,
   transactions,
   supportTickets,
+  ticketNotes,
   localizations,
   autoGenLists,
   deviceColors,
@@ -30,6 +31,8 @@ import {
   type InsertTransaction,
   type SupportTicket,
   type InsertSupportTicket,
+  type TicketNote,
+  type InsertTicketNote,
   type Localization,
   type InsertLocalization,
   type AutoGenList,
@@ -164,6 +167,10 @@ export interface IStorage {
   getIssueQuestions(deviceType: string): Promise<IssueQuestion[]>;
   createIssueResponse(response: InsertIssueResponse): Promise<IssueResponse>;
   getIssueResponses(ticketId: string): Promise<IssueResponse[]>;
+  
+  // Ticket notes operations
+  getTicketNotes(ticketId: string, tenantId: string): Promise<TicketNote[]>;
+  createTicketNote(note: InsertTicketNote): Promise<TicketNote>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -406,6 +413,20 @@ export class DatabaseStorage implements IStorage {
   async createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket> {
     const [newTicket] = await db.insert(supportTickets).values(ticket).returning();
     return newTicket;
+  }
+
+  // Ticket notes operations
+  async getTicketNotes(ticketId: string, tenantId: string): Promise<TicketNote[]> {
+    return db
+      .select()
+      .from(ticketNotes)
+      .where(and(eq(ticketNotes.ticketId, ticketId), eq(ticketNotes.tenantId, tenantId)))
+      .orderBy(desc(ticketNotes.createdAt));
+  }
+
+  async createTicketNote(note: InsertTicketNote): Promise<TicketNote> {
+    const [newNote] = await db.insert(ticketNotes).values(note).returning();
+    return newNote;
   }
 
   // Get recent users for quick login display

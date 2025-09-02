@@ -169,6 +169,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get ticket notes
+  app.get("/api/tickets/:ticketId/notes", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const notes = await storage.getTicketNotes(ticketId, user.tenantId);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching ticket notes:", error);
+      res.status(500).json({ message: "Failed to fetch notes" });
+    }
+  });
+
+  // Add ticket note
+  app.post("/api/tickets/:ticketId/notes", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const note = await storage.createTicketNote({
+        ticketId,
+        userId,
+        content,
+        tenantId: user.tenantId
+      });
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating ticket note:", error);
+      res.status(500).json({ message: "Failed to create note" });
+    }
+  });
+
   app.put("/api/tickets/:ticketId/status", isAuthenticated, async (req: any, res) => {
     try {
       const { ticketId } = req.params;

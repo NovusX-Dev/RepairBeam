@@ -169,6 +169,16 @@ export const supportTickets = pgTable("support_tickets", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Ticket notes
+export const ticketNotes = pgTable("ticket_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  ticketId: varchar("ticket_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Localization table
 export const localizations = pgTable("localizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -244,6 +254,8 @@ export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+export type TicketNote = typeof ticketNotes.$inferSelect;
+export type InsertTicketNote = typeof ticketNotes.$inferInsert;
 export type Localization = typeof localizations.$inferSelect;
 export type InsertLocalization = typeof localizations.$inferInsert;
 export type AutoGenList = typeof autoGenLists.$inferSelect;
