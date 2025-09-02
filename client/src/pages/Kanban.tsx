@@ -104,6 +104,8 @@ interface TicketFormData {
   // Service Checklist
   deviceComponents: { [component: string]: string }; // component -> condition mapping
   additionalNotes: string;
+  // Issue Assessment
+  issueResponses?: Array<{ questionId: string; answer: any }>;
   // Client Authorization
   clientApproved: boolean;
 }
@@ -228,6 +230,8 @@ export default function KanbanTickets() {
     // Service Checklist
     deviceComponents: {},
     additionalNotes: '',
+    // Issue Assessment
+    issueResponses: [],
     // Client Authorization
     clientApproved: false,
   });
@@ -431,6 +435,8 @@ export default function KanbanTickets() {
         // Service Checklist defaults
         deviceComponents: {},
         additionalNotes: '',
+        // Issue Assessment defaults
+        issueResponses: [],
         // Client Authorization defaults
         clientApproved: false,
       });
@@ -1019,6 +1025,7 @@ export default function KanbanTickets() {
           components: formData.deviceComponents,
           additionalNotes: formData.additionalNotes
         },
+        issueResponses: formData.issueResponses || [],
       };
       
       createTicketMutation.mutate(ticketData);
@@ -1111,6 +1118,8 @@ export default function KanbanTickets() {
         // Service Checklist defaults
         deviceComponents: {},
         additionalNotes: '',
+        // Issue Assessment defaults
+        issueResponses: [],
         // Client Authorization defaults
         clientApproved: false,
       });
@@ -1986,7 +1995,12 @@ export default function KanbanTickets() {
                 <div className="space-y-6">
                   <IssueAssessment 
                     deviceType={formData.deviceType}
-                    onComplete={() => {
+                    onComplete={(responses) => {
+                      // Store issue responses in form data
+                      setFormData(prev => ({
+                        ...prev,
+                        issueResponses: responses
+                      }));
                       // Auto-proceed to next step after completion
                       setCurrentStep(currentStep + 1);
                     }}
@@ -2930,13 +2944,13 @@ export default function KanbanTickets() {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-lg">{t("service_checklist", "Service Checklist")}</h3>
                     
-                    {!selectedTicketSummary.serviceChecklist ? (
+                    {!selectedTicketSummary.serviceChecklist?.components || Object.keys(selectedTicketSummary.serviceChecklist.components).length === 0 ? (
                       <div className="text-sm text-muted-foreground">
                         {t("no_checklist_available", "No service checklist available")}
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {Object.entries(selectedTicketSummary.serviceChecklist as Record<string, any>).map(([component, condition]) => (
+                        {Object.entries(selectedTicketSummary.serviceChecklist.components).map(([component, condition]) => (
                           <div key={component} className="flex items-center justify-between p-3 bg-muted/10 rounded-md">
                             <span className="font-medium text-sm capitalize">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
                             <span className={`text-sm px-2 py-1 rounded-full ${
@@ -2949,6 +2963,14 @@ export default function KanbanTickets() {
                             </span>
                           </div>
                         ))}
+                        
+                        {/* Additional Notes */}
+                        {selectedTicketSummary.serviceChecklist.additionalNotes && (
+                          <div className="mt-4 p-3 bg-muted/10 rounded-md">
+                            <h4 className="font-medium text-sm mb-2">{t("additional_notes", "Additional Notes")}</h4>
+                            <p className="text-sm text-muted-foreground">{selectedTicketSummary.serviceChecklist.additionalNotes}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
