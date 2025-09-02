@@ -226,7 +226,7 @@ export function IssueAssessment({
     const tooltipText = t(`${question.questionKey}_tooltip`, "");
 
     return (
-      <Card key={question.id} className={`transition-all duration-200 ${hasResponse ? 'ring-2 ring-green-500/20 bg-green-50/50 dark:bg-green-950/20' : ''}`}>
+      <Card key={question.id} className={`bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg transition-all duration-200 ${hasResponse ? 'ring-2 ring-[#00FFFF]/30 bg-slate-700/70' : ''}`}>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-start justify-between text-base">
             <div className="flex items-start gap-3 flex-1">
@@ -410,7 +410,7 @@ export function IssueAssessment({
       </div>
 
       {/* Additional Comments */}
-      <Card>
+      <Card className="bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg">
         <CardHeader>
           <CardTitle className="text-base">
             {t("additional_comments", "Additional Comments")}
