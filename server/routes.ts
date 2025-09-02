@@ -211,6 +211,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get ticket issue responses
+  app.get("/api/tickets/:ticketId/issue-responses", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const responses = await storage.getIssueResponses(ticketId);
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching issue responses:", error);
+      res.status(500).json({ message: "Failed to fetch issue responses" });
+    }
+  });
+
   app.put("/api/tickets/:ticketId/status", isAuthenticated, async (req: any, res) => {
     try {
       const { ticketId } = req.params;

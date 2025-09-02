@@ -195,6 +195,8 @@ export default function KanbanTickets() {
   const [selectedTicketSummary, setSelectedTicketSummary] = useState<TicketWithClient | null>(null);
   const [newNote, setNewNote] = useState('');
   const [notes, setNotes] = useState<any[]>([]);
+  const [issueResponses, setIssueResponses] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('general');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<TicketFormData>({
@@ -251,9 +253,10 @@ export default function KanbanTickets() {
   const { t, currentLanguage } = useLocalization();
   const { toast } = useToast();
 
-  // Fetch notes when ticket summary modal opens
+  // Fetch notes and issue responses when ticket summary modal opens
   useEffect(() => {
     if (selectedTicketSummary) {
+      // Fetch notes
       fetch(`/api/tickets/${selectedTicketSummary.id}/notes`)
         .then(r => r.json())
         .then(setNotes)
@@ -261,8 +264,18 @@ export default function KanbanTickets() {
           console.error('Failed to fetch notes:', error);
           setNotes([]);
         });
+      
+      // Fetch issue responses
+      fetch(`/api/tickets/${selectedTicketSummary.id}/issue-responses`)
+        .then(r => r.json())
+        .then(setIssueResponses)
+        .catch(error => {
+          console.error('Failed to fetch issue responses:', error);
+          setIssueResponses([]);
+        });
     } else {
       setNotes([]);
+      setIssueResponses([]);
     }
   }, [selectedTicketSummary]);
 
@@ -2732,147 +2745,214 @@ export default function KanbanTickets() {
                 </DialogTitle>
               </DialogHeader>
               
-              <div className="space-y-6">
-                {/* Ticket Status and Priority */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTicketSummary.priority as TicketPriority)}`}
-                    ></div>
-                    <span className="text-sm font-medium">{t("priority", "Priority")}: {selectedTicketSummary.priority}</span>
-                  </div>
-                  <Badge className={getStatusCardStyling(selectedTicketSummary.status)}>
-                    {getKanbanColumns(t).find(col => col.id === selectedTicketSummary.status)?.title}
-                  </Badge>
+              {/* Status and Priority Header */}
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTicketSummary.priority as TicketPriority)}`}
+                  ></div>
+                  <span className="text-sm font-medium">{t("priority", "Priority")}: {selectedTicketSummary.priority}</span>
                 </div>
+                <Badge className={getStatusCardStyling(selectedTicketSummary.status)}>
+                  {getKanbanColumns(t).find(col => col.id === selectedTicketSummary.status)?.title}
+                </Badge>
+              </div>
 
-                {/* Ticket Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Tabs Interface */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="general" data-testid="tab-general-info">
+                    {t("general_info", "General Info")}
+                  </TabsTrigger>
+                  <TabsTrigger value="problems" data-testid="tab-problems">
+                    {t("problems", "Problems")}
+                  </TabsTrigger>
+                  <TabsTrigger value="checklist" data-testid="tab-checklist">
+                    {t("checklist", "Checklist")}
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* General Info Tab */}
+                <TabsContent value="general" className="space-y-6">
+                  {/* Ticket Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-lg">{t("ticket_details", "Ticket Details")}</h3>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("title", "Title")}</label>
+                        <p className="text-sm">{selectedTicketSummary.title}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("description", "Description")}</label>
+                        <p className="text-sm">{selectedTicketSummary.description || t("not_available", "N/A")}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("device_type", "Device Type")}</label>
+                        <p className="text-sm">{selectedTicketSummary.deviceType}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("brand_model", "Brand & Model")}</label>
+                        <p className="text-sm">{selectedTicketSummary.deviceBrand} {selectedTicketSummary.deviceModel}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("color", "Color")}</label>
+                        <p className="text-sm">{selectedTicketSummary.deviceColor || t("not_available", "N/A")}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-lg">{t("client_information_summary", "Client Information")}</h3>
+                      
+                      {selectedTicketSummary.client && (
+                        <>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">{t("full_name", "Full Name")}</label>
+                            <p className="text-sm">{selectedTicketSummary.client.firstName} {selectedTicketSummary.client.lastName}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">{t("email", "Email")}</label>
+                            <p className="text-sm">{selectedTicketSummary.client.email}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">{t("phone", "Phone")}</label>
+                            <p className="text-sm">{selectedTicketSummary.client.phone}</p>
+                          </div>
+                          
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">{t("cpf", "CPF")}</label>
+                            <p className="text-sm">{selectedTicketSummary.client.cpf}</p>
+                          </div>
+                        </>
+                      )}
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("estimated_cost", "Estimated Cost")}</label>
+                        <p className="text-sm">${selectedTicketSummary.estimatedCost || t("not_available", "N/A")}</p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">{t("created_on", "Created on")}</label>
+                        <p className="text-sm">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Notes Section */}
                   <div className="space-y-3">
-                    <h3 className="font-semibold text-lg">{t("ticket_details", "Ticket Details")}</h3>
+                    <h3 className="font-semibold text-lg">{t("notes", "Notes")}</h3>
                     
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("title", "Title")}</label>
-                      <p className="text-sm">{selectedTicketSummary.title}</p>
+                    {/* Add new note */}
+                    <div className="space-y-2">
+                      <Textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder={t("note_placeholder", "Add a note about this ticket...")}
+                        rows={3}
+                        className="resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await apiRequest(`/api/tickets/${selectedTicketSummary.id}/notes`, {
+                                method: 'POST',
+                                body: JSON.stringify({ content: newNote }),
+                                headers: { 'Content-Type': 'application/json' }
+                              });
+                              setNewNote('');
+                              // Refresh notes
+                              const updatedNotes = await fetch(`/api/tickets/${selectedTicketSummary.id}/notes`).then(r => r.json());
+                              setNotes(updatedNotes);
+                            } catch (error) {
+                              console.error('Failed to save note:', error);
+                            }
+                          }}
+                          disabled={!newNote.trim()}
+                        >
+                          {t("save_note", "Save Note")}
+                        </Button>
+                      </div>
                     </div>
                     
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("description", "Description")}</label>
-                      <p className="text-sm">{selectedTicketSummary.description || t("not_available", "N/A")}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("device_type", "Device Type")}</label>
-                      <p className="text-sm">{selectedTicketSummary.deviceType}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("brand_model", "Brand & Model")}</label>
-                      <p className="text-sm">{selectedTicketSummary.deviceBrand} {selectedTicketSummary.deviceModel}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("color", "Color")}</label>
-                      <p className="text-sm">{selectedTicketSummary.deviceColor || t("not_available", "N/A")}</p>
+                    {/* Display existing notes */}
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {notes.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">
+                          {t("no_notes", "No notes yet")}
+                        </div>
+                      ) : (
+                        notes.map((note) => (
+                          <div key={note.id} className="bg-muted/10 p-3 rounded-md">
+                            <p className="text-sm">{note.content}</p>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {new Date(note.createdAt).toLocaleString()}
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
-                  
+                </TabsContent>
+
+                {/* Problems Tab */}
+                <TabsContent value="problems" className="space-y-4">
                   <div className="space-y-3">
-                    <h3 className="font-semibold text-lg">{t("client_information_summary", "Client Information")}</h3>
+                    <h3 className="font-semibold text-lg">{t("problems_identified", "Problems Identified")}</h3>
                     
-                    {selectedTicketSummary.client && (
-                      <>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">{t("full_name", "Full Name")}</label>
-                          <p className="text-sm">{selectedTicketSummary.client.firstName} {selectedTicketSummary.client.lastName}</p>
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">{t("email", "Email")}</label>
-                          <p className="text-sm">{selectedTicketSummary.client.email}</p>
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">{t("phone", "Phone")}</label>
-                          <p className="text-sm">{selectedTicketSummary.client.phone}</p>
-                        </div>
-                        
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">{t("cpf", "CPF")}</label>
-                          <p className="text-sm">{selectedTicketSummary.client.cpf}</p>
-                        </div>
-                      </>
-                    )}
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("estimated_cost", "Estimated Cost")}</label>
-                      <p className="text-sm">${selectedTicketSummary.estimatedCost || t("not_available", "N/A")}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">{t("created_on", "Created on")}</label>
-                      <p className="text-sm">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Notes Section */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">{t("notes", "Notes")}</h3>
-                  
-                  {/* Add new note */}
-                  <div className="space-y-2">
-                    <Textarea
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      placeholder={t("note_placeholder", "Add a note about this ticket...")}
-                      rows={3}
-                      className="resize-none"
-                    />
-                    <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            await apiRequest(`/api/tickets/${selectedTicketSummary.id}/notes`, {
-                              method: 'POST',
-                              body: JSON.stringify({ content: newNote }),
-                              headers: { 'Content-Type': 'application/json' }
-                            });
-                            setNewNote('');
-                            // Refresh notes
-                            const updatedNotes = await fetch(`/api/tickets/${selectedTicketSummary.id}/notes`).then(r => r.json());
-                            setNotes(updatedNotes);
-                          } catch (error) {
-                            console.error('Failed to save note:', error);
-                          }
-                        }}
-                        disabled={!newNote.trim()}
-                      >
-                        {t("save_note", "Save Note")}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Display existing notes */}
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {notes.length === 0 ? (
+                    {issueResponses.length === 0 ? (
                       <div className="text-sm text-muted-foreground">
-                        {t("no_notes", "No notes yet")}
+                        {t("no_problems_recorded", "No problems recorded during ticket creation")}
                       </div>
                     ) : (
-                      notes.map((note) => (
-                        <div key={note.id} className="bg-muted/10 p-3 rounded-md">
-                          <p className="text-sm">{note.content}</p>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {new Date(note.createdAt).toLocaleString()}
+                      <div className="space-y-3">
+                        {issueResponses.map((response, index) => (
+                          <div key={response.id || index} className="bg-muted/10 p-4 rounded-md">
+                            <div className="font-medium text-sm mb-2">{response.question || t("question", "Question")} {index + 1}</div>
+                            <div className="text-sm">{response.response}</div>
                           </div>
-                        </div>
-                      ))
+                        ))}
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
+                </TabsContent>
+
+                {/* Checklist Tab */}
+                <TabsContent value="checklist" className="space-y-4">
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-lg">{t("service_checklist", "Service Checklist")}</h3>
+                    
+                    {!selectedTicketSummary.serviceChecklist ? (
+                      <div className="text-sm text-muted-foreground">
+                        {t("no_checklist_available", "No service checklist available")}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {Object.entries(selectedTicketSummary.serviceChecklist as Record<string, any>).map(([component, condition]) => (
+                          <div key={component} className="flex items-center justify-between p-3 bg-muted/10 rounded-md">
+                            <span className="font-medium text-sm capitalize">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
+                            <span className={`text-sm px-2 py-1 rounded-full ${
+                              condition === 'good' ? 'bg-green-100 text-green-800' :
+                              condition === 'fair' ? 'bg-yellow-100 text-yellow-800' :
+                              condition === 'poor' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {condition}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
               
               <div className="flex justify-end">
                 <Button variant="outline" onClick={() => setSelectedTicketSummary(null)}>
