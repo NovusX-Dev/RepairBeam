@@ -200,6 +200,7 @@ export default function KanbanTickets() {
   const [newNote, setNewNote] = useState('');
   const [notes, setNotes] = useState<any[]>([]);
   const [issueResponses, setIssueResponses] = useState<any[]>([]);
+  const [checklistComponentOrder, setChecklistComponentOrder] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('general');
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -279,9 +280,25 @@ export default function KanbanTickets() {
           console.error('Failed to fetch issue responses:', error);
           setIssueResponses([]);
         });
+
+      // Fetch checklist template for component order
+      if (selectedTicketSummary.deviceType) {
+        fetch(`/api/device-checklist-templates/${selectedTicketSummary.deviceType}`)
+          .then(r => r.json())
+          .then(template => {
+            if (template?.components && Array.isArray(template.components)) {
+              setChecklistComponentOrder(template.components);
+            }
+          })
+          .catch(error => {
+            console.error('Failed to fetch checklist template:', error);
+            setChecklistComponentOrder([]);
+          });
+      }
     } else {
       setNotes([]);
       setIssueResponses([]);
+      setChecklistComponentOrder([]);
     }
   }, [selectedTicketSummary]);
 
@@ -3061,7 +3078,7 @@ export default function KanbanTickets() {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-lg">{t("problems_identified", "Problems Identified")}</h3>
                     
-                    {issueResponses.length === 0 ? (
+                    {!issueResponses || issueResponses.length === 0 ? (
                       <div className="text-sm text-muted-foreground">
                         {t("no_problems_recorded", "No problems recorded during ticket creation")}
                       </div>
@@ -3069,8 +3086,8 @@ export default function KanbanTickets() {
                       <div className="space-y-3">
                         {issueResponses.map((response, index) => (
                           <div key={response.id || index} className="bg-muted/10 p-4 rounded-md">
-                            <div className="font-medium text-sm mb-2">{response.question || t("question", "Question")} {index + 1}</div>
-                            <div className="text-sm">{response.response}</div>
+                            <div className="font-medium text-sm mb-2">{t("question", "Question")} {index + 1}</div>
+                            <div className="text-sm">{typeof response.response === 'string' ? response.response : JSON.stringify(response.response)}</div>
                           </div>
                         ))}
                       </div>
@@ -3089,19 +3106,27 @@ export default function KanbanTickets() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {Object.entries(selectedTicketSummary.serviceChecklist.components).map(([component, condition]) => (
-                          <div key={component} className="flex items-center justify-between p-3 bg-muted/10 rounded-md">
-                            <span className="font-medium text-sm capitalize">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
-                            <span className={`text-sm px-2 py-1 rounded-full ${
-                              condition === 'good' ? 'bg-green-100 text-green-800' :
-                              condition === 'fair' ? 'bg-yellow-100 text-yellow-800' :
-                              condition === 'poor' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {condition}
-                            </span>
-                          </div>
-                        ))}
+                        {checklistComponentOrder.map((component) => {
+                          const condition = selectedTicketSummary.serviceChecklist.components[component];
+                          if (!condition) return null;
+                          return (
+                            <div key={component} className="flex items-center justify-between p-3 bg-muted/10 rounded-md">
+                              <span className="font-medium text-sm capitalize">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
+                              <span className={`text-sm px-2 py-1 rounded-full ${
+                                condition === 'excellent' ? 'bg-emerald-100 text-emerald-800' :
+                                condition === 'good' ? 'bg-green-100 text-green-800' :
+                                condition === 'fair' ? 'bg-yellow-100 text-yellow-800' :
+                                condition === 'poor' ? 'bg-orange-100 text-orange-800' :
+                                condition === 'damaged' ? 'bg-red-100 text-red-800' :
+                                condition === 'missing' ? 'bg-red-200 text-red-900' :
+                                condition === 'not_applicable' ? 'bg-gray-100 text-gray-600' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {condition === 'not_applicable' ? 'N/A' : condition.replace('_', ' ').toLowerCase()}
+                              </span>
+                            </div>
+                          );
+                        })}
                         
                         {/* Additional Notes */}
                         {selectedTicketSummary.serviceChecklist.additionalNotes && (
