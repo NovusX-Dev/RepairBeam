@@ -3256,13 +3256,21 @@ export default function KanbanTickets() {
                         </div>
                         
                         {/* Additional Notes */}
-                        {selectedTicketSummary.serviceChecklist.additionalNotes && (
+                        {selectedTicketSummary.serviceChecklist?.additionalNotes && (
                           <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-2">
                               <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                               <h4 className="font-medium text-sm">{t("additional_notes", "Additional Notes")}</h4>
                             </div>
                             <p className="text-sm text-muted-foreground italic">"{selectedTicketSummary.serviceChecklist.additionalNotes}"</p>
+                          </div>
+                        )}
+
+                        {/* Debug: Show what's in serviceChecklist for testing */}
+                        {process.env.NODE_ENV === 'development' && (
+                          <div className="text-xs text-muted-foreground mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                            <strong>Debug - serviceChecklist structure:</strong>
+                            <pre>{JSON.stringify(selectedTicketSummary.serviceChecklist, null, 2)}</pre>
                           </div>
                         )}
                       </div>
