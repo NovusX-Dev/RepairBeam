@@ -42,7 +42,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
@@ -313,6 +313,10 @@ export default function KanbanTickets() {
   const [checklistComponentOrder, setChecklistComponentOrder] = useState<string[]>([]);
   const [shouldCompleteAssessment, setShouldCompleteAssessment] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  
+  // Card collapse/expand state
+  const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set());
+  const [allCardsCollapsed, setAllCardsCollapsed] = useState(true); // Default state is collapsed
   const [isTicketDialogOpen, setIsTicketDialogOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<TicketFormData>({
@@ -464,6 +468,51 @@ export default function KanbanTickets() {
       }
     }
   }, [tickets, selectedTicketSummary]);
+
+  // Initialize all cards as collapsed by default
+  useEffect(() => {
+    if (tickets.length > 0) {
+      const allTicketIds = new Set(tickets.map(ticket => ticket.id));
+      setCollapsedCards(allTicketIds);
+    }
+  }, [tickets]);
+
+  // Helper functions for card collapse/expand
+  const toggleCardCollapse = (ticketId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent opening the ticket summary modal
+    setCollapsedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(ticketId)) {
+        newSet.delete(ticketId);
+      } else {
+        newSet.add(ticketId);
+      }
+      
+      // Update global state based on remaining collapsed cards
+      const totalTickets = tickets.length;
+      if (totalTickets > 0) {
+        setAllCardsCollapsed(newSet.size === totalTickets);
+      }
+      
+      return newSet;
+    });
+  };
+
+  const toggleAllCards = () => {
+    if (allCardsCollapsed) {
+      // Expand all cards
+      setCollapsedCards(new Set());
+      setAllCardsCollapsed(false);
+    } else {
+      // Collapse all cards
+      const allTicketIds = new Set(tickets.map(ticket => ticket.id));
+      setCollapsedCards(allTicketIds);
+      setAllCardsCollapsed(true);
+    }
+  };
+
+  // Check if a specific card is collapsed
+  const isCardCollapsed = (ticketId: string) => collapsedCards.has(ticketId);
 
   // Tenant settings query for extended warranty price (temporarily simplified)
   const { data: tenant } = useQuery<any>({
@@ -1492,6 +1541,17 @@ export default function KanbanTickets() {
                 {Object.values(filters).filter(v => v && v !== 'all').length}
               </Badge>
             )}
+          </Button>
+          
+          {/* Global Expand/Collapse All Button */}
+          <Button 
+            variant="outline" 
+            onClick={toggleAllCards}
+            className="transition-all duration-200 hover:bg-muted/50"
+            data-testid="button-toggle-all-cards"
+          >
+            {allCardsCollapsed ? <Maximize2 className="w-4 h-4 mr-2" /> : <Minimize2 className="w-4 h-4 mr-2" />}
+            {allCardsCollapsed ? t("expand_all", "Expand All") : t("collapse_all", "Collapse All")}
           </Button>
         </div>
         
@@ -3058,81 +3118,114 @@ export default function KanbanTickets() {
 
               {/* Tickets */}
               <div className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll">
-                {ticketsByStatus[column.id]?.map((ticket) => (
-                  <Card
-                    key={ticket.id}
-                    className={`cursor-pointer hover:shadow-md transition-all duration-200 ${getStatusCardStyling(ticket.status)}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, ticket.id)}
-                    onClick={() => setSelectedTicketSummary(ticket)}
-                    data-testid={`ticket-${ticket.id}`}
-                  >
-                    <CardContent className={`p-4 pr-4 ${getStatusTextColor(ticket.status)}`}>
-                      {/* Priority indicator */}
-                      <div className="flex items-center justify-between mb-2">
-                        <div
-                          className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority as TicketPriority)}`}
-                          title={`${t("priority", "Priority")}: ${ticket.priority}`}
-                        ></div>
-                        <span className={`text-xs ${getStatusMutedColor(ticket.status)}`}>
-                          #{ticket.id.slice(-6).toUpperCase()}
-                        </span>
-                      </div>
-
-                      {/* Ticket title */}
-                      <h4 className="font-medium text-sm mb-2 line-clamp-2">
-                        {ticket.title}
-                      </h4>
-
-                      {/* Device info */}
-                      {(ticket.deviceType || ticket.deviceModel) && (
-                        <p className={`text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
-                          {[ticket.deviceType, ticket.deviceModel].filter(Boolean).join(' - ')}
-                        </p>
-                      )}
-
-                      {/* Client info */}
-                      {ticket.client && (
-                        <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
-                          <User className="w-3 h-3 mr-1" />
-                          {ticket.client.firstName} {ticket.client.lastName}
+                {ticketsByStatus[column.id]?.map((ticket) => {
+                  const collapsed = isCardCollapsed(ticket.id);
+                  
+                  return (
+                    <Card
+                      key={ticket.id}
+                      className={`cursor-pointer hover:shadow-md transition-all duration-200 ${getStatusCardStyling(ticket.status)}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, ticket.id)}
+                      onClick={() => setSelectedTicketSummary(ticket)}
+                      data-testid={`ticket-${ticket.id}`}
+                    >
+                      <CardContent className={`${collapsed ? 'p-3' : 'p-4 pr-4'} ${getStatusTextColor(ticket.status)}`}>
+                        {/* Header row with priority, ticket ID, and expand/collapse button */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-3 h-3 rounded-full ${getPriorityColor(ticket.priority as TicketPriority)}`}
+                              title={`${t("priority", "Priority")}: ${ticket.priority}`}
+                            ></div>
+                            <span className={`text-xs ${getStatusMutedColor(ticket.status)}`}>
+                              #{ticket.id.slice(-6).toUpperCase()}
+                            </span>
+                          </div>
+                          
+                          {/* Individual card expand/collapse button */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => toggleCardCollapse(ticket.id, e)}
+                            className={`h-6 w-6 p-0 hover:bg-white/20 ${getStatusMutedColor(ticket.status)}`}
+                            data-testid={`button-toggle-card-${ticket.id}`}
+                          >
+                            {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                          </Button>
                         </div>
-                      )}
 
-                      {/* Cost info */}
-                      {ticket.estimatedCost && (
-                        <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)} mb-2`}>
-                          <DollarSign className="w-3 h-3 mr-1" />
-                          {t("estimated_cost_abbrev", "Est")}: ${ticket.estimatedCost}
-                        </div>
-                      )}
+                        {/* Ticket title - always shown */}
+                        <h4 className={`font-medium text-sm ${collapsed ? 'line-clamp-1' : 'line-clamp-2'} mb-2`}>
+                          {ticket.title}
+                        </h4>
 
-                      {/* Progress Visualization */}
-                      <div className="mb-2 relative overflow-visible">
-                        <ProgressVisualization
-                          key={`card-progress-${ticket.id}-${ticket.status}`}
-                          currentStatus={ticket.status}
-                          ticketId={ticket.id}
-                          createdAt={ticket.createdAt}
-                          technicianEstimatedHours={ticket.technicianEstimatedHours}
-                          onAdvanceStatus={(ticketId, nextStatus) => {
-                            updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
-                          }}
-                          isAdvancing={updateTicketStatus.isPending}
-                          compact={true}
-                          showAdvanceButton={true}
-                          headerStyle="simple"
-                        />
-                      </div>
+                        {collapsed ? (
+                          /* COLLAPSED VIEW - Minimal information */
+                          <div className="space-y-1">
+                            {/* Client name only */}
+                            {ticket.client && (
+                              <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
+                                <User className="w-3 h-3 mr-1" />
+                                {ticket.client.firstName} {ticket.client.lastName}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* EXPANDED VIEW - Full information */
+                          <div className="space-y-2">
+                            {/* Device info */}
+                            {(ticket.deviceType || ticket.deviceModel) && (
+                              <p className={`text-xs ${getStatusMutedColor(ticket.status)}`}>
+                                {[ticket.deviceType, ticket.deviceModel].filter(Boolean).join(' - ')}
+                              </p>
+                            )}
 
-                      {/* Created date */}
-                      <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
-                        <Clock className="w-3 h-3 mr-1" />
-                        {new Date(ticket.createdAt!).toLocaleDateString()}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                            {/* Client info */}
+                            {ticket.client && (
+                              <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
+                                <User className="w-3 h-3 mr-1" />
+                                {ticket.client.firstName} {ticket.client.lastName}
+                              </div>
+                            )}
+
+                            {/* Cost info */}
+                            {ticket.estimatedCost && (
+                              <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
+                                <DollarSign className="w-3 h-3 mr-1" />
+                                {t("estimated_cost_abbrev", "Est")}: ${ticket.estimatedCost}
+                              </div>
+                            )}
+
+                            {/* Progress Visualization */}
+                            <div className="relative overflow-visible">
+                              <ProgressVisualization
+                                key={`card-progress-${ticket.id}-${ticket.status}`}
+                                currentStatus={ticket.status}
+                                ticketId={ticket.id}
+                                createdAt={ticket.createdAt}
+                                technicianEstimatedHours={ticket.technicianEstimatedHours}
+                                onAdvanceStatus={(ticketId, nextStatus) => {
+                                  updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
+                                }}
+                                isAdvancing={updateTicketStatus.isPending}
+                                compact={true}
+                                showAdvanceButton={true}
+                                headerStyle="simple"
+                              />
+                            </div>
+
+                            {/* Created date */}
+                            <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
+                              <Clock className="w-3 h-3 mr-1" />
+                              {new Date(ticket.createdAt!).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
 
                 {/* Empty state */}
                 {(!ticketsByStatus[column.id] || ticketsByStatus[column.id].length === 0) && (
