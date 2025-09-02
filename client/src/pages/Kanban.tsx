@@ -2831,17 +2831,65 @@ export default function KanbanTickets() {
                 </DialogTitle>
               </DialogHeader>
               
-              {/* Status and Priority Header */}
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTicketSummary.priority as TicketPriority)}`}
-                  ></div>
-                  <span className="text-sm font-medium">{t("priority", "Priority")}: {selectedTicketSummary.priority}</span>
+              {/* Priority and Status Header - Improved Design */}
+              <div className="flex items-center justify-between mb-6 p-4 bg-muted/30 rounded-lg border">
+                <div className="flex items-center gap-4">
+                  {/* Priority Selector - Prominent Position */}
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-semibold text-foreground">{t("priority", "Priority")}</label>
+                    <Select
+                      value={selectedTicketSummary.priority}
+                      onValueChange={(newPriority) => {
+                        updateTicketPriority.mutate({ 
+                          ticketId: selectedTicketSummary.id, 
+                          priority: newPriority as TicketPriority 
+                        });
+                      }}
+                      data-testid="select-ticket-priority-header"
+                    >
+                      <SelectTrigger className="w-36 h-9">
+                        <SelectValue>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(selectedTicketSummary.priority as TicketPriority)}`}>
+                            {getPriorityLabel(selectedTicketSummary.priority as TicketPriority)}
+                          </span>
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low" data-testid="priority-low-header">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor('low')}`}>
+                            {getPriorityLabel('low')}
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="medium" data-testid="priority-medium-header">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor('medium')}`}>
+                            {getPriorityLabel('medium')}
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="critical" data-testid="priority-critical-header">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor('critical')}`}>
+                            {getPriorityLabel('critical')}
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="vip" data-testid="priority-vip-header">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor('vip')}`}>
+                            {getPriorityLabel('vip')}
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {updateTicketPriority.isPending && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
-                <Badge className={getStatusCardStyling(selectedTicketSummary.status)}>
-                  {getKanbanColumns(t).find(col => col.id === selectedTicketSummary.status)?.title}
-                </Badge>
+
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">{t("status", "Status")}:</span>
+                  <Badge className={`${getStatusCardStyling(selectedTicketSummary.status)} px-3 py-1`}>
+                    {getKanbanColumns(t).find(col => col.id === selectedTicketSummary.status)?.title}
+                  </Badge>
+                </div>
               </div>
 
               {/* Smart Collapsible Progress Section */}
@@ -2858,7 +2906,7 @@ export default function KanbanTickets() {
                   isAdvancing={updateTicketStatus.isPending}
                   compact={false}
                   collapsible={true}
-                  defaultExpanded={true}
+                  defaultExpanded={false}
                   showAdvanceButton={true}
                   headerStyle="detailed"
                 />
@@ -2908,55 +2956,6 @@ export default function KanbanTickets() {
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">{t("color", "Color")}</label>
                         <p className="text-sm">{selectedTicketSummary.deviceColor || t("not_available", "N/A")}</p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">{t("priority", "Priority")}</label>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Select
-                            value={selectedTicketSummary.priority}
-                            onValueChange={(newPriority) => {
-                              updateTicketPriority.mutate({ 
-                                ticketId: selectedTicketSummary.id, 
-                                priority: newPriority as TicketPriority 
-                              });
-                            }}
-                            data-testid="select-ticket-priority"
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(selectedTicketSummary.priority as TicketPriority)}`}>
-                                  {getPriorityLabel(selectedTicketSummary.priority as TicketPriority)}
-                                </span>
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low" data-testid="priority-low">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('low')}`}>
-                                  {getPriorityLabel('low')}
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="medium" data-testid="priority-medium">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('medium')}`}>
-                                  {getPriorityLabel('medium')}
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="critical" data-testid="priority-critical">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('critical')}`}>
-                                  {getPriorityLabel('critical')}
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="vip" data-testid="priority-vip">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor('vip')}`}>
-                                  {getPriorityLabel('vip')}
-                                </span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          {updateTicketPriority.isPending && (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          )}
-                        </div>
                       </div>
                     </div>
                     
