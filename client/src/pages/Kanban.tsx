@@ -51,6 +51,89 @@ import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
 import { useToast } from "@/hooks/use-toast";
 
+// Problems Tab Component
+interface ProblemsTabContentProps {
+  ticketId: string;
+  deviceType: string;
+  issueResponses: any[];
+}
+
+function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTabContentProps) {
+  const { t } = useLocalization();
+  
+  // Fetch issue questions to get question text and types
+  const { data: questions = [] } = useQuery({
+    queryKey: ['/api/issue-questions', deviceType],
+    enabled: !!deviceType,
+  });
+
+  // Create a map of question ID to question data
+  const questionMap = questions.reduce((acc: any, question: any) => {
+    acc[question.id] = question;
+    return acc;
+  }, {});
+
+  // Format response based on question type
+  const formatResponse = (response: any, question: any) => {
+    if (!question) return JSON.stringify(response);
+
+    if (question.questionType === 'boolean') {
+      if (typeof response === 'object' && response !== null) {
+        // Handle complex responses like {answer: false, comment: "..."}
+        const answer = response.answer;
+        const comment = response.comment;
+        const answerText = answer ? t("yes", "Yes") : t("no", "No");
+        return comment ? `${answerText} - ${comment}` : answerText;
+      } else {
+        // Simple boolean response
+        return response ? t("yes", "Yes") : t("no", "No");
+      }
+    } else if (question.questionType === 'single_choice' || question.questionType === 'multiple_choice') {
+      // For choice questions, try to find a localized version or return as-is
+      if (typeof response === 'string') {
+        return t(response, response.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2'));
+      }
+      return response;
+    } else if (question.questionType === 'text') {
+      return response || t("no_response", "No response provided");
+    }
+
+    return response;
+  };
+
+  return (
+    <div className="space-y-3">
+      <h3 className="font-semibold text-lg">{t("problems_identified", "Problems Identified")}</h3>
+      
+      {!issueResponses || issueResponses.length === 0 ? (
+        <div className="text-sm text-muted-foreground">
+          {t("no_problems_recorded", "No problems recorded during ticket creation")}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {issueResponses.map((response, index) => {
+            const question = questionMap[response.questionId];
+            const questionText = question ? t(question.questionKey, question.questionKey) : `${t("question", "Question")} ${index + 1}`;
+            const formattedResponse = formatResponse(response.response, question);
+            
+            return (
+              <div key={response.id || index} className="bg-muted/10 p-4 rounded-md border border-muted/20">
+                <div className="font-medium text-sm mb-2 text-foreground">
+                  {questionText}
+                  {question?.isRequired && <span className="text-red-500 ml-1">*</span>}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {formattedResponse}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Kanban column configuration
 const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
   { id: 'backlog', title: t('backlog', 'Backlog'), color: 'bg-gray-100' },
@@ -3081,24 +3164,11 @@ export default function KanbanTickets() {
 
                 {/* Problems Tab */}
                 <TabsContent value="problems" className="space-y-4">
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-lg">{t("problems_identified", "Problems Identified")}</h3>
-                    
-                    {!issueResponses || issueResponses.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        {t("no_problems_recorded", "No problems recorded during ticket creation")}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {issueResponses.map((response, index) => (
-                          <div key={response.id || index} className="bg-muted/10 p-4 rounded-md">
-                            <div className="font-medium text-sm mb-2">{t("question", "Question")} {index + 1}</div>
-                            <div className="text-sm">{typeof response.response === 'string' ? response.response : JSON.stringify(response.response)}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <ProblemsTabContent 
+                    ticketId={selectedTicketSummary.id}
+                    deviceType={selectedTicketSummary.deviceType}
+                    issueResponses={issueResponses}
+                  />
                 </TabsContent>
 
                 {/* Checklist Tab */}
