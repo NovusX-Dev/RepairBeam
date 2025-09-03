@@ -244,7 +244,10 @@ type TicketWithClient = Ticket & { client?: Client };
 // Currency formatting utility
 const formatCurrency = (amount: number, language: string = 'en') => {
   const currency = language === 'pt-BR' ? 'R$' : '$';
-  return `${currency}${amount.toFixed(2)}`;
+  const formattedAmount = language === 'pt-BR' 
+    ? amount.toFixed(2).replace('.', ',')  // Brazilian format uses comma for decimals
+    : amount.toFixed(2);  // US format uses period for decimals
+  return `${currency}${formattedAmount}`;
 };
 
 // Helper component for form field with tooltip
@@ -2957,20 +2960,20 @@ export default function KanbanTickets() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <span className="text-sm text-muted-foreground">{t("estimated_cost", "Estimated Cost")}:</span>
-                          <p className="text-white font-medium">${formData.costEstimation}</p>
+                          <p className="text-white font-medium">{formatCurrency(parseFloat(formData.costEstimation || '0'), currentLanguage.code)}</p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("warranty_type", "Warranty")}:</span>
                           <p className="text-white font-medium">
                             {formData.warrantyType === 'extended' 
-                              ? `${t("extended_warranty_format", "Extended")} (+$${formData.warrantyCost})`
+                              ? `${t("extended_warranty_format", "Extended")} (+${formatCurrency(parseFloat(formData.warrantyCost || '0'), currentLanguage.code)})`
                               : t("standard_free", "Standard (Free)")
                             }
                           </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("total_cost", "Total Cost")}:</span>
-                          <p className="text-2xl font-bold text-[#00FFFF]">${formData.totalCost}</p>
+                          <p className="text-2xl font-bold text-[#00FFFF]">{formatCurrency(parseFloat(formData.totalCost || '0'), currentLanguage.code)}</p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("estimated_hours", "Est. Hours")}:</span>
@@ -3614,7 +3617,9 @@ export default function KanbanTickets() {
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400">{t("total_cost", "Total Cost")}</div>
                           <div className="font-bold text-emerald-400">
-                            ${selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation || "N/A"}
+                            {selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation 
+                              ? formatCurrency(parseFloat(selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation), currentLanguage.code)
+                              : "N/A"}
                           </div>
                         </div>
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
