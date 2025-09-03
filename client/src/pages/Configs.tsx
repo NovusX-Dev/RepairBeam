@@ -61,7 +61,7 @@ export default function Configs() {
   const [tempShopAlias, setTempShopAlias] = useState('');
 
   // Device types for warranty configuration
-  const deviceTypes = ["Phone", "Laptop", "Desktop", "Tablet", "Watch"];
+  const deviceTypes = ["Phone", "Laptop", "Desktop"];
 
   // Fetch store settings
   const { data: storeSettings } = useQuery<StoreSettings | null>({
