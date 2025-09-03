@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
+import { useQuery } from "@tanstack/react-query";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import {
   LayoutDashboard,
@@ -41,6 +42,12 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { t } = useLocalization();
+  
+  // Fetch store settings to get shop name and logo
+  const { data: storeSettings } = useQuery<any>({
+    queryKey: ['/api/store-settings'],
+    enabled: !!tenant,
+  });
   
   const navigationItems = getNavigationItems(t);
 
@@ -113,26 +120,24 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         <div className="p-4 border-t border-border">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm overflow-hidden">
-              {tenant?.shopImageUrl ? (
+              {storeSettings?.shopLogoUrl ? (
                 <img 
-                  src={tenant.shopImageUrl} 
+                  src={storeSettings.shopLogoUrl} 
                   alt="Shop Logo" 
                   className="w-8 h-8 object-cover rounded-full"
                 />
               ) : (
                 <span>
-                  {user.firstName && user.lastName 
-                    ? `${user.firstName[0]}${user.lastName[0]}` 
-                    : user.email?.[0]?.toUpperCase() || "U"}
+                  {storeSettings?.shopName?.[0]?.toUpperCase() || storeSettings?.shopAlias?.[0]?.toUpperCase() || "S"}
                 </span>
               )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
-                {tenant?.alias || tenant?.name || "Shop"}
+                {storeSettings?.shopName || "Shop"}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role === 'admin' ? t("administrator", "Administrator") : t("user", "User")} • {tenant?.name || t("shop", "Shop")}
+                {user.role === 'admin' ? t("administrator", "Administrator") : t("user", "User")} • {storeSettings?.shopAlias || "Shop"}
               </p>
             </div>
           </div>

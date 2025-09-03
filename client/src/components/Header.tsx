@@ -120,12 +120,12 @@ export default function Header({ currentPage }: HeaderProps) {
               </div>
               <div className="text-sm">
                 <div className="font-medium text-foreground">
-                  {user?.firstName && user?.lastName 
-                    ? `${user.firstName} ${user.lastName}` 
-                    : user?.email || "User"}
+                  {storeSettings?.shopName || "Shop"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  User • {storeSettings?.shopAlias || storeSettings?.shopName || "Shop"}
+                  {storeSettings?.shopAlias || "Display Name"} • {user?.firstName && user?.lastName 
+                    ? `${user.firstName} ${user.lastName}` 
+                    : user?.email || "User"}
                 </div>
               </div>
             </div>
