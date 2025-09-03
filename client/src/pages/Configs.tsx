@@ -57,6 +57,8 @@ export default function Configs() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [tempShopName, setTempShopName] = useState('');
+  const [tempShopAlias, setTempShopAlias] = useState('');
 
   // Device types for warranty configuration
   const deviceTypes = ["Phone", "Laptop", "Desktop", "Tablet", "Watch"];
@@ -131,10 +133,8 @@ export default function Configs() {
   // Warranty tier mutations
   const createTierMutation = useMutation({
     mutationFn: async (data: Partial<WarrantyTier>) => {
-      return apiRequest('/api/warranty-tiers', {
-        method: 'POST',
-        body: data,
-      });
+      const response = await apiRequest('POST', '/api/warranty-tiers', data);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -156,10 +156,8 @@ export default function Configs() {
 
   const updateTierMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<WarrantyTier> }) => {
-      return apiRequest(`/api/warranty-tiers/${id}`, {
-        method: 'PUT',
-        body: data,
-      });
+      const response = await apiRequest('PUT', `/api/warranty-tiers/${id}`, data);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -180,9 +178,8 @@ export default function Configs() {
 
   const deleteTierMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/warranty-tiers/${id}`, {
-        method: 'DELETE',
-      });
+      const response = await apiRequest('DELETE', `/api/warranty-tiers/${id}`);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -321,13 +318,6 @@ export default function Configs() {
 
   // Shop identity change handlers
   const handleShopNameChange = () => {
-    // Changes are handled through form state now
-  };
-
-  const handleShopAliasChange = () => {
-    // Changes are handled through form state now  
-  };
-  const handleShopNameChange = () => {
     if (tempShopName.trim()) {
       storeSettingsMutation.mutate({ 
         shopName: tempShopName.trim() 
@@ -354,7 +344,13 @@ export default function Configs() {
         setUploadingLogo(true);
         
         // Get upload URL from backend
-        const uploadResponse = await apiRequest('POST', '/api/objects/upload');
+        const uploadResponse = await fetch('/api/objects/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to get upload URL');
+        }
         const uploadData = await uploadResponse.json() as { uploadURL: string };
         
         // Upload file to object storage
@@ -364,9 +360,14 @@ export default function Configs() {
         });
         
         // Normalize the upload URL to an object path
-        const normalizeResponse = await apiRequest('POST', '/api/objects/normalize', {
-          uploadURL: uploadData.uploadURL,
+        const normalizeResponse = await fetch('/api/objects/normalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploadURL: uploadData.uploadURL }),
         });
+        if (!normalizeResponse.ok) {
+          throw new Error('Failed to normalize upload URL');
+        }
         const normalizeData = await normalizeResponse.json() as { objectPath: string };
         
         // Update store settings with the normalized object path
@@ -1115,7 +1116,7 @@ export default function Configs() {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
                       const canUpdate = canUpdateList(list);
-                      const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
+                      const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate.toISOString());
                       const isUpdating = updatingList === list.category;
 
                       return (
@@ -1148,7 +1149,7 @@ export default function Configs() {
                             <div className="space-y-2 text-sm">
                               <p className="text-gray-400">
                                 <span className="font-medium">{t('last_updated', 'Last updated')}:</span> {' '}
-                                {new Date(list.lastUpdated).toLocaleDateString()}
+                                {new Date(list.lastGenerated || '').toLocaleDateString()}
                               </p>
                               <p className="text-gray-400">
                                 <span className="font-medium">{t('next_update', 'Next update')}:</span> {' '}

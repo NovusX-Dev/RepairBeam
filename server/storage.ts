@@ -330,6 +330,7 @@ export class DatabaseStorage implements IStorage {
         assignedTo: tickets.assignedTo,
         estimatedCost: tickets.estimatedCost,
         actualCost: tickets.actualCost,
+        totalCost: tickets.actualCost,
         deviceType: tickets.deviceType,
         deviceModel: tickets.deviceModel,
         deviceColor: tickets.deviceColor,
@@ -1022,7 +1023,7 @@ export class DatabaseStorage implements IStorage {
           eq(warrantyTiers.id, id),
           eq(warrantyTiers.tenantId, tenantId)
         ));
-      return result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     });
   }
 }
