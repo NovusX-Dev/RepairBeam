@@ -195,6 +195,9 @@ export default function Configs() {
   useEffect(() => {
     if (storeSettings && !isEditingStore) {
       setStoreFormData(storeSettings);
+    } else if (!storeSettings && !isEditingStore) {
+      // Initialize with empty form data when no store settings exist
+      setStoreFormData({});
     }
   }, [storeSettings, isEditingStore]);
 
@@ -299,7 +302,6 @@ export default function Configs() {
   const handleShopNameChange = () => {
     if (tempShopName.trim()) {
       storeSettingsMutation.mutate({ 
-        ...storeFormData, 
         shopName: tempShopName.trim() 
       });
       setTempShopName('');
@@ -308,7 +310,6 @@ export default function Configs() {
 
   const handleShopAliasChange = () => {
     storeSettingsMutation.mutate({ 
-      ...storeFormData, 
       shopAlias: tempShopAlias.trim() || null
     });
     setTempShopAlias('');
@@ -316,7 +317,6 @@ export default function Configs() {
 
   const handleLogoChange = () => {
     storeSettingsMutation.mutate({ 
-      ...storeFormData, 
       shopLogoUrl: tempLogoUrl.trim() || null
     });
     setTempLogoUrl('');
