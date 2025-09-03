@@ -51,6 +51,35 @@ export const tenants = pgTable("tenants", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// General store settings table
+export const storeSettings = pgTable("store_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  shopName: varchar("shop_name"),
+  shopDescription: text("shop_description"),
+  shopLogoUrl: varchar("shop_logo_url"),
+  contactEmail: varchar("contact_email"),
+  contactPhone: varchar("contact_phone"),
+  address: text("address"),
+  businessHours: jsonb("business_hours").default('{"monday":{"open":"09:00","close":"18:00","closed":false},"tuesday":{"open":"09:00","close":"18:00","closed":false},"wednesday":{"open":"09:00","close":"18:00","closed":false},"thursday":{"open":"09:00","close":"18:00","closed":false},"friday":{"open":"09:00","close":"18:00","closed":false},"saturday":{"open":"10:00","close":"16:00","closed":false},"sunday":{"open":"","close":"","closed":true}}'),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Warranty tiers configuration table
+export const warrantyTiers = pgTable("warranty_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  deviceType: varchar("device_type").notNull(),
+  tierType: varchar("tier_type").notNull(), // 'standard' or 'extended'
+  durationMonths: integer("duration_months").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Clients table
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -263,6 +292,10 @@ export type AutoGenList = typeof autoGenLists.$inferSelect;
 export type InsertAutoGenList = typeof autoGenLists.$inferInsert;
 export type DeviceColor = typeof deviceColors.$inferSelect;
 export type InsertDeviceColor = typeof deviceColors.$inferInsert;
+export type StoreSettings = typeof storeSettings.$inferSelect;
+export type InsertStoreSettings = typeof storeSettings.$inferInsert;
+export type WarrantyTier = typeof warrantyTiers.$inferSelect;
+export type InsertWarrantyTier = typeof warrantyTiers.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -307,6 +340,18 @@ export const insertDeviceColorSchema = createInsertSchema(deviceColors).omit({
 });
 
 export const insertDeviceChecklistTemplateSchema = createInsertSchema(deviceChecklistTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertStoreSettingsSchema = createInsertSchema(storeSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWarrantyTierSchema = createInsertSchema(warrantyTiers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -455,13 +500,15 @@ export type TicketPriority = (typeof ticketPriorityEnum)[number];
 export type WarrantyType = (typeof warrantyTypeEnum)[number];
 
 // Relations - moved to end after all tables are defined
-export const tenantRelations = relations(tenants, ({ many }) => ({
+export const tenantRelations = relations(tenants, ({ many, one }) => ({
   users: many(users),
   clients: many(clients),
   tickets: many(tickets),
   inventoryItems: many(inventoryItems),
   transactions: many(transactions),
   supportTickets: many(supportTickets),
+  storeSettings: one(storeSettings),
+  warrantyTiers: many(warrantyTiers),
 }));
 
 export const userRelations = relations(users, ({ one }) => ({
@@ -506,5 +553,19 @@ export const issueResponseRelations = relations(issueResponses, ({ one }) => ({
   question: one(issueQuestions, {
     fields: [issueResponses.questionId],
     references: [issueQuestions.id],
+  }),
+}));
+
+export const storeSettingsRelations = relations(storeSettings, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [storeSettings.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const warrantyTierRelations = relations(warrantyTiers, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [warrantyTiers.tenantId],
+    references: [tenants.id],
   }),
 }));

@@ -458,12 +458,19 @@ export default function KanbanTickets() {
     }
   }, [selectedTicketSummary]);
 
-  // Calculate warranty cost and total cost
+  // Calculate warranty cost and total cost using configured warranty tiers
   const calculateCosts = (estimation = formData.costEstimation, warranty = formData.warrantyType) => {
     const basePrice = parseFloat(estimation) || 0;
-    const warrantyPrice = warranty === 'extended' 
-      ? (tenant?.settings?.extendedWarrantyPrice || 50)
-      : 0;
+    
+    // Find the warranty tier based on device type and tier type
+    const warrantyTier = warrantyTiers.find(tier => 
+      tier.tierType === warranty && tier.isActive
+    );
+    
+    const warrantyPrice = warrantyTier 
+      ? parseFloat(warrantyTier.price) 
+      : (warranty === 'extended' ? (tenant?.settings?.extendedWarrantyPrice || 50) : 0);
+      
     const total = basePrice + warrantyPrice;
     
     // Update both fields in a single state update to prevent timing issues
@@ -487,6 +494,12 @@ export default function KanbanTickets() {
   const { data: tickets = [], isLoading } = useQuery<TicketWithClient[]>({
     queryKey: ["/api/tickets"],
     retry: false,
+  });
+
+  // Fetch warranty tiers for current device type
+  const { data: warrantyTiers = [] } = useQuery<any[]>({
+    queryKey: ['/api/warranty-tiers', formData.deviceType],
+    enabled: !!formData.deviceType && currentStep === 3,
   });
 
   // Sync selectedTicketSummary with updated tickets data when tickets change
@@ -2628,33 +2641,54 @@ export default function KanbanTickets() {
                   {/* Warranty Coverage */}
                   <FormFieldWithTooltip
                     label={t("warranty_coverage", "Warranty Coverage")}
-                    tooltip={t("warranty_coverage_tooltip", "Select the warranty type. Standard is free for 3 months, Extended is paid for 6 months.")}
+                    tooltip={t("warranty_coverage_tooltip", "Select the warranty type based on configured warranty tiers for this device type.")}
                   >
                     <RadioGroup 
                       value={formData.warrantyType} 
                       onValueChange={(value) => handleInputChange('warrantyType', value)}
                       className="grid grid-cols-1 md:grid-cols-2 gap-4"
                     >
-                      <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                        <RadioGroupItem value="standard" id="warranty-standard" />
-                        <Label htmlFor="warranty-standard" className="flex-1 cursor-pointer">
-                          <div className="font-medium">{t("standard_warranty", "Standard (3 months, free)")}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {t("standard_warranty_desc", "3-month warranty included at no additional cost")}
+                      {/* Standard Warranty */}
+                      {(() => {
+                        const standardTier = warrantyTiers.find(tier => tier.tierType === 'standard' && tier.isActive);
+                        const standardDuration = standardTier ? standardTier.durationMonths : 3;
+                        const standardPrice = standardTier ? parseFloat(standardTier.price) : 0;
+                        
+                        return (
+                          <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                            <RadioGroupItem value="standard" id="warranty-standard" />
+                            <Label htmlFor="warranty-standard" className="flex-1 cursor-pointer">
+                              <div className="font-medium">
+                                {t("standard_warranty", `Standard (${standardDuration} months, ${standardPrice === 0 ? 'free' : formatCurrency(standardPrice, currentLanguage.code)})`)}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {standardTier?.description || t("standard_warranty_desc", `${standardDuration}-month warranty ${standardPrice === 0 ? 'included at no additional cost' : `for ${formatCurrency(standardPrice, currentLanguage.code)}`}`)}
+                              </div>
+                            </Label>
                           </div>
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                        <RadioGroupItem value="extended" id="warranty-extended" />
-                        <Label htmlFor="warranty-extended" className="flex-1 cursor-pointer">
-                          <div className="font-medium">
-                            {t("extended_warranty", `Extended (6 months, ${formatCurrency(tenant?.settings?.extendedWarrantyPrice || 50, currentLanguage.code)})`)}
+                        );
+                      })()}
+                      
+                      {/* Extended Warranty */}
+                      {(() => {
+                        const extendedTier = warrantyTiers.find(tier => tier.tierType === 'extended' && tier.isActive);
+                        const extendedDuration = extendedTier ? extendedTier.durationMonths : 6;
+                        const extendedPrice = extendedTier ? parseFloat(extendedTier.price) : (tenant?.settings?.extendedWarrantyPrice || 50);
+                        
+                        return (
+                          <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                            <RadioGroupItem value="extended" id="warranty-extended" />
+                            <Label htmlFor="warranty-extended" className="flex-1 cursor-pointer">
+                              <div className="font-medium">
+                                {t("extended_warranty", `Extended (${extendedDuration} months, ${formatCurrency(extendedPrice, currentLanguage.code)})`)}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {extendedTier?.description || t("extended_warranty_desc", `${extendedDuration}-month warranty for additional peace of mind`)}
+                              </div>
+                            </Label>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            {t("extended_warranty_desc", "6-month warranty for additional peace of mind")}
-                          </div>
-                        </Label>
-                      </div>
+                        );
+                      })()}
                     </RadioGroup>
                   </FormFieldWithTooltip>
                     </div>

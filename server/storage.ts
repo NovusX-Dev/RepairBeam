@@ -17,6 +17,8 @@ import {
   userActivities,
   issueQuestions,
   issueResponses,
+  storeSettings,
+  warrantyTiers,
   type User,
   type UpsertUser,
   type Tenant,
@@ -53,6 +55,10 @@ import {
   type InsertIssueQuestion,
   type IssueResponse,
   type InsertIssueResponse,
+  type StoreSettings,
+  type InsertStoreSettings,
+  type WarrantyTier,
+  type InsertWarrantyTier,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -172,6 +178,18 @@ export interface IStorage {
   // Ticket notes operations
   getTicketNotes(ticketId: string, tenantId: string): Promise<TicketNote[]>;
   createTicketNote(note: InsertTicketNote): Promise<TicketNote>;
+  
+  // Store settings operations
+  getStoreSettings(tenantId: string): Promise<StoreSettings | undefined>;
+  createStoreSettings(settings: InsertStoreSettings): Promise<StoreSettings>;
+  updateStoreSettings(tenantId: string, settings: Partial<InsertStoreSettings>): Promise<StoreSettings | undefined>;
+  
+  // Warranty tiers operations
+  getWarrantyTiers(tenantId: string): Promise<WarrantyTier[]>;
+  getWarrantyTiersByDeviceType(tenantId: string, deviceType: string): Promise<WarrantyTier[]>;
+  createWarrantyTier(tier: InsertWarrantyTier): Promise<WarrantyTier>;
+  updateWarrantyTier(id: string, tenantId: string, tier: Partial<InsertWarrantyTier>): Promise<WarrantyTier | undefined>;
+  deleteWarrantyTier(id: string, tenantId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -925,6 +943,99 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(issueResponses)
         .where(eq(issueResponses.ticketId, ticketId));
+    });
+  }
+
+  // Store settings implementations
+  async getStoreSettings(tenantId: string): Promise<StoreSettings | undefined> {
+    return withRetry(async () => {
+      const [settings] = await db
+        .select()
+        .from(storeSettings)
+        .where(eq(storeSettings.tenantId, tenantId));
+      return settings;
+    });
+  }
+
+  async createStoreSettings(settings: InsertStoreSettings): Promise<StoreSettings> {
+    return withRetry(async () => {
+      const [newSettings] = await db
+        .insert(storeSettings)
+        .values(settings)
+        .returning();
+      return newSettings;
+    });
+  }
+
+  async updateStoreSettings(tenantId: string, settings: Partial<InsertStoreSettings>): Promise<StoreSettings | undefined> {
+    return withRetry(async () => {
+      const [updatedSettings] = await db
+        .update(storeSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(storeSettings.tenantId, tenantId))
+        .returning();
+      return updatedSettings;
+    });
+  }
+
+  // Warranty tiers implementations
+  async getWarrantyTiers(tenantId: string): Promise<WarrantyTier[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(warrantyTiers)
+        .where(eq(warrantyTiers.tenantId, tenantId))
+        .orderBy(asc(warrantyTiers.deviceType), asc(warrantyTiers.tierType));
+    });
+  }
+
+  async getWarrantyTiersByDeviceType(tenantId: string, deviceType: string): Promise<WarrantyTier[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(warrantyTiers)
+        .where(and(
+          eq(warrantyTiers.tenantId, tenantId),
+          eq(warrantyTiers.deviceType, deviceType),
+          eq(warrantyTiers.isActive, true)
+        ))
+        .orderBy(asc(warrantyTiers.tierType));
+    });
+  }
+
+  async createWarrantyTier(tier: InsertWarrantyTier): Promise<WarrantyTier> {
+    return withRetry(async () => {
+      const [newTier] = await db
+        .insert(warrantyTiers)
+        .values(tier)
+        .returning();
+      return newTier;
+    });
+  }
+
+  async updateWarrantyTier(id: string, tenantId: string, tier: Partial<InsertWarrantyTier>): Promise<WarrantyTier | undefined> {
+    return withRetry(async () => {
+      const [updatedTier] = await db
+        .update(warrantyTiers)
+        .set({ ...tier, updatedAt: new Date() })
+        .where(and(
+          eq(warrantyTiers.id, id),
+          eq(warrantyTiers.tenantId, tenantId)
+        ))
+        .returning();
+      return updatedTier;
+    });
+  }
+
+  async deleteWarrantyTier(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(warrantyTiers)
+        .where(and(
+          eq(warrantyTiers.id, id),
+          eq(warrantyTiers.tenantId, tenantId)
+        ));
+      return result.rowCount > 0;
     });
   }
 }

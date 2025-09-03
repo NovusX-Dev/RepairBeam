@@ -5,16 +5,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
-import type { AutoGenList } from "@shared/schema";
+import type { AutoGenList, StoreSettings, WarrantyTier } from "@shared/schema";
 
 export default function Configs() {
   const { t } = useLocalization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // AI Lists state
   const [updatingList, setUpdatingList] = useState<string | null>(null);
   const [expandedLists, setExpandedLists] = useState<Record<string, boolean>>({});
   const [generatingModels, setGeneratingModels] = useState<string | null>(null);
@@ -22,14 +29,155 @@ export default function Configs() {
   const [progressCategory, setProgressCategory] = useState<string>("");
   const [progressError, setProgressError] = useState<string>("");
 
+  // Store settings state
+  const [storeFormData, setStoreFormData] = useState<Partial<StoreSettings>>({});
+  const [isEditingStore, setIsEditingStore] = useState(false);
 
-  // Fetch all auto-generated lists
-  const { data: autoGenLists = [], isLoading, error } = useQuery<AutoGenList[]>({
+  // Warranty tiers state
+  const [editingTier, setEditingTier] = useState<string | null>(null);
+  const [newTier, setNewTier] = useState<Partial<WarrantyTier>>({});
+  const [showAddTier, setShowAddTier] = useState(false);
+
+  // Device types for warranty configuration
+  const deviceTypes = ["Phone", "Laptop", "Desktop", "Tablet", "Watch"];
+
+  // Fetch store settings
+  const { data: storeSettings } = useQuery<StoreSettings | null>({
+    queryKey: ['/api/store-settings'],
+  });
+
+  // Fetch warranty tiers
+  const { data: warrantyTiers = [] } = useQuery<WarrantyTier[]>({
+    queryKey: ['/api/warranty-tiers'],
+  });
+
+  // Fetch auto-generated lists
+  const { data: autoGenLists = [], isLoading: isLoadingLists } = useQuery<AutoGenList[]>({
     queryKey: ['/api/auto-gen-lists'],
     retry: 2,
   });
 
-  // Update specific list mutation
+  // Helper function for currency formatting
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  // Store settings mutations
+  const storeSettingsMutation = useMutation({
+    mutationFn: async (data: Partial<StoreSettings>) => {
+      const method = storeSettings ? 'PUT' : 'POST';
+      const response = await fetch('/api/store-settings', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `Failed to ${method.toLowerCase()} store settings`);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('settings_saved', 'Settings Saved'),
+        description: t('store_settings_saved', 'Store settings have been saved successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/store-settings'] });
+      setIsEditingStore(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('save_failed', 'Save Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Warranty tier mutations
+  const createTierMutation = useMutation({
+    mutationFn: async (data: Partial<WarrantyTier>) => {
+      return apiRequest('/api/warranty-tiers', {
+        method: 'POST',
+        body: data,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: t('tier_created', 'Tier Created'),
+        description: t('warranty_tier_created', 'Warranty tier has been created successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/warranty-tiers'] });
+      setShowAddTier(false);
+      setNewTier({});
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('create_failed', 'Create Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateTierMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<WarrantyTier> }) => {
+      return apiRequest(`/api/warranty-tiers/${id}`, {
+        method: 'PUT',
+        body: data,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: t('tier_updated', 'Tier Updated'),
+        description: t('warranty_tier_updated', 'Warranty tier has been updated successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/warranty-tiers'] });
+      setEditingTier(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('update_failed', 'Update Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteTierMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest(`/api/warranty-tiers/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: t('tier_deleted', 'Tier Deleted'),
+        description: t('warranty_tier_deleted', 'Warranty tier has been deleted successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/warranty-tiers'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('delete_failed', 'Delete Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Initialize store settings form
+  useEffect(() => {
+    if (storeSettings && !isEditingStore) {
+      setStoreFormData(storeSettings);
+    }
+  }, [storeSettings, isEditingStore]);
+
+  // AI Lists mutations (existing functionality)
   const updateListMutation = useMutation({
     mutationFn: async (category: string) => {
       setUpdatingList(category);
@@ -63,7 +211,6 @@ export default function Configs() {
     },
   });
 
-  // Initialize all lists mutation
   const initializeListsMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch('/api/auto-gen-lists/initialize', {
@@ -92,562 +239,657 @@ export default function Configs() {
     },
   });
 
-  // Generate models for a category mutation
-  const generateModelsMutation = useMutation({
-    mutationFn: async (category: string) => {
-      setGeneratingModels(category);
-      const response = await fetch(`/api/auto-gen-lists/${category}/generate-models`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate models');
-      }
-      return response.json();
-    },
-    onSuccess: (data, category) => {
-      // Don't show immediate toast - let the dialog handle completion feedback
-      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists', category] });
-    },
-    onError: (error: Error, category) => {
-      setProgressError(error.message);
-      toast({
-        title: t('toast.models_generation_failed', 'Failed to generate model lists'),
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-    onSettled: (data, error, category) => {
-      // Don't immediately close dialog - let the completion effect handle it
-      setTimeout(() => {
-        setGeneratingModels(null);
-        // If generation completed successfully, close dialog after delay
-        if (!error) {
-          setTimeout(() => {
-            setShowProgressDialog(false);
-          }, 2000);
-        }
-      }, 1000); // Small delay to ensure final progress is shown
-    },
-  });
-
-  // Retry failed brands mutation
-  const retryFailedMutation = useMutation({
-    mutationFn: async (category: string) => {
-      setGeneratingModels(category);
-      const response = await fetch(`/api/auto-gen-lists/${category}/retry`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to retry generation');
-      }
-      return response.json();
-    },
-    onSuccess: (data, category) => {
-      toast({
-        title: t('toast.retry_started', 'Retry Started'),
-        description: t('retry_started_desc', `Retrying failed brands for ${category}. This may take a few minutes.`),
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists', category] });
-    },
-    onError: (error: Error, category) => {
-      toast({
-        title: t('toast.retry_failed', 'Retry Failed'),
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-    onSettled: (data, error, category) => {
-      // Don't immediately close dialog - let the completion effect handle it
-      setTimeout(() => {
-        setGeneratingModels(null);
-        // If retry completed successfully, close dialog after delay
-        if (!error) {
-          setTimeout(() => {
-            setShowProgressDialog(false);
-          }, 2000);
-        }
-      }, 1000); // Small delay to ensure final progress is shown
-    },
-  });
-
-  // Handle generate models with progress dialog
-  const handleGenerateModels = (category: string) => {
-    setProgressCategory(category);
-    setProgressError(""); // Reset error state
-    setShowProgressDialog(true);
-    generateModelsMutation.mutate(category);
+  // Helper functions for dates and refresh intervals (existing functionality)
+  const canUpdateList = (list: AutoGenList): boolean => {
+    if (!list.nextUpdate) return true;
+    return new Date() >= new Date(list.nextUpdate);
   };
 
-  // Handle retry failed brands with progress dialog
-  const handleRetryFailedBrands = (category: string) => {
-    setProgressCategory(category);
-    setProgressError(""); // Reset error state
-    setShowProgressDialog(true);
-    retryFailedMutation.mutate(category);
-  };
-
-  const canUpdateList = (list: AutoGenList) => {
-    const now = new Date();
-    const nextUpdate = new Date(list.nextUpdate);
-    return now >= nextUpdate;
-  };
-
-  // Check if a category has failed generations that can be retried
-  const hasFailedGenerations = (category: string) => {
-    // Simulate checking if there are failed brands by comparing expected vs actual model lists
-    const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
-    const modelLists = autoGenLists.filter(list => 
-      list.listType.includes('Models') && list.category === category
-    );
-    
-    if (!brandList) return false;
-    
-    // If we have significantly fewer model lists than brands, there might be failures
-    const expectedBrands = brandList.items.length;
-    const actualModels = modelLists.length;
-    
-    return expectedBrands > actualModels && actualModels > 0; // Some success, but not complete
-  };
-
-  const getTimeUntilNextUpdate = (nextUpdate: string | Date) => {
+  const getTimeUntilNextUpdate = (nextUpdate: string): string => {
     const now = new Date();
     const next = new Date(nextUpdate);
     const diff = next.getTime() - now.getTime();
     
-    if (diff <= 0) return null;
+    if (diff <= 0) return t('can_update_now', 'Can update now');
     
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
     
-    if (days > 0) {
-      return `${days} ${t('days', 'days')}, ${hours} ${t('hours', 'hours')}`;
-    }
-    return `${hours} ${t('hours', 'hours')}`;
+    if (days > 0) return t('days_until_update', `${days} days until next update`);
+    return t('hours_until_update', `${hours} hours until next update`);
   };
 
-  const getRefreshIntervalLabel = (interval: string) => {
-    switch (interval) {
-      case 'weekly': return t('weekly', 'Weekly');
-      case 'biweekly': return t('biweekly', 'Bi-weekly');
-      case 'monthly': return t('monthly', 'Monthly');
-      case 'quarterly': return t('quarterly', 'Quarterly');
-      default: return interval;
+  const getRefreshIntervalLabel = (interval: string): string => {
+    const intervals: Record<string, string> = {
+      'quarterly': t('quarterly', 'Quarterly'),
+      'monthly': t('monthly', 'Monthly'),
+      'weekly': t('weekly', 'Weekly'),
+      'daily': t('daily', 'Daily'),
+    };
+    return intervals[interval] || interval;
+  };
+
+  const handleStoreSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    storeSettingsMutation.mutate(storeFormData);
+  };
+
+  const handleTierSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (showAddTier) {
+      createTierMutation.mutate(newTier);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Bot className="w-8 h-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">{t('ai_lists_management', 'AI Lists Management')}</h1>
-            <p className="text-muted-foreground">
-              {t('ai_lists_desc', 'Manage AI-generated brand lists for device categories')}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
+  const handleEditTier = (tier: WarrantyTier) => {
+    setEditingTier(tier.id);
+  };
 
-  if (error) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Bot className="w-8 h-8 text-primary" />
-          <div>
-            <h1 className="text-3xl font-bold">{t('ai_lists_management', 'AI Lists Management')}</h1>
-            <p className="text-muted-foreground">
-              {t('ai_lists_desc', 'Manage AI-generated brand lists for device categories')}
-            </p>
-          </div>
-        </div>
-        <Card className="border-destructive">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-destructive">
-              <AlertCircle className="w-5 h-5" />
-              <span>{t('loading_error', 'Failed to load AI lists')}</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleUpdateTier = (tier: WarrantyTier, field: string, value: any) => {
+    const updatedData = { [field]: value };
+    updateTierMutation.mutate({ id: tier.id, data: updatedData });
+  };
+
+  const handleDeleteTier = (tierId: string) => {
+    if (confirm(t('confirm_delete_tier', 'Are you sure you want to delete this warranty tier?'))) {
+      deleteTierMutation.mutate(tierId);
+    }
+  };
+
+  // Group warranty tiers by device type
+  const tiersByDeviceType = warrantyTiers.reduce((acc, tier) => {
+    if (!acc[tier.deviceType]) {
+      acc[tier.deviceType] = [];
+    }
+    acc[tier.deviceType].push(tier);
+    return acc;
+  }, {} as Record<string, WarrantyTier[]>);
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-3 mb-6">
-        <Bot className="w-8 h-8 text-primary" />
-        <div>
-          <h1 className="text-3xl font-bold">{t('ai_lists_management', 'AI Lists Management')}</h1>
-          <p className="text-muted-foreground">
-            {t('ai_lists_desc', 'Manage AI-generated brand lists for device categories')}
-          </p>
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* Page Header with Aurora Card Design */}
+      <div className="bg-slate-800/70 rounded-lg p-6 mb-8 border border-slate-700">
+        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-6 text-white">
+          <div className="flex items-center gap-3">
+            <Settings className="w-8 h-8 text-cyan-100" />
+            <div>
+              <h1 className="text-2xl font-bold">{t('system_configurations', 'System Configurations')}</h1>
+              <p className="text-cyan-100 opacity-80">{t('config_description', 'Manage your shop settings, warranty policies, and AI-powered features')}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Cost Warning */}
-      <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
-        <CardContent className="pt-4">
-          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-            <AlertCircle className="w-5 h-5" />
-            <span className="font-medium">{t('cost_warning', '💰 Cost Warning')}</span>
-          </div>
-          <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-            {t('cost_warning_desc', 'Updating lists uses OpenAI API and costs money. Lists are set to update quarterly to minimize costs. Only update manually when necessary.')}
-          </p>
-        </CardContent>
-      </Card>
+      {/* Tabbed Configuration Sections */}
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 max-w-md">
+          <TabsTrigger value="general" className="flex items-center gap-2" data-testid="tab-general">
+            <Store className="w-4 h-4" />
+            {t('general', 'General')}
+          </TabsTrigger>
+          <TabsTrigger value="warranty" className="flex items-center gap-2" data-testid="tab-warranty">
+            <Shield className="w-4 h-4" />
+            {t('warranty', 'Warranty')}
+          </TabsTrigger>
+          <TabsTrigger value="ai-lists" className="flex items-center gap-2" data-testid="tab-ai-lists">
+            <Bot className="w-4 h-4" />
+            {t('ai_lists', 'AI Lists')}
+          </TabsTrigger>
+          <TabsTrigger value="advanced" className="flex items-center gap-2" data-testid="tab-advanced">
+            <Settings className="w-4 h-4" />
+            {t('advanced', 'Advanced')}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Initialize Button */}
-      {autoGenLists.length === 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>{t('no_lists_found', 'No AI Lists Found')}</CardTitle>
-            <CardDescription>
-              {t('no_lists_desc', 'Initialize AI-generated brand lists for device categories')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => initializeListsMutation.mutate()}
-              disabled={initializeListsMutation.isPending}
-              className="w-full"
-              data-testid="button-initialize-lists"
-            >
-              {initializeListsMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('initializing', 'Initializing...')}
-                </>
-              ) : (
-                <>
-                  <Bot className="w-4 h-4 mr-2" />
-                  {t('initialize_lists', '💰 Initialize AI Lists (Costs Money)')}
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Brand Lists Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
-          const canUpdate = canUpdateList(list);
-          const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
-          const isUpdating = updatingList === list.category;
-          const isExpanded = expandedLists[list.id] || false;
-
-          const toggleExpanded = () => {
-            setExpandedLists(prev => ({
-              ...prev,
-              [list.id]: !prev[list.id]
-            }));
-          };
-
-          return (
-            <Card key={list.id} className="relative" data-testid={`card-list-${list.category.toLowerCase()}`}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{list.category} {t('brands', 'Brands')}</CardTitle>
-                  <Badge variant={canUpdate ? 'default' : 'secondary'}>
-                    {getRefreshIntervalLabel(list.refreshInterval)}
-                  </Badge>
-                </div>
-                <CardDescription>
-                  {list.items.length} {t('brands_available', 'brands available')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* List Items Preview */}
-                <div className="mb-4">
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {(isExpanded ? list.items : list.items.slice(0, 6)).map((brand) => (
-                      <Badge key={brand} variant="outline" className="text-xs">
-                        {brand}
-                      </Badge>
-                    ))}
+        {/* General Store Information Tab */}
+        <TabsContent value="general" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <Store className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('general_store_info', 'General Store Information')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('store_info_desc', 'Configure your shop\'s basic information and branding')}
+                    </CardDescription>
                   </div>
-                  
-                  {/* Expand/Collapse Controls */}
-                  {list.items.length > 6 && (
-                    <div className="flex justify-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={toggleExpanded}
-                        className="text-xs h-6 px-2"
-                        data-testid={`button-${isExpanded ? 'collapse' : 'expand'}-${list.category.toLowerCase()}`}
-                      >
-                        {isExpanded ? (
-                          <>
-                            {t('show_less', 'Show Less')}
-                          </>
-                        ) : (
-                          <>
-                            +{list.items.length - 6} {t('more', 'more')} - {t('show_all', 'Show All')}
-                          </>
-                        )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <form onSubmit={handleStoreSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="shopName">{t('shop_name', 'Shop Name')}</Label>
+                    <Input
+                      id="shopName"
+                      value={storeFormData.shopName || ''}
+                      onChange={(e) => setStoreFormData(prev => ({ ...prev, shopName: e.target.value }))}
+                      placeholder={t('enter_shop_name', 'Enter your shop name')}
+                      data-testid="input-shop-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contactEmail">{t('contact_email', 'Contact Email')}</Label>
+                    <Input
+                      id="contactEmail"
+                      type="email"
+                      value={storeFormData.contactEmail || ''}
+                      onChange={(e) => setStoreFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
+                      placeholder={t('enter_contact_email', 'Enter contact email')}
+                      data-testid="input-contact-email"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="contactPhone">{t('contact_phone', 'Contact Phone')}</Label>
+                    <Input
+                      id="contactPhone"
+                      value={storeFormData.contactPhone || ''}
+                      onChange={(e) => setStoreFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
+                      placeholder={t('enter_contact_phone', 'Enter contact phone')}
+                      data-testid="input-contact-phone"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="shopLogo">{t('shop_logo', 'Shop Logo')}</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="shopLogo"
+                        value={storeFormData.shopLogoUrl || ''}
+                        onChange={(e) => setStoreFormData(prev => ({ ...prev, shopLogoUrl: e.target.value }))}
+                        placeholder={t('enter_logo_url', 'Enter logo URL')}
+                        data-testid="input-shop-logo"
+                      />
+                      <Button type="button" variant="outline" size="icon">
+                        <Upload className="w-4 h-4" />
                       </Button>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                <Separator className="mb-4" />
-
-                {/* Last Updated */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    {t('last_updated', 'Last updated')}: {list.lastGenerated ? new Date(list.lastGenerated).toLocaleDateString() : 'Never'}
-                  </span>
+                <div className="space-y-2">
+                  <Label htmlFor="shopDescription">{t('shop_description', 'Shop Description')}</Label>
+                  <Textarea
+                    id="shopDescription"
+                    value={storeFormData.shopDescription || ''}
+                    onChange={(e) => setStoreFormData(prev => ({ ...prev, shopDescription: e.target.value }))}
+                    placeholder={t('enter_shop_description', 'Describe your shop and services')}
+                    rows={3}
+                    data-testid="textarea-shop-description"
+                  />
                 </div>
 
-                {/* Next Update */}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <RefreshCw className="w-4 h-4" />
-                  <span>
-                    {t('next_update', 'Next update')}: {new Date(list.nextUpdate).toLocaleDateString()}
-                  </span>
+                <div className="space-y-2">
+                  <Label htmlFor="address">{t('shop_address', 'Shop Address')}</Label>
+                  <Textarea
+                    id="address"
+                    value={storeFormData.address || ''}
+                    onChange={(e) => setStoreFormData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder={t('enter_shop_address', 'Enter complete shop address')}
+                    rows={2}
+                    data-testid="textarea-shop-address"
+                  />
                 </div>
 
-                {/* Update Button */}
-                <Button
-                  onClick={() => updateListMutation.mutate(list.category)}
-                  disabled={!canUpdate || isUpdating || updateListMutation.isPending}
-                  className="w-full"
-                  variant={canUpdate ? 'default' : 'secondary'}
-                  data-testid={`button-update-${list.category.toLowerCase()}`}
-                >
-                  {isUpdating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      {t('updating', 'Updating...')}
-                    </>
-                  ) : canUpdate ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      {t('update_list', '💰 Update List')}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      {t('up_to_date', 'Up to Date')}
-                    </>
-                  )}
-                </Button>
+                <div className="flex justify-end gap-3 pt-4">
+                  <Button
+                    type="submit"
+                    disabled={storeSettingsMutation.isPending}
+                    data-testid="button-save-store-settings"
+                  >
+                    {storeSettingsMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        {t('saving', 'Saving...')}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        {t('save_settings', 'Save Settings')}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                {/* Time until next update error */}
-                {!canUpdate && timeUntilUpdate && (
-                  <p className="text-xs text-muted-foreground mt-2 text-center">
-                    {t('available_in', 'Available in')}: {timeUntilUpdate}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Model Lists Section */}
-      {autoGenLists.filter(list => list.listType.includes('Brands')).length > 0 && (
-        <>
-          <Separator className="my-8" />
-          
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-4">
-              <Smartphone className="w-8 h-8 text-primary" />
-              <div>
-                <h2 className="text-2xl font-bold">{t('configs.autogen_models', 'Device Models')}</h2>
-                <p className="text-muted-foreground">
-                  {t('configs.autogen_models_description', 'AI-generated device model lists organized by brand (last 4 years)')}
-                </p>
+        {/* Warranty Tiers Management Tab */}
+        <TabsContent value="warranty" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-white">
+                    <Shield className="w-6 h-6 text-cyan-100" />
+                    <div>
+                      <CardTitle className="text-lg">{t('warranty_management', 'Warranty Management')}</CardTitle>
+                      <CardDescription className="text-cyan-100 opacity-80">
+                        {t('warranty_desc', 'Configure warranty tiers and pricing for each device type')}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setShowAddTier(!showAddTier)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                    data-testid="button-add-warranty-tier"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('add_tier', 'Add Tier')}
+                  </Button>
+                </div>
               </div>
-            </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Add New Tier Form */}
+              {showAddTier && (
+                <Card className="bg-slate-700/50 border-slate-600">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-white">{t('add_warranty_tier', 'Add Warranty Tier')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleTierSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="deviceType">{t('device_type', 'Device Type')}</Label>
+                          <Select
+                            value={newTier.deviceType || ''}
+                            onValueChange={(value) => setNewTier(prev => ({ ...prev, deviceType: value }))}
+                          >
+                            <SelectTrigger data-testid="select-device-type">
+                              <SelectValue placeholder={t('select_device_type', 'Select device type')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {deviceTypes.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="tierType">{t('tier_type', 'Tier Type')}</Label>
+                          <Select
+                            value={newTier.tierType || ''}
+                            onValueChange={(value) => setNewTier(prev => ({ ...prev, tierType: value }))}
+                          >
+                            <SelectTrigger data-testid="select-tier-type">
+                              <SelectValue placeholder={t('select_tier_type', 'Select tier type')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="standard">{t('standard', 'Standard')}</SelectItem>
+                              <SelectItem value="extended">{t('extended', 'Extended')}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-            {/* Model Lists Cost Warning */}
-            <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-medium">{t('cost_warning', '💰 Cost Warning')}</span>
-                </div>
-                <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-                  {t('configs.models_cost_warning', 'Generating model lists makes OpenAI API calls and costs money')}. {t('models_4_year_range', 'Models include devices from 2025 back to 2021 (4-year range) to focus on relevant devices.')}
-                </p>
-              </CardContent>
-            </Card>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="duration">{t('duration_months', 'Duration (Months)')}</Label>
+                          <Input
+                            id="duration"
+                            type="number"
+                            value={newTier.durationMonths || ''}
+                            onChange={(e) => setNewTier(prev => ({ ...prev, durationMonths: parseInt(e.target.value) }))}
+                            placeholder={t('enter_duration', 'Enter duration')}
+                            data-testid="input-duration-months"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="price">{t('price', 'Price')}</Label>
+                          <Input
+                            id="price"
+                            type="number"
+                            step="0.01"
+                            value={newTier.price || ''}
+                            onChange={(e) => setNewTier(prev => ({ ...prev, price: e.target.value }))}
+                            placeholder={t('enter_price', 'Enter price')}
+                            data-testid="input-tier-price"
+                          />
+                        </div>
+                      </div>
 
-            {/* Model Generation by Category */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {autoGenLists
-                .filter(list => list.listType.includes('Brands'))
-                .map((brandList) => {
-                  const isGenerating = generatingModels === brandList.category;
-                  const modelLists = autoGenLists.filter(list => 
-                    list.listType.includes('Models') && list.category === brandList.category
-                  );
-                  const hasModels = modelLists.length > 0;
-                  
-                  // Check if generation might be in progress (some models exist but not all brands covered)
-                  const mightBeGenerating = hasModels && modelLists.length < brandList.items.length && !isGenerating;
-                  
-                  // Find a representative model list to check regeneration timing
-                  const sampleModelList = modelLists.length > 0 ? modelLists[0] : null;
-                  const canRegenerateModels = sampleModelList ? canUpdateList(sampleModelList) : true;
-                  const timeUntilRegeneration = sampleModelList && !canRegenerateModels ? getTimeUntilNextUpdate(sampleModelList.nextUpdate) : null;
-                  
-                  const hasFailed = hasFailedGenerations(brandList.category);
-                  
+                      <div className="space-y-2">
+                        <Label htmlFor="description">{t('description', 'Description')}</Label>
+                        <Textarea
+                          id="description"
+                          value={newTier.description || ''}
+                          onChange={(e) => setNewTier(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder={t('enter_tier_description', 'Describe what this warranty tier covers')}
+                          rows={2}
+                          data-testid="textarea-tier-description"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddTier(false);
+                            setNewTier({});
+                          }}
+                        >
+                          {t('cancel', 'Cancel')}
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={createTierMutation.isPending}
+                          data-testid="button-save-warranty-tier"
+                        >
+                          {createTierMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {t('creating', 'Creating...')}
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 mr-2" />
+                              {t('create_tier', 'Create Tier')}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Existing Warranty Tiers by Device Type */}
+              <div className="space-y-4">
+                {deviceTypes.map(deviceType => {
+                  const deviceTiers = tiersByDeviceType[deviceType] || [];
+                  const standardTier = deviceTiers.find(t => t.tierType === 'standard');
+                  const extendedTier = deviceTiers.find(t => t.tierType === 'extended');
+
                   return (
-                    <Card key={`models-${brandList.category}`} className="relative">
+                    <Card key={deviceType} className="bg-slate-700/30 border-slate-600" data-testid={`card-device-${deviceType.toLowerCase()}`}>
                       <CardHeader>
-                        <CardTitle className="text-lg">
-                          {t('configs.category_models_by_brand', '{category} Models by Brand').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))}
+                        <CardTitle className="text-white flex items-center gap-2">
+                          <Smartphone className="w-5 h-5 text-cyan-400" />
+                          {deviceType} {t('warranty_tiers', 'Warranty Tiers')}
                         </CardTitle>
-                        <CardDescription>
-                          {hasModels && modelLists.length >= brandList.items.length
-                            ? canRegenerateModels
-                              ? t('configs.models_can_regenerate', '✅ Models generated - regeneration available')
-                              : t('configs.models_completed_waiting', '✅ All models generated successfully ({count} brands completed)').replace('{count}', brandList.items.length.toString())
-                            : mightBeGenerating
-                            ? t('configs.generation_in_progress', 'Generation in progress - {count}/{total} brands completed').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())
-                            : t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))
-                          }
-                        </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="mb-4">
-                          <p className="text-sm text-muted-foreground">
-                            {t('available_brands_count', 'Available brands')}: {brandList.items.length}
-                          </p>
-                          {!hasModels && !mightBeGenerating && (
-                            <p className="text-sm text-muted-foreground">
-                              {t('models_will_be_generated', 'Models will be generated for each brand (2025 back to 2021)')}
-                            </p>
-                          )}
-                          {mightBeGenerating && (
-                            <p className="text-sm text-amber-600 dark:text-amber-400">
-                              ⏳ {t('configs.generation_in_progress_details', 'Generation detected in progress ({count}/{total} brands completed)').replace('{count}', modelLists.length.toString()).replace('{total}', brandList.items.length.toString())}
-                            </p>
-                          )}
-                          {hasModels && modelLists.length >= brandList.items.length && (
-                            canRegenerateModels ? (
-                              <p className="text-sm text-blue-600 dark:text-blue-400">
-                                🔄 {t('configs.models_ready_for_regeneration', 'Models ready for regeneration with updated logic')}
-                              </p>
-                            ) : (
-                              <div className="space-y-1">
-                                <p className="text-sm text-green-600 dark:text-green-400">
-                                  ✅ {t('configs.models_completed_status', 'All {count} brands have model lists generated (2021-2025)').replace('{count}', brandList.items.length.toString())}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Standard Tier */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="outline" className="bg-green-100 text-green-800">
+                                {t('standard', 'Standard')}
+                              </Badge>
+                              {standardTier && (
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditTier(standardTier)}
+                                    data-testid={`button-edit-standard-${deviceType.toLowerCase()}`}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteTier(standardTier.id)}
+                                    className="text-red-400 hover:text-red-300"
+                                    data-testid={`button-delete-standard-${deviceType.toLowerCase()}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            {standardTier ? (
+                              <div className="space-y-2 text-sm">
+                                <p className="text-white">
+                                  <span className="font-medium">{t('duration', 'Duration')}:</span> {standardTier.durationMonths} {t('months', 'months')}
                                 </p>
-                                {timeUntilRegeneration && (
-                                  <p className="text-sm text-muted-foreground">
-                                    🕒 {t('configs.next_regeneration_in', 'Next regeneration available in')}: {timeUntilRegeneration}
-                                  </p>
+                                <p className="text-white">
+                                  <span className="font-medium">{t('price', 'Price')}:</span> {formatCurrency(parseFloat(standardTier.price))}
+                                </p>
+                                {standardTier.description && (
+                                  <p className="text-gray-300 text-xs">{standardTier.description}</p>
                                 )}
                               </div>
-                            )
-                          )}
-                          {hasFailed && (
-                            <p className="text-sm text-orange-600 dark:text-orange-400">
-                              ⚠️ {t('configs.partial_failure_detected', 'Some brands may have failed - retry available')}
-                            </p>
-                          )}
-                        </div>
-
-
-                        <div className="space-y-2">
-                          <Button
-                            onClick={() => handleGenerateModels(brandList.category)}
-                            disabled={isGenerating || generateModelsMutation.isPending || (hasModels && modelLists.length >= brandList.items.length && !canRegenerateModels)}
-                            className="w-full"
-                            variant={hasModels && modelLists.length >= brandList.items.length && !canRegenerateModels ? 'secondary' : mightBeGenerating ? 'outline' : 'default'}
-                            data-testid={`button-generate-models-${brandList.category.toLowerCase()}`}
-                          >
-                            {isGenerating ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                {t('generating_models', 'Generating Models...')}
-                              </>
-                            ) : hasModels && modelLists.length >= brandList.items.length ? (
-                              canRegenerateModels ? (
-                                <>
-                                  <RefreshCw className="w-4 h-4 mr-2" />
-                                  {t('configs.regenerate_models', 'Regenerate Models')} (2021-2025) 💰
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                                  {t('configs.models_complete', 'Models Complete')} ✅
-                                </>
-                              )
-                            ) : mightBeGenerating ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                {t('configs.continue_generation', 'Continue Generation')} ({modelLists.length}/{brandList.items.length}) 💰
-                              </>
                             ) : (
-                              <>
-                                <Bot className="w-4 h-4 mr-2" />
-                                {t('configs.generate_models_for_category', 'Generate Models for {category}').replace('{category}', t(`category.${brandList.category.toLowerCase()}`, brandList.category))} (2021-2025) 💰
-                              </>
+                              <p className="text-gray-400 text-sm">{t('no_standard_tier', 'No standard tier configured')}</p>
                             )}
-                          </Button>
-                          
-                          {hasFailed && !isGenerating && (
-                            <Button
-                              onClick={() => handleRetryFailedBrands(brandList.category)}
-                              disabled={retryFailedMutation.isPending}
-                              className="w-full"
-                              variant="outline"
-                              data-testid={`button-retry-failed-${brandList.category.toLowerCase()}`}
-                            >
-                              {retryFailedMutation.isPending ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  {t('retrying_failed', 'Retrying Failed...')}
-                                </>
-                              ) : (
-                                <>
-                                  <RotateCcw className="w-4 h-4 mr-2" />
-                                  {t('retry_failed_brands', 'Retry Failed Brands')} 💰
-                                </>
+                          </div>
+
+                          {/* Extended Tier */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                                {t('extended', 'Extended')}
+                              </Badge>
+                              {extendedTier && (
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditTier(extendedTier)}
+                                    data-testid={`button-edit-extended-${deviceType.toLowerCase()}`}
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDeleteTier(extendedTier.id)}
+                                    className="text-red-400 hover:text-red-300"
+                                    data-testid={`button-delete-extended-${deviceType.toLowerCase()}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
                               )}
-                            </Button>
-                          )}
+                            </div>
+                            {extendedTier ? (
+                              <div className="space-y-2 text-sm">
+                                <p className="text-white">
+                                  <span className="font-medium">{t('duration', 'Duration')}:</span> {extendedTier.durationMonths} {t('months', 'months')}
+                                </p>
+                                <p className="text-white">
+                                  <span className="font-medium">{t('price', 'Price')}:</span> {formatCurrency(parseFloat(extendedTier.price))}
+                                </p>
+                                {extendedTier.description && (
+                                  <p className="text-gray-300 text-xs">{extendedTier.description}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-gray-400 text-sm">{t('no_extended_tier', 'No extended tier configured')}</p>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
                   );
                 })}
-            </div>
-          </div>
-        </>
-      )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Progress Dialog */}
+        {/* AI Lists Management Tab */}
+        <TabsContent value="ai-lists" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <Bot className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('ai_lists_management', 'AI Lists Management')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('ai_lists_desc', 'Manage AI-generated device brands and models for accurate identification')}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Cost Warning */}
+              <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+                <CardContent className="pt-4">
+                  <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-medium">{t('cost_warning', '💰 Cost Warning')}</span>
+                  </div>
+                  <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                    {t('cost_warning_desc', 'Updating lists uses OpenAI API and costs money. Lists are set to update quarterly to minimize costs. Only update manually when necessary.')}
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Initialize Lists (if empty) */}
+              {autoGenLists.length === 0 && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>{t('no_lists_found', 'No AI Lists Found')}</CardTitle>
+                    <CardDescription>
+                      {t('no_lists_desc', 'Initialize AI-generated brand lists for device categories')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      onClick={() => initializeListsMutation.mutate()}
+                      disabled={initializeListsMutation.isPending}
+                      className="w-full"
+                      data-testid="button-initialize-lists"
+                    >
+                      {initializeListsMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {t('initializing', 'Initializing...')}
+                        </>
+                      ) : (
+                        <>
+                          <Bot className="w-4 h-4 mr-2" />
+                          {t('initialize_lists', '💰 Initialize AI Lists (Costs Money)')}
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Existing AI Lists Display (simplified) */}
+              {autoGenLists.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white">{t('device_brands', 'Device Brands')}</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
+                      const canUpdate = canUpdateList(list);
+                      const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
+                      const isUpdating = updatingList === list.category;
+
+                      return (
+                        <Card key={list.id} className="bg-slate-700/30 border-slate-600" data-testid={`card-list-${list.category.toLowerCase()}`}>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-lg text-white">{list.category} {t('brands', 'Brands')}</CardTitle>
+                              <Badge variant={canUpdate ? 'default' : 'secondary'}>
+                                {getRefreshIntervalLabel(list.refreshInterval)}
+                              </Badge>
+                            </div>
+                            <CardDescription className="text-gray-300">
+                              {list.items.length} {t('brands_available', 'brands available')}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="flex flex-wrap gap-1">
+                              {list.items.slice(0, 6).map((brand) => (
+                                <Badge key={brand} variant="outline" className="text-xs">
+                                  {brand}
+                                </Badge>
+                              ))}
+                              {list.items.length > 6 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{list.items.length - 6} {t('more', 'more')}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              <p className="text-gray-400">
+                                <span className="font-medium">{t('last_updated', 'Last updated')}:</span> {' '}
+                                {new Date(list.lastUpdated).toLocaleDateString()}
+                              </p>
+                              <p className="text-gray-400">
+                                <span className="font-medium">{t('next_update', 'Next update')}:</span> {' '}
+                                {timeUntilUpdate}
+                              </p>
+                            </div>
+
+                            <Button
+                              onClick={() => updateListMutation.mutate(list.category)}
+                              disabled={!canUpdate || isUpdating}
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              data-testid={`button-update-${list.category.toLowerCase()}`}
+                            >
+                              {isUpdating ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  {t('updating', 'Updating...')}
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  {canUpdate ? t('update_list', '💰 Update List') : t('cannot_update_yet', 'Cannot Update Yet')}
+                                </>
+                              )}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Advanced Settings Tab */}
+        <TabsContent value="advanced" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <Settings className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('advanced_settings', 'Advanced Settings')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('advanced_desc', 'System configurations and advanced options')}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-white mb-2">{t('coming_soon', 'Coming Soon')}</h3>
+                <p className="text-gray-400">{t('advanced_coming_soon', 'Advanced configuration options will be available in future updates.')}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Generation Progress Dialog */}
       <GenerationProgressDialog
         isOpen={showProgressDialog}
-        onOpenChange={(open) => {
-          setShowProgressDialog(open);
-          if (!open) {
-            // Reset generating state when dialog closes
-            setGeneratingModels(null);
-            setProgressError("");
-          }
-        }}
+        onOpenChange={setShowProgressDialog}
         category={progressCategory}
         isGenerating={generatingModels !== null}
         errorMessage={progressError}

@@ -1817,6 +1817,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Store settings API endpoints
+  app.get("/api/store-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const settings = await storage.getStoreSettings(user.tenantId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching store settings:", error);
+      res.status(500).json({ message: "Failed to fetch store settings" });
+    }
+  });
+
+  app.post("/api/store-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const settings = await storage.createStoreSettings({
+        tenantId: user.tenantId,
+        ...req.body
+      });
+      res.json(settings);
+    } catch (error) {
+      console.error("Error creating store settings:", error);
+      res.status(500).json({ message: "Failed to create store settings" });
+    }
+  });
+
+  app.put("/api/store-settings", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const settings = await storage.updateStoreSettings(user.tenantId, req.body);
+      if (!settings) {
+        return res.status(404).json({ message: "Store settings not found" });
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating store settings:", error);
+      res.status(500).json({ message: "Failed to update store settings" });
+    }
+  });
+
+  // Warranty tiers API endpoints
+  app.get("/api/warranty-tiers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tiers = await storage.getWarrantyTiers(user.tenantId);
+      res.json(tiers);
+    } catch (error) {
+      console.error("Error fetching warranty tiers:", error);
+      res.status(500).json({ message: "Failed to fetch warranty tiers" });
+    }
+  });
+
+  app.get("/api/warranty-tiers/:deviceType", isAuthenticated, async (req: any, res) => {
+    try {
+      const { deviceType } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tiers = await storage.getWarrantyTiersByDeviceType(user.tenantId, deviceType);
+      res.json(tiers);
+    } catch (error) {
+      console.error("Error fetching warranty tiers for device type:", error);
+      res.status(500).json({ message: "Failed to fetch warranty tiers for device type" });
+    }
+  });
+
+  app.post("/api/warranty-tiers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tier = await storage.createWarrantyTier({
+        tenantId: user.tenantId,
+        ...req.body
+      });
+      res.json(tier);
+    } catch (error) {
+      console.error("Error creating warranty tier:", error);
+      res.status(500).json({ message: "Failed to create warranty tier" });
+    }
+  });
+
+  app.put("/api/warranty-tiers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tier = await storage.updateWarrantyTier(id, user.tenantId, req.body);
+      if (!tier) {
+        return res.status(404).json({ message: "Warranty tier not found" });
+      }
+      res.json(tier);
+    } catch (error) {
+      console.error("Error updating warranty tier:", error);
+      res.status(500).json({ message: "Failed to update warranty tier" });
+    }
+  });
+
+  app.delete("/api/warranty-tiers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const success = await storage.deleteWarrantyTier(id, user.tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Warranty tier not found" });
+      }
+      res.json({ message: "Warranty tier deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting warranty tier:", error);
+      res.status(500).json({ message: "Failed to delete warranty tier" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
