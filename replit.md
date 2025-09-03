@@ -126,3 +126,74 @@ A compact, professional design pattern featuring:
   - **Consistent Branding**: All headers use the same gradient for unified appearance
 
 **Usage**: Apply to dialogs, forms, and content areas requiring professional presentation with clear visual organization. Ideal for multi-step workflows and detailed information display.
+
+## UI/UX Design Principles for Configuration Sections
+
+Based on current industry research and best practices for modern admin dashboard configuration sections:
+
+### Core Design Principles
+
+#### 1. Visual Hierarchy & Information Architecture
+- **Central Location**: Provide single "Settings" entry point (avoid synonyms like "Options" or "Preferences")
+- **Prioritization**: Show most important/frequently used settings upfront
+- **F and Z Patterns**: Use natural eye scanning patterns for layout structure
+- **Progressive Disclosure**: Hide advanced settings initially, reveal through expandable sections
+- **7±2 Rule**: Keep 5-9 items per group for optimal comprehension; create subscreens for 16+ items
+
+#### 2. Organization & Grouping
+- **Hierarchical Structure**: Group related settings under subscreens with consistent terminology
+- **Section Dividers**: Use divider lines to group related settings (avoid between individual items)
+- **Specific Titles**: Use clear section titles, avoid ambiguous names like "Other" or "Miscellaneous"
+- **Tab-Based Navigation**: Separate configuration areas (General, Security, Notifications, etc.)
+- **Card-Based Layout**: Organize sections in distinct cards with clear boundaries
+
+#### 3. Settings Control Components
+- **Toggle Switches**: For binary on/off preferences (not checkboxes)
+- **Dropdown Menus**: For multiple choice options
+- **Sliders**: For range-based numerical settings
+- **Text Input Fields**: For user-defined values
+- **Radio Buttons**: For exclusive selections
+- **Color Pickers**: For appearance customization
+
+#### 4. Labeling & Communication Standards
+- **Brief & Meaningful**: Clear, concise labels that wrap if necessary
+- **Impersonal Language**: Use "Notifications" instead of "Notify me"
+- **Current State Display**: Show current setting values prominently
+- **Secondary Text**: Explain status without repeating label words
+- **Descriptive Text**: Start descriptions with verbs, explain current status
+- **Avoid Generic Terms**: Don't use "Set", "Change", "Edit", "Modify", "Manage", "Use"
+
+#### 5. Modern UI Patterns
+- **Real-Time Feedback**: Provide immediate visual feedback when settings change
+- **Validation States**: Show success, error, warning states clearly
+- **Auto-Save**: Implement for non-critical settings with proper error handling
+- **Search & Filter**: Include for complex configuration systems
+- **Confirmation Dialogs**: For destructive or critical actions
+
+#### 6. User Experience Considerations
+- **Good Defaults**: Choose values most users would select, neutral and low-risk
+- **Responsive Design**: Ensure functionality across all screen sizes
+- **Touch-Friendly**: Optimize controls for mobile interaction
+- **Loading States**: Show progress for settings that take time to apply
+- **Accessibility**: Sufficient contrast, keyboard navigation, screen reader support
+
+#### 7. Advanced Features
+- **Version Control**: Settings backup/restore functionality
+- **Change History**: Track modifications for critical configurations
+- **Rollback Capabilities**: Ability to undo configuration errors
+- **User Customization**: Allow personalization of configuration interface
+- **Role-Based Views**: Different configuration options based on user permissions
+
+### Implementation Guidelines
+- **Performance**: Load settings progressively to avoid overwhelming page load
+- **Icon Integration**: Use simple, flat icons that blend into interface
+- **Consistent Interaction**: Maintain uniform behavior across all settings
+- **Error Handling**: Provide clear error messages with recovery suggestions
+- **Documentation**: Include tooltips and help text for complex settings
+
+### Configuration Section Structure
+1. **Overview Section**: Most important settings with current values visible
+2. **Grouped Categories**: Related settings under clear section headers
+3. **Advanced Options**: Collapsible sections for power users
+4. **System Actions**: Destructive operations (reset, delete) in separate area
+5. **Help & Documentation**: Context-sensitive assistance
