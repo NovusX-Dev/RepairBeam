@@ -281,6 +281,49 @@ export default function Configs() {
     },
   });
 
+  // Models generation mutation
+  const generateModelsMutation = useMutation({
+    mutationFn: async (category: string) => {
+      setGeneratingModels(category);
+      setShowProgressDialog(true);
+      setProgressCategory(category);
+      setProgressError("");
+      
+      const response = await fetch(`/api/auto-gen-lists/${category}/generate-models`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate models');
+      }
+      return response.json();
+    },
+    onSuccess: (data, category) => {
+      toast({
+        title: t('models_generated', 'Models Generated'),
+        description: t('models_generated_desc', `Model lists for ${category} brands have been generated successfully.`),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-gen-lists'] });
+    },
+    onError: (error: Error, category) => {
+      setProgressError(error.message);
+      toast({
+        title: t('generation_failed', 'Generation Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => {
+      setGeneratingModels(null);
+    },
+  });
+
+  // Handle model generation
+  const handleGenerateModels = (category: string) => {
+    generateModelsMutation.mutate(category);
+  };
+
   // Helper functions for dates and refresh intervals (existing functionality)
   const canUpdateList = (list: AutoGenList): boolean => {
     if (!list.nextUpdate) return true;
@@ -1114,7 +1157,7 @@ export default function Configs() {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
                       const canUpdate = canUpdateList(list);
-                      const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
+                      const timeUntilUpdate = getTimeUntilNextUpdate(typeof list.nextUpdate === 'string' ? list.nextUpdate : list.nextUpdate?.toISOString() || '');
                       const isUpdating = updatingList === list.category;
 
                       return (
@@ -1179,6 +1222,66 @@ export default function Configs() {
                         </Card>
                       );
                     })}
+                  </div>
+
+                  {/* Model Generation Section */}
+                  <div className="space-y-4 mt-8">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white">{t('device_models', 'Device Models')}</h3>
+                      <div className="text-sm text-gray-400">
+                        {t('models_desc', 'Generate model lists for all brands in each category')}
+                      </div>
+                    </div>
+                    
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {['Phone', 'Laptop', 'Desktop'].map((category) => {
+                        const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
+                        const isGenerating = generatingModels === category;
+                        
+                        return (
+                          <Card key={category} className="bg-slate-700/30 border-slate-600" data-testid={`card-models-${category.toLowerCase()}`}>
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-lg text-white">{category} {t('models', 'Models')}</CardTitle>
+                              <CardDescription className="text-gray-300">
+                                {brandList ? `${brandList.items.length} brands available` : 'No brands found'}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <Button
+                                onClick={() => handleGenerateModels(category)}
+                                disabled={!brandList || isGenerating || brandList.items.length === 0}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                data-testid={`button-generate-models-${category.toLowerCase()}`}
+                              >
+                                {isGenerating ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    {t('generating_models', 'Generating Models...')}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Bot className="w-4 h-4 mr-2" />
+                                    {t('generate_models', '💰 Generate All Models')}
+                                  </>
+                                )}
+                              </Button>
+                              {!brandList && (
+                                <p className="text-xs text-gray-400 mt-2 text-center">
+                                  {t('brands_needed', 'Brand list needed first')}
+                                </p>
+                              )}
+                              {brandList && brandList.items.length === 0 && (
+                                <p className="text-xs text-gray-400 mt-2 text-center">
+                                  {t('no_brands', 'No brands available')}
+                                </p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
