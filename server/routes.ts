@@ -660,6 +660,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/tenants/alias", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { alias } = req.body;
+
+      const updatedTenant = await storage.updateTenantAlias(user.tenantId, alias || null);
+      if (!updatedTenant) {
+        return res.status(404).json({ error: "Tenant not found" });
+      }
+
+      res.json(updatedTenant);
+    } catch (error) {
+      console.error("Error updating tenant alias:", error);
+      res.status(500).json({ error: "Failed to update tenant alias" });
+    }
+  });
+
   // Get recent users for quick login (shows users who logged in before)
   app.get("/api/auth/recent-users", async (req, res) => {
     try {

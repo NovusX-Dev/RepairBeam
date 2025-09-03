@@ -108,7 +108,34 @@ export default function Configs() {
         description: t('store_settings_saved', 'Store settings have been saved successfully.'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/store-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tenants/current'] });
       setIsEditingStore(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('save_failed', 'Save Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Tenant alias mutation
+  const tenantAliasMutation = useMutation({
+    mutationFn: async (alias: string | null) => {
+      const response = await fetch('/api/tenants/alias', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alias }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update tenant alias');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tenants/current'] });
     },
     onError: (error: Error) => {
       toast({
@@ -309,9 +336,14 @@ export default function Configs() {
   };
 
   const handleShopAliasChange = () => {
+    const aliasValue = tempShopAlias.trim() || null;
+    
+    // Update both store settings and tenant alias
     storeSettingsMutation.mutate({ 
-      shopAlias: tempShopAlias.trim() || null
+      shopAlias: aliasValue
     });
+    tenantAliasMutation.mutate(aliasValue);
+    
     setTempShopAlias('');
   };
 
