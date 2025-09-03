@@ -1114,7 +1114,7 @@ export default function Configs() {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
                       const canUpdate = canUpdateList(list);
-                      const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate.toISOString());
+                      const timeUntilUpdate = getTimeUntilNextUpdate(list.nextUpdate);
                       const isUpdating = updatingList === list.category;
 
                       return (
