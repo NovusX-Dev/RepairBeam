@@ -81,7 +81,7 @@ export function IssueAssessment({
       });
       setResponses(responseMap);
       
-      // Set device turns on status from first question
+      // Set device turns on status (should only be one question now)
       const firstQuestion = (questions as IssueQuestion[]).find((q: IssueQuestion) => q.questionOrder === 1);
       if (firstQuestion && responseMap[firstQuestion.id] !== undefined) {
         setDeviceTurnsOn(responseMap[firstQuestion.id]);
@@ -124,20 +124,8 @@ export function IssueAssessment({
   const handleResponseChange = (questionId: string, value: any) => {
     setResponses(prev => ({ ...prev, [questionId]: value }));
     
-    // If this is the first question (device turns on), update the state
-    const question = (questions as IssueQuestion[]).find((q: IssueQuestion) => q.id === questionId);
-    if (question?.questionOrder === 1) {
-      setDeviceTurnsOn(value);
-    }
-    
-    // Clear comment if answer changes from No to Yes
-    if (question && question.questionOrder > 1 && value === true) {
-      setNoComments(prev => {
-        const newComments = { ...prev };
-        delete newComments[questionId];
-        return newComments;
-      });
-    }
+    // Update device turns on status (should only be one question)
+    setDeviceTurnsOn(value);
   };
   
   // Handle comment change for "No" responses
@@ -204,12 +192,8 @@ export function IssueAssessment({
     }
   };
 
-  // Filter questions based on device power status
-  const visibleQuestions = (questions as IssueQuestion[]).filter((question: IssueQuestion) => {
-    if (question.questionOrder === 1) return true; // Always show first question
-    if (!question.isConditional) return true; // Always show non-conditional questions
-    return deviceTurnsOn === true; // Only show conditional questions if device turns on
-  });
+  // With simplified assessment, show all questions (should only be one per device)
+  const visibleQuestions = questions as IssueQuestion[];
 
   // Get response status for a question
   const getResponseStatus = (questionId: string) => {
@@ -252,12 +236,6 @@ export function IssueAssessment({
                     </TooltipProvider>
                   )}
                 </div>
-                {question.isConditional && deviceTurnsOn === false && (
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <AlertTriangle className="h-3 w-3" />
-                    {t("device_power_required", "This question appears when device turns on")}
-                  </div>
-                )}
               </div>
             </div>
             <div className="flex items-center gap-1 ml-2">
@@ -294,29 +272,6 @@ export function IssueAssessment({
                 </div>
               </RadioGroup>
               
-              {/* Show comment field when "No" is selected for questions 2-10 */}
-              {value === false && question.questionOrder > 1 && (
-                <div className="ml-6 mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2 text-orange-700 dark:text-orange-300">
-                    <MessageSquare className="h-4 w-4" />
-                    <Label className="text-sm font-medium">
-                      {t("describe_issue", "Please describe what's not working")}
-                    </Label>
-                  </div>
-                  <Input
-                    value={noComments[question.id] || ""}
-                    onChange={(e) => handleNoCommentChange(question.id, e.target.value)}
-                    placeholder={t("no_comment_placeholder", "Briefly describe the issue (max 300 characters)...")}
-                    maxLength={300}
-                    disabled={readOnly}
-                    className="text-sm"
-                    data-testid={`comment-${question.questionOrder}`}
-                  />
-                  <div className="text-xs text-muted-foreground mt-1 text-right">
-                    {(noComments[question.id] || "").length}/300
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -385,14 +340,6 @@ export function IssueAssessment({
         <p className="text-muted-foreground">
           {t("issue_assessment_desc", "Answer these questions to help us diagnose the problem")}
         </p>
-        {deviceTurnsOn === false && (
-          <div className="mt-3 p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
-            <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300 text-sm">
-              <AlertTriangle className="h-4 w-4" />
-              {t("device_power_off_notice", "Since the device doesn't turn on, some questions are hidden as they're not applicable.")}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Progress indicator */}
