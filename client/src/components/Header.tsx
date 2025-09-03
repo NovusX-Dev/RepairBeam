@@ -11,6 +11,7 @@ import {
 import { Bell, LogOut, Globe } from "lucide-react";
 import ReactCountryFlag from "react-country-flag";
 import { useLocalization, LANGUAGES } from "@/contexts/LocalizationContext";
+import { useQuery } from "@tanstack/react-query";
 
 interface HeaderProps {
   currentPage: string;
@@ -20,6 +21,12 @@ export default function Header({ currentPage }: HeaderProps) {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { currentLanguage, setCurrentLanguage, t } = useLocalization();
+  
+  // Fetch store settings to get shop name and logo
+  const { data: storeSettings } = useQuery<any>({
+    queryKey: ['/api/store-settings'],
+    enabled: !!tenant,
+  });
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
@@ -97,9 +104,9 @@ export default function Header({ currentPage }: HeaderProps) {
               data-testid="dropdown-user-menu"
             >
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm overflow-hidden">
-                {tenant?.shopImageUrl ? (
+                {storeSettings?.shopLogoUrl ? (
                   <img 
-                    src={tenant.shopImageUrl} 
+                    src={storeSettings.shopLogoUrl} 
                     alt="Shop Logo" 
                     className="w-8 h-8 object-cover rounded-full"
                   />
@@ -110,6 +117,16 @@ export default function Header({ currentPage }: HeaderProps) {
                       : user?.email?.[0]?.toUpperCase() || "U"}
                   </span>
                 )}
+              </div>
+              <div className="text-sm">
+                <div className="font-medium text-foreground">
+                  {user?.firstName && user?.lastName 
+                    ? `${user.firstName} ${user.lastName}` 
+                    : user?.email || "User"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  User • {storeSettings?.shopAlias || storeSettings?.shopName || tenant?.alias || tenant?.name || "Shop"}
+                </div>
               </div>
             </div>
           </DropdownMenuTrigger>

@@ -358,32 +358,88 @@ export default function Configs() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <form onSubmit={handleStoreSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="shopName">{t('shop_name', 'Shop Name')}</Label>
-                    <Input
-                      id="shopName"
-                      value={storeFormData.shopName || ''}
-                      onChange={(e) => setStoreFormData(prev => ({ ...prev, shopName: e.target.value }))}
-                      placeholder={t('enter_shop_name', 'Enter your shop name')}
-                      data-testid="input-shop-name"
-                    />
+              <form onSubmit={handleStoreSubmit} className="space-y-6">
+                {/* Shop Identity Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-cyan-100 border-b border-slate-600 pb-2">
+                    {t('shop_identity', 'Shop Identity')}
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="shopName">{t('shop_name', 'Shop Name')}</Label>
+                      <Input
+                        id="shopName"
+                        value={storeFormData.shopName || ''}
+                        onChange={(e) => setStoreFormData(prev => ({ ...prev, shopName: e.target.value }))}
+                        placeholder={t('enter_shop_name', 'Enter your shop name')}
+                        data-testid="input-shop-name"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {t('shop_name_help', 'Full legal name of your repair business')}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="shopAlias">{t('shop_alias', 'Display Name')}</Label>
+                      <Input
+                        id="shopAlias"
+                        value={storeFormData.shopAlias || ''}
+                        onChange={(e) => setStoreFormData(prev => ({ ...prev, shopAlias: e.target.value }))}
+                        placeholder={t('enter_shop_alias', 'Enter display name')}
+                        data-testid="input-shop-alias"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {t('shop_alias_help', 'Short name shown in user interface')}
+                      </p>
+                    </div>
                   </div>
+                  
+                  {/* Shop Logo Section */}
                   <div className="space-y-2">
-                    <Label htmlFor="contactEmail">{t('contact_email', 'Contact Email')}</Label>
-                    <Input
-                      id="contactEmail"
-                      type="email"
-                      value={storeFormData.contactEmail || ''}
-                      onChange={(e) => setStoreFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                      placeholder={t('enter_contact_email', 'Enter contact email')}
-                      data-testid="input-contact-email"
-                    />
+                    <Label htmlFor="shopLogo">{t('shop_logo', 'Shop Logo')}</Label>
+                    <div className="flex gap-4 items-start">
+                      {/* Current Logo Display */}
+                      {storeFormData.shopLogoUrl && (
+                        <div className="flex-shrink-0">
+                          <img 
+                            src={storeFormData.shopLogoUrl} 
+                            alt="Current shop logo" 
+                            className="w-16 h-16 object-contain rounded-lg border border-slate-600 bg-slate-700/50"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 space-y-2">
+                        <div className="flex gap-2">
+                          <Input
+                            id="shopLogo"
+                            value={storeFormData.shopLogoUrl || ''}
+                            onChange={(e) => setStoreFormData(prev => ({ ...prev, shopLogoUrl: e.target.value }))}
+                            placeholder={t('enter_logo_url', 'Enter logo URL')}
+                            data-testid="input-shop-logo"
+                          />
+                          <Button type="button" variant="outline" size="icon">
+                            <Upload className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {t('logo_help', 'Upload an image or provide a URL for your shop logo')}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Contact Information Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-cyan-100 border-b border-slate-600 pb-2">
+                    {t('contact_information', 'Contact Information')}
+                  </h4>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="contactPhone">{t('contact_phone', 'Contact Phone')}</Label>
                     <Input
@@ -394,45 +450,37 @@ export default function Configs() {
                       data-testid="input-contact-phone"
                     />
                   </div>
+                </div>
+
+                {/* Business Details Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-cyan-100 border-b border-slate-600 pb-2">
+                    {t('business_details', 'Business Details')}
+                  </h4>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="shopLogo">{t('shop_logo', 'Shop Logo')}</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="shopLogo"
-                        value={storeFormData.shopLogoUrl || ''}
-                        onChange={(e) => setStoreFormData(prev => ({ ...prev, shopLogoUrl: e.target.value }))}
-                        placeholder={t('enter_logo_url', 'Enter logo URL')}
-                        data-testid="input-shop-logo"
-                      />
-                      <Button type="button" variant="outline" size="icon">
-                        <Upload className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <Label htmlFor="shopDescription">{t('shop_description', 'Shop Description')}</Label>
+                    <Textarea
+                      id="shopDescription"
+                      value={storeFormData.shopDescription || ''}
+                      onChange={(e) => setStoreFormData(prev => ({ ...prev, shopDescription: e.target.value }))}
+                      placeholder={t('enter_shop_description', 'Describe your shop and services')}
+                      rows={3}
+                      data-testid="textarea-shop-description"
+                    />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="shopDescription">{t('shop_description', 'Shop Description')}</Label>
-                  <Textarea
-                    id="shopDescription"
-                    value={storeFormData.shopDescription || ''}
-                    onChange={(e) => setStoreFormData(prev => ({ ...prev, shopDescription: e.target.value }))}
-                    placeholder={t('enter_shop_description', 'Describe your shop and services')}
-                    rows={3}
-                    data-testid="textarea-shop-description"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="address">{t('shop_address', 'Shop Address')}</Label>
-                  <Textarea
-                    id="address"
-                    value={storeFormData.address || ''}
-                    onChange={(e) => setStoreFormData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder={t('enter_shop_address', 'Enter complete shop address')}
-                    rows={2}
-                    data-testid="textarea-shop-address"
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="address">{t('shop_address', 'Shop Address')}</Label>
+                    <Textarea
+                      id="address"
+                      value={storeFormData.address || ''}
+                      onChange={(e) => setStoreFormData(prev => ({ ...prev, address: e.target.value }))}
+                      placeholder={t('enter_shop_address', 'Enter complete shop address')}
+                      rows={2}
+                      data-testid="textarea-shop-address"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
