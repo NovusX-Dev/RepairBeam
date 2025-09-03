@@ -10,7 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2 } from "lucide-react";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
@@ -37,6 +48,11 @@ export default function Configs() {
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [newTier, setNewTier] = useState<Partial<WarrantyTier>>({});
   const [showAddTier, setShowAddTier] = useState(false);
+  
+  // Shop identity edit state
+  const [tempShopName, setTempShopName] = useState('');
+  const [tempShopAlias, setTempShopAlias] = useState('');
+  const [tempLogoUrl, setTempLogoUrl] = useState('');
 
   // Device types for warranty configuration
   const deviceTypes = ["Phone", "Laptop", "Desktop", "Tablet", "Watch"];
@@ -274,6 +290,33 @@ export default function Configs() {
     storeSettingsMutation.mutate(storeFormData);
   };
 
+  // Shop identity change handlers
+  const handleShopNameChange = () => {
+    if (tempShopName.trim()) {
+      storeSettingsMutation.mutate({ 
+        ...storeFormData, 
+        shopName: tempShopName.trim() 
+      });
+      setTempShopName('');
+    }
+  };
+
+  const handleShopAliasChange = () => {
+    storeSettingsMutation.mutate({ 
+      ...storeFormData, 
+      shopAlias: tempShopAlias.trim() || null
+    });
+    setTempShopAlias('');
+  };
+
+  const handleLogoChange = () => {
+    storeSettingsMutation.mutate({ 
+      ...storeFormData, 
+      shopLogoUrl: tempLogoUrl.trim() || null
+    });
+    setTempLogoUrl('');
+  };
+
   const handleTierSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (showAddTier) {
@@ -366,69 +409,182 @@ export default function Configs() {
                   </h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Shop Name */}
                     <div className="space-y-2">
-                      <Label htmlFor="shopName">{t('shop_name', 'Shop Name')}</Label>
-                      <Input
-                        id="shopName"
-                        value={storeFormData.shopName || ''}
-                        onChange={(e) => setStoreFormData(prev => ({ ...prev, shopName: e.target.value }))}
-                        placeholder={t('enter_shop_name', 'Enter your shop name')}
-                        data-testid="input-shop-name"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t('shop_name_help', 'Full legal name of your repair business')}
-                      </p>
+                      <Label>{t('shop_name', 'Shop Name')}</Label>
+                      <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+                        <div className="font-medium text-sm text-cyan-100">
+                          {storeSettings?.shopName || t('not_set', 'Not set')}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('shop_name_help', 'Full legal name of your repair business')}
+                        </p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="mt-2">
+                              <Edit className="w-4 h-4 mr-2" />
+                              {t('change', 'Change')}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('change_shop_name', 'Change Shop Name')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t('change_shop_name_desc', 'Enter the new legal name for your repair business.')}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <div className="space-y-2">
+                              <Input
+                                value={tempShopName}
+                                onChange={(e) => setTempShopName(e.target.value)}
+                                placeholder={t('enter_shop_name', 'Enter your shop name')}
+                                data-testid="input-new-shop-name"
+                              />
+                            </div>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setTempShopName('')}>
+                                {t('cancel', 'Cancel')}
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleShopNameChange()}
+                                disabled={!tempShopName.trim()}
+                              >
+                                {t('save_changes', 'Save Changes')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                     
+                    {/* Display Name */}
                     <div className="space-y-2">
-                      <Label htmlFor="shopAlias">{t('shop_alias', 'Display Name')}</Label>
-                      <Input
-                        id="shopAlias"
-                        value={storeFormData.shopAlias || ''}
-                        onChange={(e) => setStoreFormData(prev => ({ ...prev, shopAlias: e.target.value }))}
-                        placeholder={t('enter_shop_alias', 'Enter display name')}
-                        data-testid="input-shop-alias"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        {t('shop_alias_help', 'Short name shown in user interface')}
-                      </p>
+                      <Label>{t('shop_alias', 'Display Name')}</Label>
+                      <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+                        <div className="font-medium text-sm text-cyan-100">
+                          {storeSettings?.shopAlias || t('not_set', 'Not set')}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('shop_alias_help', 'Short name shown in user interface')}
+                        </p>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="mt-2">
+                              <Edit className="w-4 h-4 mr-2" />
+                              {t('change', 'Change')}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t('change_display_name', 'Change Display Name')}</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {t('change_display_name_desc', 'Enter the short name to display in the user interface.')}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <div className="space-y-2">
+                              <Input
+                                value={tempShopAlias}
+                                onChange={(e) => setTempShopAlias(e.target.value)}
+                                placeholder={t('enter_shop_alias', 'Enter display name')}
+                                data-testid="input-new-shop-alias"
+                              />
+                            </div>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setTempShopAlias('')}>
+                                {t('cancel', 'Cancel')}
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleShopAliasChange()}
+                              >
+                                {t('save_changes', 'Save Changes')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </div>
                   
                   {/* Shop Logo Section */}
                   <div className="space-y-2">
-                    <Label htmlFor="shopLogo">{t('shop_logo', 'Shop Logo')}</Label>
-                    <div className="flex gap-4 items-start">
-                      {/* Current Logo Display */}
-                      {storeFormData.shopLogoUrl && (
-                        <div className="flex-shrink-0">
-                          <img 
-                            src={storeFormData.shopLogoUrl} 
-                            alt="Current shop logo" 
-                            className="w-16 h-16 object-contain rounded-lg border border-slate-600 bg-slate-700/50"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
+                    <Label>{t('shop_logo', 'Shop Logo')}</Label>
+                    <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+                      <div className="flex gap-4 items-start">
+                        {/* Current Logo Display */}
+                        {storeSettings?.shopLogoUrl ? (
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={storeSettings.shopLogoUrl} 
+                              alt="Current shop logo" 
+                              className="w-16 h-16 object-contain rounded-lg border border-slate-500 bg-slate-600/50"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex-shrink-0 w-16 h-16 bg-slate-600 rounded-lg border border-slate-500 flex items-center justify-center">
+                            <ImageIcon className="w-8 h-8 text-slate-400" />
+                          </div>
+                        )}
+                        
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-cyan-100 mb-1">
+                            {storeSettings?.shopLogoUrl ? t('logo_set', 'Logo URL set') : t('no_logo', 'No logo set')}
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {t('logo_help', 'Upload an image or provide a URL for your shop logo')}
+                          </p>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Edit className="w-4 h-4 mr-2" />
+                                {storeSettings?.shopLogoUrl ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  {storeSettings?.shopLogoUrl ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  {t('logo_change_desc', 'Enter a new URL for your shop logo. Make sure it\'s a direct link to an image.')}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <div className="space-y-2">
+                                <Input
+                                  value={tempLogoUrl}
+                                  onChange={(e) => setTempLogoUrl(e.target.value)}
+                                  placeholder={t('enter_logo_url', 'Enter logo URL')}
+                                  data-testid="input-new-logo-url"
+                                />
+                                {tempLogoUrl && (
+                                  <div className="mt-2">
+                                    <p className="text-sm text-muted-foreground mb-2">{t('preview', 'Preview')}:</p>
+                                    <img 
+                                      src={tempLogoUrl} 
+                                      alt="Logo preview" 
+                                      className="w-16 h-16 object-contain rounded-lg border border-slate-500 bg-slate-600/50"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setTempLogoUrl('')}>
+                                  {t('cancel', 'Cancel')}
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleLogoChange()}
+                                >
+                                  {t('save_changes', 'Save Changes')}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
-                      )}
-                      
-                      <div className="flex-1 space-y-2">
-                        <div className="flex gap-2">
-                          <Input
-                            id="shopLogo"
-                            value={storeFormData.shopLogoUrl || ''}
-                            onChange={(e) => setStoreFormData(prev => ({ ...prev, shopLogoUrl: e.target.value }))}
-                            placeholder={t('enter_logo_url', 'Enter logo URL')}
-                            data-testid="input-shop-logo"
-                          />
-                          <Button type="button" variant="outline" size="icon">
-                            <Upload className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {t('logo_help', 'Upload an image or provide a URL for your shop logo')}
-                        </p>
                       </div>
                     </div>
                   </div>
