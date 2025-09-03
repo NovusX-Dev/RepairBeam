@@ -448,15 +448,13 @@ export default function Configs() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* Page Header with Aurora Card Design */}
-      <div className="bg-slate-800/70 rounded-lg p-6 mb-8 border border-slate-700">
-        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-6 text-white">
-          <div className="flex items-center gap-3">
-            <Settings className="w-8 h-8 text-cyan-100" />
-            <div>
-              <h1 className="text-2xl font-bold">{t('system_configurations', 'System Configurations')}</h1>
-              <p className="text-cyan-100 opacity-80">{t('config_description', 'Manage your shop settings, warranty policies, and AI-powered features')}</p>
-            </div>
+      {/* Page Header with Aurora Card Design - Compact */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 mb-6 border border-slate-700">
+        <div className="flex items-center gap-3 text-white">
+          <Settings className="w-6 h-6 text-cyan-100" />
+          <div>
+            <h1 className="text-xl font-bold">{t('system_configurations', 'System Configurations')}</h1>
+            <p className="text-cyan-100 opacity-80 text-sm">{t('config_description', 'Manage your shop settings, warranty policies, and AI-powered features')}</p>
           </div>
         </div>
       </div>
