@@ -25,6 +25,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
+import { FileUpload } from "@/components/FileUpload";
 import type { AutoGenList, StoreSettings, WarrantyTier } from "@shared/schema";
 
 export default function Configs() {
@@ -53,6 +54,9 @@ export default function Configs() {
   const [tempShopName, setTempShopName] = useState('');
   const [tempShopAlias, setTempShopAlias] = useState('');
   const [tempLogoUrl, setTempLogoUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Device types for warranty configuration
   const deviceTypes = ["Phone", "Laptop", "Desktop", "Tablet", "Watch"];
@@ -321,11 +325,74 @@ export default function Configs() {
     setTempShopAlias('');
   };
 
-  const handleLogoChange = () => {
-    storeSettingsMutation.mutate({ 
-      shopLogoUrl: tempLogoUrl.trim() || null
-    });
-    setTempLogoUrl('');
+  const handleLogoChange = async () => {
+    if (selectedFile) {
+      // Handle file upload
+      try {
+        setUploadingLogo(true);
+        
+        // Get upload URL from backend
+        const uploadResponse = await apiRequest('/api/objects/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }) as { uploadURL: string };
+        
+        // Upload file to object storage
+        await fetch(uploadResponse.uploadURL, {
+          method: 'PUT',
+          body: selectedFile,
+        });
+        
+        // Normalize the upload URL to an object path
+        const normalizeResponse = await apiRequest('/api/objects/normalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: { uploadURL: uploadResponse.uploadURL },
+        }) as { objectPath: string };
+        
+        // Update store settings with the normalized object path
+        storeSettingsMutation.mutate({ 
+          shopLogoUrl: normalizeResponse.objectPath
+        });
+        
+        // Clear temporary states
+        setSelectedFile(null);
+        setPreviewUrl(null);
+        setTempLogoUrl('');
+        
+      } catch (error) {
+        console.error('Logo upload failed:', error);
+        toast({
+          title: t('upload_failed', 'Upload Failed'),
+          description: t('logo_upload_error', 'Failed to upload logo. Please try again.'),
+          variant: 'destructive',
+        });
+      } finally {
+        setUploadingLogo(false);
+      }
+    } else {
+      // Handle URL input (fallback)
+      storeSettingsMutation.mutate({ 
+        shopLogoUrl: tempLogoUrl.trim() || null
+      });
+      setTempLogoUrl('');
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setTempLogoUrl(''); // Clear URL input when file is selected
+  };
+
+  const handleClearPreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setSelectedFile(null);
   };
 
   const handleTierSubmit = (e: React.FormEvent) => {
@@ -559,38 +626,74 @@ export default function Configs() {
                                   {(storeSettings?.shopLogoUrl || tenantData?.shopImageUrl) ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {t('logo_change_desc', 'Enter a new URL for your shop logo. Make sure it\'s a direct link to an image.')}
+                                  {t('logo_upload_desc', 'Upload an image file (PNG, JPEG, JPG) or provide a URL for your shop logo.')}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
-                              <div className="space-y-2">
-                                <Input
-                                  value={tempLogoUrl}
-                                  onChange={(e) => setTempLogoUrl(e.target.value)}
-                                  placeholder={t('enter_logo_url', 'Enter logo URL')}
-                                  data-testid="input-new-logo-url"
+                              <div className="space-y-4">
+                                {/* File Upload Component */}
+                                <FileUpload
+                                  onFileSelect={handleFileSelect}
+                                  maxSize={5}
+                                  acceptedTypes={['image/png', 'image/jpeg', 'image/jpg']}
+                                  preview={previewUrl}
+                                  onClearPreview={handleClearPreview}
                                 />
-                                {tempLogoUrl && (
-                                  <div className="mt-2">
-                                    <p className="text-sm text-muted-foreground mb-2">{t('preview', 'Preview')}:</p>
-                                    <img 
-                                      src={tempLogoUrl} 
-                                      alt="Logo preview" 
-                                      className="w-16 h-16 object-contain rounded-lg border border-slate-500 bg-slate-600/50"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                      }}
-                                    />
-                                  </div>
-                                )}
+                                
+                                {/* Divider */}
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex-1 border-t border-slate-600"></div>
+                                  <span className="text-xs text-muted-foreground px-2">OR</span>
+                                  <div className="flex-1 border-t border-slate-600"></div>
+                                </div>
+                                
+                                {/* URL Input (Alternative) */}
+                                <div className="space-y-2">
+                                  <Label htmlFor="logo-url" className="text-sm text-slate-300">
+                                    {t('logo_url_option', 'Enter logo URL')}
+                                  </Label>
+                                  <Input
+                                    id="logo-url"
+                                    value={tempLogoUrl}
+                                    onChange={(e) => setTempLogoUrl(e.target.value)}
+                                    placeholder={t('enter_logo_url', 'https://example.com/logo.png')}
+                                    data-testid="input-new-logo-url"
+                                    disabled={!!selectedFile}
+                                  />
+                                  {tempLogoUrl && !selectedFile && (
+                                    <div className="mt-2">
+                                      <p className="text-sm text-muted-foreground mb-2">{t('preview', 'Preview')}:</p>
+                                      <img 
+                                        src={tempLogoUrl} 
+                                        alt="Logo preview" 
+                                        className="w-16 h-16 object-contain rounded-lg border border-slate-500 bg-slate-600/50"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <AlertDialogFooter>
-                                <AlertDialogCancel onClick={() => setTempLogoUrl('')}>
+                                <AlertDialogCancel onClick={() => {
+                                  setTempLogoUrl('');
+                                  handleClearPreview();
+                                }}>
                                   {t('cancel', 'Cancel')}
                                 </AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => handleLogoChange()}
+                                  disabled={uploadingLogo || (!selectedFile && !tempLogoUrl.trim())}
+                                  data-testid="button-save-logo"
                                 >
-                                  {t('save_changes', 'Save Changes')}
+                                  {uploadingLogo ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      {t('uploading', 'Uploading...')}
+                                    </>
+                                  ) : (
+                                    t('save_changes', 'Save Changes')
+                                  )}
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
