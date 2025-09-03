@@ -43,7 +43,9 @@ export default function Configs() {
 
   // Store settings state
   const [storeFormData, setStoreFormData] = useState<Partial<StoreSettings>>({});
+  const [originalFormData, setOriginalFormData] = useState<Partial<StoreSettings>>({});
   const [isEditingStore, setIsEditingStore] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Warranty tiers state
   const [editingTier, setEditingTier] = useState<string | null>(null);
@@ -51,8 +53,6 @@ export default function Configs() {
   const [showAddTier, setShowAddTier] = useState(false);
   
   // Shop identity edit state
-  const [tempShopName, setTempShopName] = useState('');
-  const [tempShopAlias, setTempShopAlias] = useState('');
   const [tempLogoUrl, setTempLogoUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -95,10 +95,12 @@ export default function Configs() {
   const storeSettingsMutation = useMutation({
     mutationFn: async (data: Partial<StoreSettings>) => {
       const method = storeSettings ? 'PUT' : 'POST';
+      // Remove timestamp fields to avoid the toISOString error
+      const { createdAt, updatedAt, id, ...cleanData } = data;
       const response = await fetch('/api/store-settings', {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(cleanData),
       });
       if (!response.ok) {
         const error = await response.json();
@@ -114,6 +116,7 @@ export default function Configs() {
       queryClient.invalidateQueries({ queryKey: ['/api/store-settings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tenants/current'] });
       setIsEditingStore(false);
+      setHasUnsavedChanges(false);
     },
     onError: (error: Error) => {
       toast({
@@ -200,12 +203,24 @@ export default function Configs() {
   // Initialize store settings form
   useEffect(() => {
     if (storeSettings && !isEditingStore) {
-      setStoreFormData(storeSettings);
+      const formData = { ...storeSettings };
+      setStoreFormData(formData);
+      setOriginalFormData(formData);
+      setHasUnsavedChanges(false);
     } else if (!storeSettings && !isEditingStore) {
       // Initialize with empty form data when no store settings exist
-      setStoreFormData({});
+      const emptyData = {};
+      setStoreFormData(emptyData);
+      setOriginalFormData(emptyData);
+      setHasUnsavedChanges(false);
     }
   }, [storeSettings, isEditingStore]);
+
+  // Check for unsaved changes
+  useEffect(() => {
+    const hasChanges = JSON.stringify(storeFormData) !== JSON.stringify(originalFormData);
+    setHasUnsavedChanges(hasChanges);
+  }, [storeFormData, originalFormData]);
 
   // AI Lists mutations (existing functionality)
   const updateListMutation = useMutation({
@@ -305,6 +320,13 @@ export default function Configs() {
   };
 
   // Shop identity change handlers
+  const handleShopNameChange = () => {
+    // Changes are handled through form state now
+  };
+
+  const handleShopAliasChange = () => {
+    // Changes are handled through form state now  
+  };
   const handleShopNameChange = () => {
     if (tempShopName.trim()) {
       storeSettingsMutation.mutate({ 
@@ -733,24 +755,32 @@ export default function Configs() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button
-                    type="submit"
-                    disabled={storeSettingsMutation.isPending}
-                    data-testid="button-save-store-settings"
-                  >
-                    {storeSettingsMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        {t('saving', 'Saving...')}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        {t('save_settings', 'Save Settings')}
-                      </>
-                    )}
-                  </Button>
+                <div className="flex justify-between items-center pt-4">
+                  {hasUnsavedChanges && (
+                    <div className="flex items-center gap-2 text-amber-400 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      {t('unsaved_changes', 'You have unsaved changes')}
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-3 ml-auto">
+                    <Button
+                      type="submit"
+                      disabled={storeSettingsMutation.isPending || !hasUnsavedChanges}
+                      data-testid="button-save-store-settings"
+                    >
+                      {storeSettingsMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {t('saving', 'Saving...')}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          {t('save_settings', 'Save Settings')}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </CardContent>
