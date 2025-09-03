@@ -61,6 +61,11 @@ export default function Configs() {
   const { data: storeSettings } = useQuery<StoreSettings | null>({
     queryKey: ['/api/store-settings'],
   });
+  
+  // Get tenant data for fallback values
+  const { data: tenantData } = useQuery<any>({
+    queryKey: ['/api/tenants/current'],
+  });
 
   // Fetch warranty tiers
   const { data: warrantyTiers = [] } = useQuery<WarrantyTier[]>({
@@ -414,7 +419,7 @@ export default function Configs() {
                       <Label>{t('shop_name', 'Shop Name')}</Label>
                       <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
                         <div className="font-medium text-sm text-cyan-100">
-                          {storeSettings?.shopName || t('not_set', 'Not set')}
+                          {storeSettings?.shopName || tenantData?.name || t('not_set', 'Not set')}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {t('shop_name_help', 'Full legal name of your repair business')}
@@ -462,7 +467,7 @@ export default function Configs() {
                       <Label>{t('shop_alias', 'Display Name')}</Label>
                       <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
                         <div className="font-medium text-sm text-cyan-100">
-                          {storeSettings?.shopAlias || t('not_set', 'Not set')}
+                          {storeSettings?.shopAlias || tenantData?.alias || t('not_set', 'Not set')}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {t('shop_alias_help', 'Short name shown in user interface')}
@@ -511,10 +516,10 @@ export default function Configs() {
                     <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
                       <div className="flex gap-4 items-start">
                         {/* Current Logo Display */}
-                        {storeSettings?.shopLogoUrl ? (
+                        {(storeSettings?.shopLogoUrl || tenantData?.shopImageUrl) ? (
                           <div className="flex-shrink-0">
                             <img 
-                              src={storeSettings.shopLogoUrl} 
+                              src={storeSettings?.shopLogoUrl || tenantData?.shopImageUrl} 
                               alt="Current shop logo" 
                               className="w-16 h-16 object-contain rounded-lg border border-slate-500 bg-slate-600/50"
                               onError={(e) => {
@@ -530,7 +535,7 @@ export default function Configs() {
                         
                         <div className="flex-1">
                           <div className="font-medium text-sm text-cyan-100 mb-1">
-                            {storeSettings?.shopLogoUrl ? t('logo_set', 'Logo URL set') : t('no_logo', 'No logo set')}
+                            {(storeSettings?.shopLogoUrl || tenantData?.shopImageUrl) ? t('logo_set', 'Logo URL set') : t('no_logo', 'No logo set')}
                           </div>
                           <p className="text-xs text-muted-foreground mb-2">
                             {t('logo_help', 'Upload an image or provide a URL for your shop logo')}
@@ -539,13 +544,13 @@ export default function Configs() {
                             <AlertDialogTrigger asChild>
                               <Button variant="outline" size="sm">
                                 <Edit className="w-4 h-4 mr-2" />
-                                {storeSettings?.shopLogoUrl ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
+                                {(storeSettings?.shopLogoUrl || tenantData?.shopImageUrl) ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
                               </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>
-                                  {storeSettings?.shopLogoUrl ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
+                                  {(storeSettings?.shopLogoUrl || tenantData?.shopImageUrl) ? t('change_logo', 'Change Logo') : t('add_logo', 'Add Logo')}
                                 </AlertDialogTitle>
                                 <AlertDialogDescription>
                                   {t('logo_change_desc', 'Enter a new URL for your shop logo. Make sure it\'s a direct link to an image.')}
