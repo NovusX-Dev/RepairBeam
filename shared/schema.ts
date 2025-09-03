@@ -116,6 +116,7 @@ export const tickets = pgTable("tickets", {
   technicianEstimatedHours: integer("technician_estimated_hours"),
   warrantyType: varchar("warranty_type").default('standard'),
   costEstimation: decimal("cost_estimation", { precision: 10, scale: 2 }),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
   costExplanation: text("cost_explanation"),
   // Service Checklist - JSON storing component conditions when device was received
   serviceChecklist: jsonb("service_checklist"),

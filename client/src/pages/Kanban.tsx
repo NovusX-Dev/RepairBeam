@@ -1393,6 +1393,7 @@ export default function KanbanTickets() {
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
         warrantyType: formData.warrantyType as 'standard' | 'extended',
         costEstimation: formData.costEstimation || null,
+        totalCost: formData.totalCost || null,
         costExplanation: formData.costExplanation || null,
         // Service Checklist data
         serviceChecklist: {
@@ -3613,7 +3614,7 @@ export default function KanbanTickets() {
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400">{t("total_cost", "Total Cost")}</div>
                           <div className="font-bold text-emerald-400">
-                            ${selectedTicketSummary.costEstimation || selectedTicketSummary.estimatedCost || "N/A"}
+                            ${selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation || "N/A"}
                           </div>
                         </div>
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
