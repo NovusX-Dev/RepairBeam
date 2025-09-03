@@ -1157,7 +1157,13 @@ export default function Configs() {
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {autoGenLists.filter(list => list.listType.includes('Brands')).map((list) => {
                       const canUpdate = canUpdateList(list);
-                      const timeUntilUpdate = getTimeUntilNextUpdate(typeof list.nextUpdate === 'string' ? list.nextUpdate : list.nextUpdate?.toISOString() || '');
+                      const timeUntilUpdate = getTimeUntilNextUpdate(
+                        typeof list.nextUpdate === 'string' 
+                          ? list.nextUpdate 
+                          : list.nextUpdate instanceof Date 
+                            ? list.nextUpdate.toISOString() 
+                            : new Date(list.nextUpdate || '').toISOString()
+                      );
                       const isUpdating = updatingList === list.category;
 
                       return (
@@ -1190,7 +1196,7 @@ export default function Configs() {
                             <div className="space-y-2 text-sm">
                               <p className="text-gray-400">
                                 <span className="font-medium">{t('last_updated', 'Last updated')}:</span> {' '}
-                                {new Date(list.lastGenerated || '').toLocaleDateString()}
+                                {list.lastGenerated ? new Date(list.lastGenerated).toLocaleDateString() : t('never', 'Never')}
                               </p>
                               <p className="text-gray-400">
                                 <span className="font-medium">{t('next_update', 'Next update')}:</span> {' '}
