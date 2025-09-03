@@ -221,6 +221,7 @@ export const localizations = pgTable("localizations", {
 // Auto-generated lists table for AI-powered data (brands, models, etc.)
 export const autoGenLists = pgTable("auto_gen_lists", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"), // Added for multi-tenant support
   listType: varchar("list_type").notNull(), // e.g., 'AutoGen-List-Brands-Phone', 'AutoGen-List-Models-Phone-Apple'
   category: varchar("category").notNull(), // e.g., 'Phone', 'Laptop', 'Desktop'
   brand: varchar("brand"), // e.g., 'Apple', 'Samsung' - null for brand lists, specific for model lists
@@ -236,11 +237,13 @@ export const autoGenLists = pgTable("auto_gen_lists", {
   index("idx_auto_gen_list_type").on(table.listType),
   index("idx_auto_gen_category").on(table.category),
   index("idx_auto_gen_brand").on(table.brand),
+  index("idx_auto_gen_lists_tenant_id").on(table.tenantId),
 ]);
 
 // Device checklist templates - defines what components to check for each device type
 export const deviceChecklistTemplates = pgTable("device_checklist_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"), // Added for multi-tenant support
   deviceType: varchar("device_type").notNull(), // e.g., 'Phone', 'Laptop', 'Desktop'
   components: text("components").array().notNull(), // Array of component names to check
   isActive: boolean("is_active").notNull().default(true),
@@ -248,11 +251,13 @@ export const deviceChecklistTemplates = pgTable("device_checklist_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("idx_device_checklist_type").on(table.deviceType),
+  index("idx_device_checklist_templates_tenant_id").on(table.tenantId),
 ]);
 
 // Device colors table - stores color information for specific devices
 export const deviceColors = pgTable("device_colors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"), // Added for multi-tenant support
   deviceType: varchar("device_type").notNull(), // 'Phone', 'Tablet', 'Laptop'
   brand: varchar("brand").notNull(), // 'Apple', 'Samsung', etc.
   model: varchar("model").notNull(), // 'iPhone 15 Pro', 'Galaxy S24', etc.
@@ -263,6 +268,7 @@ export const deviceColors = pgTable("device_colors", {
 }, (table) => [
   index("idx_device_colors_lookup").on(table.deviceType, table.brand, table.model),
   index("idx_device_colors_brand").on(table.brand),
+  index("idx_device_colors_tenant_id").on(table.tenantId),
 ]);
 
 
@@ -397,6 +403,7 @@ export const userAchievements = pgTable("user_achievements", {
 // Issue assessment questions - device-specific diagnostic questions
 export const issueQuestions = pgTable("issue_questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id"), // Added for multi-tenant support
   deviceType: varchar("device_type").notNull(), // 'Phone', 'Laptop', 'Desktop'
   questionOrder: integer("question_order").notNull(), // 1-10 for ordering
   questionKey: varchar("question_key").notNull(), // for localization
@@ -409,6 +416,7 @@ export const issueQuestions = pgTable("issue_questions", {
 }, (table) => [
   index("idx_issue_questions_device_type").on(table.deviceType),
   index("idx_issue_questions_order").on(table.questionOrder),
+  index("idx_issue_questions_tenant_id").on(table.tenantId),
 ]);
 
 // Issue assessment responses - stores client answers for tickets
