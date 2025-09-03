@@ -701,23 +701,6 @@ export default function Configs() {
                   </div>
                 </div>
 
-                {/* Contact Information Section */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-cyan-100 border-b border-slate-600 pb-2">
-                    {t('contact_information', 'Contact Information')}
-                  </h4>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="contactPhone">{t('contact_phone', 'Contact Phone')}</Label>
-                    <Input
-                      id="contactPhone"
-                      value={storeFormData.contactPhone || ''}
-                      onChange={(e) => setStoreFormData(prev => ({ ...prev, contactPhone: e.target.value }))}
-                      placeholder={t('enter_contact_phone', 'Enter contact phone')}
-                      data-testid="input-contact-phone"
-                    />
-                  </div>
-                </div>
 
                 {/* Business Details Section */}
                 <div className="space-y-4">
