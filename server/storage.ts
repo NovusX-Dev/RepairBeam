@@ -98,8 +98,6 @@ export interface IStorage {
   getTenant(id: string): Promise<Tenant | undefined>;
   getTenantByDomain(domain: string): Promise<Tenant | undefined>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
-  updateTenantLanguage(id: string, language: string): Promise<Tenant | undefined>;
-  updateTenantAlias(id: string, alias: string | null): Promise<Tenant | undefined>;
   
   // Client operations
   getClients(tenantId: string): Promise<Client[]>;
@@ -250,23 +248,6 @@ export class DatabaseStorage implements IStorage {
     return newTenant;
   }
 
-  async updateTenantLanguage(id: string, language: string): Promise<Tenant | undefined> {
-    const [tenant] = await db
-      .update(tenants)
-      .set({ preferredLanguage: language, updatedAt: new Date() })
-      .where(eq(tenants.id, id))
-      .returning();
-    return tenant;
-  }
-
-  async updateTenantAlias(id: string, alias: string | null): Promise<Tenant | undefined> {
-    const [tenant] = await db
-      .update(tenants)
-      .set({ alias: alias, updatedAt: new Date() })
-      .where(eq(tenants.id, id))
-      .returning();
-    return tenant;
-  }
 
   // Client operations
   async getClients(tenantId: string): Promise<Client[]> {
@@ -497,11 +478,7 @@ export class DatabaseStorage implements IStorage {
         updatedAt: users.updatedAt,
         tenant: {
           id: tenants.id,
-          name: tenants.name,
-          alias: tenants.alias,
-          shopImageUrl: tenants.shopImageUrl,
           domain: tenants.domain,
-          preferredLanguage: tenants.preferredLanguage,
           settings: tenants.settings,
           createdAt: tenants.createdAt,
           updatedAt: tenants.updatedAt,

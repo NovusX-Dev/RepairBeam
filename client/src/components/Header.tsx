@@ -125,7 +125,7 @@ export default function Header({ currentPage }: HeaderProps) {
                     : user?.email || "User"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  User • {storeSettings?.shopAlias || storeSettings?.shopName || tenant?.alias || tenant?.name || "Shop"}
+                  User • {storeSettings?.shopAlias || storeSettings?.shopName || "Shop"}
                 </div>
               </div>
             </div>

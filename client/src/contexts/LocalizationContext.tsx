@@ -61,9 +61,9 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     retry: false,
   });
 
-  // Fetch tenant data to get preferred language
-  const { data: tenant } = useQuery({
-    queryKey: ['/api/tenants/current'],
+  // Fetch store settings to get preferred language
+  const { data: storeSettings } = useQuery({
+    queryKey: ['/api/store-settings'],
     enabled: !!user,
     retry: false,
   });
@@ -89,26 +89,27 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     }
   }, [isChangingLanguage, isLoading, localizations.length]);
 
-  // Mutation to update tenant language preference
-  const updateTenantLanguage = useMutation({
+  // Mutation to update store settings language preference
+  const updateStoreLanguage = useMutation({
     mutationFn: async (language: string) => {
-      const response = await fetch('/api/tenants/language', {
-        method: 'PUT',
-        body: JSON.stringify({ language }),
+      const method = storeSettings ? 'PUT' : 'POST';
+      const response = await fetch('/api/store-settings', {
+        method,
+        body: JSON.stringify({ preferredLanguage: language }),
         headers: { 'Content-Type': 'application/json' },
       });
       if (!response.ok) throw new Error('Failed to update language');
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tenants/current'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/store-settings'] });
     },
   });
 
-  // Initialize language from tenant preference or browser detection
+  // Initialize language from store settings preference or browser detection
   useEffect(() => {
-    if (tenant && !initialized) {
-      const preferredLang = (tenant as any).preferredLanguage;
+    if (storeSettings && !initialized) {
+      const preferredLang = (storeSettings as any).preferredLanguage;
       if (preferredLang) {
         const found = LANGUAGES.find(lang => lang.code === preferredLang);
         if (found && found.code !== currentLanguage.code) {
@@ -124,7 +125,7 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
       }
       setInitialized(true);
     }
-  }, [tenant, user, initialized, currentLanguage.code]);
+  }, [storeSettings, user, initialized, currentLanguage.code]);
 
   // Convert localizations array to a key-value object for easy lookup
   const translations = localizations.reduce((acc: Record<string, string>, item: any) => {
@@ -148,12 +149,12 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     setCurrentLanguage(language);
     localStorage.setItem('repairbeam-language', language.code);
     
-    // If user is authenticated, also save to tenant preferences
-    if (user && tenant) {
+    // If user is authenticated, also save to store settings preferences
+    if (user && storeSettings) {
       try {
-        await updateTenantLanguage.mutateAsync(language.code);
+        await updateStoreLanguage.mutateAsync(language.code);
       } catch (error) {
-        console.error('Failed to update tenant language:', error);
+        console.error('Failed to update store language:', error);
       }
     }
   };

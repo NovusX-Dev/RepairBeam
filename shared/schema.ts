@@ -38,20 +38,16 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Tenants table for multi-tenancy
+// Tenants table for multi-tenancy (simplified - configs moved to store_settings)
 export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: varchar("name").notNull(),
-  alias: varchar("alias"), // Shop display name/alias
-  shopImageUrl: varchar("shop_image_url"), // Shop logo/image URL
   domain: varchar("domain").unique(),
-  preferredLanguage: varchar("preferred_language").default('en'), // User's preferred language
   settings: jsonb("settings").default({}),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// General store settings table
+// General store settings table (now the single source of truth for tenant configs)
 export const storeSettings = pgTable("store_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").notNull(),
@@ -62,6 +58,7 @@ export const storeSettings = pgTable("store_settings", {
   contactPhone: varchar("contact_phone"),
   address: text("address"),
   businessHours: jsonb("business_hours").default('{"monday":{"open":"09:00","close":"18:00","closed":false},"tuesday":{"open":"09:00","close":"18:00","closed":false},"wednesday":{"open":"09:00","close":"18:00","closed":false},"thursday":{"open":"09:00","close":"18:00","closed":false},"friday":{"open":"09:00","close":"18:00","closed":false},"saturday":{"open":"10:00","close":"16:00","closed":false},"sunday":{"open":"","close":"","closed":true}}'),
+  preferredLanguage: varchar("preferred_language").default('en'), // User's preferred language
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
