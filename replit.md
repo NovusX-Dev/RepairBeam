@@ -2,7 +2,7 @@
 
 ## Overview
 
-Repair Beam is a comprehensive SaaS platform designed to streamline operations for repair businesses. Built as a multi-tenant system, it provides tools for managing clients, tracking repairs through Kanban boards, inventory management, point-of-sale operations, and customer support. The platform follows modern web architecture with a React frontend, Express.js backend, and PostgreSQL database using Drizzle ORM.
+Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It provides tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale operations, and customer support. The platform is built with a React frontend, Express.js backend, and PostgreSQL database, utilizing Drizzle ORM. Its purpose is to streamline operations and enhance efficiency for repair businesses.
 
 ## User Preferences
 
@@ -18,182 +18,89 @@ Preferred communication style: Simple, everyday language.
 - **Database Query Integrity**: Always ensure that lookups and queries are properly structured and do not break existing lookups
 - **Naming Convention Consistency**: Adhere to the same naming convention throughout the codebase, never mix different naming patterns
 
-### Supported Languages
-Based on database analysis, the platform supports:
-- English (en)
-- Portuguese Brazil (pt-BR)
-
 ## System Architecture
 
 ### Frontend Architecture
-- **Framework**: React 18 with TypeScript using Vite as the build tool
-- **UI Library**: Radix UI components with shadcn/ui styling system
-- **Styling**: Tailwind CSS with custom color scheme (Dark Navy Blue #0A192F, Neon Blue #00FFFF)
-- **Routing**: Wouter for client-side routing
-- **State Management**: TanStack Query for server state, React hooks for local state
-- **Design System**: Components built on Radix UI primitives with consistent theming
+- **Framework**: React 18 with TypeScript and Vite.
+- **UI Library**: Radix UI components with shadcn/ui styling.
+- **Styling**: Tailwind CSS with a custom dark navy blue and neon blue color scheme.
+- **Routing**: Wouter for client-side routing.
+- **State Management**: TanStack Query for server state; React hooks for local state.
+- **Design System**: Components built on Radix UI primitives with consistent theming.
 
 ### Backend Architecture
-- **Runtime**: Node.js with Express.js framework
-- **Language**: TypeScript with ES modules
-- **Database ORM**: Drizzle ORM for type-safe database operations
-- **Session Management**: Express sessions with PostgreSQL storage via connect-pg-simple
-- **Development**: Hot reload with Vite integration for full-stack development
+- **Runtime**: Node.js with Express.js.
+- **Language**: TypeScript with ES modules.
+- **Database ORM**: Drizzle ORM for type-safe operations.
+- **Session Management**: Express sessions with PostgreSQL storage.
+- **Development**: Hot reload with Vite integration for full-stack development.
 
 ### Database Design
-- **Database**: PostgreSQL with Neon serverless hosting
-- **ORM**: Drizzle ORM with schema-first approach
-- **Multi-tenancy**: Tenant isolation through tenantId foreign keys across all entities
-- **Core Entities**: Users, Tenants, Clients, Tickets, Inventory Items, Transactions, Support Tickets
-- **Session Storage**: Dedicated sessions table for authentication state
+- **Database**: PostgreSQL hosted on Neon.
+- **ORM**: Drizzle ORM with a schema-first approach.
+- **Multi-tenancy**: Tenant isolation via `tenantId` foreign keys and Row-Level Security (RLS).
+- **Core Entities**: Users, Tenants, Clients, Tickets, Inventory Items, Transactions, Support Tickets.
+- **Session Storage**: Dedicated sessions table.
+- **Configuration Storage**: JSONB columns for flexible settings in `store_settings` table.
 
 ### Authentication & Authorization
-- **Provider**: Replit OIDC authentication integration
-- **Session Management**: Server-side sessions with PostgreSQL storage
-- **Multi-tenant Security**: User-tenant association with role-based access control
-- **Middleware**: Authentication middleware protecting all API routes
+- **Provider**: Replit OIDC authentication.
+- **Session Management**: Server-side sessions stored in PostgreSQL.
+- **Multi-tenant Security**: User-tenant association with role-based access control and authentication middleware.
 
 ### Application Structure
-- **Monorepo Layout**: Client, server, and shared code in organized directories
-- **Shared Schema**: Common TypeScript types and Drizzle schema definitions
-- **API Design**: RESTful endpoints with Express route handlers
-- **Error Handling**: Centralized error middleware with structured responses
+- **Monorepo Layout**: Organized client, server, and shared code directories.
+- **Shared Schema**: Common TypeScript types and Drizzle schema definitions.
+- **API Design**: RESTful endpoints with Express route handlers.
+- **Error Handling**: Centralized error middleware.
 
 ### Development Features
-- **Type Safety**: End-to-end TypeScript with strict configuration
-- **Hot Reload**: Vite development server with Express backend integration
-- **Path Aliases**: Organized imports with @, @shared, and @assets aliases
-- **Code Quality**: ESLint integration and consistent file structure
+- **Type Safety**: End-to-end TypeScript.
+- **Hot Reload**: Vite development server integration.
+- **Path Aliases**: Organized imports (`@`, `@shared`, `@assets`).
+- **Code Quality**: ESLint integration.
+
+### UI/UX Design Principles
+- **"Aurora Card Layout" Pattern**: Card-based structure with gradient headers, consistent spacing, and specific color themes (Dark Navy Blue to Neon Blue gradient). Used for dialogs, forms, and content areas.
+- **Configuration Sections**: Emphasize visual hierarchy, clear grouping, consistent control components (toggles, dropdowns), brief and meaningful labeling, real-time feedback, and responsive design. Prioritize user experience with good defaults, accessibility, and potential for advanced features like version control.
+
+### Naming Convention Standards
+- **TypeScript Variables/Properties**: camelCase
+- **CSS Classes/File Names**: kebab-case
+- **React Components/Types**: PascalCase
+- **Constants**: SCREAMING_SNAKE_CASE
+- **Database Fields**: camelCase in TypeScript schema, snake_case in SQL
+- **API Endpoints**: kebab-case paths
+- **Function Names**: camelCase
+- **Event Handlers**: camelCase with `handle` prefix
+- **Critical Rule**: Never mix naming conventions within the same context; database schema and API responses use camelCase for TypeScript/frontend consistency.
 
 ## External Dependencies
 
 ### Database & Storage
-- **Neon Database**: Serverless PostgreSQL hosting with connection pooling
-- **Drizzle Kit**: Database migrations and schema management
-- **connect-pg-simple**: PostgreSQL session store for Express sessions
+- **Neon Database**: Serverless PostgreSQL hosting.
+- **Drizzle Kit**: Database migrations and schema management.
+- **connect-pg-simple**: PostgreSQL session store.
+- **PostgreSQL 16**: Database system.
 
 ### Authentication
-- **Replit OIDC**: OpenID Connect authentication provider
-- **Passport.js**: Authentication middleware strategy
-- **openid-client**: OIDC client implementation
+- **Replit OIDC**: OpenID Connect provider.
+- **Passport.js**: Authentication middleware.
+- **openid-client**: OIDC client implementation.
 
 ### UI & Styling
-- **Radix UI**: Comprehensive component primitives library
-- **Tailwind CSS**: Utility-first CSS framework
-- **Lucide React**: Icon library for consistent iconography
-- **Google Fonts**: Inter typography with multiple font weights
+- **Radix UI**: Component primitives library.
+- **Tailwind CSS**: Utility-first CSS framework.
+- **Lucide React**: Icon library.
+- **Google Fonts**: Inter typography.
 
 ### Development Tools
-- **Vite**: Build tool and development server
-- **TypeScript**: Type safety and developer experience
-- **PostCSS**: CSS processing with Tailwind and Autoprefixer
-- **ESBuild**: Fast JavaScript bundling for production
+- **Vite**: Build tool and development server.
+- **TypeScript**: Language.
+- **PostCSS**: CSS processing.
+- **ESBuild**: JavaScript bundling.
 
 ### State Management
-- **TanStack Query**: Server state management and caching
-- **React Hook Form**: Form state management with validation
-- **Zod**: Runtime type validation and schema validation
-
-## Naming Convention Standards
-
-### Established Patterns
-- **TypeScript Variables/Properties**: camelCase (e.g., `deviceType`, `listType`, `isActive`)
-- **CSS Classes/File Names**: kebab-case (e.g., `device-color`, `search-input`)
-- **React Components/Types**: PascalCase (e.g., `DeviceSelector`, `TicketType`)
-- **Constants**: SCREAMING_SNAKE_CASE (e.g., `API_BASE_URL`, `MAX_RETRIES`)
-- **Database Fields**: camelCase in TypeScript schema, snake_case in actual SQL
-- **API Endpoints**: kebab-case paths (e.g., `/api/device-colors`)
-- **Function Names**: camelCase (e.g., `getDeviceColors`, `validateInput`)
-- **Event Handlers**: camelCase with handle prefix (e.g., `handleSubmit`, `handleChange`)
-
-### Critical Rules
-- Never mix naming conventions within the same context
-- Database schema must use camelCase for TypeScript compatibility
-- API responses should use camelCase for consistency with frontend
-- File names use kebab-case for web compatibility
-
-## Design Patterns
-
-### "Aurora Card Layout" Pattern
-A compact, professional design pattern featuring:
-- **Card-based Structure**: White/dark background with rounded corners and subtle shadows
-- **Gradient Headers**: Color-coded gradient headers with icons and descriptive subtitles
-- **Consistent Spacing**: 6-unit padding (p-6) and 6-unit gap spacing (space-y-6)
-- **Visual Hierarchy**: Clear separation between header and content areas
-- **Color Themes**: Consistent gradient using the platform's theme colors:
-  - **Primary Gradient**: Dark Navy Blue (#0A192F) → Neon Blue (#00FFFF)
-  - **Text Color**: Cyan-100 for subtitles and descriptions
-  - **Consistent Branding**: All headers use the same gradient for unified appearance
-
-**Usage**: Apply to dialogs, forms, and content areas requiring professional presentation with clear visual organization. Ideal for multi-step workflows and detailed information display.
-
-## UI/UX Design Principles for Configuration Sections
-
-Based on current industry research and best practices for modern admin dashboard configuration sections:
-
-### Core Design Principles
-
-#### 1. Visual Hierarchy & Information Architecture
-- **Central Location**: Provide single "Settings" entry point (avoid synonyms like "Options" or "Preferences")
-- **Prioritization**: Show most important/frequently used settings upfront
-- **F and Z Patterns**: Use natural eye scanning patterns for layout structure
-- **Progressive Disclosure**: Hide advanced settings initially, reveal through expandable sections
-- **7±2 Rule**: Keep 5-9 items per group for optimal comprehension; create subscreens for 16+ items
-
-#### 2. Organization & Grouping
-- **Hierarchical Structure**: Group related settings under subscreens with consistent terminology
-- **Section Dividers**: Use divider lines to group related settings (avoid between individual items)
-- **Specific Titles**: Use clear section titles, avoid ambiguous names like "Other" or "Miscellaneous"
-- **Tab-Based Navigation**: Separate configuration areas (General, Security, Notifications, etc.)
-- **Card-Based Layout**: Organize sections in distinct cards with clear boundaries
-
-#### 3. Settings Control Components
-- **Toggle Switches**: For binary on/off preferences (not checkboxes)
-- **Dropdown Menus**: For multiple choice options
-- **Sliders**: For range-based numerical settings
-- **Text Input Fields**: For user-defined values
-- **Radio Buttons**: For exclusive selections
-- **Color Pickers**: For appearance customization
-
-#### 4. Labeling & Communication Standards
-- **Brief & Meaningful**: Clear, concise labels that wrap if necessary
-- **Impersonal Language**: Use "Notifications" instead of "Notify me"
-- **Current State Display**: Show current setting values prominently
-- **Secondary Text**: Explain status without repeating label words
-- **Descriptive Text**: Start descriptions with verbs, explain current status
-- **Avoid Generic Terms**: Don't use "Set", "Change", "Edit", "Modify", "Manage", "Use"
-
-#### 5. Modern UI Patterns
-- **Real-Time Feedback**: Provide immediate visual feedback when settings change
-- **Validation States**: Show success, error, warning states clearly
-- **Auto-Save**: Implement for non-critical settings with proper error handling
-- **Search & Filter**: Include for complex configuration systems
-- **Confirmation Dialogs**: For destructive or critical actions
-
-#### 6. User Experience Considerations
-- **Good Defaults**: Choose values most users would select, neutral and low-risk
-- **Responsive Design**: Ensure functionality across all screen sizes
-- **Touch-Friendly**: Optimize controls for mobile interaction
-- **Loading States**: Show progress for settings that take time to apply
-- **Accessibility**: Sufficient contrast, keyboard navigation, screen reader support
-
-#### 7. Advanced Features
-- **Version Control**: Settings backup/restore functionality
-- **Change History**: Track modifications for critical configurations
-- **Rollback Capabilities**: Ability to undo configuration errors
-- **User Customization**: Allow personalization of configuration interface
-- **Role-Based Views**: Different configuration options based on user permissions
-
-### Implementation Guidelines
-- **Performance**: Load settings progressively to avoid overwhelming page load
-- **Icon Integration**: Use simple, flat icons that blend into interface
-- **Consistent Interaction**: Maintain uniform behavior across all settings
-- **Error Handling**: Provide clear error messages with recovery suggestions
-- **Documentation**: Include tooltips and help text for complex settings
-
-### Configuration Section Structure
-1. **Overview Section**: Most important settings with current values visible
-2. **Grouped Categories**: Related settings under clear section headers
-3. **Advanced Options**: Collapsible sections for power users
-4. **System Actions**: Destructive operations (reset, delete) in separate area
-5. **Help & Documentation**: Context-sensitive assistance
+- **TanStack Query**: Server state management.
+- **React Hook Form**: Form state management.
+- **Zod**: Runtime type validation.
