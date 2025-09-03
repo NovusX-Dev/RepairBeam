@@ -332,27 +332,24 @@ export default function Configs() {
         setUploadingLogo(true);
         
         // Get upload URL from backend
-        const uploadResponse = await apiRequest('/api/objects/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        }) as { uploadURL: string };
+        const uploadResponse = await apiRequest('POST', '/api/objects/upload');
+        const uploadData = await uploadResponse.json() as { uploadURL: string };
         
         // Upload file to object storage
-        await fetch(uploadResponse.uploadURL, {
+        await fetch(uploadData.uploadURL, {
           method: 'PUT',
           body: selectedFile,
         });
         
         // Normalize the upload URL to an object path
-        const normalizeResponse = await apiRequest('/api/objects/normalize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: { uploadURL: uploadResponse.uploadURL },
-        }) as { objectPath: string };
+        const normalizeResponse = await apiRequest('POST', '/api/objects/normalize', {
+          uploadURL: uploadData.uploadURL,
+        });
+        const normalizeData = await normalizeResponse.json() as { objectPath: string };
         
         // Update store settings with the normalized object path
         storeSettingsMutation.mutate({ 
-          shopLogoUrl: normalizeResponse.objectPath
+          shopLogoUrl: normalizeData.objectPath
         });
         
         // Clear temporary states
