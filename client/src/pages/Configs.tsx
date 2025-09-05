@@ -1342,9 +1342,11 @@ export default function Configs() {
                                 <SelectValue placeholder={t('select_minutes', 'Select minutes')} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="15">15 {t('minutes', 'minutes')}</SelectItem>
-                                <SelectItem value="30">30 {t('minutes', 'minutes')}</SelectItem>
-                                <SelectItem value="45">45 {t('minutes', 'minutes')}</SelectItem>
+                                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((minutes) => (
+                                  <SelectItem key={minutes} value={minutes.toString()}>
+                                    {minutes.toString().padStart(2, '0')} {t('minutes', 'minutes')}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
