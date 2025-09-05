@@ -76,6 +76,20 @@ export const warrantyTiers = pgTable("warranty_tiers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Repair services table
+export const repairServices = pgTable("repair_services", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  deviceType: varchar("device_type").notNull(), // 'Phone', 'Laptop', 'Desktop'
+  name: varchar("name").notNull(),
+  description: text("description"),
+  estimatedLaborCost: decimal("estimated_labor_cost", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  estimatedCompletionTimeHours: integer("estimated_completion_time_hours").notNull().default(1),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Clients table
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -298,6 +312,8 @@ export type StoreSettings = typeof storeSettings.$inferSelect;
 export type InsertStoreSettings = typeof storeSettings.$inferInsert;
 export type WarrantyTier = typeof warrantyTiers.$inferSelect;
 export type InsertWarrantyTier = typeof warrantyTiers.$inferInsert;
+export type RepairService = typeof repairServices.$inferSelect;
+export type InsertRepairService = typeof repairServices.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -354,6 +370,12 @@ export const insertStoreSettingsSchema = createInsertSchema(storeSettings).omit(
 });
 
 export const insertWarrantyTierSchema = createInsertSchema(warrantyTiers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertRepairServiceSchema = createInsertSchema(repairServices).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -513,6 +535,7 @@ export const tenantRelations = relations(tenants, ({ many, one }) => ({
   supportTickets: many(supportTickets),
   storeSettings: one(storeSettings),
   warrantyTiers: many(warrantyTiers),
+  repairServices: many(repairServices),
 }));
 
 export const userRelations = relations(users, ({ one }) => ({
@@ -570,6 +593,13 @@ export const storeSettingsRelations = relations(storeSettings, ({ one }) => ({
 export const warrantyTierRelations = relations(warrantyTiers, ({ one }) => ({
   tenant: one(tenants, {
     fields: [warrantyTiers.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const repairServiceRelations = relations(repairServices, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [repairServices.tenantId],
     references: [tenants.id],
   }),
 }));

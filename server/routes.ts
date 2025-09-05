@@ -1976,6 +1976,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Repair services routes
+  app.get("/api/repair-services", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const services = await storage.getRepairServices(user.tenantId);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching repair services:", error);
+      res.status(500).json({ message: "Failed to fetch repair services" });
+    }
+  });
+
+  app.get("/api/repair-services/device/:deviceType", isAuthenticated, async (req: any, res) => {
+    try {
+      const { deviceType } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const services = await storage.getRepairServicesByDeviceType(user.tenantId, deviceType);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching repair services by device type:", error);
+      res.status(500).json({ message: "Failed to fetch repair services" });
+    }
+  });
+
+  app.post("/api/repair-services", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const service = await storage.createRepairService({
+        tenantId: user.tenantId,
+        ...req.body
+      });
+      res.json(service);
+    } catch (error) {
+      console.error("Error creating repair service:", error);
+      res.status(500).json({ message: "Failed to create repair service" });
+    }
+  });
+
+  app.put("/api/repair-services/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const service = await storage.updateRepairService(id, user.tenantId, req.body);
+      if (!service) {
+        return res.status(404).json({ message: "Repair service not found" });
+      }
+      res.json(service);
+    } catch (error) {
+      console.error("Error updating repair service:", error);
+      res.status(500).json({ message: "Failed to update repair service" });
+    }
+  });
+
+  app.delete("/api/repair-services/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const success = await storage.deleteRepairService(id, user.tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Repair service not found" });
+      }
+      res.json({ message: "Repair service deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting repair service:", error);
+      res.status(500).json({ message: "Failed to delete repair service" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

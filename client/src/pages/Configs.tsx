@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon } from "lucide-react";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +26,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
 import { FileUpload } from "@/components/FileUpload";
-import type { AutoGenList, StoreSettings, WarrantyTier } from "@shared/schema";
+import type { AutoGenList, StoreSettings, WarrantyTier, RepairService } from "@shared/schema";
 
 export default function Configs() {
   const { t } = useLocalization();
@@ -51,6 +51,11 @@ export default function Configs() {
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [newTier, setNewTier] = useState<Partial<WarrantyTier>>({});
   const [showAddTier, setShowAddTier] = useState(false);
+
+  // Repair services state
+  const [editingService, setEditingService] = useState<string | null>(null);
+  const [newService, setNewService] = useState<Partial<RepairService>>({});
+  const [showAddService, setShowAddService] = useState(false);
   
   // Shop identity edit state
   const [tempLogoUrl, setTempLogoUrl] = useState('');
@@ -76,6 +81,11 @@ export default function Configs() {
   // Fetch warranty tiers
   const { data: warrantyTiers = [] } = useQuery<WarrantyTier[]>({
     queryKey: ['/api/warranty-tiers'],
+  });
+
+  // Fetch repair services
+  const { data: repairServices = [] } = useQuery<RepairService[]>({
+    queryKey: ['/api/repair-services'],
   });
 
   // Fetch auto-generated lists
@@ -187,6 +197,73 @@ export default function Configs() {
         description: t('warranty_tier_deleted', 'Warranty tier has been deleted successfully.'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/warranty-tiers'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('delete_failed', 'Delete Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Repair service mutations
+  const createServiceMutation = useMutation({
+    mutationFn: async (data: Partial<RepairService>) => {
+      const response = await apiRequest('POST', '/api/repair-services', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('service_created', 'Service Created'),
+        description: t('repair_service_created', 'Repair service has been created successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/repair-services'] });
+      setShowAddService(false);
+      setNewService({});
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('create_failed', 'Create Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateServiceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<RepairService> }) => {
+      const response = await apiRequest('PUT', `/api/repair-services/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('service_updated', 'Service Updated'),
+        description: t('repair_service_updated', 'Repair service has been updated successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/repair-services'] });
+      setEditingService(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('update_failed', 'Update Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/repair-services/${id}`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('service_deleted', 'Service Deleted'),
+        description: t('repair_service_deleted', 'Repair service has been deleted successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/repair-services'] });
     },
     onError: (error: Error) => {
       toast({
@@ -480,6 +557,44 @@ export default function Configs() {
     }
   };
 
+  // Repair service handlers
+  const handleServiceSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (showAddService) {
+      createServiceMutation.mutate(newService);
+    }
+  };
+
+  const handleEditService = (service: RepairService) => {
+    setEditingService(service.id);
+  };
+
+  const handleUpdateService = (service: RepairService, field: string, value: any) => {
+    const updatedData = { [field]: value };
+    updateServiceMutation.mutate({ id: service.id, data: updatedData });
+  };
+
+  const handleDeleteService = (serviceId: string) => {
+    if (confirm(t('confirm_delete_service', 'Are you sure you want to delete this repair service?'))) {
+      deleteServiceMutation.mutate(serviceId);
+    }
+  };
+
+  // Helper function for time formatting
+  const formatCompletionTime = (hours: number): string => {
+    if (hours < 24) {
+      return `${hours} ${hours === 1 ? t('hour', 'hour') : t('hours', 'hours')}`;
+    } else {
+      const days = Math.floor(hours / 24);
+      const remainingHours = hours % 24;
+      if (remainingHours === 0) {
+        return `${days} ${days === 1 ? t('day', 'day') : t('days', 'days')}`;
+      } else {
+        return `${days} ${days === 1 ? t('day', 'day') : t('days', 'days')}, ${remainingHours} ${remainingHours === 1 ? t('hour', 'hour') : t('hours', 'hours')}`;
+      }
+    }
+  };
+
   // Group warranty tiers by device type
   const tiersByDeviceType = warrantyTiers.reduce((acc, tier) => {
     if (!acc[tier.deviceType]) {
@@ -488,6 +603,15 @@ export default function Configs() {
     acc[tier.deviceType].push(tier);
     return acc;
   }, {} as Record<string, WarrantyTier[]>);
+
+  // Group repair services by device type
+  const servicesByDeviceType = repairServices.reduce((acc, service) => {
+    if (!acc[service.deviceType]) {
+      acc[service.deviceType] = [];
+    }
+    acc[service.deviceType].push(service);
+    return acc;
+  }, {} as Record<string, RepairService[]>);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -504,7 +628,7 @@ export default function Configs() {
 
       {/* Tabbed Configuration Sections */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-md">
+        <TabsList className="grid w-full grid-cols-5 max-w-2xl">
           <TabsTrigger value="general" className="flex items-center gap-2" data-testid="tab-general">
             <Store className="w-4 h-4" />
             {t('general', 'General')}
@@ -512,6 +636,10 @@ export default function Configs() {
           <TabsTrigger value="warranty" className="flex items-center gap-2" data-testid="tab-warranty">
             <Shield className="w-4 h-4" />
             {t('warranty', 'Warranty')}
+          </TabsTrigger>
+          <TabsTrigger value="repair-services" className="flex items-center gap-2" data-testid="tab-repair-services">
+            <Wrench className="w-4 h-4" />
+            {t('repair_services', 'Services')}
           </TabsTrigger>
           <TabsTrigger value="ai-lists" className="flex items-center gap-2" data-testid="tab-ai-lists">
             <Bot className="w-4 h-4" />
@@ -1079,6 +1207,257 @@ export default function Configs() {
                             )}
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Repair Services Management Tab */}
+        <TabsContent value="repair-services" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <Wrench className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('repair_services_management', 'Repair Services Management')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('repair_services_desc', 'Configure available repair services for each device type')}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Add Service Button */}
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-white">{t('repair_services', 'Repair Services')}</h3>
+                <Button
+                  onClick={() => setShowAddService(!showAddService)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-700"
+                  data-testid="button-add-repair-service"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('add_service', 'Add Service')}
+                </Button>
+              </div>
+
+              {/* Add Service Form */}
+              {showAddService && (
+                <Card className="mb-6 border-cyan-200 bg-cyan-50 dark:bg-cyan-950 dark:border-cyan-800">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg text-cyan-900 dark:text-cyan-100">
+                      {t('add_new_service', 'Add New Repair Service')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleServiceSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Device Type */}
+                        <div className="space-y-2">
+                          <Label htmlFor="deviceType">{t('device_type', 'Device Type')}</Label>
+                          <Select
+                            value={newService.deviceType || ''}
+                            onValueChange={(value) => setNewService({ ...newService, deviceType: value })}
+                          >
+                            <SelectTrigger data-testid="select-device-type">
+                              <SelectValue placeholder={t('select_device_type', 'Select device type')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {deviceTypes.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Service Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="serviceName">{t('service_name', 'Service Name')}</Label>
+                          <Input
+                            id="serviceName"
+                            value={newService.name || ''}
+                            onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                            placeholder={t('enter_service_name', 'Enter service name')}
+                            data-testid="input-service-name"
+                          />
+                        </div>
+
+                        {/* Labor Cost */}
+                        <div className="space-y-2">
+                          <Label htmlFor="laborCost">{t('estimated_labor_cost', 'Estimated Labor Cost')}</Label>
+                          <Input
+                            id="laborCost"
+                            type="number"
+                            step="0.01"
+                            value={newService.estimatedLaborCost || ''}
+                            onChange={(e) => setNewService({ ...newService, estimatedLaborCost: e.target.value })}
+                            placeholder="0.00"
+                            data-testid="input-labor-cost"
+                          />
+                        </div>
+
+                        {/* Completion Time */}
+                        <div className="space-y-2">
+                          <Label htmlFor="completionTime">{t('estimated_completion_time_hours', 'Estimated Completion Time (Hours)')}</Label>
+                          <Input
+                            id="completionTime"
+                            type="number"
+                            min="1"
+                            value={newService.estimatedCompletionTimeHours || ''}
+                            onChange={(e) => setNewService({ ...newService, estimatedCompletionTimeHours: parseInt(e.target.value) || 1 })}
+                            placeholder="1"
+                            data-testid="input-completion-time"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div className="space-y-2">
+                        <Label htmlFor="description">{t('description', 'Description')}</Label>
+                        <Textarea
+                          id="description"
+                          value={newService.description || ''}
+                          onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                          placeholder={t('service_description_placeholder', 'Describe what this service includes')}
+                          rows={3}
+                          data-testid="textarea-service-description"
+                        />
+                      </div>
+
+                      {/* Form Actions */}
+                      <div className="flex gap-2 pt-4">
+                        <Button
+                          type="submit"
+                          disabled={!newService.deviceType || !newService.name || createServiceMutation.isPending}
+                          data-testid="button-create-service"
+                        >
+                          {createServiceMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {t('creating', 'Creating...')}
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 mr-2" />
+                              {t('create_service', 'Create Service')}
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddService(false);
+                            setNewService({});
+                          }}
+                          data-testid="button-cancel-service"
+                        >
+                          {t('cancel', 'Cancel')}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Services by Device Type */}
+              <div className="space-y-6">
+                {deviceTypes.map(deviceType => {
+                  const deviceServices = servicesByDeviceType[deviceType] || [];
+
+                  return (
+                    <Card key={deviceType} className="bg-slate-700/30 border-slate-600" data-testid={`card-services-${deviceType.toLowerCase()}`}>
+                      <CardHeader>
+                        <CardTitle className="text-white flex items-center gap-2">
+                          <Wrench className="w-5 h-5 text-cyan-400" />
+                          {deviceType} {t('repair_services', 'Repair Services')}
+                          <Badge variant="secondary" className="ml-auto">
+                            {deviceServices.length} {t('services', 'services')}
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {deviceServices.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-400 mb-2">{t('no_services_for_device', `No repair services configured for ${deviceType}`)}</p>
+                            <Button
+                              onClick={() => {
+                                setNewService({ deviceType });
+                                setShowAddService(true);
+                              }}
+                              variant="outline"
+                              size="sm"
+                              data-testid={`button-add-service-${deviceType.toLowerCase()}`}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              {t('add_first_service', 'Add First Service')}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {deviceServices.map((service) => (
+                              <Card key={service.id} className="bg-slate-600/30 border-slate-500" data-testid={`card-service-${service.id}`}>
+                                <CardHeader className="pb-3">
+                                  <div className="flex items-center justify-between">
+                                    <CardTitle className="text-lg text-white">{service.name}</CardTitle>
+                                    <div className="flex gap-1">
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleEditService(service)}
+                                        data-testid={`button-edit-service-${service.id}`}
+                                      >
+                                        <Edit className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => handleDeleteService(service.id)}
+                                        className="text-red-400 hover:text-red-300"
+                                        data-testid={`button-delete-service-${service.id}`}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  {service.description && (
+                                    <p className="text-gray-300 text-sm">{service.description}</p>
+                                  )}
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-400">{t('labor_cost', 'Labor Cost')}:</span>
+                                    <span className="text-white font-medium">
+                                      {formatCurrency(parseFloat(service.estimatedLaborCost))}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-400">{t('completion_time', 'Completion Time')}:</span>
+                                    <span className="text-white font-medium">
+                                      {formatCompletionTime(service.estimatedCompletionTimeHours)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-sm">
+                                    <span className="text-gray-400">{t('status', 'Status')}:</span>
+                                    <Badge variant={service.isActive ? 'default' : 'secondary'}>
+                                      {service.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                    </Badge>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   );

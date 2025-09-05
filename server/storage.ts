@@ -19,6 +19,7 @@ import {
   issueResponses,
   storeSettings,
   warrantyTiers,
+  repairServices,
   type User,
   type UpsertUser,
   type Tenant,
@@ -59,6 +60,8 @@ import {
   type InsertStoreSettings,
   type WarrantyTier,
   type InsertWarrantyTier,
+  type RepairService,
+  type InsertRepairService,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -189,6 +192,13 @@ export interface IStorage {
   createWarrantyTier(tier: InsertWarrantyTier): Promise<WarrantyTier>;
   updateWarrantyTier(id: string, tenantId: string, tier: Partial<InsertWarrantyTier>): Promise<WarrantyTier | undefined>;
   deleteWarrantyTier(id: string, tenantId: string): Promise<boolean>;
+  
+  // Repair services operations
+  getRepairServices(tenantId: string): Promise<RepairService[]>;
+  getRepairServicesByDeviceType(tenantId: string, deviceType: string): Promise<RepairService[]>;
+  createRepairService(service: InsertRepairService): Promise<RepairService>;
+  updateRepairService(id: string, tenantId: string, service: Partial<InsertRepairService>): Promise<RepairService | undefined>;
+  deleteRepairService(id: string, tenantId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1022,6 +1032,67 @@ export class DatabaseStorage implements IStorage {
         .where(and(
           eq(warrantyTiers.id, id),
           eq(warrantyTiers.tenantId, tenantId)
+        ));
+      return (result.rowCount ?? 0) > 0;
+    });
+  }
+
+  // Repair services implementations
+  async getRepairServices(tenantId: string): Promise<RepairService[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(repairServices)
+        .where(eq(repairServices.tenantId, tenantId))
+        .orderBy(asc(repairServices.deviceType), asc(repairServices.name));
+    });
+  }
+
+  async getRepairServicesByDeviceType(tenantId: string, deviceType: string): Promise<RepairService[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(repairServices)
+        .where(and(
+          eq(repairServices.tenantId, tenantId),
+          eq(repairServices.deviceType, deviceType),
+          eq(repairServices.isActive, true)
+        ))
+        .orderBy(asc(repairServices.name));
+    });
+  }
+
+  async createRepairService(service: InsertRepairService): Promise<RepairService> {
+    return withRetry(async () => {
+      const [newService] = await db
+        .insert(repairServices)
+        .values(service)
+        .returning();
+      return newService;
+    });
+  }
+
+  async updateRepairService(id: string, tenantId: string, service: Partial<InsertRepairService>): Promise<RepairService | undefined> {
+    return withRetry(async () => {
+      const [updatedService] = await db
+        .update(repairServices)
+        .set({ ...service, updatedAt: new Date() })
+        .where(and(
+          eq(repairServices.id, id),
+          eq(repairServices.tenantId, tenantId)
+        ))
+        .returning();
+      return updatedService;
+    });
+  }
+
+  async deleteRepairService(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(repairServices)
+        .where(and(
+          eq(repairServices.id, id),
+          eq(repairServices.tenantId, tenantId)
         ));
       return (result.rowCount ?? 0) > 0;
     });
