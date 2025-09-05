@@ -581,18 +581,22 @@ export default function Configs() {
   };
 
   // Helper function for time formatting
-  const formatCompletionTime = (hours: number): string => {
-    if (hours < 24) {
-      return `${hours} ${hours === 1 ? t('hour', 'hour') : t('hours', 'hours')}`;
-    } else {
-      const days = Math.floor(hours / 24);
-      const remainingHours = hours % 24;
-      if (remainingHours === 0) {
-        return `${days} ${days === 1 ? t('day', 'day') : t('days', 'days')}`;
-      } else {
-        return `${days} ${days === 1 ? t('day', 'day') : t('days', 'days')}, ${remainingHours} ${remainingHours === 1 ? t('hour', 'hour') : t('hours', 'hours')}`;
-      }
+  const formatCompletionTime = (hours: number, minutes: number): string => {
+    const parts = [];
+    
+    if (hours > 0) {
+      parts.push(`${hours} ${hours === 1 ? t('hour', 'hour') : t('hours', 'hours')}`);
     }
+    
+    if (minutes > 0) {
+      parts.push(`${minutes} ${minutes === 1 ? t('minute', 'minute') : t('minutes', 'minutes')}`);
+    }
+    
+    if (parts.length === 0) {
+      return `0 ${t('minutes', 'minutes')}`;
+    }
+    
+    return parts.join(', ');
   };
 
   // Group warranty tiers by device type
@@ -1259,65 +1263,88 @@ export default function Configs() {
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleServiceSubmit} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Device Type */}
-                        <div className="space-y-2">
-                          <Label htmlFor="deviceType" className="text-white font-medium">{t('device_type', 'Device Type')}</Label>
-                          <Select
-                            value={newService.deviceType || ''}
-                            onValueChange={(value) => setNewService({ ...newService, deviceType: value })}
-                          >
-                            <SelectTrigger data-testid="select-device-type">
-                              <SelectValue placeholder={t('select_device_type', 'Select device type')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {deviceTypes.map((type) => (
-                                <SelectItem key={type} value={type}>
-                                  {type}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Device Type */}
+                          <div className="space-y-2">
+                            <Label htmlFor="deviceType" className="text-white font-medium">{t('device_type', 'Device Type')}</Label>
+                            <Select
+                              value={newService.deviceType || ''}
+                              onValueChange={(value) => setNewService({ ...newService, deviceType: value })}
+                            >
+                              <SelectTrigger data-testid="select-device-type">
+                                <SelectValue placeholder={t('select_device_type', 'Select device type')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {deviceTypes.map((type) => (
+                                  <SelectItem key={type} value={type}>
+                                    {type}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Service Name */}
+                          <div className="space-y-2">
+                            <Label htmlFor="serviceName" className="text-white font-medium">{t('service_name', 'Service Name')}</Label>
+                            <Input
+                              id="serviceName"
+                              value={newService.name || ''}
+                              onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                              placeholder={t('enter_service_name', 'Enter service name')}
+                              data-testid="input-service-name"
+                            />
+                          </div>
                         </div>
 
-                        {/* Service Name */}
-                        <div className="space-y-2">
-                          <Label htmlFor="serviceName" className="text-white font-medium">{t('service_name', 'Service Name')}</Label>
-                          <Input
-                            id="serviceName"
-                            value={newService.name || ''}
-                            onChange={(e) => setNewService({ ...newService, name: e.target.value })}
-                            placeholder={t('enter_service_name', 'Enter service name')}
-                            data-testid="input-service-name"
-                          />
-                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Labor Cost */}
+                          <div className="space-y-2">
+                            <Label htmlFor="laborCost" className="text-white font-medium">{t('estimated_labor_cost', 'Estimated Labor Cost')}</Label>
+                            <Input
+                              id="laborCost"
+                              type="number"
+                              step="0.01"
+                              value={newService.estimatedLaborCost || ''}
+                              onChange={(e) => setNewService({ ...newService, estimatedLaborCost: e.target.value })}
+                              placeholder="0.00"
+                              data-testid="input-labor-cost"
+                            />
+                          </div>
 
-                        {/* Labor Cost */}
-                        <div className="space-y-2">
-                          <Label htmlFor="laborCost" className="text-white font-medium">{t('estimated_labor_cost', 'Estimated Labor Cost')}</Label>
-                          <Input
-                            id="laborCost"
-                            type="number"
-                            step="0.01"
-                            value={newService.estimatedLaborCost || ''}
-                            onChange={(e) => setNewService({ ...newService, estimatedLaborCost: e.target.value })}
-                            placeholder="0.00"
-                            data-testid="input-labor-cost"
-                          />
-                        </div>
+                          {/* Completion Time Hours */}
+                          <div className="space-y-2">
+                            <Label htmlFor="completionTimeHours" className="text-white font-medium">{t('estimated_hours', 'Hours')}</Label>
+                            <Input
+                              id="completionTimeHours"
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={newService.estimatedCompletionTimeHours || ''}
+                              onChange={(e) => setNewService({ ...newService, estimatedCompletionTimeHours: parseInt(e.target.value) || 0 })}
+                              placeholder="0"
+                              data-testid="input-completion-time-hours"
+                            />
+                          </div>
 
-                        {/* Completion Time */}
-                        <div className="space-y-2">
-                          <Label htmlFor="completionTime" className="text-white font-medium">{t('estimated_completion_time_hours', 'Estimated Completion Time (Hours)')}</Label>
-                          <Input
-                            id="completionTime"
-                            type="number"
-                            min="1"
-                            value={newService.estimatedCompletionTimeHours || ''}
-                            onChange={(e) => setNewService({ ...newService, estimatedCompletionTimeHours: parseInt(e.target.value) || 1 })}
-                            placeholder="1"
-                            data-testid="input-completion-time"
-                          />
+                          {/* Completion Time Minutes */}
+                          <div className="space-y-2">
+                            <Label htmlFor="completionTimeMinutes" className="text-white font-medium">{t('estimated_minutes', 'Minutes')}</Label>
+                            <Select
+                              value={newService.estimatedCompletionTimeMinutes?.toString() || '30'}
+                              onValueChange={(value) => setNewService({ ...newService, estimatedCompletionTimeMinutes: parseInt(value) })}
+                            >
+                              <SelectTrigger data-testid="select-completion-time-minutes">
+                                <SelectValue placeholder={t('select_minutes', 'Select minutes')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="15">15 {t('minutes', 'minutes')}</SelectItem>
+                                <SelectItem value="30">30 {t('minutes', 'minutes')}</SelectItem>
+                                <SelectItem value="45">45 {t('minutes', 'minutes')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
 
@@ -1338,7 +1365,12 @@ export default function Configs() {
                       <div className="flex gap-2 pt-2">
                         <Button
                           type="submit"
-                          disabled={!newService.deviceType || !newService.name || createServiceMutation.isPending}
+                          disabled={
+                            !newService.deviceType || 
+                            !newService.name || 
+                            ((newService.estimatedCompletionTimeHours || 0) === 0 && (newService.estimatedCompletionTimeMinutes || 0) === 0) ||
+                            createServiceMutation.isPending
+                          }
                           className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
                           size="sm"
                           data-testid="button-create-service"
@@ -1452,7 +1484,7 @@ export default function Configs() {
                                   <div className="flex justify-between items-center text-xs">
                                     <span className="text-slate-400">{t('completion_time', 'Completion Time')}:</span>
                                     <span className="text-white font-medium">
-                                      {formatCompletionTime(service.estimatedCompletionTimeHours)}
+                                      {formatCompletionTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}
                                     </span>
                                   </div>
                                   <div className="flex justify-between items-center text-xs pt-1">
