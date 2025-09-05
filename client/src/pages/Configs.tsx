@@ -1250,9 +1250,10 @@ export default function Configs() {
 
               {/* Add Service Form */}
               {showAddService && (
-                <Card className="mb-6 border-cyan-200 bg-cyan-50 dark:bg-cyan-950 dark:border-cyan-800">
+                <Card className="mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 border border-slate-700">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg text-cyan-900 dark:text-cyan-100">
+                    <CardTitle className="text-lg text-white font-semibold flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-cyan-100" />
                       {t('add_new_service', 'Add New Repair Service')}
                     </CardTitle>
                   </CardHeader>
@@ -1261,7 +1262,7 @@ export default function Configs() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Device Type */}
                         <div className="space-y-2">
-                          <Label htmlFor="deviceType">{t('device_type', 'Device Type')}</Label>
+                          <Label htmlFor="deviceType" className="text-white font-medium">{t('device_type', 'Device Type')}</Label>
                           <Select
                             value={newService.deviceType || ''}
                             onValueChange={(value) => setNewService({ ...newService, deviceType: value })}
@@ -1281,7 +1282,7 @@ export default function Configs() {
 
                         {/* Service Name */}
                         <div className="space-y-2">
-                          <Label htmlFor="serviceName">{t('service_name', 'Service Name')}</Label>
+                          <Label htmlFor="serviceName" className="text-white font-medium">{t('service_name', 'Service Name')}</Label>
                           <Input
                             id="serviceName"
                             value={newService.name || ''}
@@ -1293,7 +1294,7 @@ export default function Configs() {
 
                         {/* Labor Cost */}
                         <div className="space-y-2">
-                          <Label htmlFor="laborCost">{t('estimated_labor_cost', 'Estimated Labor Cost')}</Label>
+                          <Label htmlFor="laborCost" className="text-white font-medium">{t('estimated_labor_cost', 'Estimated Labor Cost')}</Label>
                           <Input
                             id="laborCost"
                             type="number"
@@ -1307,7 +1308,7 @@ export default function Configs() {
 
                         {/* Completion Time */}
                         <div className="space-y-2">
-                          <Label htmlFor="completionTime">{t('estimated_completion_time_hours', 'Estimated Completion Time (Hours)')}</Label>
+                          <Label htmlFor="completionTime" className="text-white font-medium">{t('estimated_completion_time_hours', 'Estimated Completion Time (Hours)')}</Label>
                           <Input
                             id="completionTime"
                             type="number"
@@ -1322,7 +1323,7 @@ export default function Configs() {
 
                       {/* Description */}
                       <div className="space-y-2">
-                        <Label htmlFor="description">{t('description', 'Description')}</Label>
+                        <Label htmlFor="description" className="text-white font-medium">{t('description', 'Description')}</Label>
                         <Textarea
                           id="description"
                           value={newService.description || ''}
@@ -1334,10 +1335,12 @@ export default function Configs() {
                       </div>
 
                       {/* Form Actions */}
-                      <div className="flex gap-2 pt-4">
+                      <div className="flex gap-2 pt-2">
                         <Button
                           type="submit"
                           disabled={!newService.deviceType || !newService.name || createServiceMutation.isPending}
+                          className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
+                          size="sm"
                           data-testid="button-create-service"
                         >
                           {createServiceMutation.isPending ? (
@@ -1355,10 +1358,12 @@ export default function Configs() {
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={() => {
                             setShowAddService(false);
                             setNewService({});
                           }}
+                          className="border-slate-600 text-white hover:bg-slate-700"
                           data-testid="button-cancel-service"
                         >
                           {t('cancel', 'Cancel')}
@@ -1375,12 +1380,12 @@ export default function Configs() {
                   const deviceServices = servicesByDeviceType[deviceType] || [];
 
                   return (
-                    <Card key={deviceType} className="bg-slate-700/30 border-slate-600" data-testid={`card-services-${deviceType.toLowerCase()}`}>
-                      <CardHeader>
-                        <CardTitle className="text-white flex items-center gap-2">
+                    <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-services-${deviceType.toLowerCase()}`}>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-white flex items-center gap-2 text-lg">
                           <Wrench className="w-5 h-5 text-cyan-400" />
                           {deviceType} {t('repair_services', 'Repair Services')}
-                          <Badge variant="secondary" className="ml-auto">
+                          <Badge variant="secondary" className="ml-auto bg-cyan-600/20 text-cyan-300 border-cyan-500/50">
                             {deviceServices.length} {t('services', 'services')}
                           </Badge>
                         </CardTitle>
@@ -1406,15 +1411,21 @@ export default function Configs() {
                         ) : (
                           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {deviceServices.map((service) => (
-                              <Card key={service.id} className="bg-slate-600/30 border-slate-500" data-testid={`card-service-${service.id}`}>
-                                <CardHeader className="pb-3">
-                                  <div className="flex items-center justify-between">
-                                    <CardTitle className="text-lg text-white">{service.name}</CardTitle>
-                                    <div className="flex gap-1">
+                              <Card key={service.id} className="bg-slate-700/50 border-slate-600 hover:bg-slate-700/70 transition-colors" data-testid={`card-service-${service.id}`}>
+                                <CardHeader className="pb-2">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <CardTitle className="text-base text-white font-semibold">{service.name}</CardTitle>
+                                      {service.description && (
+                                        <p className="text-slate-300 text-xs mt-1 line-clamp-2">{service.description}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex gap-1 ml-2">
                                       <Button
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => handleEditService(service)}
+                                        className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
                                         data-testid={`button-edit-service-${service.id}`}
                                       >
                                         <Edit className="w-3 h-3" />
@@ -1423,33 +1434,33 @@ export default function Configs() {
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => handleDeleteService(service.id)}
-                                        className="text-red-400 hover:text-red-300"
+                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
                                         data-testid={`button-delete-service-${service.id}`}
                                       >
                                         <Trash2 className="w-3 h-3" />
                                       </Button>
                                     </div>
                                   </div>
-                                  {service.description && (
-                                    <p className="text-gray-300 text-sm">{service.description}</p>
-                                  )}
                                 </CardHeader>
-                                <CardContent className="space-y-2">
-                                  <div className="flex justify-between items-center text-sm">
-                                    <span className="text-gray-400">{t('labor_cost', 'Labor Cost')}:</span>
-                                    <span className="text-white font-medium">
+                                <CardContent className="pt-2 space-y-1.5">
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-slate-400">{t('labor_cost', 'Labor Cost')}:</span>
+                                    <span className="text-cyan-300 font-semibold">
                                       {formatCurrency(parseFloat(service.estimatedLaborCost))}
                                     </span>
                                   </div>
-                                  <div className="flex justify-between items-center text-sm">
-                                    <span className="text-gray-400">{t('completion_time', 'Completion Time')}:</span>
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-slate-400">{t('completion_time', 'Completion Time')}:</span>
                                     <span className="text-white font-medium">
                                       {formatCompletionTime(service.estimatedCompletionTimeHours)}
                                     </span>
                                   </div>
-                                  <div className="flex justify-between items-center text-sm">
-                                    <span className="text-gray-400">{t('status', 'Status')}:</span>
-                                    <Badge variant={service.isActive ? 'default' : 'secondary'}>
+                                  <div className="flex justify-between items-center text-xs pt-1">
+                                    <span className="text-slate-400">{t('status', 'Status')}:</span>
+                                    <Badge 
+                                      variant={service.isActive ? 'default' : 'secondary'}
+                                      className={service.isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'bg-slate-600/50 text-slate-300 border-slate-500'}
+                                    >
                                       {service.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
                                     </Badge>
                                   </div>
