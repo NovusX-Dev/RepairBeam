@@ -1548,7 +1548,7 @@ export default function Configs() {
                         onClick={clearSearch}
                         variant="ghost"
                         size="sm"
-                        className="absolute right-1 top-1 h-7 w-7 p-0 text-slate-400 hover:text-white"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-600 z-10 shrink-0"
                         data-testid="button-clear-search"
                       >
                         ×
