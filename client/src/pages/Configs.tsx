@@ -1544,15 +1544,14 @@ export default function Configs() {
                       data-testid="input-search-services"
                     />
                     {searchQuery && (
-                      <Button
+                      <button
                         onClick={clearSearch}
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-600 z-10 shrink-0"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer z-10 rounded transition-colors duration-150"
                         data-testid="button-clear-search"
+                        type="button"
                       >
                         ×
-                      </Button>
+                      </button>
                     )}
                   </div>
                 </div>
