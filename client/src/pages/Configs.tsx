@@ -240,12 +240,9 @@ export default function Configs() {
       return await response.json();
     },
     onSuccess: () => {
-      toast({
-        title: t('service_updated', 'Service Updated'),
-        description: t('repair_service_updated', 'Repair service has been updated successfully.'),
-      });
+      // Don't show toast for individual field updates to avoid spam
       queryClient.invalidateQueries({ queryKey: ['/api/repair-services'] });
-      setEditingService(null);
+      // Don't automatically exit edit mode - let user decide when they're done
     },
     onError: (error: Error) => {
       toast({
@@ -1533,7 +1530,13 @@ export default function Configs() {
                                     <div className="flex gap-2 pt-2">
                                       <Button
                                         size="sm"
-                                        onClick={() => setEditingService(null)}
+                                        onClick={() => {
+                                          setEditingService(null);
+                                          toast({
+                                            title: t('service_updated', 'Service Updated'),
+                                            description: t('repair_service_updated', 'Repair service has been updated successfully.'),
+                                          });
+                                        }}
                                         className="bg-cyan-600 hover:bg-cyan-700 text-white h-7 text-xs"
                                         data-testid={`button-save-service-${service.id}`}
                                       >
