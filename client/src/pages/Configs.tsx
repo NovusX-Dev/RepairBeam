@@ -96,9 +96,12 @@ export default function Configs() {
 
   // Helper function for currency formatting
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    const locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en-US';
+    const currency = currentLanguage.code === 'pt-BR' ? 'BRL' : 'USD';
+    
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: currency,
       minimumFractionDigits: 2,
     }).format(amount);
   };
@@ -1308,7 +1311,7 @@ export default function Configs() {
                               step="0.01"
                               value={newService.estimatedLaborCost || ''}
                               onChange={(e) => setNewService({ ...newService, estimatedLaborCost: e.target.value })}
-                              placeholder="0.00"
+                              placeholder={currentLanguage.code === 'pt-BR' ? '0,00' : '0.00'}
                               data-testid="input-labor-cost"
                             />
                           </div>
