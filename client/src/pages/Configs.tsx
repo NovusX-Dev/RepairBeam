@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +56,20 @@ export default function Configs() {
   const [editingService, setEditingService] = useState<string | null>(null);
   const [newService, setNewService] = useState<Partial<RepairService>>({});
   const [showAddService, setShowAddService] = useState(false);
+  
+  // Repair services pagination and search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    Phone: true,
+    Laptop: true, 
+    Desktop: true
+  });
+  const [currentPage, setCurrentPage] = useState<Record<string, number>>({
+    Phone: 1,
+    Laptop: 1,
+    Desktop: 1
+  });
+  const SERVICES_PER_PAGE = 10;
   
   // Shop identity edit state
   const [tempLogoUrl, setTempLogoUrl] = useState('');
@@ -608,14 +622,280 @@ export default function Configs() {
     return acc;
   }, {} as Record<string, WarrantyTier[]>);
 
-  // Group repair services by device type
-  const servicesByDeviceType = repairServices.reduce((acc, service) => {
+  // Filter services based on search query
+  const filteredServices = repairServices.filter(service => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      service.name.toLowerCase().includes(query) ||
+      service.description?.toLowerCase().includes(query) ||
+      service.deviceType.toLowerCase().includes(query)
+    );
+  });
+
+  // Group filtered repair services by device type
+  const servicesByDeviceType = filteredServices.reduce((acc, service) => {
     if (!acc[service.deviceType]) {
       acc[service.deviceType] = [];
     }
     acc[service.deviceType].push(service);
     return acc;
   }, {} as Record<string, RepairService[]>);
+
+  // Paginate services for each device type
+  const paginatedServicesByDeviceType = deviceTypes.reduce((acc, deviceType) => {
+    const services = servicesByDeviceType[deviceType] || [];
+    const currentPageNum = currentPage[deviceType] || 1;
+    const startIndex = (currentPageNum - 1) * SERVICES_PER_PAGE;
+    const endIndex = startIndex + SERVICES_PER_PAGE;
+    
+    acc[deviceType] = {
+      services: services.slice(startIndex, endIndex),
+      totalCount: services.length,
+      totalPages: Math.ceil(services.length / SERVICES_PER_PAGE),
+      currentPage: currentPageNum
+    };
+    
+    return acc;
+  }, {} as Record<string, {
+    services: RepairService[];
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+  }>);
+
+  // Helper functions
+  const toggleSection = (deviceType: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [deviceType]: !prev[deviceType]
+    }));
+  };
+
+  const handlePageChange = (deviceType: string, page: number) => {
+    setCurrentPage(prev => ({
+      ...prev,
+      [deviceType]: page
+    }));
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setCurrentPage({
+      Phone: 1,
+      Laptop: 1,
+      Desktop: 1
+    });
+  };
+
+  // Lazy loading hook using Intersection Observer
+  const useLazyLoading = (threshold = 0.1) => {
+    const [isVisible, setIsVisible] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            setIsVisible(true);
+            observer.disconnect();
+          }
+        },
+        { threshold }
+      );
+
+      if (ref.current) {
+        observer.observe(ref.current);
+      }
+
+      return () => observer.disconnect();
+    }, [threshold]);
+
+    return [ref, isVisible] as const;
+  };
+
+  // Lazy Service Card Component
+  const LazyServiceCard = ({ service, index }: { service: RepairService; index: number }) => {
+    const [ref, isVisible] = useLazyLoading(0.1);
+
+    if (!isVisible) {
+      return (
+        <div ref={ref} className="bg-slate-700/50 border border-slate-600 rounded-lg h-32 animate-pulse flex items-center justify-center">
+          <div className="text-slate-500 text-sm">{t('loading', 'Loading...')}</div>
+        </div>
+      );
+    }
+
+    return (
+      <Card className="bg-slate-700/50 border-slate-600 hover:bg-slate-700/70 transition-colors" data-testid={`card-service-${service.id}`}>
+        {editingService === service.id ? (
+          /* Edit Mode */
+          <div className="p-4 space-y-3">
+            <div className="space-y-2">
+              <Label className="text-white text-xs">{t('service_name', 'Service Name')}</Label>
+              <Input
+                value={service.name}
+                onChange={(e) => handleUpdateService(service, 'name', e.target.value)}
+                className="h-8 text-sm"
+                data-testid={`input-edit-name-${service.id}`}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-white text-xs">{t('description', 'Description')}</Label>
+              <Textarea
+                value={service.description || ''}
+                onChange={(e) => handleUpdateService(service, 'description', e.target.value)}
+                className="h-16 text-sm resize-none"
+                data-testid={`textarea-edit-description-${service.id}`}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label className="text-white text-xs">{t('labor_cost', 'Labor Cost')}</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={service.estimatedLaborCost}
+                  onChange={(e) => handleUpdateService(service, 'estimatedLaborCost', e.target.value)}
+                  className="h-8 text-sm"
+                  data-testid={`input-edit-cost-${service.id}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-white text-xs">{t('status', 'Status')}</Label>
+                <Select
+                  value={service.isActive ? 'true' : 'false'}
+                  onValueChange={(value) => handleUpdateService(service, 'isActive', value === 'true')}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">{t('active', 'Active')}</SelectItem>
+                    <SelectItem value="false">{t('inactive', 'Inactive')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label className="text-white text-xs">{t('estimated_hours', 'Hours')}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={service.estimatedCompletionTimeHours || 0}
+                  onChange={(e) => handleUpdateService(service, 'estimatedCompletionTimeHours', parseInt(e.target.value) || 0)}
+                  className="h-8 text-sm"
+                  data-testid={`input-edit-hours-${service.id}`}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-white text-xs">{t('estimated_minutes', 'Minutes')}</Label>
+                <Select
+                  value={service.estimatedCompletionTimeMinutes?.toString() || '30'}
+                  onValueChange={(value) => handleUpdateService(service, 'estimatedCompletionTimeMinutes', parseInt(value))}
+                >
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((minutes) => (
+                      <SelectItem key={minutes} value={minutes.toString()}>
+                        {minutes.toString().padStart(2, '0')} {t('minutes', 'minutes')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingService(null);
+                  toast({
+                    title: t('service_updated', 'Service Updated'),
+                    description: t('repair_service_updated', 'Repair service has been updated successfully.'),
+                  });
+                }}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white h-7 text-xs"
+                data-testid={`button-save-service-${service.id}`}
+              >
+                {t('done', 'Done')}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingService(null)}
+                className="border-slate-600 text-white hover:bg-slate-700 h-7 text-xs"
+                data-testid={`button-cancel-edit-service-${service.id}`}
+              >
+                {t('cancel', 'Cancel')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* Display Mode */
+          <>
+            <CardHeader className="pb-2">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="text-base text-white font-semibold">{service.name}</CardTitle>
+                  {service.description && (
+                    <p className="text-slate-300 text-xs mt-1 line-clamp-2">{service.description}</p>
+                  )}
+                </div>
+                <div className="flex gap-1 ml-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleEditService(service)}
+                    className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
+                    data-testid={`button-edit-service-${service.id}`}
+                  >
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteService(service.id)}
+                    className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                    data-testid={`button-delete-service-${service.id}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2 space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">{t('labor_cost', 'Labor Cost')}:</span>
+                <span className="text-cyan-300 font-semibold">
+                  {formatCurrency(parseFloat(service.estimatedLaborCost))}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">{t('completion_time', 'Completion Time')}:</span>
+                <span className="text-white font-medium">
+                  {formatCompletionTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs pt-1">
+                <span className="text-slate-400">{t('status', 'Status')}:</span>
+                <Badge 
+                  variant={service.isActive ? 'default' : 'secondary'}
+                  className={service.isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'bg-slate-600/50 text-slate-300 border-slate-500'}
+                >
+                  {service.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                </Badge>
+              </div>
+            </CardContent>
+          </>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -1237,19 +1517,53 @@ export default function Configs() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Add Service Button */}
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-white">{t('repair_services', 'Repair Services')}</h3>
-                <Button
-                  onClick={() => setShowAddService(!showAddService)}
-                  variant="outline"
-                  size="sm"
-                  className="bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-700"
-                  data-testid="button-add-repair-service"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('add_service', 'Add Service')}
-                </Button>
+              {/* Add Service Button and Search */}
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-white">{t('repair_services', 'Repair Services')}</h3>
+                  <Button
+                    onClick={() => setShowAddService(!showAddService)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-700"
+                    data-testid="button-add-repair-service"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('add_service', 'Add Service')}
+                  </Button>
+                </div>
+                
+                {/* Search Bar */}
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={t('search_services', 'Search services by name, description, or device type...')}
+                      className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 pr-10"
+                      data-testid="input-search-services"
+                    />
+                    {searchQuery && (
+                      <Button
+                        onClick={clearSearch}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1 h-7 w-7 p-0 text-slate-400 hover:text-white"
+                        data-testid="button-clear-search"
+                      >
+                        ×
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Search Results Summary */}
+                {searchQuery && (
+                  <div className="text-sm text-slate-400">
+                    {t('search_results', 'Found')} {filteredServices.length} {t('services', 'services')} 
+                    {searchQuery && ` ${t('for', 'for')} "${searchQuery}"`}
+                  </div>
+                )}
               </div>
 
               {/* Add Service Form */}
@@ -1411,211 +1725,114 @@ export default function Configs() {
               {/* Services by Device Type */}
               <div className="space-y-6">
                 {deviceTypes.map(deviceType => {
-                  const deviceServices = servicesByDeviceType[deviceType] || [];
+                  const paginationData = paginatedServicesByDeviceType[deviceType];
+                  const deviceServices = paginationData.services;
+                  const totalServices = servicesByDeviceType[deviceType]?.length || 0;
+                  const isCollapsed = collapsedSections[deviceType];
 
                   return (
                     <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-services-${deviceType.toLowerCase()}`}>
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-white flex items-center gap-2 text-lg">
-                          <Wrench className="w-5 h-5 text-cyan-400" />
-                          {deviceType} {t('repair_services', 'Repair Services')}
-                          <Badge variant="secondary" className="ml-auto bg-cyan-600/20 text-cyan-300 border-cyan-500/50">
-                            {deviceServices.length} {t('services', 'services')}
-                          </Badge>
-                        </CardTitle>
+                        <div 
+                          className="flex items-center gap-2 cursor-pointer"
+                          onClick={() => toggleSection(deviceType)}
+                          data-testid={`toggle-section-${deviceType.toLowerCase()}`}
+                        >
+                          <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
+                            <Wrench className="w-5 h-5 text-cyan-400" />
+                            {deviceType} {t('repair_services', 'Repair Services')}
+                            <Badge variant="secondary" className="ml-auto bg-cyan-600/20 text-cyan-300 border-cyan-500/50">
+                              {totalServices} {t('services', 'services')}
+                            </Badge>
+                          </CardTitle>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-400 hover:text-white p-1"
+                          >
+                            {isCollapsed ? '▼' : '▲'}
+                          </Button>
+                        </div>
                       </CardHeader>
-                      <CardContent>
-                        {deviceServices.length === 0 ? (
-                          <div className="text-center py-8">
-                            <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                            <p className="text-gray-400 mb-2">{t('no_services_for_device', `No repair services configured for ${deviceType}`)}</p>
-                            <Button
-                              onClick={() => {
-                                setNewService({ deviceType });
-                                setShowAddService(true);
-                              }}
-                              variant="outline"
-                              size="sm"
-                              data-testid={`button-add-service-${deviceType.toLowerCase()}`}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              {t('add_first_service', 'Add First Service')}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {deviceServices.map((service) => (
-                              <Card key={service.id} className="bg-slate-700/50 border-slate-600 hover:bg-slate-700/70 transition-colors" data-testid={`card-service-${service.id}`}>
-                                {editingService === service.id ? (
-                                  /* Edit Mode */
-                                  <div className="p-4 space-y-3">
-                                    <div className="space-y-2">
-                                      <Label className="text-white text-xs">{t('service_name', 'Service Name')}</Label>
-                                      <Input
-                                        value={service.name}
-                                        onChange={(e) => handleUpdateService(service, 'name', e.target.value)}
-                                        className="h-8 text-sm"
-                                        data-testid={`input-edit-name-${service.id}`}
-                                      />
-                                    </div>
-                                    <div className="space-y-2">
-                                      <Label className="text-white text-xs">{t('description', 'Description')}</Label>
-                                      <Textarea
-                                        value={service.description || ''}
-                                        onChange={(e) => handleUpdateService(service, 'description', e.target.value)}
-                                        className="h-16 text-sm resize-none"
-                                        data-testid={`textarea-edit-description-${service.id}`}
-                                      />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="space-y-2">
-                                        <Label className="text-white text-xs">{t('labor_cost', 'Labor Cost')}</Label>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          value={service.estimatedLaborCost}
-                                          onChange={(e) => handleUpdateService(service, 'estimatedLaborCost', e.target.value)}
-                                          className="h-8 text-sm"
-                                          data-testid={`input-edit-cost-${service.id}`}
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label className="text-white text-xs">{t('status', 'Status')}</Label>
-                                        <Select
-                                          value={service.isActive ? 'true' : 'false'}
-                                          onValueChange={(value) => handleUpdateService(service, 'isActive', value === 'true')}
-                                        >
-                                          <SelectTrigger className="h-8 text-sm">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="true">{t('active', 'Active')}</SelectItem>
-                                            <SelectItem value="false">{t('inactive', 'Inactive')}</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      <div className="space-y-2">
-                                        <Label className="text-white text-xs">{t('estimated_hours', 'Hours')}</Label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max="100"
-                                          value={service.estimatedCompletionTimeHours || 0}
-                                          onChange={(e) => handleUpdateService(service, 'estimatedCompletionTimeHours', parseInt(e.target.value) || 0)}
-                                          className="h-8 text-sm"
-                                          data-testid={`input-edit-hours-${service.id}`}
-                                        />
-                                      </div>
-                                      <div className="space-y-2">
-                                        <Label className="text-white text-xs">{t('estimated_minutes', 'Minutes')}</Label>
-                                        <Select
-                                          value={service.estimatedCompletionTimeMinutes?.toString() || '30'}
-                                          onValueChange={(value) => handleUpdateService(service, 'estimatedCompletionTimeMinutes', parseInt(value))}
-                                        >
-                                          <SelectTrigger className="h-8 text-sm">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((minutes) => (
-                                              <SelectItem key={minutes} value={minutes.toString()}>
-                                                {minutes.toString().padStart(2, '0')} {t('minutes', 'minutes')}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2 pt-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          setEditingService(null);
-                                          toast({
-                                            title: t('service_updated', 'Service Updated'),
-                                            description: t('repair_service_updated', 'Repair service has been updated successfully.'),
-                                          });
-                                        }}
-                                        className="bg-cyan-600 hover:bg-cyan-700 text-white h-7 text-xs"
-                                        data-testid={`button-save-service-${service.id}`}
-                                      >
-                                        {t('done', 'Done')}
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setEditingService(null)}
-                                        className="border-slate-600 text-white hover:bg-slate-700 h-7 text-xs"
-                                        data-testid={`button-cancel-edit-service-${service.id}`}
-                                      >
-                                        {t('cancel', 'Cancel')}
-                                      </Button>
-                                    </div>
+                      {!isCollapsed && (
+                        <CardContent>
+                          {totalServices === 0 ? (
+                            <div className="text-center py-8">
+                              <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-400 mb-2">{t('no_services_for_device', `No repair services configured for ${deviceType}`)}</p>
+                              <Button
+                                onClick={() => {
+                                  setNewService({ deviceType });
+                                  setShowAddService(true);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                data-testid={`button-add-service-${deviceType.toLowerCase()}`}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('add_first_service', 'Add First Service')}
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Services Grid */}
+                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {deviceServices.map((service, index) => (
+                                  <LazyServiceCard key={service.id} service={service} index={index} />
+                                ))}
+                              </div>
+                              
+                              {/* Pagination Controls */}
+                              {paginationData.totalPages > 1 && (
+                                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
+                                  <div className="text-sm text-slate-400">
+                                    {t('showing', 'Showing')} {((paginationData.currentPage - 1) * SERVICES_PER_PAGE) + 1} - {Math.min(paginationData.currentPage * SERVICES_PER_PAGE, paginationData.totalCount)} {t('of', 'of')} {paginationData.totalCount} {t('services', 'services')}
                                   </div>
-                                ) : (
-                                  /* Display Mode */
-                                  <>
-                                    <CardHeader className="pb-2">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                          <CardTitle className="text-base text-white font-semibold">{service.name}</CardTitle>
-                                          {service.description && (
-                                            <p className="text-slate-300 text-xs mt-1 line-clamp-2">{service.description}</p>
-                                          )}
-                                        </div>
-                                        <div className="flex gap-1 ml-2">
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleEditService(service)}
-                                            className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
-                                            data-testid={`button-edit-service-${service.id}`}
-                                          >
-                                            <Edit className="w-3 h-3" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleDeleteService(service.id)}
-                                            className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                            data-testid={`button-delete-service-${service.id}`}
-                                          >
-                                            <Trash2 className="w-3 h-3" />
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </CardHeader>
-                                    <CardContent className="pt-2 space-y-1.5">
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-400">{t('labor_cost', 'Labor Cost')}:</span>
-                                        <span className="text-cyan-300 font-semibold">
-                                          {formatCurrency(parseFloat(service.estimatedLaborCost))}
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between items-center text-xs">
-                                        <span className="text-slate-400">{t('completion_time', 'Completion Time')}:</span>
-                                        <span className="text-white font-medium">
-                                          {formatCompletionTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}
-                                        </span>
-                                      </div>
-                                      <div className="flex justify-between items-center text-xs pt-1">
-                                        <span className="text-slate-400">{t('status', 'Status')}:</span>
-                                        <Badge 
-                                          variant={service.isActive ? 'default' : 'secondary'}
-                                          className={service.isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'bg-slate-600/50 text-slate-300 border-slate-500'}
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handlePageChange(deviceType, paginationData.currentPage - 1)}
+                                      disabled={paginationData.currentPage === 1}
+                                      className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                      data-testid={`button-prev-${deviceType.toLowerCase()}`}
+                                    >
+                                      {t('previous', 'Previous')}
+                                    </Button>
+                                    <div className="flex gap-1">
+                                      {Array.from({ length: paginationData.totalPages }, (_, i) => i + 1).map((page) => (
+                                        <Button
+                                          key={page}
+                                          variant={page === paginationData.currentPage ? "default" : "outline"}
+                                          size="sm"
+                                          onClick={() => handlePageChange(deviceType, page)}
+                                          className={page === paginationData.currentPage 
+                                            ? "bg-cyan-600 hover:bg-cyan-700 text-white" 
+                                            : "border-slate-600 text-white hover:bg-slate-700"
+                                          }
+                                          data-testid={`button-page-${page}-${deviceType.toLowerCase()}`}
                                         >
-                                          {service.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                        </Badge>
-                                      </div>
-                                    </CardContent>
-                                  </>
-                                )}
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
+                                          {page}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handlePageChange(deviceType, paginationData.currentPage + 1)}
+                                      disabled={paginationData.currentPage === paginationData.totalPages}
+                                      className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                      data-testid={`button-next-${deviceType.toLowerCase()}`}
+                                    >
+                                      {t('next', 'Next')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </CardContent>
+                      )}
                     </Card>
                   );
                 })}
