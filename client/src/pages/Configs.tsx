@@ -29,7 +29,7 @@ import { FileUpload } from "@/components/FileUpload";
 import type { AutoGenList, StoreSettings, WarrantyTier, RepairService } from "@shared/schema";
 
 export default function Configs() {
-  const { t } = useLocalization();
+  const { t, currentLanguage } = useLocalization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
