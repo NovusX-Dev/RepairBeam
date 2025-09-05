@@ -1449,59 +1449,165 @@ export default function Configs() {
                           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {deviceServices.map((service) => (
                               <Card key={service.id} className="bg-slate-700/50 border-slate-600 hover:bg-slate-700/70 transition-colors" data-testid={`card-service-${service.id}`}>
-                                <CardHeader className="pb-2">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <CardTitle className="text-base text-white font-semibold">{service.name}</CardTitle>
-                                      {service.description && (
-                                        <p className="text-slate-300 text-xs mt-1 line-clamp-2">{service.description}</p>
-                                      )}
+                                {editingService === service.id ? (
+                                  /* Edit Mode */
+                                  <div className="p-4 space-y-3">
+                                    <div className="space-y-2">
+                                      <Label className="text-white text-xs">{t('service_name', 'Service Name')}</Label>
+                                      <Input
+                                        value={service.name}
+                                        onChange={(e) => handleUpdateService(service, 'name', e.target.value)}
+                                        className="h-8 text-sm"
+                                        data-testid={`input-edit-name-${service.id}`}
+                                      />
                                     </div>
-                                    <div className="flex gap-1 ml-2">
+                                    <div className="space-y-2">
+                                      <Label className="text-white text-xs">{t('description', 'Description')}</Label>
+                                      <Textarea
+                                        value={service.description || ''}
+                                        onChange={(e) => handleUpdateService(service, 'description', e.target.value)}
+                                        className="h-16 text-sm resize-none"
+                                        data-testid={`textarea-edit-description-${service.id}`}
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-2">
+                                        <Label className="text-white text-xs">{t('labor_cost', 'Labor Cost')}</Label>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          value={service.estimatedLaborCost}
+                                          onChange={(e) => handleUpdateService(service, 'estimatedLaborCost', e.target.value)}
+                                          className="h-8 text-sm"
+                                          data-testid={`input-edit-cost-${service.id}`}
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-white text-xs">{t('status', 'Status')}</Label>
+                                        <Select
+                                          value={service.isActive ? 'true' : 'false'}
+                                          onValueChange={(value) => handleUpdateService(service, 'isActive', value === 'true')}
+                                        >
+                                          <SelectTrigger className="h-8 text-sm">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="true">{t('active', 'Active')}</SelectItem>
+                                            <SelectItem value="false">{t('inactive', 'Inactive')}</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-2">
+                                        <Label className="text-white text-xs">{t('estimated_hours', 'Hours')}</Label>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max="100"
+                                          value={service.estimatedCompletionTimeHours || 0}
+                                          onChange={(e) => handleUpdateService(service, 'estimatedCompletionTimeHours', parseInt(e.target.value) || 0)}
+                                          className="h-8 text-sm"
+                                          data-testid={`input-edit-hours-${service.id}`}
+                                        />
+                                      </div>
+                                      <div className="space-y-2">
+                                        <Label className="text-white text-xs">{t('estimated_minutes', 'Minutes')}</Label>
+                                        <Select
+                                          value={service.estimatedCompletionTimeMinutes?.toString() || '30'}
+                                          onValueChange={(value) => handleUpdateService(service, 'estimatedCompletionTimeMinutes', parseInt(value))}
+                                        >
+                                          <SelectTrigger className="h-8 text-sm">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((minutes) => (
+                                              <SelectItem key={minutes} value={minutes.toString()}>
+                                                {minutes.toString().padStart(2, '0')} {t('minutes', 'minutes')}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-2 pt-2">
                                       <Button
                                         size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleEditService(service)}
-                                        className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
-                                        data-testid={`button-edit-service-${service.id}`}
+                                        onClick={() => setEditingService(null)}
+                                        className="bg-cyan-600 hover:bg-cyan-700 text-white h-7 text-xs"
+                                        data-testid={`button-save-service-${service.id}`}
                                       >
-                                        <Edit className="w-3 h-3" />
+                                        {t('done', 'Done')}
                                       </Button>
                                       <Button
                                         size="sm"
-                                        variant="ghost"
-                                        onClick={() => handleDeleteService(service.id)}
-                                        className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                        data-testid={`button-delete-service-${service.id}`}
+                                        variant="outline"
+                                        onClick={() => setEditingService(null)}
+                                        className="border-slate-600 text-white hover:bg-slate-700 h-7 text-xs"
+                                        data-testid={`button-cancel-edit-service-${service.id}`}
                                       >
-                                        <Trash2 className="w-3 h-3" />
+                                        {t('cancel', 'Cancel')}
                                       </Button>
                                     </div>
                                   </div>
-                                </CardHeader>
-                                <CardContent className="pt-2 space-y-1.5">
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-400">{t('labor_cost', 'Labor Cost')}:</span>
-                                    <span className="text-cyan-300 font-semibold">
-                                      {formatCurrency(parseFloat(service.estimatedLaborCost))}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-400">{t('completion_time', 'Completion Time')}:</span>
-                                    <span className="text-white font-medium">
-                                      {formatCompletionTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between items-center text-xs pt-1">
-                                    <span className="text-slate-400">{t('status', 'Status')}:</span>
-                                    <Badge 
-                                      variant={service.isActive ? 'default' : 'secondary'}
-                                      className={service.isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'bg-slate-600/50 text-slate-300 border-slate-500'}
-                                    >
-                                      {service.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                    </Badge>
-                                  </div>
-                                </CardContent>
+                                ) : (
+                                  /* Display Mode */
+                                  <>
+                                    <CardHeader className="pb-2">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <CardTitle className="text-base text-white font-semibold">{service.name}</CardTitle>
+                                          {service.description && (
+                                            <p className="text-slate-300 text-xs mt-1 line-clamp-2">{service.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="flex gap-1 ml-2">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleEditService(service)}
+                                            className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
+                                            data-testid={`button-edit-service-${service.id}`}
+                                          >
+                                            <Edit className="w-3 h-3" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDeleteService(service.id)}
+                                            className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                            data-testid={`button-delete-service-${service.id}`}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </CardHeader>
+                                    <CardContent className="pt-2 space-y-1.5">
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-slate-400">{t('labor_cost', 'Labor Cost')}:</span>
+                                        <span className="text-cyan-300 font-semibold">
+                                          {formatCurrency(parseFloat(service.estimatedLaborCost))}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-xs">
+                                        <span className="text-slate-400">{t('completion_time', 'Completion Time')}:</span>
+                                        <span className="text-white font-medium">
+                                          {formatCompletionTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-xs pt-1">
+                                        <span className="text-slate-400">{t('status', 'Status')}:</span>
+                                        <Badge 
+                                          variant={service.isActive ? 'default' : 'secondary'}
+                                          className={service.isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'bg-slate-600/50 text-slate-300 border-slate-500'}
+                                        >
+                                          {service.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                        </Badge>
+                                      </div>
+                                    </CardContent>
+                                  </>
+                                )}
                               </Card>
                             ))}
                           </div>
