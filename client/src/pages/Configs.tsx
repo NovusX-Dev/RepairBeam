@@ -59,11 +59,7 @@ export default function Configs() {
   
   // Repair services pagination and search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
-    Phone: true,
-    Laptop: true, 
-    Desktop: true
-  });
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState<Record<string, number>>({
     Phone: 1,
     Laptop: 1,
@@ -663,6 +659,18 @@ export default function Configs() {
     totalPages: number;
     currentPage: number;
   }>);
+
+  // Initialize collapsed sections - collapse empty sections, expand sections with services
+  useEffect(() => {
+    if (repairServices.length > 0) {
+      const initialCollapsedState: Record<string, boolean> = {};
+      deviceTypes.forEach(deviceType => {
+        const hasServices = repairServices.some(service => service.deviceType === deviceType);
+        initialCollapsedState[deviceType] = !hasServices; // Collapse if no services, expand if has services
+      });
+      setCollapsedSections(initialCollapsedState);
+    }
+  }, [repairServices]);
 
   // Helper functions
   const toggleSection = (deviceType: string) => {
@@ -1727,7 +1735,7 @@ export default function Configs() {
                   const paginationData = paginatedServicesByDeviceType[deviceType];
                   const deviceServices = paginationData.services;
                   const totalServices = servicesByDeviceType[deviceType]?.length || 0;
-                  const isCollapsed = collapsedSections[deviceType];
+                  const isCollapsed = collapsedSections[deviceType] ?? false;
 
                   return (
                     <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-services-${deviceType.toLowerCase()}`}>
