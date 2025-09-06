@@ -4,6 +4,13 @@
 
 Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It provides tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale operations, and customer support. The platform is built with a React frontend, Express.js backend, and PostgreSQL database, utilizing Drizzle ORM. Its purpose is to streamline operations and enhance efficiency for repair businesses.
 
+## Recent Changes
+
+### September 06, 2025
+- **Warranty System Removal**: Completely removed warranty functionality from the Kanban ticketing system to prepare for repair services integration. This includes removal of warranty coverage selection, warranty cost calculations, and warranty displays from ticket summaries.
+- **Repair Services Configuration**: Enhanced repair services management with pagination (10 per page), real-time search/filtering, collapsible device type sections (default collapsed), and lazy loading with intersection observer for improved performance.
+- **Timeline Section Rename**: Updated "Service Timeline & Coverage" to "Services and Timeline" with full localization support in both English and Portuguese.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

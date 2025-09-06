@@ -196,7 +196,7 @@ const getTicketSteps = (t: (key: string, fallback?: string) => string) => [
   { id: 'client_info', title: t('client_information', 'Client Information'), icon: User },
   { id: 'device_details', title: t('device_specifications', 'Device Specifications'), icon: Clock },
   { id: 'problem_description', title: t('issue_assessment', 'Issue Assessment'), icon: DollarSign },
-  { id: 'service_timeline', title: t('service_timeline', 'Service Timeline & Coverage'), icon: Clock },
+  { id: 'service_timeline', title: t('services_and_timeline', 'Services and Timeline'), icon: Clock },
   { id: 'price_estimation', title: t('price_estimation', 'Price Estimation'), icon: DollarSign },
   { id: 'service_checklist', title: t('service_checklist', 'Service Checklist'), icon: Check },
   { id: 'client_authorization', title: t('client_authorization', 'Client Authorization'), icon: Check },
@@ -222,12 +222,10 @@ interface TicketFormData {
   deviceMemory: string;
   deviceStorageCapacity: string;
   serialNumber: string;
-  // Service Timeline & Coverage
+  // Services and Timeline
   clientDeadline: string;
   technicianEstimatedHours: string;
-  warrantyType: string;
   costEstimation: string;
-  warrantyCost: string;
   totalCost: string;
   costExplanation: string;
   // Service Checklist
@@ -357,12 +355,10 @@ export default function KanbanTickets() {
     deviceMemory: '',
     deviceStorageCapacity: '',
     serialNumber: '',
-    // Service Timeline & Coverage defaults
+    // Services and Timeline defaults
     clientDeadline: '',
     technicianEstimatedHours: '',
-    warrantyType: 'standard',
     costEstimation: '',
-    warrantyCost: '0',
     totalCost: '',
     costExplanation: '',
     // Service Checklist
@@ -458,26 +454,14 @@ export default function KanbanTickets() {
     }
   }, [selectedTicketSummary]);
 
-  // Calculate warranty cost and total cost using configured warranty tiers
-  const calculateCosts = (estimation = formData.costEstimation, warranty = formData.warrantyType) => {
+  // Calculate total cost from estimation
+  const calculateCosts = (estimation = formData.costEstimation) => {
     const basePrice = parseFloat(estimation) || 0;
     
-    // Find the warranty tier based on device type and tier type
-    const warrantyTier = warrantyTiers.find(tier => 
-      tier.tierType === warranty && tier.isActive
-    );
-    
-    const warrantyPrice = warrantyTier 
-      ? parseFloat(warrantyTier.price) 
-      : (warranty === 'extended' ? (tenant?.settings?.extendedWarrantyPrice || 50) : 0);
-      
-    const total = basePrice + warrantyPrice;
-    
-    // Update both fields in a single state update to prevent timing issues
+    // Update total cost (no warranty cost)
     setFormData(prev => ({
       ...prev,
-      warrantyCost: warrantyPrice.toFixed(2),
-      totalCost: total.toFixed(2)
+      totalCost: basePrice.toFixed(2)
     }));
   };
 
@@ -496,11 +480,6 @@ export default function KanbanTickets() {
     retry: false,
   });
 
-  // Fetch warranty tiers for current device type
-  const { data: warrantyTiers = [] } = useQuery<any[]>({
-    queryKey: ['/api/warranty-tiers', formData.deviceType],
-    enabled: !!formData.deviceType && currentStep === 3,
-  });
 
   // Sync selectedTicketSummary with updated tickets data when tickets change
   useEffect(() => {
@@ -1240,15 +1219,11 @@ export default function KanbanTickets() {
       [field]: { isValid, hasError: false }
     }));
     
-    // Recalculate costs when cost estimation or warranty type changes
-    if (field === 'costEstimation' || field === 'warrantyType') {
-      // Calculate immediately with the new values without any delay
-      const newEstimation = field === 'costEstimation' ? value : formData.costEstimation;
-      const newWarrantyType = field === 'warrantyType' ? value : formData.warrantyType;
-      
-      // Use requestAnimationFrame for immediate but smooth update
+    // Recalculate costs when cost estimation changes
+    if (field === 'costEstimation') {
+      // Calculate immediately with the new value
       requestAnimationFrame(() => {
-        calculateCosts(newEstimation, newWarrantyType);
+        calculateCosts(value);
       });
     }
   };
@@ -2539,7 +2514,7 @@ export default function KanbanTickets() {
                         {ticketSteps[3].title}
                       </h3>
                       <p className="text-cyan-100 text-sm mt-1">
-                        {t("service_timeline_subtitle", "Set expectations and coverage details")}
+                        {t("services_timeline_subtitle", "Set service expectations and timeline details")}
                       </p>
                     </div>
                     
@@ -2638,59 +2613,6 @@ export default function KanbanTickets() {
                     </FormFieldWithTooltip>
                   </div>
 
-                  {/* Warranty Coverage */}
-                  <FormFieldWithTooltip
-                    label={t("warranty_coverage", "Warranty Coverage")}
-                    tooltip={t("warranty_coverage_tooltip", "Select the warranty type based on configured warranty tiers for this device type.")}
-                  >
-                    <RadioGroup 
-                      value={formData.warrantyType} 
-                      onValueChange={(value) => handleInputChange('warrantyType', value)}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                    >
-                      {/* Standard Warranty */}
-                      {(() => {
-                        const standardTier = warrantyTiers.find(tier => tier.tierType === 'standard' && tier.isActive);
-                        const standardDuration = standardTier ? standardTier.durationMonths : 3;
-                        const standardPrice = standardTier ? parseFloat(standardTier.price) : 0;
-                        
-                        return (
-                          <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                            <RadioGroupItem value="standard" id="warranty-standard" />
-                            <Label htmlFor="warranty-standard" className="flex-1 cursor-pointer">
-                              <div className="font-medium">
-                                {t("standard_warranty", `Standard (${standardDuration} months, ${standardPrice === 0 ? 'free' : formatCurrency(standardPrice, currentLanguage.code)})`)}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {standardTier?.description || t("standard_warranty_desc", `${standardDuration}-month warranty ${standardPrice === 0 ? 'included at no additional cost' : `for ${formatCurrency(standardPrice, currentLanguage.code)}`}`)}
-                              </div>
-                            </Label>
-                          </div>
-                        );
-                      })()}
-                      
-                      {/* Extended Warranty */}
-                      {(() => {
-                        const extendedTier = warrantyTiers.find(tier => tier.tierType === 'extended' && tier.isActive);
-                        const extendedDuration = extendedTier ? extendedTier.durationMonths : 6;
-                        const extendedPrice = extendedTier ? parseFloat(extendedTier.price) : (tenant?.settings?.extendedWarrantyPrice || 50);
-                        
-                        return (
-                          <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                            <RadioGroupItem value="extended" id="warranty-extended" />
-                            <Label htmlFor="warranty-extended" className="flex-1 cursor-pointer">
-                              <div className="font-medium">
-                                {t("extended_warranty", `Extended (${extendedDuration} months, ${formatCurrency(extendedPrice, currentLanguage.code)})`)}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {extendedTier?.description || t("extended_warranty_desc", `${extendedDuration}-month warranty for additional peace of mind`)}
-                              </div>
-                            </Label>
-                          </div>
-                        );
-                      })()}
-                    </RadioGroup>
-                  </FormFieldWithTooltip>
                     </div>
                   </div>
                 </div>
@@ -2736,33 +2658,11 @@ export default function KanbanTickets() {
                       </div>
                     </FormFieldWithTooltip>
 
-                    {/* Warranty Cost */}
-                    <FormFieldWithTooltip
-                      label={t("warranty_cost", "Warranty Cost")}
-                      tooltip={t("warranty_cost_tooltip", "Cost for the selected warranty type. Standard warranty is free, extended warranty has an additional cost.")}
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-md border">
-                          <span className="text-sm text-muted-foreground">
-                            {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
-                          </span>
-                          <span className="text-base font-medium text-foreground" data-testid="text-warranty-cost">
-                            {formData.warrantyCost || '0.00'}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formData.warrantyType === 'extended' 
-                            ? t("extended_warranty_selected", "Extended Warranty (6 months) selected")
-                            : t("standard_warranty_selected", "Standard Warranty (3 months, free) selected")
-                          }
-                        </div>
-                      </div>
-                    </FormFieldWithTooltip>
 
                     {/* Total Cost */}
                     <FormFieldWithTooltip
                       label={t("total_cost", "Total Cost")}
-                      tooltip={t("total_cost_tooltip", "Total cost including repair estimate and warranty cost.")}
+                      tooltip={t("total_cost_tooltip", "Total cost for the repair based on the estimate.")}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
@@ -2995,15 +2895,6 @@ export default function KanbanTickets() {
                         <div>
                           <span className="text-sm text-muted-foreground">{t("estimated_cost", "Estimated Cost")}:</span>
                           <p className="text-white font-medium">{formatCurrency(parseFloat(formData.costEstimation || '0'), currentLanguage.code)}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("warranty_type", "Warranty")}:</span>
-                          <p className="text-white font-medium">
-                            {formData.warrantyType === 'extended' 
-                              ? `${t("extended_warranty_format", "Extended")} (+${formatCurrency(parseFloat(formData.warrantyCost || '0'), currentLanguage.code)})`
-                              : t("standard_free", "Standard (Free)")
-                            }
-                          </p>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">{t("total_cost", "Total Cost")}:</span>
@@ -3654,14 +3545,6 @@ export default function KanbanTickets() {
                             {selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation 
                               ? formatCurrency(parseFloat(selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation), currentLanguage.code)
                               : "N/A"}
-                          </div>
-                        </div>
-                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
-                          <div className="font-medium text-cyan-400">{t("warranty_type", "Warranty")}</div>
-                          <div className="text-slate-200">
-                            {selectedTicketSummary.warrantyType === 'extended' 
-                              ? t("extended_warranty_short", "Extended (6m)")
-                              : t("standard_warranty_short", "Standard (3m)")}
                           </div>
                         </div>
                       </div>
