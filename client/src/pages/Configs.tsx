@@ -660,17 +660,14 @@ export default function Configs() {
     currentPage: number;
   }>);
 
-  // Initialize collapsed sections - collapse empty sections, expand sections with services
+  // Initialize all sections as collapsed by default
   useEffect(() => {
-    if (repairServices.length > 0) {
-      const initialCollapsedState: Record<string, boolean> = {};
-      deviceTypes.forEach(deviceType => {
-        const hasServices = repairServices.some(service => service.deviceType === deviceType);
-        initialCollapsedState[deviceType] = !hasServices; // Collapse if no services, expand if has services
-      });
-      setCollapsedSections(initialCollapsedState);
-    }
-  }, [repairServices]);
+    const initialCollapsedState: Record<string, boolean> = {};
+    deviceTypes.forEach(deviceType => {
+      initialCollapsedState[deviceType] = true; // All sections start collapsed
+    });
+    setCollapsedSections(initialCollapsedState);
+  }, []); // Only run once on mount
 
   // Helper functions
   const toggleSection = (deviceType: string) => {
