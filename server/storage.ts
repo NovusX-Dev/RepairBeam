@@ -1050,15 +1050,30 @@ export class DatabaseStorage implements IStorage {
 
   async getRepairServicesByDeviceType(tenantId: string, deviceType: string): Promise<RepairService[]> {
     return withRetry(async () => {
-      return await db
+      console.log(`🔍 Querying repair services for tenantId: ${tenantId}, deviceType: ${deviceType}`);
+      
+      const result = await db
         .select()
         .from(repairServices)
         .where(and(
           eq(repairServices.tenantId, tenantId),
-          eq(repairServices.deviceType, deviceType),
-          eq(repairServices.isActive, true)
+          eq(repairServices.deviceType, deviceType)
+          // Temporarily removing isActive filter to test
+          // eq(repairServices.isActive, true)
         ))
         .orderBy(asc(repairServices.name));
+      
+      console.log(`🔍 Found ${result.length} repair services for device type: ${deviceType}`);
+      if (result.length === 0) {
+        // Debug: Let's see all services for this tenant
+        const allServices = await db
+          .select()
+          .from(repairServices)
+          .where(eq(repairServices.tenantId, tenantId));
+        console.log(`🔍 All services for tenant:`, allServices.map(s => ({ id: s.id, name: s.name, deviceType: s.deviceType, isActive: s.isActive })));
+      }
+      
+      return result;
     });
   }
 
