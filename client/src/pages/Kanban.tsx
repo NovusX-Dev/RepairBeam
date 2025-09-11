@@ -476,53 +476,55 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
         </Badge>
       </div>
       
-      <div className="grid gap-3">
+      {/* Responsive grid: 3 columns on lg+, 2 on md, 1 on sm */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         {activeServices.map((service) => {
           const isSelected = selectedServices.includes(service.id);
           return (
             <Card 
               key={service.id}
               className={`
-                cursor-pointer transition-all duration-200 hover:scale-[1.02]
+                cursor-pointer transition-all duration-200 hover:scale-[1.01]
                 ${isSelected 
-                  ? 'border-[#00FFFF] bg-[#00FFFF]/10 shadow-lg shadow-[#00FFFF]/20' 
+                  ? 'border-[#00FFFF] bg-[#00FFFF]/10 shadow-md shadow-[#00FFFF]/20' 
                   : 'border-slate-600 hover:border-[#00FFFF]/50 bg-slate-800/50'
                 }
               `}
               onClick={() => onServiceToggle(service.id)}
               data-testid={`service-card-${service.id}`}
             >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`
-                        w-4 h-4 rounded border-2 flex items-center justify-center transition-colors
-                        ${isSelected 
-                          ? 'bg-[#00FFFF] border-[#00FFFF]' 
-                          : 'border-slate-400 hover:border-[#00FFFF]'
-                        }
-                      `}>
-                        {isSelected && <Check className="w-2.5 h-2.5 text-slate-900" />}
-                      </div>
-                      <h5 className="font-medium text-white">{service.name}</h5>
+              <CardContent className="p-3">
+                <div className="space-y-2">
+                  {/* Header with checkbox and title */}
+                  <div className="flex items-center gap-2">
+                    <div className={`
+                      w-4 h-4 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0
+                      ${isSelected 
+                        ? 'bg-[#00FFFF] border-[#00FFFF]' 
+                        : 'border-slate-400 hover:border-[#00FFFF]'
+                      }
+                    `}>
+                      {isSelected && <Check className="w-2.5 h-2.5 text-slate-900" />}
                     </div>
-                    
-                    {service.description && (
-                      <p className="text-sm text-slate-300 mb-3 ml-7">
-                        {service.description}
-                      </p>
-                    )}
-                    
-                    <div className="flex items-center gap-4 ml-7 text-sm">
-                      <div className="flex items-center gap-1 text-slate-400">
-                        <Clock className="w-3 h-3" />
-                        <span>{formatTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[#00FFFF]">
-                        <DollarSign className="w-3 h-3" />
-                        <span className="font-medium">{formatCurrency(service.estimatedLaborCost)}</span>
-                      </div>
+                    <h5 className="font-medium text-white text-sm leading-tight">{service.name}</h5>
+                  </div>
+                  
+                  {/* Description (if exists) */}
+                  {service.description && (
+                    <p className="text-xs text-slate-300 leading-tight line-clamp-2">
+                      {service.description}
+                    </p>
+                  )}
+                  
+                  {/* Time and Cost - compact layout */}
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[#00FFFF]">
+                      <DollarSign className="w-3 h-3" />
+                      <span className="font-medium">{formatCurrency(service.estimatedLaborCost)}</span>
                     </div>
                   </div>
                 </div>
