@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocalization } from "@/contexts/LocalizationContext";
@@ -765,28 +765,32 @@ export default function KanbanTickets() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Calculate total estimated time from selected services
-  const calculateEstimatedTime = () => {
-    if (formData.selectedServices.length === 0) {
-      return null;
-    }
+  // Derive estimated time using useMemo to prevent infinite loops
+  const servicesIndex = useMemo(() => {
+    return new Map((repairServices || []).map(s => [s.id, s]));
+  }, [repairServices]);
 
-    const selectedServiceData = repairServices.filter(service => 
-      formData.selectedServices.includes(service.id) && service.isActive
-    );
-
-    if (selectedServiceData.length === 0) {
-      return null;
-    }
-
-    const totalMinutes = selectedServiceData.reduce((total, service) => {
-      return total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes;
+  const estimatedTotalMinutes = useMemo(() => {
+    return formData.selectedServices.reduce((sum, id) => {
+      const service = servicesIndex.get(id);
+      return service && service.isActive 
+        ? sum + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes 
+        : sum;
     }, 0);
+  }, [formData.selectedServices, servicesIndex]);
 
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
+  const computedEstimatedHours = useMemo(() => {
+    return estimatedTotalMinutes > 0 ? (estimatedTotalMinutes / 60).toFixed(2) : '';
+  }, [estimatedTotalMinutes]);
 
-    return { hours, minutes, totalMinutes };
+  // Helper function for time display formatting
+  const getFormattedEstimatedTime = () => {
+    if (estimatedTotalMinutes === 0) return null;
+    
+    const hours = Math.floor(estimatedTotalMinutes / 60);
+    const minutes = estimatedTotalMinutes % 60;
+    
+    return { hours, minutes, totalMinutes: estimatedTotalMinutes };
   };
 
   // Tenant settings query for extended warranty price (temporarily simplified)
@@ -802,26 +806,18 @@ export default function KanbanTickets() {
     }
   }, [tenant?.settings?.extendedWarrantyPrice]); // Only depend on tenant, not form data to avoid conflicts
 
-  // CRITICAL FIX 1: Persist calculated estimated time to formData.technicianEstimatedHours
+  // Sync computed estimated hours to formData with guarded effect
+  const lastSyncedHours = useRef('');
   useEffect(() => {
-    const estimatedTime = calculateEstimatedTime();
-    
-    if (estimatedTime && estimatedTime.totalMinutes > 0) {
-      // Convert total minutes to decimal hours format for backend consistency
-      const decimalHours = (estimatedTime.totalMinutes / 60).toFixed(2);
-      
-      setFormData(prev => ({
-        ...prev,
-        technicianEstimatedHours: decimalHours
-      }));
-    } else if (formData.selectedServices.length === 0) {
-      // Clear estimated hours when no services are selected
-      setFormData(prev => ({
-        ...prev,
-        technicianEstimatedHours: ''
-      }));
+    if (computedEstimatedHours !== lastSyncedHours.current) {
+      lastSyncedHours.current = computedEstimatedHours;
+      setFormData(prev => 
+        prev.technicianEstimatedHours === computedEstimatedHours 
+          ? prev 
+          : { ...prev, technicianEstimatedHours: computedEstimatedHours }
+      );
     }
-  }, [formData.selectedServices, repairServices]);
+  }, [computedEstimatedHours]);
 
   // CRITICAL FIX 2: Reset selectedServices when deviceType changes
   useEffect(() => {
@@ -2907,7 +2903,7 @@ export default function KanbanTickets() {
                               return t("no_services_selected", "Select services to see estimate");
                             }
                             
-                            const timeEstimate = calculateEstimatedTime();
+                            const timeEstimate = getFormattedEstimatedTime();
                             if (!timeEstimate) {
                               return t("calculating", "Calculating...");
                             }
