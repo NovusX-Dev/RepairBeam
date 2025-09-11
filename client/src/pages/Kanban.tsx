@@ -3342,52 +3342,6 @@ export default function KanbanTickets() {
                             </div>
                           </div>
 
-                          {/* Selected Services */}
-                          {formData.selectedServices.length > 0 && (
-                            <div className="space-y-3">
-                              <h5 className="text-sm font-medium text-white">{t("selected_services", "Selected Services")}</h5>
-                              <div className="space-y-2">
-                                {formData.selectedServices.map(serviceId => {
-                                  const service = repairServices.find(s => s.id === serviceId);
-                                  if (!service) return null;
-                                  
-                                  return (
-                                    <div key={serviceId} className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                          <span className="text-sm font-medium text-white">{service.name}</span>
-                                          {service.description && (
-                                            <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
-                                          )}
-                                        </div>
-                                        <div className="text-right ml-3">
-                                          <div className="text-sm font-medium text-[#00FFFF]">
-                                            {(() => {
-                                              const value = parseFloat(service.estimatedLaborCost);
-                                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                                              const formatted = currentLanguage.code === 'pt-BR' 
-                                                ? value.toFixed(2).replace('.', ',')
-                                                : value.toFixed(2);
-                                              return `${currency}${formatted}`;
-                                            })()}
-                                          </div>
-                                          <div className="text-xs text-muted-foreground">
-                                            {(() => {
-                                              const hours = service.estimatedCompletionTimeHours;
-                                              const minutes = service.estimatedCompletionTimeMinutes;
-                                              if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
-                                              if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
-                                              return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
-                                            })()}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
 
