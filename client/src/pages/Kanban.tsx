@@ -344,7 +344,7 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
   const { t, currentLanguage } = useLocalization();
   
   // Fetch repair services for the selected device type
-  const { data: services = [], isLoading } = useQuery<RepairService[]>({
+  const { data: services = [], isLoading, error, isError } = useQuery<RepairService[]>({
     queryKey: [`/api/repair-services/device/${deviceType}`],
     enabled: !!deviceType,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -353,6 +353,7 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
 
   // Filter only active services
   const activeServices = services.filter(service => service.isActive);
+  const hasLoadedServices = !isLoading && !isError;
 
   if (!deviceType) {
     return (
@@ -363,26 +364,87 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
     );
   }
 
+  // Enhanced loading state with better visual feedback
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>{t("loading_services", "Loading repair services...")}</span>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-lg font-semibold text-white">
+            {t("available_services", "Available Services")} 
+            <span className="text-[#00FFFF] ml-2">({deviceType})</span>
+          </h4>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">{t("loading_services", "Loading...")}</span>
+          </div>
         </div>
-        {[1, 2, 3].map(i => (
-          <Skeleton key={i} className="h-20 w-full" />
-        ))}
+        
+        {/* Enhanced skeleton loading with shimmer effect */}
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-slate-800/50 border border-slate-600 rounded-lg p-4 animate-pulse">
+              <div className="flex items-start gap-3">
+                <div className="w-4 h-4 bg-slate-600 rounded border-2 border-slate-500"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-slate-600 rounded w-3/4"></div>
+                  <div className="h-3 bg-slate-700 rounded w-full"></div>
+                  <div className="flex gap-4">
+                    <div className="h-3 bg-slate-600 rounded w-16"></div>
+                    <div className="h-3 bg-slate-600 rounded w-20"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (activeServices.length === 0) {
+  // Enhanced error state
+  if (isError) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-        <p>{t("no_services_available", `No repair services available for ${deviceType} devices`)}</p>
-        <p className="text-sm mt-2">{t("contact_admin", "Contact your administrator to configure repair services")}</p>
+      <div className="text-center py-8">
+        <AlertTriangle className="mx-auto h-12 w-12 mb-4 text-red-400" />
+        <h4 className="text-lg font-semibold text-white mb-2">
+          {t("error_loading_services", "Error Loading Services")}
+        </h4>
+        <p className="text-sm text-muted-foreground mb-4">
+          {t("services_load_error", "Unable to load repair services. Please try again.")}
+        </p>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => window.location.reload()}
+          className="border-red-400 text-red-400 hover:bg-red-400/10"
+        >
+          {t("retry", "Retry")}
+        </Button>
+      </div>
+    );
+  }
+
+  // Enhanced empty state with more context
+  if (hasLoadedServices && activeServices.length === 0) {
+    const hasInactiveServices = services.length > activeServices.length;
+    
+    return (
+      <div className="text-center py-8">
+        <AlertTriangle className="mx-auto h-12 w-12 mb-4 text-yellow-400 opacity-75" />
+        <h4 className="text-lg font-semibold text-white mb-2">
+          {t("no_services_available", "No Services Available")}
+        </h4>
+        <p className="text-muted-foreground mb-2">
+          {t("no_active_services", `No active repair services found for ${deviceType} devices`)}
+        </p>
+        {hasInactiveServices && (
+          <p className="text-sm text-yellow-400 mb-4">
+            {t("inactive_services_note", "Some services exist but are currently disabled")}
+          </p>
+        )}
+        <p className="text-sm text-muted-foreground">
+          {t("contact_admin", "Contact your administrator to configure repair services")}
+        </p>
       </div>
     );
   }
@@ -707,6 +769,41 @@ export default function KanbanTickets() {
       calculateCosts(formData.costEstimation);
     }
   }, [tenant?.settings?.extendedWarrantyPrice]); // Only depend on tenant, not form data to avoid conflicts
+
+  // CRITICAL FIX 1: Persist calculated estimated time to formData.technicianEstimatedHours
+  useEffect(() => {
+    const estimatedTime = calculateEstimatedTime();
+    
+    if (estimatedTime && estimatedTime.totalMinutes > 0) {
+      // Convert total minutes to decimal hours format for backend consistency
+      const decimalHours = (estimatedTime.totalMinutes / 60).toFixed(2);
+      
+      setFormData(prev => ({
+        ...prev,
+        technicianEstimatedHours: decimalHours
+      }));
+    } else if (formData.selectedServices.length === 0) {
+      // Clear estimated hours when no services are selected
+      setFormData(prev => ({
+        ...prev,
+        technicianEstimatedHours: ''
+      }));
+    }
+  }, [formData.selectedServices, repairServices]);
+
+  // CRITICAL FIX 2: Reset selectedServices when deviceType changes
+  useEffect(() => {
+    // Reset selected services when device type changes to prevent mismatched selections
+    if (formData.deviceType && formData.selectedServices.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        selectedServices: [],
+        technicianEstimatedHours: '', // Also clear estimated hours
+        costEstimation: '', // Clear cost estimation as it may depend on services
+        totalCost: '' // Clear total cost
+      }));
+    }
+  }, [formData.deviceType]);
 
   // Client search query
   const { data: searchResults = [] } = useQuery<Client[]>({
@@ -1403,6 +1500,38 @@ export default function KanbanTickets() {
         selectedServices: newSelectedServices
       };
     });
+  };
+
+  // Fetch repair services for time calculation
+  const { data: repairServices = [] } = useQuery<RepairService[]>({
+    queryKey: [`/api/repair-services/device/${formData.deviceType}`],
+    enabled: !!formData.deviceType,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Calculate total estimated time from selected services
+  const calculateEstimatedTime = () => {
+    if (formData.selectedServices.length === 0) {
+      return null;
+    }
+
+    const selectedServiceData = repairServices.filter(service => 
+      formData.selectedServices.includes(service.id) && service.isActive
+    );
+
+    if (selectedServiceData.length === 0) {
+      return null;
+    }
+
+    const totalMinutes = selectedServiceData.reduce((total, service) => {
+      return total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes;
+    }, 0);
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return { hours, minutes, totalMinutes };
   };
 
   // Handle CPF input with formatting
@@ -2765,26 +2894,40 @@ export default function KanbanTickets() {
                       </div>
                     </FormFieldWithTooltip>
 
-                    {/* Technician Estimated Time */}
+                    {/* Technician Estimated Time - Calculated from Selected Services */}
                     <FormFieldWithTooltip
                       label={t("technician_estimated_time", "Estimated Time to Complete")}
-                      tooltip={t("technician_estimated_time_tooltip", "How many hours do you estimate this repair will take? Consider complexity, parts availability, and current workload.")}
+                      tooltip={t("technician_estimated_time_tooltip", "Total estimated time calculated from selected repair services. Select services below to see the combined time estimate.")}
                     >
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          id="technicianEstimatedHours"
-                          value={formData.technicianEstimatedHours}
-                          onChange={(e) => handleInputChange('technicianEstimatedHours', e.target.value)}
-                          placeholder="8"
-                          min="1"
-                          max="200"
-                          data-testid="input-estimated-hours"
-                          className="flex-1"
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          {t("hours", "hours")}
+                      <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-md border">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-base font-medium text-foreground" data-testid="text-estimated-time">
+                          {(() => {
+                            if (formData.selectedServices.length === 0) {
+                              return t("no_services_selected", "Select services to see estimate");
+                            }
+                            
+                            const timeEstimate = calculateEstimatedTime();
+                            if (!timeEstimate) {
+                              return t("calculating", "Calculating...");
+                            }
+                            
+                            const { hours, minutes } = timeEstimate;
+                            if (hours === 0) {
+                              return `${minutes} ${t("minutes", "minutes")}`;
+                            } else if (minutes === 0) {
+                              return `${hours} ${t("hours", "hours")}`;
+                            } else {
+                              return `${hours}h ${minutes}min`;
+                            }
+                          })()}
                         </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {formData.selectedServices.length > 0 
+                          ? t("calculated_from_services", `Calculated from ${formData.selectedServices.length} selected service(s)`)
+                          : t("select_services_note", "Select repair services below to calculate estimated time")
+                        }
                       </div>
                     </FormFieldWithTooltip>
                   </div>
