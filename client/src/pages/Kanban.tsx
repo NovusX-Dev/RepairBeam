@@ -1388,6 +1388,23 @@ export default function KanbanTickets() {
     }
   };
 
+  // Handle service selection toggle
+  const handleServiceToggle = (serviceId: string) => {
+    setFormData(prev => {
+      const currentServices = prev.selectedServices;
+      const isSelected = currentServices.includes(serviceId);
+      
+      const newSelectedServices = isSelected
+        ? currentServices.filter(id => id !== serviceId)
+        : [...currentServices, serviceId];
+      
+      return {
+        ...prev,
+        selectedServices: newSelectedServices
+      };
+    });
+  };
+
   // Handle CPF input with formatting
   const handleCPFChange = (value: string) => {
     const unformatted = getUnformattedCPF(value);
@@ -2770,6 +2787,15 @@ export default function KanbanTickets() {
                         </span>
                       </div>
                     </FormFieldWithTooltip>
+                  </div>
+
+                  {/* Repair Services Selection */}
+                  <div className="mt-8">
+                    <RepairServiceCards
+                      deviceType={formData.deviceType}
+                      selectedServices={formData.selectedServices}
+                      onServiceToggle={handleServiceToggle}
+                    />
                   </div>
 
                     </div>
