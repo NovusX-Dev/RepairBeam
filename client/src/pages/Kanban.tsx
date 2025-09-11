@@ -1686,6 +1686,7 @@ export default function KanbanTickets() {
         // Service Timeline & Coverage fields with form data
         clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
+        selectedServices: formData.selectedServices || [],
         costEstimation: formData.costEstimation || null,
         totalCost: formData.totalCost || null,
         costExplanation: formData.costExplanation || null,
@@ -4057,14 +4058,14 @@ export default function KanbanTickets() {
                           <div className="text-slate-200">
                             {(() => {
                               // Calculate time from selected services if available
-                              if (selectedTicketSummary.selectedServices) {
-                                const services = JSON.parse(selectedTicketSummary.selectedServices);
+                              if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
+                                const services = selectedTicketSummary.selectedServices;
                                 const totalMinutes = services.reduce((total: number, serviceId: string) => {
                                   const service = repairServices.find(s => s.id === serviceId);
                                   return service ? total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes : total;
                                 }, 0);
                                 
-                                if (totalMinutes === 0) return selectedTicketSummary.technicianEstimatedTime || t("not_available", "N/A");
+                                if (totalMinutes === 0) return selectedTicketSummary.technicianEstimatedHours ? `${selectedTicketSummary.technicianEstimatedHours}${t("hours_short", "h")}` : t("not_available", "N/A");
                                 
                                 const hours = Math.floor(totalMinutes / 60);
                                 const minutes = totalMinutes % 60;
@@ -4073,7 +4074,7 @@ export default function KanbanTickets() {
                                 if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
                                 return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
                               }
-                              return selectedTicketSummary.technicianEstimatedTime || t("not_available", "N/A");
+                              return selectedTicketSummary.technicianEstimatedHours ? `${selectedTicketSummary.technicianEstimatedHours}${t("hours_short", "h")}` : t("not_available", "N/A");
                             })()}
                           </div>
                         </div>
@@ -4108,8 +4109,8 @@ export default function KanbanTickets() {
                           <div className="font-medium text-cyan-400">{t("services_cost", "Services Cost")}</div>
                           <div className="font-bold text-blue-400">
                             {(() => {
-                              if (selectedTicketSummary.selectedServices) {
-                                const services = JSON.parse(selectedTicketSummary.selectedServices);
+                              if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
+                                const services = selectedTicketSummary.selectedServices;
                                 const totalServicesCost = services.reduce((total: number, serviceId: string) => {
                                   const service = repairServices.find(s => s.id === serviceId);
                                   return service ? total + parseFloat(service.estimatedLaborCost) : total;
@@ -4134,8 +4135,8 @@ export default function KanbanTickets() {
                           <div className="font-bold text-emerald-300">
                             {(() => {
                               let totalServicesCost = 0;
-                              if (selectedTicketSummary.selectedServices) {
-                                const services = JSON.parse(selectedTicketSummary.selectedServices);
+                              if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
+                                const services = selectedTicketSummary.selectedServices;
                                 totalServicesCost = services.reduce((total: number, serviceId: string) => {
                                   const service = repairServices.find(s => s.id === serviceId);
                                   return service ? total + parseFloat(service.estimatedLaborCost) : total;

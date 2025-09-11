@@ -154,6 +154,7 @@ export const tickets = pgTable("tickets", {
   // Service Timeline & Coverage fields
   clientDeadline: timestamp("client_deadline"),
   technicianEstimatedHours: integer("technician_estimated_hours"),
+  selectedServices: jsonb("selected_services").default('[]'), // Array of selected repair service IDs
   warrantyType: varchar("warranty_type").default('standard'),
   costEstimation: decimal("cost_estimation", { precision: 10, scale: 2 }),
   totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
