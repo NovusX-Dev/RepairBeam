@@ -86,7 +86,7 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
   });
 
   // Create a map of question ID to question data
-  const questionMap = questions.reduce((acc: any, question: any) => {
+  const questionMap = (questions as any[]).reduce((acc: any, question: any) => {
     acc[question.id] = question;
     return acc;
   }, {});
@@ -225,6 +225,7 @@ interface TicketFormData {
   // Services and Timeline
   clientDeadline: string;
   technicianEstimatedHours: string;
+  selectedServices: string[]; // Array of selected repair service IDs
   costEstimation: string;
   totalCost: string;
   costExplanation: string;
@@ -358,6 +359,7 @@ export default function KanbanTickets() {
     // Services and Timeline defaults
     clientDeadline: '',
     technicianEstimatedHours: '',
+    selectedServices: [],
     costEstimation: '',
     totalCost: '',
     costExplanation: '',
@@ -542,8 +544,8 @@ export default function KanbanTickets() {
 
   // Auto-calculate costs when tenant data loads (initial calculation only)
   useEffect(() => {
-    if (tenant && (formData.costEstimation || formData.warrantyType !== 'standard')) {
-      calculateCosts(formData.costEstimation, formData.warrantyType);
+    if (tenant && formData.costEstimation) {
+      calculateCosts(formData.costEstimation);
     }
   }, [tenant?.settings?.extendedWarrantyPrice]); // Only depend on tenant, not form data to avoid conflicts
 
@@ -696,11 +698,10 @@ export default function KanbanTickets() {
         // Service Timeline & Coverage defaults
         clientDeadline: '',
         technicianEstimatedHours: '',
-        warrantyType: 'standard',
         costEstimation: '',
-        warrantyCost: '0',
         totalCost: '',
         costExplanation: '',
+        selectedServices: [],
         // Service Checklist defaults
         deviceComponents: {},
         additionalNotes: '',
@@ -1380,13 +1381,13 @@ export default function KanbanTickets() {
         deviceStorageCapacity: formData.deviceStorageCapacity || null,
         issueDescription: null,
         // Service Timeline & Coverage fields with form data
-        clientDeadline: formData.clientDeadline || null,
+        clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
         technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
-        warrantyType: formData.warrantyType as 'standard' | 'extended',
         costEstimation: formData.costEstimation || null,
         totalCost: formData.totalCost || null,
         costExplanation: formData.costExplanation || null,
         // Service Checklist data
+        warrantyType: 'standard' as const,
         serviceChecklist: {
           components: formData.deviceComponents,
           additionalNotes: formData.additionalNotes
@@ -1501,11 +1502,10 @@ export default function KanbanTickets() {
         // Service Timeline & Coverage defaults
         clientDeadline: '',
         technicianEstimatedHours: '',
-        warrantyType: 'standard',
         costEstimation: '',
-        warrantyCost: '0',
         totalCost: '',
         costExplanation: '',
+        selectedServices: [],
         // Service Checklist defaults
         deviceComponents: {},
         additionalNotes: '',
@@ -2538,7 +2538,7 @@ export default function KanbanTickets() {
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {formData.clientDeadline 
-                                ? format(new Date(formData.clientDeadline), "PPP", { locale: currentLanguage === 'pt-BR' ? ptBR : undefined })
+                                ? format(new Date(formData.clientDeadline), "PPP", { locale: (currentLanguage as unknown as string) === 'pt-BR' ? ptBR : undefined })
                                 : t("pick_date", "Pick a date")
                               }
                             </Button>
@@ -2561,7 +2561,7 @@ export default function KanbanTickets() {
                               disabled={(date) =>
                                 date < new Date(new Date().setHours(0, 0, 0, 0))
                               }
-                              locale={currentLanguage}
+                              locale={ptBR}
                               initialFocus
                             />
                           </PopoverContent>
@@ -2642,7 +2642,7 @@ export default function KanbanTickets() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
+                          {(currentLanguage as unknown as string) === 'pt-BR' ? 'R$' : '$'}
                         </span>
                         <Input
                           type="number"
@@ -3629,7 +3629,7 @@ export default function KanbanTickets() {
                 <TabsContent value="problems" className="space-y-4">
                   <ProblemsTabContent 
                     ticketId={selectedTicketSummary.id}
-                    deviceType={selectedTicketSummary.deviceType}
+                    deviceType={selectedTicketSummary.deviceType || ''}
                     issueResponses={issueResponses}
                   />
                 </TabsContent>
@@ -3639,7 +3639,7 @@ export default function KanbanTickets() {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-lg">{t("service_checklist", "Service Checklist")}</h3>
                     
-                    {!selectedTicketSummary.serviceChecklist?.components || Object.keys(selectedTicketSummary.serviceChecklist.components).length === 0 ? (
+                    {!(selectedTicketSummary.serviceChecklist as any)?.components || Object.keys((selectedTicketSummary.serviceChecklist as any).components).length === 0 ? (
                       <div className="text-sm text-muted-foreground">
                         {t("no_checklist_available", "No service checklist available")}
                       </div>
@@ -3648,7 +3648,7 @@ export default function KanbanTickets() {
                         {/* Compact Grid Layout */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {checklistComponentOrder.map((component) => {
-                            const condition = selectedTicketSummary.serviceChecklist.components[component];
+                            const condition = (selectedTicketSummary.serviceChecklist as any).components[component];
                             if (!condition) return null;
                             return (
                               <div key={component} className="flex items-center justify-between p-2 bg-muted/5 border border-muted/20 rounded-md text-xs">
@@ -3675,18 +3675,18 @@ export default function KanbanTickets() {
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-sm">{t("condition_summary", "Condition Summary")}</h4>
                             <span className="text-xs text-muted-foreground">
-                              {Object.values(selectedTicketSummary.serviceChecklist.components).filter(c => c && c !== 'not_applicable').length} {t("components_assessed", "components assessed")}
+                              {Object.values((selectedTicketSummary.serviceChecklist as any).components).filter((c: unknown) => c && c !== 'not_applicable').length} {t("components_assessed", "components assessed")}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {(() => {
-                              const conditions = Object.values(selectedTicketSummary.serviceChecklist.components).filter(c => c && c !== 'not_applicable');
-                              const conditionCounts = conditions.reduce((acc: any, condition) => {
+                              const conditions = Object.values((selectedTicketSummary.serviceChecklist as any).components).filter((c: unknown) => c && c !== 'not_applicable') as string[];
+                              const conditionCounts = conditions.reduce((acc: Record<string, number>, condition: string) => {
                                 acc[condition] = (acc[condition] || 0) + 1;
                                 return acc;
-                              }, {});
+                              }, {} as Record<string, number>);
                               
-                              return Object.entries(conditionCounts).map(([condition, count]) => (
+                              return Object.entries(conditionCounts).map(([condition, count]: [string, number]) => (
                                 <span key={condition} className={`text-xs px-2 py-1 rounded-full font-medium ${
                                   condition === 'excellent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
                                   condition === 'good' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' :
@@ -3704,13 +3704,13 @@ export default function KanbanTickets() {
                         </div>
                         
                         {/* Additional Notes */}
-                        {selectedTicketSummary.serviceChecklist?.additionalNotes && selectedTicketSummary.serviceChecklist.additionalNotes.trim() && (
+                        {(selectedTicketSummary.serviceChecklist as any)?.additionalNotes && (selectedTicketSummary.serviceChecklist as any).additionalNotes.trim() && (
                           <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
                             <div className="flex items-center gap-2 mb-2">
                               <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                               <h4 className="font-medium text-sm">{t("additional_notes", "Additional Notes")}</h4>
                             </div>
-                            <p className="text-sm text-muted-foreground italic">"{selectedTicketSummary.serviceChecklist.additionalNotes}"</p>
+                            <p className="text-sm text-muted-foreground italic">"{(selectedTicketSummary.serviceChecklist as any).additionalNotes}"</p>
                           </div>
                         )}
                       </div>
