@@ -4036,28 +4036,133 @@ export default function KanbanTickets() {
                       </div>
                     )}
 
-                    {/* Ticket Summary */}
+                    {/* Services & Timeline */}
                     <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
                       <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                        {t("ticket_summary", "Ticket Summary")}
+                        <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        {t("services_timeline", "Services & Timeline")}
                       </h3>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
-                          <div className="font-medium text-cyan-400">{t("total_cost", "Total Cost")}</div>
-                          <div className="font-bold text-emerald-400">
-                            {selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation 
-                              ? formatCurrency(parseFloat(selectedTicketSummary.totalCost || selectedTicketSummary.costEstimation), currentLanguage.code)
-                              : "N/A"}
+                          <div className="font-medium text-cyan-400">{t("client_deadline", "Client Deadline")}</div>
+                          <div className="text-slate-200">
+                            {selectedTicketSummary.clientDeadline 
+                              ? new Date(selectedTicketSummary.clientDeadline).toLocaleDateString(currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en-US')
+                              : t("not_set", "Not set")
+                            }
+                          </div>
+                        </div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("estimated_time", "Estimated Time")}</div>
+                          <div className="text-slate-200">
+                            {(() => {
+                              // Calculate time from selected services if available
+                              if (selectedTicketSummary.selectedServices) {
+                                const services = JSON.parse(selectedTicketSummary.selectedServices);
+                                const totalMinutes = services.reduce((total: number, serviceId: string) => {
+                                  const service = repairServices.find(s => s.id === serviceId);
+                                  return service ? total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes : total;
+                                }, 0);
+                                
+                                if (totalMinutes === 0) return selectedTicketSummary.technicianEstimatedTime || t("not_available", "N/A");
+                                
+                                const hours = Math.floor(totalMinutes / 60);
+                                const minutes = totalMinutes % 60;
+                                
+                                if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
+                                if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
+                                return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
+                              }
+                              return selectedTicketSummary.technicianEstimatedTime || t("not_available", "N/A");
+                            })()}
+                          </div>
+                        </div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("deadline_status", "Status")}</div>
+                          <div>
+                            {(() => {
+                              if (!selectedTicketSummary.clientDeadline) return <span className="text-yellow-400">{t("no_deadline", "No deadline")}</span>;
+                              
+                              const deadline = new Date(selectedTicketSummary.clientDeadline);
+                              const now = new Date();
+                              const timeDiff = deadline.getTime() - now.getTime();
+                              const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                              
+                              if (daysDiff < 0) return <span className="text-red-400">{t("overdue", "Overdue")}</span>;
+                              if (daysDiff <= 2) return <span className="text-yellow-400">{t("urgent", "Urgent")}</span>;
+                              return <span className="text-green-400">{t("on_time", "On time")}</span>;
+                            })()}
                           </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 gap-2 text-xs mt-2">
+                    </div>
+
+                    {/* Cost Summary */}
+                    <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                      <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        {t("cost_summary", "Cost Summary")}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
-                          <div className="font-medium text-cyan-400">{t("created_on", "Created")}</div>
-                          <div className="text-slate-200">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
+                          <div className="font-medium text-cyan-400">{t("services_cost", "Services Cost")}</div>
+                          <div className="font-bold text-blue-400">
+                            {(() => {
+                              if (selectedTicketSummary.selectedServices) {
+                                const services = JSON.parse(selectedTicketSummary.selectedServices);
+                                const totalServicesCost = services.reduce((total: number, serviceId: string) => {
+                                  const service = repairServices.find(s => s.id === serviceId);
+                                  return service ? total + parseFloat(service.estimatedLaborCost) : total;
+                                }, 0);
+                                return formatCurrency(totalServicesCost, currentLanguage.code);
+                              }
+                              return formatCurrency(0, currentLanguage.code);
+                            })()}
+                          </div>
+                        </div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("extra_costs", "Extra Costs")}</div>
+                          <div className="font-bold text-white">
+                            {selectedTicketSummary.costEstimation 
+                              ? formatCurrency(parseFloat(selectedTicketSummary.costEstimation), currentLanguage.code)
+                              : formatCurrency(0, currentLanguage.code)
+                            }
+                          </div>
+                        </div>
+                        <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/50 p-2 rounded border-2 border-emerald-500/30">
+                          <div className="font-medium text-emerald-400">{t("total_cost", "Total Cost")}</div>
+                          <div className="font-bold text-emerald-300">
+                            {(() => {
+                              let totalServicesCost = 0;
+                              if (selectedTicketSummary.selectedServices) {
+                                const services = JSON.parse(selectedTicketSummary.selectedServices);
+                                totalServicesCost = services.reduce((total: number, serviceId: string) => {
+                                  const service = repairServices.find(s => s.id === serviceId);
+                                  return service ? total + parseFloat(service.estimatedLaborCost) : total;
+                                }, 0);
+                              }
+                              const extraCosts = parseFloat(selectedTicketSummary.costEstimation || '0');
+                              const grandTotal = totalServicesCost + extraCosts;
+                              return formatCurrency(grandTotal, currentLanguage.code);
+                            })()}
+                          </div>
                         </div>
                       </div>
+
+                      {/* Extra Cost Info */}
+                      {selectedTicketSummary.costExplanation && (
+                        <div className="mt-2 bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400 mb-1">{t("extra_cost_info", "Extra Cost Info")}</div>
+                          <div className="text-xs text-slate-300">{selectedTicketSummary.costExplanation}</div>
+                        </div>
+                      )}
+
+                      {/* Created Date */}
+                      <div className="mt-2 bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                        <div className="font-medium text-cyan-400">{t("created_on", "Created")}</div>
+                        <div className="text-slate-200">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
+                      </div>
+
                       {selectedTicketSummary.description && (
                         <div className="mt-2 bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400 mb-1">{t("description", "Description")}</div>
