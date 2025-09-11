@@ -450,9 +450,9 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
   }
 
   const formatTime = (hours: number, minutes: number) => {
-    if (hours === 0) return `${minutes}min`;
-    if (minutes === 0) return `${hours}h`;
-    return `${hours}h ${minutes}min`;
+    if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
+    if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
+    return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
   };
 
   const formatCurrency = (amount: string) => {
@@ -2912,11 +2912,11 @@ export default function KanbanTickets() {
                             
                             const { hours, minutes } = timeEstimate;
                             if (hours === 0) {
-                              return `${minutes} ${t("minutes", "minutes")}`;
+                              return `${minutes}${t("minutes_short", "min")}`;
                             } else if (minutes === 0) {
-                              return `${hours} ${t("hours", "hours")}`;
+                              return `${hours}${t("hours_short", "h")}`;
                             } else {
-                              return `${hours}h ${minutes}min`;
+                              return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
                             }
                           })()}
                         </span>
