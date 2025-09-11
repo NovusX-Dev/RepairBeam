@@ -2962,9 +2962,61 @@ export default function KanbanTickets() {
                   
                   <div className="space-y-4">
                     {/* Cost Estimation */}
+                    {/* Selected Services Cost List */}
+                    {formData.selectedServices.length > 0 && (
+                      <FormFieldWithTooltip
+                        label={t("selected_services_cost", "Selected Services")}
+                        tooltip={t("selected_services_cost_tooltip", "Cost breakdown of selected repair services.")}
+                      >
+                        <div className="space-y-2 p-3 bg-muted/30 rounded-md border">
+                          {formData.selectedServices.map(serviceId => {
+                            const service = repairServices.find(s => s.id === serviceId);
+                            if (!service) return null;
+                            
+                            const formatCurrency = (amount: string) => {
+                              const value = parseFloat(amount);
+                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+                              const formatted = currentLanguage.code === 'pt-BR' 
+                                ? value.toFixed(2).replace('.', ',')
+                                : value.toFixed(2);
+                              return `${currency}${formatted}`;
+                            };
+                            
+                            return (
+                              <div key={serviceId} className="flex items-center justify-between text-sm">
+                                <span className="text-foreground">{service.name}</span>
+                                <span className="text-primary font-medium" data-testid={`service-cost-${serviceId}`}>
+                                  {formatCurrency(service.estimatedLaborCost)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          <div className="border-t border-muted pt-2 mt-2">
+                            <div className="flex items-center justify-between text-sm font-medium">
+                              <span className="text-foreground">{t("services_subtotal", "Services Subtotal")}</span>
+                              <span className="text-primary" data-testid="services-subtotal">
+                                {(() => {
+                                  const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                    const service = repairServices.find(s => s.id === serviceId);
+                                    return service ? total + parseFloat(service.estimatedLaborCost) : total;
+                                  }, 0);
+                                  
+                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+                                  const formatted = currentLanguage.code === 'pt-BR' 
+                                    ? totalServicesCost.toFixed(2).replace('.', ',')
+                                    : totalServicesCost.toFixed(2);
+                                  return `${currency}${formatted}`;
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </FormFieldWithTooltip>
+                    )}
+
                     <FormFieldWithTooltip
-                      label={t("cost_estimation", "Cost Estimation")}
-                      tooltip={t("cost_estimation_tooltip", "Provide an estimated total cost for this repair including parts and labor.")}
+                      label={t("extra_costs", "Extra Costs")}
+                      tooltip={t("extra_costs_tooltip", "Additional costs not included in services (parts, materials, etc.)")}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
@@ -2975,20 +3027,19 @@ export default function KanbanTickets() {
                           id="costEstimation"
                           value={formData.costEstimation}
                           onChange={(e) => handleInputChange('costEstimation', e.target.value)}
-                          placeholder="280.00"
+                          placeholder="50.00"
                           min="0"
                           step="0.01"
-                          data-testid="input-cost-estimation"
+                          data-testid="input-extra-costs"
                           className="flex-1"
                         />
                       </div>
                     </FormFieldWithTooltip>
 
-
                     {/* Total Cost */}
                     <FormFieldWithTooltip
                       label={t("total_cost", "Total Cost")}
-                      tooltip={t("total_cost_tooltip", "Total cost for the repair based on the estimate.")}
+                      tooltip={t("total_cost_tooltip", "Total cost including selected services and extra costs.")}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
@@ -2996,24 +3047,39 @@ export default function KanbanTickets() {
                         </span>
                         <div className="flex-1 p-3 bg-primary/10 rounded-md border border-primary/30">
                           <span className="text-lg font-bold text-primary" data-testid="text-total-cost">
-                            {formData.totalCost || '0.00'}
+                            {(() => {
+                              // Calculate total from selected services
+                              const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                const service = repairServices.find(s => s.id === serviceId);
+                                return service ? total + parseFloat(service.estimatedLaborCost) : total;
+                              }, 0);
+                              
+                              // Add extra costs
+                              const extraCosts = parseFloat(formData.costEstimation) || 0;
+                              const grandTotal = totalServicesCost + extraCosts;
+                              
+                              const formatted = currentLanguage.code === 'pt-BR' 
+                                ? grandTotal.toFixed(2).replace('.', ',')
+                                : grandTotal.toFixed(2);
+                              return formatted;
+                            })()}
                           </span>
                         </div>
                       </div>
                     </FormFieldWithTooltip>
 
-                    {/* Cost Explanation */}
+                    {/* Extra Cost Info */}
                     <FormFieldWithTooltip
-                      label={t("cost_explanation", "Cost Breakdown")}
-                      tooltip={t("cost_explanation_tooltip", "Explain how you calculated the cost. Include details about parts, labor time, and any additional fees.")}
+                      label={t("extra_cost_info", "Extra Cost Info")}
+                      tooltip={t("extra_cost_info_tooltip", "Explain any extra costs beyond the selected services (parts, materials, special fees, etc.)")}
                     >
                       <Textarea
                         id="costExplanation"
                         value={formData.costExplanation}
                         onChange={(e) => handleInputChange('costExplanation', e.target.value)}
-                        placeholder={t("cost_explanation_placeholder", "Example: Labor (3 hours @ $50/hr) + Screen replacement part ($120) + diagnostic fee ($30) = $280 total")}
+                        placeholder={t("extra_cost_info_placeholder", "Example: Screen part ($50) + protective film ($15) + rush fee ($20) = $85 extra costs")}
                         rows={4}
-                        data-testid="textarea-cost-explanation"
+                        data-testid="textarea-extra-cost-info"
                         className="resize-none"
                       />
                     </FormFieldWithTooltip>
