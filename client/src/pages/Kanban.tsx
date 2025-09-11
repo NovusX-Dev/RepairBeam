@@ -322,6 +322,165 @@ function FormFieldWithTooltip({
   );
 }
 
+// Repair Service Cards Component
+interface RepairService {
+  id: string;
+  deviceType: string;
+  name: string;
+  description: string | null;
+  estimatedLaborCost: string;
+  estimatedCompletionTimeHours: number;
+  estimatedCompletionTimeMinutes: number;
+  isActive: boolean;
+}
+
+interface RepairServiceCardsProps {
+  deviceType: string;
+  selectedServices: string[];
+  onServiceToggle: (serviceId: string) => void;
+}
+
+function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: RepairServiceCardsProps) {
+  const { t, currentLanguage } = useLocalization();
+  
+  // Fetch repair services for the selected device type
+  const { data: services = [], isLoading } = useQuery<RepairService[]>({
+    queryKey: [`/api/repair-services/device/${deviceType}`],
+    enabled: !!deviceType,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Filter only active services
+  const activeServices = services.filter(service => service.isActive);
+
+  if (!deviceType) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <Smartphone className="mx-auto h-12 w-12 mb-4 opacity-50" />
+        <p>{t("select_device_first", "Please select a device type first to see available services")}</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>{t("loading_services", "Loading repair services...")}</span>
+        </div>
+        {[1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (activeServices.length === 0) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <AlertTriangle className="mx-auto h-12 w-12 mb-4 opacity-50" />
+        <p>{t("no_services_available", `No repair services available for ${deviceType} devices`)}</p>
+        <p className="text-sm mt-2">{t("contact_admin", "Contact your administrator to configure repair services")}</p>
+      </div>
+    );
+  }
+
+  const formatTime = (hours: number, minutes: number) => {
+    if (hours === 0) return `${minutes}min`;
+    if (minutes === 0) return `${hours}h`;
+    return `${hours}h ${minutes}min`;
+  };
+
+  const formatCurrency = (amount: string) => {
+    const value = parseFloat(amount);
+    const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+    const formatted = currentLanguage.code === 'pt-BR' 
+      ? value.toFixed(2).replace('.', ',')
+      : value.toFixed(2);
+    return `${currency}${formatted}`;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-lg font-semibold text-white">
+          {t("available_services", "Available Services")} 
+          <span className="text-[#00FFFF] ml-2">({deviceType})</span>
+        </h4>
+        <Badge variant="outline" className="border-[#00FFFF] text-[#00FFFF]">
+          {selectedServices.length} {t("selected", "selected")}
+        </Badge>
+      </div>
+      
+      <div className="grid gap-3">
+        {activeServices.map((service) => {
+          const isSelected = selectedServices.includes(service.id);
+          return (
+            <Card 
+              key={service.id}
+              className={`
+                cursor-pointer transition-all duration-200 hover:scale-[1.02]
+                ${isSelected 
+                  ? 'border-[#00FFFF] bg-[#00FFFF]/10 shadow-lg shadow-[#00FFFF]/20' 
+                  : 'border-slate-600 hover:border-[#00FFFF]/50 bg-slate-800/50'
+                }
+              `}
+              onClick={() => onServiceToggle(service.id)}
+              data-testid={`service-card-${service.id}`}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`
+                        w-4 h-4 rounded border-2 flex items-center justify-center transition-colors
+                        ${isSelected 
+                          ? 'bg-[#00FFFF] border-[#00FFFF]' 
+                          : 'border-slate-400 hover:border-[#00FFFF]'
+                        }
+                      `}>
+                        {isSelected && <Check className="w-2.5 h-2.5 text-slate-900" />}
+                      </div>
+                      <h5 className="font-medium text-white">{service.name}</h5>
+                    </div>
+                    
+                    {service.description && (
+                      <p className="text-sm text-slate-300 mb-3 ml-7">
+                        {service.description}
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center gap-4 ml-7 text-sm">
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatTime(service.estimatedCompletionTimeHours, service.estimatedCompletionTimeMinutes)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[#00FFFF]">
+                        <DollarSign className="w-3 h-3" />
+                        <span className="font-medium">{formatCurrency(service.estimatedLaborCost)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      
+      {selectedServices.length > 0 && (
+        <div className="mt-4 p-3 bg-[#00FFFF]/10 border border-[#00FFFF]/30 rounded-lg">
+          <p className="text-sm text-slate-300">
+            {t("services_note", "Selected services will be used to calculate total time and cost estimates")}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
   const [dragHoverColumn, setDragHoverColumn] = useState<string | null>(null);
