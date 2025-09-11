@@ -757,6 +757,38 @@ export default function KanbanTickets() {
   // Check if a specific card is collapsed
   const isCardCollapsed = (ticketId: string) => collapsedCards.has(ticketId);
 
+  // Fetch repair services for time calculation (moved here to fix initialization order)
+  const { data: repairServices = [] } = useQuery<RepairService[]>({
+    queryKey: [`/api/repair-services/device/${formData.deviceType}`],
+    enabled: !!formData.deviceType,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Calculate total estimated time from selected services
+  const calculateEstimatedTime = () => {
+    if (formData.selectedServices.length === 0) {
+      return null;
+    }
+
+    const selectedServiceData = repairServices.filter(service => 
+      formData.selectedServices.includes(service.id) && service.isActive
+    );
+
+    if (selectedServiceData.length === 0) {
+      return null;
+    }
+
+    const totalMinutes = selectedServiceData.reduce((total, service) => {
+      return total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes;
+    }, 0);
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return { hours, minutes, totalMinutes };
+  };
+
   // Tenant settings query for extended warranty price (temporarily simplified)
   const { data: tenant } = useQuery<any>({
     queryKey: ["/api/tenants/current"],
@@ -1500,38 +1532,6 @@ export default function KanbanTickets() {
         selectedServices: newSelectedServices
       };
     });
-  };
-
-  // Fetch repair services for time calculation
-  const { data: repairServices = [] } = useQuery<RepairService[]>({
-    queryKey: [`/api/repair-services/device/${formData.deviceType}`],
-    enabled: !!formData.deviceType,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-
-  // Calculate total estimated time from selected services
-  const calculateEstimatedTime = () => {
-    if (formData.selectedServices.length === 0) {
-      return null;
-    }
-
-    const selectedServiceData = repairServices.filter(service => 
-      formData.selectedServices.includes(service.id) && service.isActive
-    );
-
-    if (selectedServiceData.length === 0) {
-      return null;
-    }
-
-    const totalMinutes = selectedServiceData.reduce((total, service) => {
-      return total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes;
-    }, 0);
-
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    return { hours, minutes, totalMinutes };
   };
 
   // Handle CPF input with formatting
