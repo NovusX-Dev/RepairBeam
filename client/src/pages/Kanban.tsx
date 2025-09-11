@@ -3184,306 +3184,330 @@ export default function KanbanTickets() {
               {/* Client Authorization Step */}
               {currentStep === 6 && (
                 <div className="max-w-4xl mx-auto">
+                  {/* Aurora Card Layout - Main Container */}
                   <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
+                    {/* Aurora Gradient Header */}
                     <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
                       <h3 className="text-xl font-bold text-white flex items-center gap-3">
                         <Check className="w-5 h-5" />
-                        {ticketSteps[6].title}
+                        {t("client_authorization", "Client Authorization")}
                       </h3>
                       <p className="text-cyan-100 text-sm mt-1">
-                        {t("authorization_subtitle", "Final authorization and terms agreement")}
+                        {t("authorization_subtitle", "Final review and approval of all service details")}
                       </p>
                     </div>
                     
-                    <div className="p-6 space-y-6">
-                      <div className="text-center mb-8">
-                        <div className="text-6xl mb-4">✅</div>
-                    <h3 className="text-2xl font-semibold text-white mb-2">
-                      {t("client_authorization", "Client Authorization")}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      {t("authorization_subtitle", "Review all details and obtain client approval")}
-                    </p>
-                  </div>
-
-                  {/* Comprehensive Summary */}
-                  <div className="grid gap-6">
-                    {/* Client Information Summary */}
-                    <div className="space-y-4 bg-muted/20 rounded-lg p-6 border border-[#00FFFF]/20">
-                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
-                        <User className="w-5 h-5" />
-                        {t("client_information_summary", "Client Information")}
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("full_name", "Full Name")}:</span>
-                          <p className="text-white font-medium">
-                            {selectedClient 
-                              ? `${selectedClient.firstName} ${selectedClient.lastName}`
-                              : formData.firstName && formData.lastName 
-                                ? `${formData.firstName} ${formData.lastName}`
-                                : t("not_available", "N/A")
-                            }
-                          </p>
+                    <div className="p-6 space-y-4">
+                      {/* Aurora Card - Client Information */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            {t("client_information", "Client Information")}
+                          </h4>
                         </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("cpf", "CPF")}:</span>
-                          <p className="text-white font-medium">
-                            {selectedClient?.cpf || displayCPF || formData.cpf || t("not_available", "N/A")}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("email", "Email")}:</span>
-                          <p className="text-white font-medium">
-                            {selectedClient?.email || formData.email || t("not_available", "N/A")}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("phone", "Phone")}:</span>
-                          <p className="text-white font-medium">
-                            {selectedClient?.phone || formData.phone || t("not_available", "N/A")}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Device Information Summary */}
-                    <div className="space-y-4 bg-muted/20 rounded-lg p-6 border border-[#00FFFF]/20">
-                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
-                        <Smartphone className="w-5 h-5" />
-                        {t("device_information_summary", "Device Information")}
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("device_type", "Device Type")}:</span>
-                          <p className="text-white font-medium">{formData.deviceType}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("brand_model", "Brand & Model")}:</span>
-                          <p className="text-white font-medium">{formData.deviceBrand} {formData.deviceModel}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("color", "Color")}:</span>
-                          <p className="text-white font-medium">{formData.deviceColor || t("not_available", "N/A")}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">{t("memory_storage", "Memory & Storage")}:</span>
-                          <p className="text-white font-medium">
-                            {formData.deviceMemory && `${formData.deviceMemory} RAM`}
-                            {formData.deviceMemory && formData.deviceStorageCapacity && ', '}
-                            {formData.deviceStorageCapacity && `${formData.deviceStorageCapacity} Storage`}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Selected Services & Timeline Summary */}
-                    <div className="space-y-4 bg-gradient-to-r from-[#0A192F]/50 to-[#00FFFF]/10 rounded-lg p-4 border border-[#00FFFF]/30">
-                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
-                        <Clock className="w-5 h-5" />
-                        {t("services_timeline_summary", "Services & Timeline")}
-                      </h4>
-                      
-                      {/* Timeline Information */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-muted/20 rounded-md border border-muted/40">
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground block">{t("client_deadline", "Client Deadline")}</span>
-                          <p className="text-sm font-medium text-[#00FFFF]">
-                            {formData.clientDeadline ? new Date(formData.clientDeadline).toLocaleDateString(currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en-US') : t("not_set", "Not set")}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground block">{t("estimated_completion", "Estimated Time")}</span>
-                          <p className="text-sm font-medium text-white">
-                            {(() => {
-                              const totalMinutes = formData.selectedServices.reduce((total, serviceId) => {
-                                const service = repairServices.find(s => s.id === serviceId);
-                                return service ? total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes : total;
-                              }, 0);
-                              
-                              if (totalMinutes === 0) return t("not_available", "N/A");
-                              
-                              const hours = Math.floor(totalMinutes / 60);
-                              const minutes = totalMinutes % 60;
-                              
-                              if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
-                              if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
-                              return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
-                            })()}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground block">{t("deadline_status", "Status")}</span>
-                          <p className="text-sm font-medium">
-                            {(() => {
-                              if (!formData.clientDeadline) return <span className="text-yellow-400">{t("no_deadline", "No deadline")}</span>;
-                              
-                              const deadline = new Date(formData.clientDeadline);
-                              const now = new Date();
-                              const timeDiff = deadline.getTime() - now.getTime();
-                              const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-                              
-                              if (daysDiff < 0) return <span className="text-red-400">{t("overdue", "Overdue")}</span>;
-                              if (daysDiff <= 2) return <span className="text-yellow-400">{t("urgent", "Urgent")}</span>;
-                              return <span className="text-green-400">{t("on_time", "On time")}</span>;
-                            })()}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Selected Services */}
-                      {formData.selectedServices.length > 0 && (
-                        <div className="space-y-3">
-                          <h5 className="text-sm font-medium text-white">{t("selected_services", "Selected Services")}</h5>
-                          <div className="space-y-2">
-                            {formData.selectedServices.map(serviceId => {
-                              const service = repairServices.find(s => s.id === serviceId);
-                              if (!service) return null;
-                              
-                              return (
-                                <div key={serviceId} className="flex items-center justify-between p-2 bg-muted/30 rounded border">
-                                  <div className="flex-1">
-                                    <span className="text-sm font-medium text-white">{service.name}</span>
-                                    {service.description && (
-                                      <p className="text-xs text-muted-foreground">{service.description}</p>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-sm font-medium text-[#00FFFF]">
-                                      {(() => {
-                                        const value = parseFloat(service.estimatedLaborCost);
-                                        const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                                        const formatted = currentLanguage.code === 'pt-BR' 
-                                          ? value.toFixed(2).replace('.', ',')
-                                          : value.toFixed(2);
-                                        return `${currency}${formatted}`;
-                                      })()}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {(() => {
-                                        const hours = service.estimatedCompletionTimeHours;
-                                        const minutes = service.estimatedCompletionTimeMinutes;
-                                        if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
-                                        if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
-                                        return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
-                                      })()}
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("full_name", "Full Name")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {selectedClient 
+                                  ? `${selectedClient.firstName} ${selectedClient.lastName}`
+                                  : formData.firstName && formData.lastName 
+                                    ? `${formData.firstName} ${formData.lastName}`
+                                    : t("not_available", "N/A")
+                                }
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("cpf", "CPF")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {selectedClient?.cpf || displayCPF || formData.cpf || t("not_available", "N/A")}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("email", "Email")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {selectedClient?.email || formData.email || t("not_available", "N/A")}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("phone", "Phone")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {selectedClient?.phone || formData.phone || t("not_available", "N/A")}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      )}
+                      </div>
 
-                      {/* Cost Summary */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/30 rounded border border-[#00FFFF]/20">
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground block">{t("services_cost", "Services Cost")}</span>
-                          <p className="text-lg font-bold text-[#00FFFF]">
-                            {(() => {
-                              const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
-                                const service = repairServices.find(s => s.id === serviceId);
-                                return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                              }, 0);
-                              
-                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                              const formatted = currentLanguage.code === 'pt-BR' 
-                                ? totalServicesCost.toFixed(2).replace('.', ',')
-                                : totalServicesCost.toFixed(2);
-                              return `${currency}${formatted}`;
-                            })()}
-                          </p>
+                      {/* Aurora Card - Device Information */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <Smartphone className="w-4 h-4" />
+                            {t("device_information", "Device Information")}
+                          </h4>
                         </div>
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground block">{t("extra_costs", "Extra Costs")}</span>
-                          <p className="text-lg font-bold text-white">
-                            {(() => {
-                              const extraCosts = parseFloat(formData.costEstimation) || 0;
-                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                              const formatted = currentLanguage.code === 'pt-BR' 
-                                ? extraCosts.toFixed(2).replace('.', ',')
-                                : extraCosts.toFixed(2);
-                              return `${currency}${formatted}`;
-                            })()}
-                          </p>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground block">{t("total_cost", "Total Cost")}</span>
-                          <p className="text-xl font-bold text-[#00FFFF]">
-                            {(() => {
-                              const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
-                                const service = repairServices.find(s => s.id === serviceId);
-                                return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                              }, 0);
-                              
-                              const extraCosts = parseFloat(formData.costEstimation) || 0;
-                              const grandTotal = totalServicesCost + extraCosts;
-                              
-                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                              const formatted = currentLanguage.code === 'pt-BR' 
-                                ? grandTotal.toFixed(2).replace('.', ',')
-                                : grandTotal.toFixed(2);
-                              return `${currency}${formatted}`;
-                            })()}
-                          </p>
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("device_type", "Device Type")}</span>
+                              <p className="text-sm font-medium text-white">{formData.deviceType || t("not_available", "N/A")}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("brand_model", "Brand & Model")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {formData.deviceBrand && formData.deviceModel 
+                                  ? `${formData.deviceBrand} ${formData.deviceModel}` 
+                                  : t("not_available", "N/A")
+                                }
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("color", "Color")}</span>
+                              <p className="text-sm font-medium text-white">{formData.deviceColor || t("not_available", "N/A")}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground">{t("memory_storage", "Memory & Storage")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {(() => {
+                                  const parts = [];
+                                  if (formData.deviceMemory) parts.push(`${formData.deviceMemory} RAM`);
+                                  if (formData.deviceStorageCapacity) parts.push(`${formData.deviceStorageCapacity} Storage`);
+                                  return parts.length > 0 ? parts.join(', ') : t("not_available", "N/A");
+                                })()}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Extra Cost Info */}
-                      {formData.costExplanation && (
-                        <div className="p-3 bg-muted/20 rounded border border-muted/40">
-                          <span className="text-xs text-muted-foreground block mb-1">{t("extra_cost_info", "Extra Cost Info")}:</span>
-                          <p className="text-sm text-white">{formData.costExplanation}</p>
+                      {/* Aurora Card - Services & Timeline */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            {t("services_timeline", "Services & Timeline")}
+                          </h4>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Client Approval Section */}
-                    <div className="space-y-4 bg-gradient-to-r from-[#00FFFF]/10 to-[#0A192F]/50 rounded-lg p-6 border-2 border-[#00FFFF]/30">
-                      <h4 className="text-lg font-semibold text-[#00FFFF] flex items-center gap-2">
-                        <Shield className="w-5 h-5" />
-                        {t("authorization_required", "Authorization Required")}
-                      </h4>
-                      
-                      <FormFieldWithTooltip
-                        label={t("client_approval", "Client Authorization")}
-                        tooltip={t("client_approval_tooltip", "The client must approve all service details, costs, and conditions before the repair ticket can be created. This serves as their consent to proceed with the repair.")}
-                        required
-                      >
-                        <div className="flex items-center space-x-3 p-4 bg-muted/30 rounded-md border">
-                          <Switch
-                            checked={formData.clientApproved}
-                            onCheckedChange={(checked) => {
-                              setFormData(prev => ({ ...prev, clientApproved: checked }));
-                            }}
-                            data-testid="switch-client-approved"
-                          />
-                          <div className="flex-1">
-                            <Label htmlFor="client-approved" className="text-base font-medium cursor-pointer">
-                              {t("client_has_approved", "Client has reviewed and approved all details")}
-                            </Label>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {t("approval_confirmation", "By enabling this, you confirm the client has agreed to the service terms, cost, and timeline.")}
-                            </p>
+                        <div className="p-4 space-y-4">
+                          {/* Timeline Overview */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
+                              <span className="text-xs text-muted-foreground block">{t("client_deadline", "Client Deadline")}</span>
+                              <p className="text-sm font-medium text-[#00FFFF] mt-1">
+                                {formData.clientDeadline 
+                                  ? new Date(formData.clientDeadline).toLocaleDateString(currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en-US')
+                                  : t("not_set", "Not set")
+                                }
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
+                              <span className="text-xs text-muted-foreground block">{t("estimated_time", "Estimated Time")}</span>
+                              <p className="text-sm font-medium text-white mt-1">
+                                {(() => {
+                                  const totalMinutes = formData.selectedServices.reduce((total, serviceId) => {
+                                    const service = repairServices.find(s => s.id === serviceId);
+                                    return service ? total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes : total;
+                                  }, 0);
+                                  
+                                  if (totalMinutes === 0) return t("not_available", "N/A");
+                                  
+                                  const hours = Math.floor(totalMinutes / 60);
+                                  const minutes = totalMinutes % 60;
+                                  
+                                  if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
+                                  if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
+                                  return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
+                                })()}
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
+                              <span className="text-xs text-muted-foreground block">{t("deadline_status", "Status")}</span>
+                              <p className="text-sm font-medium mt-1">
+                                {(() => {
+                                  if (!formData.clientDeadline) return <span className="text-yellow-400">{t("no_deadline", "No deadline")}</span>;
+                                  
+                                  const deadline = new Date(formData.clientDeadline);
+                                  const now = new Date();
+                                  const timeDiff = deadline.getTime() - now.getTime();
+                                  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                                  
+                                  if (daysDiff < 0) return <span className="text-red-400">{t("overdue", "Overdue")}</span>;
+                                  if (daysDiff <= 2) return <span className="text-yellow-400">{t("urgent", "Urgent")}</span>;
+                                  return <span className="text-green-400">{t("on_time", "On time")}</span>;
+                                })()}
+                              </p>
+                            </div>
                           </div>
-                          {formData.clientApproved && (
-                            <div className="text-green-500">
-                              <Check className="w-6 h-6" />
+
+                          {/* Selected Services */}
+                          {formData.selectedServices.length > 0 && (
+                            <div className="space-y-3">
+                              <h5 className="text-sm font-medium text-white">{t("selected_services", "Selected Services")}</h5>
+                              <div className="space-y-2">
+                                {formData.selectedServices.map(serviceId => {
+                                  const service = repairServices.find(s => s.id === serviceId);
+                                  if (!service) return null;
+                                  
+                                  return (
+                                    <div key={serviceId} className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <span className="text-sm font-medium text-white">{service.name}</span>
+                                          {service.description && (
+                                            <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="text-right ml-3">
+                                          <div className="text-sm font-medium text-[#00FFFF]">
+                                            {(() => {
+                                              const value = parseFloat(service.estimatedLaborCost);
+                                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+                                              const formatted = currentLanguage.code === 'pt-BR' 
+                                                ? value.toFixed(2).replace('.', ',')
+                                                : value.toFixed(2);
+                                              return `${currency}${formatted}`;
+                                            })()}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            {(() => {
+                                              const hours = service.estimatedCompletionTimeHours;
+                                              const minutes = service.estimatedCompletionTimeMinutes;
+                                              if (hours === 0) return `${minutes}${t("minutes_short", "min")}`;
+                                              if (minutes === 0) return `${hours}${t("hours_short", "h")}`;
+                                              return `${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")}`;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
-                      </FormFieldWithTooltip>
+                      </div>
 
-                      {!formData.clientApproved && (
-                        <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-                          <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                          <p className="text-sm text-yellow-300">
-                            {t("approval_warning", "Client approval is required before creating the repair ticket.")}
-                          </p>
+                      {/* Aurora Card - Cost Summary */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <DollarSign className="w-4 h-4" />
+                            {t("cost_summary", "Cost Summary")}
+                          </h4>
                         </div>
-                      )}
-                    </div>
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
+                              <span className="text-xs text-muted-foreground block">{t("services_cost", "Services Cost")}</span>
+                              <p className="text-lg font-bold text-[#00FFFF] mt-1">
+                                {(() => {
+                                  const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                    const service = repairServices.find(s => s.id === serviceId);
+                                    return service ? total + parseFloat(service.estimatedLaborCost) : total;
+                                  }, 0);
+                                  
+                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+                                  const formatted = currentLanguage.code === 'pt-BR' 
+                                    ? totalServicesCost.toFixed(2).replace('.', ',')
+                                    : totalServicesCost.toFixed(2);
+                                  return `${currency}${formatted}`;
+                                })()}
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
+                              <span className="text-xs text-muted-foreground block">{t("extra_costs", "Extra Costs")}</span>
+                              <p className="text-lg font-bold text-white mt-1">
+                                {(() => {
+                                  const extraCosts = parseFloat(formData.costEstimation) || 0;
+                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+                                  const formatted = currentLanguage.code === 'pt-BR' 
+                                    ? extraCosts.toFixed(2).replace('.', ',')
+                                    : extraCosts.toFixed(2);
+                                  return `${currency}${formatted}`;
+                                })()}
+                              </p>
+                            </div>
+                            <div className="bg-gradient-to-br from-[#00FFFF]/10 to-[#0A192F]/30 rounded-md border-2 border-[#00FFFF]/30 p-3 text-center">
+                              <span className="text-xs text-muted-foreground block">{t("total_cost", "Total Cost")}</span>
+                              <p className="text-xl font-bold text-[#00FFFF] mt-1">
+                                {(() => {
+                                  const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                    const service = repairServices.find(s => s.id === serviceId);
+                                    return service ? total + parseFloat(service.estimatedLaborCost) : total;
+                                  }, 0);
+                                  
+                                  const extraCosts = parseFloat(formData.costEstimation) || 0;
+                                  const grandTotal = totalServicesCost + extraCosts;
+                                  
+                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
+                                  const formatted = currentLanguage.code === 'pt-BR' 
+                                    ? grandTotal.toFixed(2).replace('.', ',')
+                                    : grandTotal.toFixed(2);
+                                  return `${currency}${formatted}`;
+                                })()}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Extra Cost Info */}
+                          {formData.costExplanation && (
+                            <div className="mt-4 p-3 bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20">
+                              <span className="text-xs text-muted-foreground block mb-2">{t("extra_cost_info", "Extra Cost Info")}</span>
+                              <p className="text-sm text-white">{formData.costExplanation}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Aurora Card - Client Approval */}
+                      <div className="bg-slate-800/50 rounded-lg border-2 border-[#00FFFF]/30 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <Shield className="w-4 h-4" />
+                            {t("authorization_required", "Authorization Required")}
+                          </h4>
+                        </div>
+                        <div className="p-4 space-y-4">
+                          <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-4">
+                            <div className="flex items-center space-x-3">
+                              <Switch
+                                checked={formData.clientApproved}
+                                onCheckedChange={(checked) => {
+                                  setFormData(prev => ({ ...prev, clientApproved: checked }));
+                                }}
+                                data-testid="switch-client-approved"
+                              />
+                              <div className="flex-1">
+                                <Label htmlFor="client-approved" className="text-sm font-medium text-white cursor-pointer">
+                                  {t("client_has_approved", "Client has reviewed and approved all details")}
+                                </Label>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {t("approval_confirmation", "By enabling this, you confirm the client has agreed to the service terms, cost, and timeline.")}
+                                </p>
+                              </div>
+                              {formData.clientApproved && (
+                                <div className="text-green-500">
+                                  <Check className="w-5 h-5" />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {!formData.clientApproved && (
+                            <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-md p-3">
+                              <div className="flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                                <p className="text-sm text-yellow-300">
+                                  {t("approval_warning", "Client approval is required before creating the repair ticket.")}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
