@@ -767,6 +767,14 @@ export default function KanbanTickets() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Load repair services for ticket summary (when viewing existing tickets)
+  const { data: ticketRepairServices = [] } = useQuery<RepairService[]>({
+    queryKey: [`/api/repair-services/device/${selectedTicketSummary?.deviceType}`],
+    enabled: !!selectedTicketSummary?.deviceType,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Derive estimated time using useMemo to prevent infinite loops
   const servicesIndex = useMemo(() => {
     return new Map((repairServices || []).map(s => [s.id, s]));
@@ -4061,7 +4069,7 @@ export default function KanbanTickets() {
                               if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
                                 const services = selectedTicketSummary.selectedServices;
                                 const totalMinutes = services.reduce((total: number, serviceId: string) => {
-                                  const service = repairServices.find(s => s.id === serviceId);
+                                  const service = ticketRepairServices.find(s => s.id === serviceId);
                                   return service ? total + (service.estimatedCompletionTimeHours * 60) + service.estimatedCompletionTimeMinutes : total;
                                 }, 0);
                                 
@@ -4109,10 +4117,24 @@ export default function KanbanTickets() {
                           <div className="font-medium text-cyan-400">{t("services_cost", "Services Cost")}</div>
                           <div className="font-bold text-blue-400">
                             {(() => {
-                              if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
-                                const services = selectedTicketSummary.selectedServices;
+                              let services = [];
+                              
+                              // Handle different data types for selectedServices
+                              if (selectedTicketSummary.selectedServices) {
+                                if (Array.isArray(selectedTicketSummary.selectedServices)) {
+                                  services = selectedTicketSummary.selectedServices;
+                                } else if (typeof selectedTicketSummary.selectedServices === 'string') {
+                                  try {
+                                    services = JSON.parse(selectedTicketSummary.selectedServices);
+                                  } catch (e) {
+                                    services = [];
+                                  }
+                                }
+                              }
+                              
+                              if (Array.isArray(services) && services.length > 0) {
                                 const totalServicesCost = services.reduce((total: number, serviceId: string) => {
-                                  const service = repairServices.find(s => s.id === serviceId);
+                                  const service = ticketRepairServices.find(s => s.id === serviceId);
                                   return service ? total + parseFloat(service.estimatedLaborCost) : total;
                                 }, 0);
                                 return formatCurrency(totalServicesCost, currentLanguage.code);
@@ -4138,7 +4160,7 @@ export default function KanbanTickets() {
                               if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
                                 const services = selectedTicketSummary.selectedServices;
                                 totalServicesCost = services.reduce((total: number, serviceId: string) => {
-                                  const service = repairServices.find(s => s.id === serviceId);
+                                  const service = ticketRepairServices.find(s => s.id === serviceId);
                                   return service ? total + parseFloat(service.estimatedLaborCost) : total;
                                 }, 0);
                               }

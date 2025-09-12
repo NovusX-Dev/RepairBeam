@@ -350,6 +350,7 @@ export class DatabaseStorage implements IStorage {
         serviceChecklist: tickets.serviceChecklist,
         clientDeadline: tickets.clientDeadline,
         technicianEstimatedHours: tickets.technicianEstimatedHours,
+        selectedServices: tickets.selectedServices,
         warrantyType: tickets.warrantyType,
         costEstimation: tickets.costEstimation,
         costExplanation: tickets.costExplanation,
