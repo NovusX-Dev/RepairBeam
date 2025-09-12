@@ -5,6 +5,52 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
 import { deviceColorService } from "./deviceColorService";
+import { normalizeCurrency, toCents, fromCents } from "@shared/money";
+import { insertTicketSchema } from "@shared/schema";
+import { z } from "zod";
+
+// Enhanced validation schema for tickets with currency normalization
+const validateAndNormalizeCurrency = (value: any, ctx: z.RefinementCtx, fieldName: string) => {
+  if (value === null || value === undefined || value === '') {
+    return null; // Allow null/empty values
+  }
+  
+  try {
+    const normalized = normalizeCurrency(value, 'en');
+    // Validate that the normalized value is a proper currency format
+    if (!/^\d+\.\d{2}$/.test(normalized)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${fieldName} must be a valid currency amount (e.g., "123.45")`,
+        path: [fieldName]
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  } catch (error) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `${fieldName} contains invalid currency format`,
+      path: [fieldName]
+    });
+    return z.NEVER;
+  }
+};
+
+const validatedTicketSchema = insertTicketSchema.extend({
+  estimatedCost: z.any().nullable().transform((val, ctx) => 
+    validateAndNormalizeCurrency(val, ctx, "estimatedCost")
+  ),
+  actualCost: z.any().nullable().transform((val, ctx) => 
+    validateAndNormalizeCurrency(val, ctx, "actualCost")
+  ),
+  costEstimation: z.any().nullable().transform((val, ctx) => 
+    validateAndNormalizeCurrency(val, ctx, "costEstimation")
+  ),
+  totalCost: z.any().nullable().transform((val, ctx) => 
+    validateAndNormalizeCurrency(val, ctx, "totalCost")
+  )
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check routes
@@ -79,11 +125,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return transactionDate.getMonth() === currentMonth && 
                  transactionDate.getFullYear() === currentYear;
         })
-        .reduce((sum, t) => sum + parseFloat(t.total.toString()), 0);
+        .reduce((sum, t) => {
+          const cents = toCents(t.total.toString(), 'en');
+          return sum + cents;
+        }, 0);
+
+      const formattedMonthlyRevenue = fromCents(monthlyRevenue, 'en');
 
       res.json({
         openTickets,
-        monthlyRevenue: monthlyRevenue.toFixed(2),
+        monthlyRevenue: formattedMonthlyRevenue,
         lowStockItems,
         activeClients: clients.length
       });
@@ -155,13 +206,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { issueResponses, ...ticketBody } = req.body;
-      const ticketData = {
+      
+      // Validate and normalize currency fields before creating ticket
+      const validationResult = validatedTicketSchema.safeParse({
         ...ticketBody,
         tenantId: user.tenantId,
         // Convert clientDeadline string to Date object if it exists
         clientDeadline: req.body.clientDeadline ? new Date(req.body.clientDeadline) : null
-      };
+      });
 
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid ticket data", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const ticketData = validationResult.data;
       const newTicket = await storage.createTicket(ticketData);
 
       // Save issue responses if they exist

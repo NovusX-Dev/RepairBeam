@@ -64,6 +64,7 @@ const formatBrazilianPhone = (value: string): string => {
   }
 };
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
+import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, type Locale } from "@shared/money";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
@@ -240,13 +241,9 @@ interface TicketFormData {
 
 type TicketWithClient = Ticket & { client?: Client };
 
-// Currency formatting utility
-const formatCurrency = (amount: number, language: string = 'en') => {
-  const currency = language === 'pt-BR' ? 'R$' : '$';
-  const formattedAmount = language === 'pt-BR' 
-    ? amount.toFixed(2).replace('.', ',')  // Brazilian format uses comma for decimals
-    : amount.toFixed(2);  // US format uses period for decimals
-  return `${currency}${formattedAmount}`;
+// Currency formatting utility using cents-based money utilities
+const formatCurrency = (amountCents: number, locale: Locale = 'en') => {
+  return formatCurrencyFromUtility(amountCents, locale);
 };
 
 // Helper component for form field with tooltip
@@ -456,12 +453,9 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
   };
 
   const formatCurrency = (amount: string) => {
-    const value = parseFloat(amount);
-    const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-    const formatted = currentLanguage.code === 'pt-BR' 
-      ? value.toFixed(2).replace('.', ',')
-      : value.toFixed(2);
-    return `${currency}${formatted}`;
+    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+    const cents = toCents(amount, locale);
+    return formatCurrencyFromUtility(cents, locale);
   };
 
   return (
@@ -679,14 +673,15 @@ export default function KanbanTickets() {
     }
   }, [selectedTicketSummary]);
 
-  // Calculate total cost from estimation
+  // Calculate total cost from estimation using cents-based calculations
   const calculateCosts = (estimation = formData.costEstimation) => {
-    const basePrice = parseFloat(estimation) || 0;
+    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+    const basePriceCents = toCents(estimation, locale);
     
-    // Update total cost (no warranty cost)
+    // Update total cost (no warranty cost) - convert back to formatted string for form storage
     setFormData(prev => ({
       ...prev,
-      totalCost: basePrice.toFixed(2)
+      totalCost: fromCents(basePriceCents, locale)
     }));
   };
 
@@ -1516,10 +1511,18 @@ export default function KanbanTickets() {
     
     // Recalculate costs when cost estimation changes
     if (field === 'costEstimation') {
-      // Calculate immediately with the new value
+      // Normalize the currency input using money utilities
+      const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+      const normalizedValue = fromCents(toCents(value, locale), locale);
+      
+      // Update the field with normalized value to ensure consistent formatting
+      setFormData(prev => ({ ...prev, [field]: normalizedValue }));
+      
+      // Calculate immediately with the normalized value
       requestAnimationFrame(() => {
-        calculateCosts(value);
+        calculateCosts(normalizedValue);
       });
+      return; // Exit early to avoid duplicate field update
     }
   };
 
@@ -2850,7 +2853,7 @@ export default function KanbanTickets() {
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
                               {formData.clientDeadline 
-                                ? format(new Date(formData.clientDeadline), "PPP", { locale: (currentLanguage as unknown as string) === 'pt-BR' ? ptBR : undefined })
+                                ? format(new Date(formData.clientDeadline), "PPP", { locale: currentLanguage.code === 'pt-BR' ? ptBR : undefined })
                                 : t("pick_date", "Pick a date")
                               }
                             </Button>
@@ -2873,7 +2876,7 @@ export default function KanbanTickets() {
                               disabled={(date) =>
                                 date < new Date(new Date().setHours(0, 0, 0, 0))
                               }
-                              locale={ptBR}
+                              locale={currentLanguage.code === 'pt-BR' ? ptBR as any : undefined}
                               initialFocus
                             />
                           </PopoverContent>
@@ -2983,12 +2986,9 @@ export default function KanbanTickets() {
                             if (!service) return null;
                             
                             const formatCurrency = (amount: string) => {
-                              const value = parseFloat(amount);
-                              const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                              const formatted = currentLanguage.code === 'pt-BR' 
-                                ? value.toFixed(2).replace('.', ',')
-                                : value.toFixed(2);
-                              return `${currency}${formatted}`;
+                              const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                              const cents = toCents(amount, locale);
+                              return formatCurrencyFromUtility(cents, locale);
                             };
                             
                             return (
@@ -3005,16 +3005,13 @@ export default function KanbanTickets() {
                               <span className="text-foreground">{t("services_subtotal", "Services Subtotal")}</span>
                               <span className="text-primary" data-testid="services-subtotal">
                                 {(() => {
-                                  const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                  const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                  const serviceCostsCents = formData.selectedServices.map(serviceId => {
                                     const service = repairServices.find(s => s.id === serviceId);
-                                    return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                                  }, 0);
-                                  
-                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                                  const formatted = currentLanguage.code === 'pt-BR' 
-                                    ? totalServicesCost.toFixed(2).replace('.', ',')
-                                    : totalServicesCost.toFixed(2);
-                                  return `${currency}${formatted}`;
+                                    return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                  });
+                                  const totalServicesCents = addCents(...serviceCostsCents);
+                                  return formatCurrencyFromUtility(totalServicesCents, locale);
                                 })()}
                               </span>
                             </div>
@@ -3029,7 +3026,7 @@ export default function KanbanTickets() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          {(currentLanguage as unknown as string) === 'pt-BR' ? 'R$' : '$'}
+                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
                         </span>
                         <Input
                           type="number"
@@ -3057,20 +3054,19 @@ export default function KanbanTickets() {
                         <div className="flex-1 p-3 bg-primary/10 rounded-md border border-primary/30">
                           <span className="text-lg font-bold text-primary" data-testid="text-total-cost">
                             {(() => {
-                              // Calculate total from selected services
-                              const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                              const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                              // Calculate total from selected services using cents
+                              const serviceCostsCents = formData.selectedServices.map(serviceId => {
                                 const service = repairServices.find(s => s.id === serviceId);
-                                return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                              }, 0);
+                                return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                              });
+                              const totalServicesCents = addCents(...serviceCostsCents);
                               
                               // Add extra costs
-                              const extraCosts = parseFloat(formData.costEstimation) || 0;
-                              const grandTotal = totalServicesCost + extraCosts;
+                              const extraCostsCents = toCents(formData.costEstimation || '0', locale);
+                              const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
                               
-                              const formatted = currentLanguage.code === 'pt-BR' 
-                                ? grandTotal.toFixed(2).replace('.', ',')
-                                : grandTotal.toFixed(2);
-                              return formatted;
+                              return fromCents(grandTotalCents, locale);
                             })()}
                           </span>
                         </div>
@@ -3368,16 +3364,13 @@ export default function KanbanTickets() {
                               <span className="text-xs text-muted-foreground block">{t("services_cost", "Services Cost")}</span>
                               <p className="text-lg font-bold text-[#00FFFF] mt-1">
                                 {(() => {
-                                  const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                  const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                  const serviceCostsCents = formData.selectedServices.map(serviceId => {
                                     const service = repairServices.find(s => s.id === serviceId);
-                                    return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                                  }, 0);
-                                  
-                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                                  const formatted = currentLanguage.code === 'pt-BR' 
-                                    ? totalServicesCost.toFixed(2).replace('.', ',')
-                                    : totalServicesCost.toFixed(2);
-                                  return `${currency}${formatted}`;
+                                    return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                  });
+                                  const totalServicesCents = addCents(...serviceCostsCents);
+                                  return formatCurrencyFromUtility(totalServicesCents, locale);
                                 })()}
                               </p>
                             </div>
@@ -3385,12 +3378,9 @@ export default function KanbanTickets() {
                               <span className="text-xs text-muted-foreground block">{t("extra_costs", "Extra Costs")}</span>
                               <p className="text-lg font-bold text-white mt-1">
                                 {(() => {
-                                  const extraCosts = parseFloat(formData.costEstimation) || 0;
-                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                                  const formatted = currentLanguage.code === 'pt-BR' 
-                                    ? extraCosts.toFixed(2).replace('.', ',')
-                                    : extraCosts.toFixed(2);
-                                  return `${currency}${formatted}`;
+                                  const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                  const extraCostsCents = toCents(formData.costEstimation || '0', locale);
+                                  return formatCurrencyFromUtility(extraCostsCents, locale);
                                 })()}
                               </p>
                             </div>
@@ -3398,19 +3388,17 @@ export default function KanbanTickets() {
                               <span className="text-xs text-muted-foreground block">{t("total_cost", "Total Cost")}</span>
                               <p className="text-xl font-bold text-[#00FFFF] mt-1">
                                 {(() => {
-                                  const totalServicesCost = formData.selectedServices.reduce((total, serviceId) => {
+                                  const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                  const serviceCostsCents = formData.selectedServices.map(serviceId => {
                                     const service = repairServices.find(s => s.id === serviceId);
-                                    return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                                  }, 0);
+                                    return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                  });
+                                  const totalServicesCents = addCents(...serviceCostsCents);
                                   
-                                  const extraCosts = parseFloat(formData.costEstimation) || 0;
-                                  const grandTotal = totalServicesCost + extraCosts;
+                                  const extraCostsCents = toCents(formData.costEstimation || '0', locale);
+                                  const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
                                   
-                                  const currency = currentLanguage.code === 'pt-BR' ? 'R$' : '$';
-                                  const formatted = currentLanguage.code === 'pt-BR' 
-                                    ? grandTotal.toFixed(2).replace('.', ',')
-                                    : grandTotal.toFixed(2);
-                                  return `${currency}${formatted}`;
+                                  return formatCurrencyFromUtility(grandTotalCents, locale);
                                 })()}
                               </p>
                             </div>
@@ -3698,7 +3686,7 @@ export default function KanbanTickets() {
                 <SelectContent>
                   <SelectItem value="all">{t("all_device_types", "All Device Types")}</SelectItem>
                   {deviceTypes.map(deviceType => (
-                    <SelectItem key={deviceType} value={deviceType}>
+                    <SelectItem key={deviceType} value={deviceType!}>
                       {deviceType}
                     </SelectItem>
                   ))}
@@ -3847,8 +3835,8 @@ export default function KanbanTickets() {
                                 key={`card-progress-${ticket.id}-${ticket.status}`}
                                 currentStatus={ticket.status}
                                 ticketId={ticket.id}
-                                createdAt={ticket.createdAt}
-                                technicianEstimatedHours={ticket.technicianEstimatedHours}
+                                createdAt={ticket.createdAt ? new Date(ticket.createdAt).toISOString() : undefined}
+                                technicianEstimatedHours={ticket.technicianEstimatedHours ?? undefined}
                                 onAdvanceStatus={(ticketId, nextStatus) => {
                                   updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
                                 }}
@@ -3963,8 +3951,8 @@ export default function KanbanTickets() {
                   key={`progress-${selectedTicketSummary.id}-${selectedTicketSummary.status}`}
                   currentStatus={selectedTicketSummary.status}
                   ticketId={selectedTicketSummary.id}
-                  createdAt={selectedTicketSummary.createdAt}
-                  technicianEstimatedHours={selectedTicketSummary.technicianEstimatedHours}
+                  createdAt={selectedTicketSummary.createdAt ? new Date(selectedTicketSummary.createdAt).toISOString() : undefined}
+                  technicianEstimatedHours={selectedTicketSummary.technicianEstimatedHours ?? undefined}
                   onAdvanceStatus={(ticketId, nextStatus) => {
                     updateTicketStatus.mutate({ ticketId, status: nextStatus as TicketStatus });
                   }}
@@ -4132,41 +4120,48 @@ export default function KanbanTickets() {
                                 }
                               }
                               
+                              const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
                               if (Array.isArray(services) && services.length > 0) {
-                                const totalServicesCost = services.reduce((total: number, serviceId: string) => {
+                                const serviceCostsCents = services.map((serviceId: string) => {
                                   const service = ticketRepairServices.find(s => s.id === serviceId);
-                                  return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                                }, 0);
-                                return formatCurrency(totalServicesCost, currentLanguage.code);
+                                  return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                });
+                                const totalServicesCents = addCents(...serviceCostsCents);
+                                return formatCurrency(totalServicesCents, locale);
                               }
-                              return formatCurrency(0, currentLanguage.code);
+                              return formatCurrency(0, locale);
                             })()}
                           </div>
                         </div>
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400">{t("extra_costs", "Extra Costs")}</div>
                           <div className="font-bold text-white">
-                            {selectedTicketSummary.costEstimation 
-                              ? formatCurrency(parseFloat(selectedTicketSummary.costEstimation), currentLanguage.code)
-                              : formatCurrency(0, currentLanguage.code)
-                            }
+                            {(() => {
+                              const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                              const extraCostsCents = selectedTicketSummary.costEstimation 
+                                ? toCents(selectedTicketSummary.costEstimation, locale)
+                                : 0;
+                              return formatCurrency(extraCostsCents, locale);
+                            })()}
                           </div>
                         </div>
                         <div className="bg-gradient-to-br from-emerald-900/50 to-emerald-800/50 p-2 rounded border-2 border-emerald-500/30">
                           <div className="font-medium text-emerald-400">{t("total_cost", "Total Cost")}</div>
                           <div className="font-bold text-emerald-300">
                             {(() => {
-                              let totalServicesCost = 0;
+                              const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                              let totalServicesCents = 0;
                               if (selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0) {
                                 const services = selectedTicketSummary.selectedServices;
-                                totalServicesCost = services.reduce((total: number, serviceId: string) => {
+                                const serviceCostsCents = services.map((serviceId: string) => {
                                   const service = ticketRepairServices.find(s => s.id === serviceId);
-                                  return service ? total + parseFloat(service.estimatedLaborCost) : total;
-                                }, 0);
+                                  return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                });
+                                totalServicesCents = addCents(...serviceCostsCents);
                               }
-                              const extraCosts = parseFloat(selectedTicketSummary.costEstimation || '0');
-                              const grandTotal = totalServicesCost + extraCosts;
-                              return formatCurrency(grandTotal, currentLanguage.code);
+                              const extraCostsCents = toCents(selectedTicketSummary.costEstimation || '0', locale);
+                              const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+                              return formatCurrency(grandTotalCents, locale);
                             })()}
                           </div>
                         </div>
