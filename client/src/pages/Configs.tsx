@@ -1901,25 +1901,27 @@ export default function Configs() {
                   return (
                     <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-services-${deviceType.toLowerCase()}`}>
                       <CardHeader className="pb-3">
-                        <div 
-                          className="flex items-center gap-2 cursor-pointer"
-                          onClick={() => toggleSection(deviceType)}
-                          data-testid={`toggle-section-${deviceType.toLowerCase()}`}
-                        >
-                          <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
-                            <Wrench className="w-5 h-5 text-cyan-400" />
-                            {getLocalizedDeviceType(deviceType)} {t('repair_services', 'Repair Services')}
-                            <Badge variant="secondary" className="ml-auto bg-cyan-600/20 text-cyan-300 border-cyan-500/50">
-                              {totalServices} {t('services', 'services')}
-                            </Badge>
-                          </CardTitle>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-400 hover:text-white p-1"
+                        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 mb-6 border border-slate-700">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => toggleSection(deviceType)}
+                            data-testid={`toggle-section-${deviceType.toLowerCase()}`}
                           >
-                            {isCollapsed ? '▼' : '▲'}
-                          </Button>
+                            <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
+                              <Wrench className="w-5 h-5 text-cyan-100" />
+                              {getLocalizedDeviceType(deviceType)} {t('repair_services', 'Repair Services')}
+                              <Badge variant="secondary" className="ml-auto bg-cyan-600/30 text-cyan-100 border-cyan-400/50">
+                                {totalServices} {t('services', 'services')}
+                              </Badge>
+                            </CardTitle>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-cyan-100 hover:text-white p-1"
+                            >
+                              {isCollapsed ? <ChevronRight className="w-4 h-4 text-cyan-100" /> : <ChevronDown className="w-4 h-4 text-cyan-100" />}
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       {!isCollapsed && (
@@ -2056,9 +2058,12 @@ export default function Configs() {
 
               {/* Add New Defect Form */}
               {showAddDefect && (
-                <Card className="bg-slate-700/50 border-slate-600 mb-6">
-                  <CardHeader>
-                    <CardTitle className="text-lg text-white">{t('add_possible_defect', 'Add Possible Defect')}</CardTitle>
+                <Card className="mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 border border-slate-700">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg text-white font-semibold flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-cyan-100" />
+                      {t('add_possible_defect', 'Add Possible Defect')}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleDefectSubmit} className="space-y-4">
@@ -2137,30 +2142,30 @@ export default function Configs() {
                   }
 
                   return (
-                    <Card key={deviceType} className="bg-slate-700/30 border-slate-600" data-testid={`card-defects-${deviceType.toLowerCase()}`}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                    <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-defects-${deviceType.toLowerCase()}`}>
+                      <CardHeader className="pb-3">
+                        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 mb-6 border border-slate-700">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => setCollapsedSections(prev => ({
+                              ...prev,
+                              [`defects-${deviceType}`]: !isCollapsed
+                            }))}
+                            data-testid={`toggle-defects-section-${deviceType.toLowerCase()}`}
+                          >
+                            <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
+                              <AlertTriangle className="w-5 h-5 text-cyan-100" />
+                              {getLocalizedDeviceType(deviceType)} {t('defects', 'Defects')}
+                              <Badge variant="secondary" className="ml-auto bg-cyan-600/30 text-cyan-100 border-cyan-400/50">
+                                {totalDefects} {t('defects', 'defects')}
+                              </Badge>
+                            </CardTitle>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="p-0 h-auto hover:bg-transparent"
-                              onClick={() => setCollapsedSections(prev => ({
-                                ...prev,
-                                [`defects-${deviceType}`]: !isCollapsed
-                              }))}
+                              className="text-cyan-100 hover:text-white p-1"
                             >
-                              <div className="flex items-center gap-2">
-                                <Smartphone className="w-5 h-5 text-cyan-400" />
-                                <CardTitle className="text-white">
-                                  {getLocalizedDeviceType(deviceType)} {t('defects', 'Defects')} ({totalDefects})
-                                </CardTitle>
-                                {isCollapsed ? (
-                                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                                )}
-                              </div>
+                              {isCollapsed ? <ChevronRight className="w-4 h-4 text-cyan-100" /> : <ChevronDown className="w-4 h-4 text-cyan-100" />}
                             </Button>
                           </div>
                         </div>
@@ -2170,22 +2175,34 @@ export default function Configs() {
                         <CardContent>
                           {defects.length === 0 ? (
                             <div className="text-center py-8">
-                              <AlertTriangle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                              <p className="text-slate-400">
+                              <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-400 mb-2">
                                 {defectsSearchQuery 
                                   ? t('no_defects_found', 'No defects match your search.')
                                   : t('no_defects_device', `No defects configured for ${getLocalizedDeviceType(deviceType)}.`)
                                 }
                               </p>
+                              <Button
+                                onClick={() => {
+                                  setNewDefect({ deviceType });
+                                  setShowAddDefect(true);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                data-testid={`button-add-defect-${deviceType.toLowerCase()}`}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('add_first_defect', 'Add First Defect')}
+                              </Button>
                             </div>
                           ) : (
                             <>
-                              {/* Defects List */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* Defects Grid */}
+                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                 {defects.map((defect, index) => (
                                   <Card 
                                     key={defect.id} 
-                                    className="bg-slate-600/30 border-slate-500/50"
+                                    className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border-slate-600 hover:border-cyan-500/50 transition-all duration-200"
                                     data-testid={`card-defect-${defect.id}`}
                                   >
                                     <CardContent className="p-4">
@@ -2300,13 +2317,13 @@ export default function Configs() {
                                 ))}
                               </div>
 
-                              {/* Pagination */}
+                              {/* Pagination Controls */}
                               {totalPages > 1 && (
-                                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-600">
+                                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
                                   <div className="text-sm text-slate-400">
-                                    {t('showing_results', `Showing ${defects.length} of ${totalDefects} results`)}
+                                    {t('showing_results', `Showing ${((currentPage - 1) * DEFECTS_PER_PAGE) + 1} - ${Math.min(currentPage * DEFECTS_PER_PAGE, totalDefects)} of ${totalDefects} defects`)}
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex gap-2">
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -2314,14 +2331,32 @@ export default function Configs() {
                                         ...prev,
                                         [deviceType]: currentPage - 1
                                       }))}
-                                      disabled={!hasPrevPage}
-                                      className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                                      disabled={currentPage === 1}
+                                      className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                      data-testid={`button-defects-prev-${deviceType.toLowerCase()}`}
                                     >
                                       {t('previous', 'Previous')}
                                     </Button>
-                                    <span className="text-sm text-slate-300 px-3">
-                                      {t('page_of', `Page ${currentPage} of ${totalPages}`)}
-                                    </span>
+                                    <div className="flex gap-1">
+                                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <Button
+                                          key={page}
+                                          variant={page === currentPage ? "default" : "outline"}
+                                          size="sm"
+                                          onClick={() => setDefectsCurrentPage(prev => ({
+                                            ...prev,
+                                            [deviceType]: page
+                                          }))}
+                                          className={page === currentPage 
+                                            ? "bg-cyan-600 hover:bg-cyan-700 text-white" 
+                                            : "border-slate-600 text-white hover:bg-slate-700"
+                                          }
+                                          data-testid={`button-defects-page-${page}-${deviceType.toLowerCase()}`}
+                                        >
+                                          {page}
+                                        </Button>
+                                      ))}
+                                    </div>
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -2329,8 +2364,9 @@ export default function Configs() {
                                         ...prev,
                                         [deviceType]: currentPage + 1
                                       }))}
-                                      disabled={!hasNextPage}
-                                      className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                                      disabled={currentPage === totalPages}
+                                      className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                      data-testid={`button-defects-next-${deviceType.toLowerCase()}`}
                                     >
                                       {t('next', 'Next')}
                                     </Button>
