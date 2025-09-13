@@ -2130,6 +2130,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Possible defects routes
+  app.get("/api/possible-defects", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const defects = await storage.getPossibleDefects(user.tenantId);
+      res.json(defects);
+    } catch (error) {
+      console.error("Error fetching possible defects:", error);
+      res.status(500).json({ message: "Failed to fetch possible defects" });
+    }
+  });
+
+  app.get("/api/possible-defects/device/:deviceType", isAuthenticated, async (req: any, res) => {
+    try {
+      const { deviceType } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const defects = await storage.getPossibleDefectsByDeviceType(user.tenantId, deviceType);
+      res.json(defects);
+    } catch (error) {
+      console.error("Error fetching possible defects by device type:", error);
+      res.status(500).json({ message: "Failed to fetch possible defects" });
+    }
+  });
+
+  app.post("/api/possible-defects", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const defect = await storage.createPossibleDefect({
+        tenantId: user.tenantId,
+        ...req.body
+      });
+      res.json(defect);
+    } catch (error) {
+      console.error("Error creating possible defect:", error);
+      res.status(500).json({ message: "Failed to create possible defect" });
+    }
+  });
+
+  app.put("/api/possible-defects/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const defect = await storage.updatePossibleDefect(id, user.tenantId, req.body);
+      if (!defect) {
+        return res.status(404).json({ message: "Possible defect not found" });
+      }
+      res.json(defect);
+    } catch (error) {
+      console.error("Error updating possible defect:", error);
+      res.status(500).json({ message: "Failed to update possible defect" });
+    }
+  });
+
+  app.delete("/api/possible-defects/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const success = await storage.deletePossibleDefect(id, user.tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Possible defect not found" });
+      }
+      res.json({ message: "Possible defect deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting possible defect:", error);
+      res.status(500).json({ message: "Failed to delete possible defect" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

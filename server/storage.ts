@@ -20,6 +20,7 @@ import {
   storeSettings,
   warrantyTiers,
   repairServices,
+  possibleDefects,
   type User,
   type UpsertUser,
   type Tenant,
@@ -62,6 +63,8 @@ import {
   type InsertWarrantyTier,
   type RepairService,
   type InsertRepairService,
+  type PossibleDefect,
+  type InsertPossibleDefect,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -199,6 +202,13 @@ export interface IStorage {
   createRepairService(service: InsertRepairService): Promise<RepairService>;
   updateRepairService(id: string, tenantId: string, service: Partial<InsertRepairService>): Promise<RepairService | undefined>;
   deleteRepairService(id: string, tenantId: string): Promise<boolean>;
+  
+  // Possible defects operations
+  getPossibleDefects(tenantId: string): Promise<PossibleDefect[]>;
+  getPossibleDefectsByDeviceType(tenantId: string, deviceType: string): Promise<PossibleDefect[]>;
+  createPossibleDefect(defect: InsertPossibleDefect): Promise<PossibleDefect>;
+  updatePossibleDefect(id: string, tenantId: string, defect: Partial<InsertPossibleDefect>): Promise<PossibleDefect | undefined>;
+  deletePossibleDefect(id: string, tenantId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1094,6 +1104,67 @@ export class DatabaseStorage implements IStorage {
         .where(and(
           eq(repairServices.id, id),
           eq(repairServices.tenantId, tenantId)
+        ));
+      return (result.rowCount ?? 0) > 0;
+    });
+  }
+
+  // Possible defects implementations
+  async getPossibleDefects(tenantId: string): Promise<PossibleDefect[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(possibleDefects)
+        .where(eq(possibleDefects.tenantId, tenantId))
+        .orderBy(asc(possibleDefects.deviceType), asc(possibleDefects.name));
+    });
+  }
+
+  async getPossibleDefectsByDeviceType(tenantId: string, deviceType: string): Promise<PossibleDefect[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(possibleDefects)
+        .where(and(
+          eq(possibleDefects.tenantId, tenantId),
+          eq(possibleDefects.deviceType, deviceType),
+          eq(possibleDefects.isActive, true)
+        ))
+        .orderBy(asc(possibleDefects.name));
+    });
+  }
+
+  async createPossibleDefect(defect: InsertPossibleDefect): Promise<PossibleDefect> {
+    return withRetry(async () => {
+      const [newDefect] = await db
+        .insert(possibleDefects)
+        .values(defect)
+        .returning();
+      return newDefect;
+    });
+  }
+
+  async updatePossibleDefect(id: string, tenantId: string, defect: Partial<InsertPossibleDefect>): Promise<PossibleDefect | undefined> {
+    return withRetry(async () => {
+      const [updatedDefect] = await db
+        .update(possibleDefects)
+        .set({ ...defect, updatedAt: new Date() })
+        .where(and(
+          eq(possibleDefects.id, id),
+          eq(possibleDefects.tenantId, tenantId)
+        ))
+        .returning();
+      return updatedDefect;
+    });
+  }
+
+  async deletePossibleDefect(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(possibleDefects)
+        .where(and(
+          eq(possibleDefects.id, id),
+          eq(possibleDefects.tenantId, tenantId)
         ));
       return (result.rowCount ?? 0) > 0;
     });

@@ -26,7 +26,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
 import { FileUpload } from "@/components/FileUpload";
-import type { AutoGenList, StoreSettings, WarrantyTier, RepairService } from "@shared/schema";
+import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect } from "@shared/schema";
 
 export default function Configs() {
   const { t, currentLanguage } = useLocalization();
@@ -56,6 +56,18 @@ export default function Configs() {
   const [editingService, setEditingService] = useState<string | null>(null);
   const [newService, setNewService] = useState<Partial<RepairService>>({});
   const [showAddService, setShowAddService] = useState(false);
+
+  // Possible defects state
+  const [editingDefect, setEditingDefect] = useState<string | null>(null);
+  const [newDefect, setNewDefect] = useState<Partial<PossibleDefect>>({});
+  const [showAddDefect, setShowAddDefect] = useState(false);
+  const [defectsSearchQuery, setDefectsSearchQuery] = useState('');
+  const [defectsCurrentPage, setDefectsCurrentPage] = useState<Record<string, number>>({
+    Phone: 1,
+    Laptop: 1,
+    Desktop: 1
+  });
+  const DEFECTS_PER_PAGE = 10;
   
   // Repair services pagination and search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,6 +108,11 @@ export default function Configs() {
   // Fetch repair services
   const { data: repairServices = [] } = useQuery<RepairService[]>({
     queryKey: ['/api/repair-services'],
+  });
+
+  // Fetch possible defects
+  const { data: possibleDefects = [] } = useQuery<PossibleDefect[]>({
+    queryKey: ['/api/possible-defects'],
   });
 
   // Fetch auto-generated lists
@@ -274,6 +291,70 @@ export default function Configs() {
         description: t('repair_service_deleted', 'Repair service has been deleted successfully.'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/repair-services'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('delete_failed', 'Delete Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Possible defects mutations
+  const createDefectMutation = useMutation({
+    mutationFn: async (data: Partial<PossibleDefect>) => {
+      const response = await apiRequest('POST', '/api/possible-defects', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('defect_created', 'Defect Created'),
+        description: t('possible_defect_created', 'Possible defect has been created successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/possible-defects'] });
+      setShowAddDefect(false);
+      setNewDefect({});
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('create_failed', 'Create Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateDefectMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<PossibleDefect> }) => {
+      const response = await apiRequest('PUT', `/api/possible-defects/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Don't show toast for individual field updates to avoid spam
+      queryClient.invalidateQueries({ queryKey: ['/api/possible-defects'] });
+      // Don't automatically exit edit mode - let user decide when they're done
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('update_failed', 'Update Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteDefectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/possible-defects/${id}`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('defect_deleted', 'Defect Deleted'),
+        description: t('possible_defect_deleted', 'Possible defect has been deleted successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/possible-defects'] });
     },
     onError: (error: Error) => {
       toast({
@@ -590,6 +671,29 @@ export default function Configs() {
     }
   };
 
+  // Possible defects handlers
+  const handleDefectSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (showAddDefect) {
+      createDefectMutation.mutate(newDefect);
+    }
+  };
+
+  const handleEditDefect = (defect: PossibleDefect) => {
+    setEditingDefect(defect.id);
+  };
+
+  const handleUpdateDefect = (defect: PossibleDefect, field: string, value: any) => {
+    const updatedData = { [field]: value };
+    updateDefectMutation.mutate({ id: defect.id, data: updatedData });
+  };
+
+  const handleDeleteDefect = (defectId: string) => {
+    if (confirm(t('confirm_delete_defect', 'Are you sure you want to delete this possible defect?'))) {
+      deleteDefectMutation.mutate(defectId);
+    }
+  };
+
   // Helper function for time formatting
   const formatCompletionTime = (hours: number, minutes: number): string => {
     const parts = [];
@@ -637,6 +741,51 @@ export default function Configs() {
     acc[service.deviceType].push(service);
     return acc;
   }, {} as Record<string, RepairService[]>);
+
+  // Filter defects based on search query
+  const filteredDefects = possibleDefects.filter(defect => {
+    if (!defectsSearchQuery.trim()) return true;
+    const query = defectsSearchQuery.toLowerCase();
+    return (
+      defect.name.toLowerCase().includes(query) ||
+      defect.deviceType.toLowerCase().includes(query)
+    );
+  });
+
+  // Group filtered defects by device type
+  const defectsByDeviceType = filteredDefects.reduce((acc, defect) => {
+    if (!acc[defect.deviceType]) {
+      acc[defect.deviceType] = [];
+    }
+    acc[defect.deviceType].push(defect);
+    return acc;
+  }, {} as Record<string, PossibleDefect[]>);
+
+  // Paginate defects for each device type
+  const paginatedDefectsByDeviceType = deviceTypes.reduce((acc, deviceType) => {
+    const defects = defectsByDeviceType[deviceType] || [];
+    const currentPageNum = defectsCurrentPage[deviceType] || 1;
+    const startIndex = (currentPageNum - 1) * DEFECTS_PER_PAGE;
+    const endIndex = startIndex + DEFECTS_PER_PAGE;
+    
+    acc[deviceType] = {
+      defects: defects.slice(startIndex, endIndex),
+      totalDefects: defects.length,
+      totalPages: Math.ceil(defects.length / DEFECTS_PER_PAGE),
+      currentPage: currentPageNum,
+      hasNextPage: endIndex < defects.length,
+      hasPrevPage: currentPageNum > 1,
+    };
+    
+    return acc;
+  }, {} as Record<string, {
+    defects: PossibleDefect[];
+    totalDefects: number;
+    totalPages: number;
+    currentPage: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  }>);
 
   // Paginate services for each device type
   const paginatedServicesByDeviceType = deviceTypes.reduce((acc, deviceType) => {
@@ -917,7 +1066,7 @@ export default function Configs() {
 
       {/* Tabbed Configuration Sections */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-3xl">
           <TabsTrigger value="general" className="flex items-center gap-2" data-testid="tab-general">
             <Store className="w-4 h-4" />
             {t('general', 'General')}
@@ -929,6 +1078,10 @@ export default function Configs() {
           <TabsTrigger value="repair-services" className="flex items-center gap-2" data-testid="tab-repair-services">
             <Wrench className="w-4 h-4" />
             {t('repair_services', 'Services')}
+          </TabsTrigger>
+          <TabsTrigger value="possible-defects" className="flex items-center gap-2" data-testid="tab-possible-defects">
+            <AlertTriangle className="w-4 h-4" />
+            {t('possible_defects', 'Defects')}
           </TabsTrigger>
           <TabsTrigger value="ai-lists" className="flex items-center gap-2" data-testid="tab-ai-lists">
             <Bot className="w-4 h-4" />
@@ -1827,6 +1980,344 @@ export default function Configs() {
                                       disabled={paginationData.currentPage === paginationData.totalPages}
                                       className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
                                       data-testid={`button-next-${deviceType.toLowerCase()}`}
+                                    >
+                                      {t('next', 'Next')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Possible Defects Management Tab */}
+        <TabsContent value="possible-defects" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <AlertTriangle className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('possible_defects_management', 'Possible Defects Management')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('possible_defects_desc', 'Configure possible defects that can occur with each device type')}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Add Defect Button and Search */}
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-white">{t('possible_defects', 'Possible Defects')}</h3>
+                  <Button
+                    onClick={() => setShowAddDefect(!showAddDefect)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
+                    data-testid="button-add-defect"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('add_defect', 'Add Defect')}
+                  </Button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Input
+                    value={defectsSearchQuery}
+                    onChange={(e) => setDefectsSearchQuery(e.target.value)}
+                    placeholder={t('search_defects', 'Search defects by name or device type...')}
+                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    data-testid="input-search-defects"
+                  />
+                </div>
+              </div>
+
+              {/* Add New Defect Form */}
+              {showAddDefect && (
+                <Card className="bg-slate-700/50 border-slate-600 mb-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg text-white">{t('add_possible_defect', 'Add Possible Defect')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleDefectSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="defectDeviceType">{t('device_type', 'Device Type')}</Label>
+                          <Select
+                            value={newDefect.deviceType || ''}
+                            onValueChange={(value) => setNewDefect(prev => ({ ...prev, deviceType: value }))}
+                          >
+                            <SelectTrigger data-testid="select-defect-device-type">
+                              <SelectValue placeholder={t('select_device_type', 'Select device type')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {deviceTypes.map(type => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="defectName">{t('defect_name', 'Defect Name')}</Label>
+                          <Input
+                            id="defectName"
+                            value={newDefect.name || ''}
+                            onChange={(e) => setNewDefect(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder={t('enter_defect_name', 'Enter defect name')}
+                            data-testid="input-defect-name"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddDefect(false);
+                            setNewDefect({});
+                          }}
+                        >
+                          {t('cancel', 'Cancel')}
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={createDefectMutation.isPending}
+                          data-testid="button-save-defect"
+                        >
+                          {createDefectMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {t('creating', 'Creating...')}
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 mr-2" />
+                              {t('create_defect', 'Create Defect')}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Defects by Device Type */}
+              <div className="space-y-6">
+                {deviceTypes.map((deviceType) => {
+                  const deviceData = paginatedDefectsByDeviceType[deviceType];
+                  const { defects, totalDefects, totalPages, currentPage, hasNextPage, hasPrevPage } = deviceData;
+                  const isCollapsed = collapsedSections[`defects-${deviceType}`];
+
+                  if (defectsSearchQuery && defects.length === 0) {
+                    return null; // Hide empty sections when searching
+                  }
+
+                  return (
+                    <Card key={deviceType} className="bg-slate-700/30 border-slate-600" data-testid={`card-defects-${deviceType.toLowerCase()}`}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="p-0 h-auto hover:bg-transparent"
+                              onClick={() => setCollapsedSections(prev => ({
+                                ...prev,
+                                [`defects-${deviceType}`]: !isCollapsed
+                              }))}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Smartphone className="w-5 h-5 text-cyan-400" />
+                                <CardTitle className="text-white">
+                                  {deviceType} {t('defects', 'Defects')} ({totalDefects})
+                                </CardTitle>
+                                {isCollapsed ? (
+                                  <Plus className="w-4 h-4 text-slate-400" />
+                                ) : (
+                                  <RotateCcw className="w-4 h-4 text-slate-400" />
+                                )}
+                              </div>
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+
+                      {!isCollapsed && (
+                        <CardContent>
+                          {defects.length === 0 ? (
+                            <div className="text-center py-8">
+                              <AlertTriangle className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                              <p className="text-slate-400">
+                                {defectsSearchQuery 
+                                  ? t('no_defects_found', 'No defects match your search.')
+                                  : t('no_defects_device', `No defects configured for ${deviceType}.`)
+                                }
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Defects List */}
+                              <div className="space-y-3">
+                                {defects.map((defect, index) => (
+                                  <Card 
+                                    key={defect.id} 
+                                    className="bg-slate-600/30 border-slate-500/50"
+                                    data-testid={`card-defect-${defect.id}`}
+                                  >
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          {editingDefect === defect.id ? (
+                                            <div className="space-y-3">
+                                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                <div className="space-y-1">
+                                                  <Label className="text-xs text-slate-300">{t('defect_name', 'Defect Name')}</Label>
+                                                  <Input
+                                                    value={defect.name}
+                                                    onChange={(e) => handleUpdateDefect(defect, 'name', e.target.value)}
+                                                    className="bg-slate-700 border-slate-600 text-white text-sm"
+                                                    data-testid={`input-edit-defect-name-${defect.id}`}
+                                                  />
+                                                </div>
+                                                <div className="space-y-1">
+                                                  <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
+                                                  <Select
+                                                    value={defect.isActive ? 'active' : 'inactive'}
+                                                    onValueChange={(value) => handleUpdateDefect(defect, 'isActive', value === 'active')}
+                                                  >
+                                                    <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
+                                                      <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      <SelectItem value="active">{t('active', 'Active')}</SelectItem>
+                                                      <SelectItem value="inactive">{t('inactive', 'Inactive')}</SelectItem>
+                                                    </SelectContent>
+                                                  </Select>
+                                                </div>
+                                              </div>
+                                              <div className="flex justify-end gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => setEditingDefect(null)}
+                                                  data-testid={`button-cancel-edit-defect-${defect.id}`}
+                                                >
+                                                  {t('done', 'Done')}
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-2">
+                                              <div className="flex items-center justify-between">
+                                                <h4 className="font-medium text-white">{defect.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                  <Badge
+                                                    variant={defect.isActive ? "default" : "secondary"}
+                                                    className={defect.isActive 
+                                                      ? "bg-green-600/20 text-green-400 border-green-500/50" 
+                                                      : "bg-slate-600/20 text-slate-400 border-slate-500/50"
+                                                    }
+                                                  >
+                                                    {defect.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                                  </Badge>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {editingDefect !== defect.id && (
+                                          <div className="flex items-center gap-2 ml-4">
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => handleEditDefect(defect)}
+                                              className="h-8 w-8 p-0 hover:bg-slate-600"
+                                              data-testid={`button-edit-defect-${defect.id}`}
+                                            >
+                                              <Edit className="w-4 h-4 text-slate-400" />
+                                            </Button>
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                                  data-testid={`button-delete-defect-${defect.id}`}
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    {t('confirm_delete_defect_desc', `Are you sure you want to delete the defect "${defect.name}"? This action cannot be undone.`)}
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
+                                                  <AlertDialogAction
+                                                    onClick={() => handleDeleteDefect(defect.id)}
+                                                    className="bg-red-600 hover:bg-red-700"
+                                                  >
+                                                    {t('delete', 'Delete')}
+                                                  </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+
+                              {/* Pagination */}
+                              {totalPages > 1 && (
+                                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-600">
+                                  <div className="text-sm text-slate-400">
+                                    {t('showing_defects', `Showing ${defects.length} of ${totalDefects} defects`)}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setDefectsCurrentPage(prev => ({
+                                        ...prev,
+                                        [deviceType]: currentPage - 1
+                                      }))}
+                                      disabled={!hasPrevPage}
+                                      className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+                                    >
+                                      {t('previous', 'Previous')}
+                                    </Button>
+                                    <span className="text-sm text-slate-300 px-3">
+                                      {t('page_of', `Page ${currentPage} of ${totalPages}`)}
+                                    </span>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setDefectsCurrentPage(prev => ({
+                                        ...prev,
+                                        [deviceType]: currentPage + 1
+                                      }))}
+                                      disabled={!hasNextPage}
+                                      className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
                                     >
                                       {t('next', 'Next')}
                                     </Button>
