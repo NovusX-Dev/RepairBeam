@@ -65,10 +65,12 @@ async function upsertUser(
     let tenant = await storage.getTenantByDomain('default');
     if (!tenant) {
       tenant = await storage.createTenant({
-        name: 'Default Organization',
         domain: 'default',
         settings: {}
       });
+
+      // Initialize default defects for the new tenant
+      await storage.initializeDefaultDefects(tenant.id);
     }
 
     // Create user with tenant

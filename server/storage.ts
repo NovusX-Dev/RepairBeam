@@ -209,6 +209,7 @@ export interface IStorage {
   createPossibleDefect(defect: InsertPossibleDefect): Promise<PossibleDefect>;
   updatePossibleDefect(id: string, tenantId: string, defect: Partial<InsertPossibleDefect>): Promise<PossibleDefect | undefined>;
   deletePossibleDefect(id: string, tenantId: string): Promise<boolean>;
+  initializeDefaultDefects(tenantId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1168,6 +1169,69 @@ export class DatabaseStorage implements IStorage {
         ));
       return (result.rowCount ?? 0) > 0;
     });
+  }
+
+  async initializeDefaultDefects(tenantId: string): Promise<void> {
+    console.log(`🔧 Initializing default defects for tenant: ${tenantId}`);
+    
+    try {
+      // Check if defects already exist for this tenant to ensure idempotency
+      const existingDefects = await this.getPossibleDefects(tenantId);
+      if (existingDefects.length > 0) {
+        console.log(`📋 Tenant ${tenantId} already has ${existingDefects.length} defects, skipping initialization`);
+        return;
+      }
+
+      // Phone defects (24 items)
+      const phoneDefects = [
+        "Tela quebrada", "Aparelho não liga", "Bateria viciada", "Conector de carga defeituoso",
+        "Câmera com defeito", "Alto-falante não funciona", "Microfone com problemas", "Botão de volume travado",
+        "Botão liga/desliga defeituoso", "Wi-Fi não conecta", "Bluetooth com problemas", "Dano por água",
+        "Aplicativos travando", "Reinicializações constantes", "Touchscreen não responde", "Display com rachaduras",
+        "Superaquecimento", "Placa-mãe danificada", "Entrada de fone defeituosa", "Sensor de proximidade com problema",
+        "Câmera frontal não funciona", "Flash não acende", "Vibração não funciona", "Biometria não reconhece"
+      ];
+
+      // Laptop defects (24 items)
+      const laptopDefects = [
+        "Superaquecimento excessivo", "Bateria não carrega", "Tela com defeito", "Fonte de alimentação queimada",
+        "Lentidão extrema", "Placa-mãe danificada", "HD com defeito", "Teclado com teclas travadas",
+        "Touchpad não funciona", "Pixels mortos na tela", "Tela piscando", "Linhas na tela",
+        "Cores distorcidas", "Cooler com ruído", "Pasta térmica ressecada", "LED de energia piscando",
+        "Ruídos na fonte", "Bad blocks no HD", "Tela azul frequente", "Erro de boot",
+        "Memória RAM defeituosa", "Dobradiça quebrada", "Ventilador parado", "Portas USB sem função"
+      ];
+
+      // Desktop defects (24 items)  
+      const desktopDefects = [
+        "Fonte queimada", "Placa-mãe em curto", "Desligamentos repentinos", "HD com ruídos estranhos",
+        "Problemas de inicialização", "Perda de dados", "Artefatos na tela", "Placa de vídeo defeituosa",
+        "Monitor sem imagem", "Tela azul da morte", "Memória RAM com erro", "Travamentos constantes",
+        "Ventoinhas barulhentas", "Ruídos metálicos", "Portas USB não funcionam", "Rede sem conexão",
+        "Periféricos não reconhecidos", "Processador superaquecendo", "BIOS corrompida", "Cabo de dados defeituoso",
+        "Placa de som sem áudio", "Leitor de CD/DVD travado", "Gabinete com vibração excessiva", "Cooler do processador parado"
+      ];
+
+      // Create all defects using batch insert for better performance
+      const allDefects = [
+        ...phoneDefects.map(name => ({ tenantId, deviceType: 'Phone', name, isActive: true })),
+        ...laptopDefects.map(name => ({ tenantId, deviceType: 'Laptop', name, isActive: true })),
+        ...desktopDefects.map(name => ({ tenantId, deviceType: 'Desktop', name, isActive: true }))
+      ];
+
+      console.log(`📝 Creating ${allDefects.length} default defects for tenant ${tenantId}`);
+      
+      // Insert all defects in batches to avoid overwhelming the database
+      await withRetry(async () => {
+        await db.insert(possibleDefects).values(allDefects);
+      });
+
+      console.log(`✅ Successfully initialized ${allDefects.length} default defects for tenant ${tenantId}`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to initialize default defects for tenant ${tenantId}:`, error);
+      throw error;
+    }
   }
 }
 

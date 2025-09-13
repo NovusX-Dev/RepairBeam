@@ -694,6 +694,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferredLanguage: 'en'
       });
 
+      // Initialize default defects for the new tenant
+      await storage.initializeDefaultDefects(tenant.id);
+
       // Update user's tenant association
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
