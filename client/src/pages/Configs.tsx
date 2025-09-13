@@ -89,6 +89,14 @@ export default function Configs() {
 
   // Device types for warranty configuration
   const deviceTypes = ["Phone", "Laptop", "Desktop"];
+  const getLocalizedDeviceType = (type: string) => {
+    const deviceTranslations: Record<string, string> = {
+      'Phone': t('phone', 'Phone'),
+      'Laptop': t('laptop', 'Laptop'), 
+      'Desktop': t('desktop', 'Desktop')
+    };
+    return deviceTranslations[type] || type;
+  };
 
   // Fetch store settings
   const { data: storeSettings } = useQuery<StoreSettings | null>({
@@ -1006,6 +1014,7 @@ export default function Configs() {
                     variant="ghost"
                     onClick={() => handleEditService(service)}
                     className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
+                    aria-label={t('edit_service', 'Edit service')}
                     data-testid={`button-edit-service-${service.id}`}
                   >
                     <Edit className="w-3 h-3" />
@@ -1015,6 +1024,7 @@ export default function Configs() {
                     variant="ghost"
                     onClick={() => handleDeleteService(service.id)}
                     className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                    aria-label={t('delete_service', 'Delete service')}
                     data-testid={`button-delete-service-${service.id}`}
                   >
                     <Trash2 className="w-3 h-3" />
@@ -1554,7 +1564,7 @@ export default function Configs() {
                       <CardHeader>
                         <CardTitle className="text-white flex items-center gap-2">
                           <Smartphone className="w-5 h-5 text-cyan-400" />
-                          {deviceType} {t('warranty_tiers', 'Warranty Tiers')}
+                          {getLocalizedDeviceType(deviceType)} {t('warranty_tiers', 'Warranty Tiers')}
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1897,7 +1907,7 @@ export default function Configs() {
                         >
                           <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
                             <Wrench className="w-5 h-5 text-cyan-400" />
-                            {deviceType} {t('repair_services', 'Repair Services')}
+                            {getLocalizedDeviceType(deviceType)} {t('repair_services', 'Repair Services')}
                             <Badge variant="secondary" className="ml-auto bg-cyan-600/20 text-cyan-300 border-cyan-500/50">
                               {totalServices} {t('services', 'services')}
                             </Badge>
@@ -1916,7 +1926,7 @@ export default function Configs() {
                           {totalServices === 0 ? (
                             <div className="text-center py-8">
                               <Wrench className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                              <p className="text-gray-400 mb-2">{t('no_services_for_device', `No repair services configured for ${deviceType}`)}</p>
+                              <p className="text-gray-400 mb-2">{t('no_services_for_device', `No repair services configured for ${getLocalizedDeviceType(deviceType)}`)}</p>
                               <Button
                                 onClick={() => {
                                   setNewService({ deviceType });
@@ -1943,7 +1953,7 @@ export default function Configs() {
                               {paginationData.totalPages > 1 && (
                                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
                                   <div className="text-sm text-slate-400">
-                                    {t('showing', 'Showing')} {((paginationData.currentPage - 1) * SERVICES_PER_PAGE) + 1} - {Math.min(paginationData.currentPage * SERVICES_PER_PAGE, paginationData.totalCount)} {t('of', 'of')} {paginationData.totalCount} {t('services', 'services')}
+                                    {t('showing_results', `Showing ${((paginationData.currentPage - 1) * SERVICES_PER_PAGE) + 1} - ${Math.min(paginationData.currentPage * SERVICES_PER_PAGE, paginationData.totalCount)} of ${paginationData.totalCount} services`)}
                                   </div>
                                   <div className="flex gap-2">
                                     <Button
@@ -2063,7 +2073,7 @@ export default function Configs() {
                             </SelectTrigger>
                             <SelectContent>
                               {deviceTypes.map(type => (
-                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                                <SelectItem key={type} value={type}>{getLocalizedDeviceType(type)}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -2142,7 +2152,7 @@ export default function Configs() {
                               <div className="flex items-center gap-2">
                                 <Smartphone className="w-5 h-5 text-cyan-400" />
                                 <CardTitle className="text-white">
-                                  {deviceType} {t('defects', 'Defects')} ({totalDefects})
+                                  {getLocalizedDeviceType(deviceType)} {t('defects', 'Defects')} ({totalDefects})
                                 </CardTitle>
                                 {isCollapsed ? (
                                   <Plus className="w-4 h-4 text-slate-400" />
@@ -2163,7 +2173,7 @@ export default function Configs() {
                               <p className="text-slate-400">
                                 {defectsSearchQuery 
                                   ? t('no_defects_found', 'No defects match your search.')
-                                  : t('no_defects_device', `No defects configured for ${deviceType}.`)
+                                  : t('no_defects_device', `No defects configured for ${getLocalizedDeviceType(deviceType)}.`)
                                 }
                               </p>
                             </div>
@@ -2246,6 +2256,7 @@ export default function Configs() {
                                               variant="ghost"
                                               onClick={() => handleEditDefect(defect)}
                                               className="h-8 w-8 p-0 hover:bg-slate-600"
+                                              aria-label={t('edit_defect', 'Edit defect')}
                                               data-testid={`button-edit-defect-${defect.id}`}
                                             >
                                               <Edit className="w-4 h-4 text-slate-400" />
@@ -2256,6 +2267,7 @@ export default function Configs() {
                                                   size="sm"
                                                   variant="ghost"
                                                   className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                                  aria-label={t('delete_defect', 'Delete defect')}
                                                   data-testid={`button-delete-defect-${defect.id}`}
                                                 >
                                                   <Trash2 className="w-4 h-4" />
@@ -2291,7 +2303,7 @@ export default function Configs() {
                               {totalPages > 1 && (
                                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-600">
                                   <div className="text-sm text-slate-400">
-                                    {t('showing_defects', `Showing ${defects.length} of ${totalDefects} defects`)}
+                                    {t('showing_results', `Showing ${defects.length} of ${totalDefects} results`)}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <Button
