@@ -1091,7 +1091,7 @@ export default function Configs() {
           </TabsTrigger>
           <TabsTrigger value="possible-defects" className="flex items-center gap-2" data-testid="tab-possible-defects">
             <AlertTriangle className="w-4 h-4" />
-            {t('possible_defects', 'Defects')}
+            {t('defects', 'Defects')}
           </TabsTrigger>
           <TabsTrigger value="ai-lists" className="flex items-center gap-2" data-testid="tab-ai-lists">
             <Bot className="w-4 h-4" />
@@ -1759,7 +1759,7 @@ export default function Configs() {
                               <SelectContent>
                                 {deviceTypes.map((type) => (
                                   <SelectItem key={type} value={type}>
-                                    {type}
+                                    {getLocalizedDeviceType(type)}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -2500,7 +2500,7 @@ export default function Configs() {
                     </div>
                     
                     <div className="grid gap-4 md:grid-cols-3">
-                      {['Phone', 'Laptop', 'Desktop'].map((category) => {
+                      {deviceTypes.map((category) => {
                         const brandList = autoGenLists.find(list => list.category === category && list.listType.includes('Brands'));
                         const isGenerating = generatingModels === category;
                         
