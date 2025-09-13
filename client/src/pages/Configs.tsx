@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench } from "lucide-react";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench, ChevronDown, ChevronRight } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -822,6 +822,7 @@ export default function Configs() {
     const initialCollapsedState: Record<string, boolean> = {};
     deviceTypes.forEach(deviceType => {
       initialCollapsedState[deviceType] = true; // All sections start collapsed
+      initialCollapsedState[`defects-${deviceType}`] = true; // Defects sections also start collapsed
     });
     setCollapsedSections(initialCollapsedState);
   }, []); // Only run once on mount
@@ -2155,9 +2156,9 @@ export default function Configs() {
                                   {getLocalizedDeviceType(deviceType)} {t('defects', 'Defects')} ({totalDefects})
                                 </CardTitle>
                                 {isCollapsed ? (
-                                  <Plus className="w-4 h-4 text-slate-400" />
+                                  <ChevronRight className="w-4 h-4 text-slate-400" />
                                 ) : (
-                                  <RotateCcw className="w-4 h-4 text-slate-400" />
+                                  <ChevronDown className="w-4 h-4 text-slate-400" />
                                 )}
                               </div>
                             </Button>
@@ -2180,7 +2181,7 @@ export default function Configs() {
                           ) : (
                             <>
                               {/* Defects List */}
-                              <div className="space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {defects.map((defect, index) => (
                                   <Card 
                                     key={defect.id} 
