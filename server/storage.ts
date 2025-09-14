@@ -1121,16 +1121,22 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getPossibleDefectsByDeviceType(tenantId: string, deviceType: string): Promise<PossibleDefect[]> {
+  async getPossibleDefectsByDeviceType(tenantId: string | null, deviceType: string): Promise<PossibleDefect[]> {
     return withRetry(async () => {
+      const conditions = [
+        eq(possibleDefects.deviceType, deviceType),
+        eq(possibleDefects.isActive, true)
+      ];
+      
+      // Only add tenantId filter if it's provided
+      if (tenantId !== null) {
+        conditions.push(eq(possibleDefects.tenantId, tenantId));
+      }
+      
       return await db
         .select()
         .from(possibleDefects)
-        .where(and(
-          eq(possibleDefects.tenantId, tenantId),
-          eq(possibleDefects.deviceType, deviceType),
-          eq(possibleDefects.isActive, true)
-        ))
+        .where(and(...conditions))
         .orderBy(asc(possibleDefects.name));
     });
   }

@@ -10,13 +10,14 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, HelpCircle, AlertTriangle, MessageSquare } from "lucide-react";
+import { AlertCircle, CheckCircle, HelpCircle, AlertTriangle, MessageSquare, Wrench } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { PossibleDefect } from "@shared/schema";
 
 interface IssueQuestion {
   id: string;
@@ -32,7 +33,7 @@ interface IssueQuestion {
 interface IssueAssessmentProps {
   deviceType: string;
   ticketId?: string;
-  onComplete?: (responses: IssueResponse[]) => void;
+  onComplete?: (responses: IssueResponse[], selectedDefects?: string[]) => void;
   readOnly?: boolean;
   shouldComplete?: boolean;
 }
@@ -40,6 +41,10 @@ interface IssueAssessmentProps {
 interface IssueResponse {
   questionId: string;
   answer: any;
+}
+
+interface IssueAssessmentResponse extends IssueResponse {
+  selectedDefects?: string[]; // Array of defect IDs
 }
 
 export function IssueAssessment({ 
@@ -55,11 +60,35 @@ export function IssueAssessment({
   const [noComments, setNoComments] = useState<Record<string, string>>({});
   const [additionalComments, setAdditionalComments] = useState("");
   const [deviceTurnsOn, setDeviceTurnsOn] = useState<boolean | null>(null);
+  const [selectedDefects, setSelectedDefects] = useState<string[]>([]);
 
   // Fetch issue questions for the device type
   const { data: questions = [], isLoading: questionsLoading } = useQuery<IssueQuestion[]>({
     queryKey: ['/api/issue-questions', deviceType],
     enabled: !!deviceType,
+  });
+
+  // Fetch possible defects for the device type (only when device doesn't turn on)
+  const { 
+    data: possibleDefects = [], 
+    isLoading: defectsLoading,
+    error: defectsError,
+    refetch: refetchDefects
+  } = useQuery<PossibleDefect[]>({
+    queryKey: ['/api/possible-defects/device', deviceType],
+    enabled: !!deviceType && deviceTurnsOn === false,
+    retry: (failureCount, error: any) => {
+      // Don't retry on authentication/authorization errors
+      if (error?.message?.includes('401') || error?.message?.includes('403')) {
+        return false;
+      }
+      // Retry up to 2 times for other errors
+      return failureCount < 2;
+    },
+    select: (data: PossibleDefect[]) => {
+      // Ensure alphabetical sorting as fallback
+      return data.sort((a, b) => a.name.localeCompare(b.name));
+    }
   });
 
   // Fetch existing responses if editing
@@ -85,6 +114,25 @@ export function IssueAssessment({
       const firstQuestion = (questions as IssueQuestion[]).find((q: IssueQuestion) => q.questionOrder === 1);
       if (firstQuestion && responseMap[firstQuestion.id] !== undefined) {
         setDeviceTurnsOn(responseMap[firstQuestion.id]);
+      }
+      
+      // Load selected defects if they exist
+      const defectsResponse = existingResponses.find((r: any) => r.questionId === 'selected_defects');
+      if (defectsResponse) {
+        try {
+          let defects = JSON.parse(defectsResponse.response);
+          
+          // Handle double-serialized data (legacy format)
+          if (typeof defects === 'string') {
+            defects = JSON.parse(defects);
+          }
+          
+          if (Array.isArray(defects)) {
+            setSelectedDefects(defects);
+          }
+        } catch {
+          // Ignore parsing errors for malformed data
+        }
       }
     }
   }, [existingResponses, questions]);
@@ -115,7 +163,7 @@ export function IssueAssessment({
             answer: responseValue,
           };
         });
-        onComplete(formattedResponses);
+        onComplete(formattedResponses, selectedDefects.length > 0 ? selectedDefects : undefined);
       }
     },
   });
@@ -131,6 +179,15 @@ export function IssueAssessment({
   // Handle comment change for "No" responses
   const handleNoCommentChange = (questionId: string, comment: string) => {
     setNoComments(prev => ({ ...prev, [questionId]: comment }));
+  };
+
+  // Handle defect selection
+  const handleDefectToggle = (defectId: string) => {
+    setSelectedDefects(prev => 
+      prev.includes(defectId)
+        ? prev.filter(id => id !== defectId)
+        : [...prev, defectId]
+    );
   };
 
   // Handle save responses (for existing tickets)
@@ -155,6 +212,14 @@ export function IssueAssessment({
       formattedResponses.push({
         questionId: 'additional_comments', // Special identifier for additional comments
         answer: additionalComments.trim(),
+      });
+    }
+
+    // Add selected defects as a special response entry if they exist
+    if (selectedDefects.length > 0) {
+      formattedResponses.push({
+        questionId: 'selected_defects', // Special identifier for selected defects
+        answer: selectedDefects, // Send as array - server will handle serialization
       });
     }
 
@@ -188,7 +253,15 @@ export function IssueAssessment({
         });
       }
 
-      onComplete(formattedResponses);
+      // Add selected defects as a special response entry if they exist
+      if (selectedDefects.length > 0) {
+        formattedResponses.push({
+          questionId: 'selected_defects', // Special identifier for selected defects
+          answer: selectedDefects, // Send as array - server will handle serialization
+        });
+      }
+
+      onComplete(formattedResponses, selectedDefects.length > 0 ? selectedDefects : undefined);
     }
   };
 
@@ -355,6 +428,116 @@ export function IssueAssessment({
       <div className="space-y-4">
         {visibleQuestions.map(renderQuestion)}
       </div>
+
+      {/* Possible Defects Section - Only shown when device doesn't turn on */}
+      {deviceTurnsOn === false && (
+        <Card className="bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg transition-all duration-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-start justify-between text-base">
+              <div className="flex items-start gap-3 flex-1">
+                <Badge variant="outline" className="text-xs px-2 py-1 min-w-fit bg-orange-500/10 border-orange-500/30">
+                  <Wrench className="h-3 w-3 mr-1" />
+                  {t("defects", "Defects")}
+                </Badge>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium leading-relaxed">
+                      {t("select_defects", "Select visible defects or issues")}
+                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="max-w-xs">
+                            {t("defects_tooltip", "Select any visible defects or physical issues you can observe on the device")}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {t("defects_description", "Check all that apply to help us understand the device condition")}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 ml-2">
+                {selectedDefects.length > 0 ? (
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedDefects.length}
+                  </Badge>
+                ) : (
+                  <div className="h-5 w-5" />
+                )}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {defectsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+                <span className="text-sm text-muted-foreground">
+                  {t("loading_defects", "Loading possible defects...")}
+                </span>
+              </div>
+            ) : defectsError ? (
+              <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                <div className="flex items-center text-red-500">
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  <span className="text-sm font-medium">
+                    {(defectsError as any)?.message?.includes('401') || (defectsError as any)?.message?.includes('403')
+                      ? t("defects_auth_error", "Authentication error loading defects")
+                      : (defectsError as any)?.message?.includes('404')
+                      ? t("defects_not_found", "No defects configured for this device type")
+                      : t("defects_load_error", "Failed to load possible defects")
+                    }
+                  </span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => refetchDefects()}
+                  className="text-xs"
+                  data-testid="retry-defects"
+                >
+                  {t("retry", "Try Again")}
+                </Button>
+              </div>
+            ) : possibleDefects.length === 0 ? (
+              <div className="text-center py-4">
+                <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {t("no_defects_available", "No defects configured for this device type")}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {possibleDefects.map((defect) => (
+                  <div
+                    key={defect.id}
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-slate-600/50 bg-slate-700/30 hover:bg-slate-600/30 transition-colors"
+                  >
+                    <Checkbox
+                      id={`defect-${defect.id}`}
+                      checked={selectedDefects.includes(defect.id)}
+                      onCheckedChange={() => handleDefectToggle(defect.id)}
+                      disabled={readOnly}
+                      data-testid={`checkbox-defect-${defect.name.toLowerCase().replace(/\s+/g, '-')}`}
+                    />
+                    <Label
+                      htmlFor={`defect-${defect.id}`}
+                      className="flex-1 text-sm cursor-pointer leading-relaxed"
+                    >
+                      {defect.name}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Additional Comments */}
       <Card className="bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg">

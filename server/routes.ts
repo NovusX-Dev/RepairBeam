@@ -2155,12 +2155,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { deviceType } = req.params;
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
+      
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
+      if (!deviceType || deviceType.trim() === '') {
+        return res.status(400).json({ message: "Device type is required" });
+      }
+
+      // Get tenant-specific defects for this device type
       const defects = await storage.getPossibleDefectsByDeviceType(user.tenantId, deviceType);
-      res.json(defects);
+      
+      // Sort alphabetically to ensure consistent ordering
+      const sortedDefects = defects.sort((a, b) => a.name.localeCompare(b.name));
+      
+      res.json(sortedDefects);
     } catch (error) {
       console.error("Error fetching possible defects by device type:", error);
       res.status(500).json({ message: "Failed to fetch possible defects" });
