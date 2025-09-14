@@ -4414,6 +4414,59 @@ export default function KanbanTickets() {
                     deviceType={selectedTicketSummary.deviceType || ''}
                     issueResponses={issueResponses}
                   />
+                  
+                  {/* Defects Section */}
+                  {(() => {
+                    // Extract selected defects from issue responses
+                    const selectedDefectsResponse = issueResponses?.find(
+                      response => response.questionId === 'selected_defects'
+                    );
+                    
+                    let selectedDefects: string[] = [];
+                    if (selectedDefectsResponse) {
+                      try {
+                        // Parse the defects array from stored data
+                        const defectsData = selectedDefectsResponse.response;
+                        if (Array.isArray(defectsData)) {
+                          selectedDefects = defectsData;
+                        } else if (typeof defectsData === 'string') {
+                          selectedDefects = JSON.parse(defectsData);
+                        }
+                      } catch (error) {
+                        console.error('Failed to parse selected defects:', error);
+                        selectedDefects = [];
+                      }
+                    }
+
+                    // Only render if defects were selected
+                    if (!selectedDefects || selectedDefects.length === 0) {
+                      return null;
+                    }
+
+                    return (
+                      <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                          {t("identified_defects", "Identified Defects")}
+                          <Badge variant="outline" className="border-red-500 text-red-400">
+                            {selectedDefects.length} {t("defects_found", "found")}
+                          </Badge>
+                        </h3>
+                        
+                        <div className="mb-3">
+                          <p className="text-xs text-muted-foreground">
+                            {t("defects_found_during_assessment", "Defects found during device assessment")}
+                          </p>
+                        </div>
+                        
+                        {/* Defects List */}
+                        <DefectsList 
+                          selectedDefects={selectedDefects} 
+                          deviceType={selectedTicketSummary.deviceType || ''} 
+                        />
+                      </div>
+                    );
+                  })()}
                 </TabsContent>
 
                 {/* Checklist Tab */}
