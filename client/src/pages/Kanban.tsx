@@ -180,6 +180,105 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
   );
 }
 
+// Defects List Component
+interface DefectsListProps {
+  selectedDefects: string[];
+  deviceType: string;
+}
+
+function DefectsList({ selectedDefects, deviceType }: DefectsListProps) {
+  const { t } = useLocalization();
+  
+  // Fetch all possible defects for the device type
+  const { data: allDefects = [], isLoading, isError } = useQuery<any[]>({
+    queryKey: [`/api/possible-defects/device/${deviceType}`],
+    enabled: !!deviceType && selectedDefects.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Filter defects to only show selected ones
+  const defects = allDefects.filter(defect => selectedDefects.includes(defect.id));
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="bg-slate-700/30 rounded-md p-3 animate-pulse">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-slate-600 rounded"></div>
+              <div className="h-4 bg-slate-600 rounded w-3/4"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-red-500/10 border border-red-500/20 rounded-md p-3 text-center">
+        <AlertTriangle className="w-5 h-5 text-red-400 mx-auto mb-2" />
+        <p className="text-sm text-red-400">{t("error_loading_defects", "Error loading defect details")}</p>
+      </div>
+    );
+  }
+
+  if (defects.length === 0) {
+    return (
+      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-3 text-center">
+        <AlertTriangle className="w-5 h-5 text-yellow-400 mx-auto mb-2" />
+        <p className="text-sm text-yellow-400">{t("defects_not_found", "Selected defects not found in system")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {defects.map((defect, index) => (
+        <div key={defect.id || index} className="bg-red-500/10 border border-red-500/20 rounded-md p-3">
+          <div className="flex items-start gap-3">
+            <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
+            <div className="flex-1 min-w-0">
+              <h5 className="font-medium text-sm text-white mb-1">{defect.name}</h5>
+              {defect.description && (
+                <p className="text-xs text-slate-300 leading-relaxed">{defect.description}</p>
+              )}
+              {defect.severity && (
+                <div className="mt-2">
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      defect.severity === 'critical' 
+                        ? 'border-red-500 text-red-400' 
+                        : defect.severity === 'high'
+                        ? 'border-orange-500 text-orange-400'
+                        : defect.severity === 'medium'
+                        ? 'border-yellow-500 text-yellow-400'
+                        : 'border-blue-500 text-blue-400'
+                    }`}
+                  >
+                    {t(`severity_${defect.severity}`, defect.severity?.charAt(0).toUpperCase() + defect.severity?.slice(1) || 'Unknown')}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+      
+      {/* Summary footer */}
+      <div className="mt-3 pt-3 border-t border-slate-600">
+        <p className="text-xs text-slate-400 text-center">
+          {defects.length === 1 
+            ? t("one_defect_identified", "1 defect identified during assessment")
+            : t("multiple_defects_identified", `${defects.length} defects identified during assessment`)
+          }
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // Kanban column configuration
 const getKanbanColumns = (t: (key: string, fallback?: string) => string) => [
   { id: 'backlog', title: t('backlog', 'Backlog'), color: 'bg-gray-100' },
@@ -3287,6 +3386,60 @@ export default function KanbanTickets() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Aurora Card - Defects Summary */}
+                      {(() => {
+                        // Extract selected defects from issue responses
+                        const selectedDefectsResponse = formData.issueResponses?.find(
+                          response => response.questionId === 'selected_defects'
+                        );
+                        
+                        let selectedDefects: string[] = [];
+                        if (selectedDefectsResponse) {
+                          try {
+                            // Parse the defects array from stored data
+                            const defectsData = selectedDefectsResponse.answer;
+                            if (Array.isArray(defectsData)) {
+                              selectedDefects = defectsData;
+                            } else if (typeof defectsData === 'string') {
+                              selectedDefects = JSON.parse(defectsData);
+                            }
+                          } catch (error) {
+                            console.error('Failed to parse selected defects:', error);
+                            selectedDefects = [];
+                          }
+                        }
+
+                        // Only render if defects were selected
+                        if (!selectedDefects || selectedDefects.length === 0) {
+                          return null;
+                        }
+
+                        return (
+                          <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                            <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                              <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4" />
+                                {t("identified_defects", "Identified Defects")}
+                                <Badge variant="secondary" className="ml-2 bg-red-500/20 text-red-300 border-red-500/30">
+                                  {selectedDefects.length} {t("defects_selected", "selected")}
+                                </Badge>
+                              </h4>
+                            </div>
+                            <div className="p-4">
+                              <p className="text-sm text-muted-foreground mb-3">
+                                {t("defects_found_during_assessment", "Defects found during device assessment")}
+                              </p>
+                              
+                              {/* Defects List */}
+                              <DefectsList 
+                                selectedDefects={selectedDefects} 
+                                deviceType={formData.deviceType} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Aurora Card - Services & Timeline */}
                       <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
