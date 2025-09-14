@@ -201,7 +201,7 @@ function DefectsList({ selectedDefects, deviceType }: DefectsListProps) {
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {[1, 2, 3].map(i => (
           <div key={i} className="bg-slate-700/30 rounded-md p-3 animate-pulse">
             <div className="flex items-center gap-2">
@@ -233,38 +233,40 @@ function DefectsList({ selectedDefects, deviceType }: DefectsListProps) {
   }
 
   return (
-    <div className="space-y-2">
-      {defects.map((defect, index) => (
-        <div key={defect.id || index} className="bg-red-500/10 border border-red-500/20 rounded-md p-3">
-          <div className="flex items-start gap-3">
-            <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
-            <div className="flex-1 min-w-0">
-              <h5 className="font-medium text-sm text-white mb-1">{defect.name}</h5>
-              {defect.description && (
-                <p className="text-xs text-slate-300 leading-relaxed">{defect.description}</p>
-              )}
-              {defect.severity && (
-                <div className="mt-2">
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xs ${
-                      defect.severity === 'critical' 
-                        ? 'border-red-500 text-red-400' 
-                        : defect.severity === 'high'
-                        ? 'border-orange-500 text-orange-400'
-                        : defect.severity === 'medium'
-                        ? 'border-yellow-500 text-yellow-400'
-                        : 'border-blue-500 text-blue-400'
-                    }`}
-                  >
-                    {t(`severity_${defect.severity}`, defect.severity?.charAt(0).toUpperCase() + defect.severity?.slice(1) || 'Unknown')}
-                  </Badge>
-                </div>
-              )}
+    <div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {defects.map((defect, index) => (
+          <div key={defect.id || index} className="bg-red-500/10 border border-red-500/20 rounded-md p-3">
+            <div className="flex items-start gap-3">
+              <div className="w-2 h-2 bg-red-400 rounded-full mt-2 flex-shrink-0"></div>
+              <div className="flex-1 min-w-0">
+                <h5 className="font-medium text-sm text-white mb-1">{defect.name}</h5>
+                {defect.description && (
+                  <p className="text-xs text-slate-300 leading-relaxed">{defect.description}</p>
+                )}
+                {defect.severity && (
+                  <div className="mt-2">
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        defect.severity === 'critical' 
+                          ? 'border-red-500 text-red-400' 
+                          : defect.severity === 'high'
+                          ? 'border-orange-500 text-orange-400'
+                          : defect.severity === 'medium'
+                          ? 'border-yellow-500 text-yellow-400'
+                          : 'border-blue-500 text-blue-400'
+                      }`}
+                    >
+                      {t(`severity_${defect.severity}`, defect.severity?.charAt(0).toUpperCase() + defect.severity?.slice(1) || 'Unknown')}
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       
       {/* Summary footer */}
       <div className="mt-3 pt-3 border-t border-slate-600">

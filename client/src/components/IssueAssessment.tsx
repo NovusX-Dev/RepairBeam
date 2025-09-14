@@ -68,7 +68,7 @@ export function IssueAssessment({
     enabled: !!deviceType,
   });
 
-  // Fetch possible defects for the device type (only when device doesn't turn on)
+  // Fetch possible defects for the device type (only when device turns on)
   const { 
     data: possibleDefects = [], 
     isLoading: defectsLoading,
@@ -76,7 +76,7 @@ export function IssueAssessment({
     refetch: refetchDefects
   } = useQuery<PossibleDefect[]>({
     queryKey: ['/api/possible-defects/device', deviceType],
-    enabled: !!deviceType && deviceTurnsOn === false,
+    enabled: !!deviceType && deviceTurnsOn === true,
     retry: (failureCount, error: any) => {
       // Don't retry on authentication/authorization errors
       if (error?.message?.includes('401') || error?.message?.includes('403')) {
@@ -434,8 +434,8 @@ export function IssueAssessment({
         {visibleQuestions.map(renderQuestion)}
       </div>
 
-      {/* Aurora Defects Section - Only shown when device doesn't turn on */}
-      {deviceTurnsOn === false && (
+      {/* Aurora Defects Section - Only shown when device turns on */}
+      {deviceTurnsOn === true && (
         <Card className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border border-slate-600 shadow-lg transition-all duration-200 hover:border-cyan-500/50">
           <CardHeader className="pb-3">
             <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
