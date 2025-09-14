@@ -283,7 +283,7 @@ export function IssueAssessment({
     const tooltipText = t(`${question.questionKey}_tooltip`, "");
 
     return (
-      <Card key={question.id} className={`bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg transition-all duration-200 ${hasResponse ? 'ring-2 ring-[#00FFFF]/30 bg-slate-700/70' : ''}`}>
+      <Card key={question.id} className={`bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border border-slate-600 shadow-lg transition-all duration-200 hover:border-cyan-500/50 ${hasResponse ? 'ring-2 ring-cyan-500/30 border-cyan-500/50' : ''}`}>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-start justify-between text-base">
             <div className="flex items-start gap-3 flex-1">
@@ -405,14 +405,19 @@ export function IssueAssessment({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h3 className="text-xl font-semibold mb-2">
-          {t("issue_assessment", "Issue Assessment")}
-        </h3>
-        <p className="text-muted-foreground">
-          {t("issue_assessment_desc", "Answer these questions to help us diagnose the problem")}
-        </p>
+      {/* Aurora Header */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 border border-slate-700">
+        <div className="flex items-center gap-3 text-white">
+          <MessageSquare className="w-6 h-6 text-cyan-100" />
+          <div>
+            <h3 className="text-xl font-bold">
+              {t("issue_assessment", "Issue Assessment")}
+            </h3>
+            <p className="text-cyan-100 opacity-80 text-sm">
+              {t("issue_assessment_desc", "Answer these questions to help us diagnose the problem")}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Progress indicator */}
@@ -429,49 +434,32 @@ export function IssueAssessment({
         {visibleQuestions.map(renderQuestion)}
       </div>
 
-      {/* Possible Defects Section - Only shown when device doesn't turn on */}
+      {/* Aurora Defects Section - Only shown when device doesn't turn on */}
       {deviceTurnsOn === false && (
-        <Card className="bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg transition-all duration-200">
+        <Card className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border border-slate-600 shadow-lg transition-all duration-200 hover:border-cyan-500/50">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-start justify-between text-base">
-              <div className="flex items-start gap-3 flex-1">
-                <Badge variant="outline" className="text-xs px-2 py-1 min-w-fit bg-orange-500/10 border-orange-500/30">
-                  <Wrench className="h-3 w-3 mr-1" />
-                  {t("defects", "Defects")}
-                </Badge>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium leading-relaxed">
+            <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 text-white">
+                  <Wrench className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <h4 className="text-lg font-semibold">
                       {t("select_defects", "Select visible defects or issues")}
-                    </span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">
-                            {t("defects_tooltip", "Select any visible defects or physical issues you can observe on the device")}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    </h4>
+                    <p className="text-cyan-100 opacity-80 text-sm">
+                      {t("defects_description", "Check all that apply to help us understand the device condition")}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {t("defects_description", "Check all that apply to help us understand the device condition")}
-                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedDefects.length > 0 && (
+                    <Badge variant="secondary" className="text-xs bg-cyan-600/20 border-cyan-500/50 text-cyan-100">
+                      {selectedDefects.length}
+                    </Badge>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-1 ml-2">
-                {selectedDefects.length > 0 ? (
-                  <Badge variant="secondary" className="text-xs">
-                    {selectedDefects.length}
-                  </Badge>
-                ) : (
-                  <div className="h-5 w-5" />
-                )}
-              </div>
-            </CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="pt-0">
             {defectsLoading ? (
@@ -498,7 +486,7 @@ export function IssueAssessment({
                   variant="outline" 
                   size="sm" 
                   onClick={() => refetchDefects()}
-                  className="text-xs"
+                  className="text-xs bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30 transition-colors"
                   data-testid="retry-defects"
                 >
                   {t("retry", "Try Again")}
@@ -516,7 +504,7 @@ export function IssueAssessment({
                 {possibleDefects.map((defect) => (
                   <div
                     key={defect.id}
-                    className="flex items-center space-x-3 p-3 rounded-lg border border-slate-600/50 bg-slate-700/30 hover:bg-slate-600/30 transition-colors"
+                    className="flex items-center space-x-3 p-3 rounded-lg border border-slate-600/50 bg-gradient-to-br from-slate-700/40 via-slate-700/40 to-slate-600/40 hover:bg-gradient-to-br hover:from-cyan-900/20 hover:via-slate-700/40 hover:to-slate-600/40 hover:border-cyan-500/50 transition-all duration-200"
                   >
                     <Checkbox
                       id={`defect-${defect.id}`}
@@ -539,12 +527,22 @@ export function IssueAssessment({
         </Card>
       )}
 
-      {/* Additional Comments */}
-      <Card className="bg-slate-800/70 border border-[#00FFFF]/20 shadow-lg">
+      {/* Aurora Additional Comments */}
+      <Card className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border border-slate-600 shadow-lg transition-all duration-200 hover:border-cyan-500/50">
         <CardHeader>
-          <CardTitle className="text-base">
-            {t("additional_comments", "Additional Comments")}
-          </CardTitle>
+          <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+            <div className="flex items-center gap-3 text-white">
+              <MessageSquare className="w-5 h-5 text-cyan-100" />
+              <div>
+                <h4 className="text-lg font-semibold">
+                  {t("additional_comments", "Additional Comments")}
+                </h4>
+                <p className="text-cyan-100 opacity-80 text-sm">
+                  {t("additional_comments_desc", "Provide any additional details about the device condition")}
+                </p>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Textarea
@@ -564,6 +562,7 @@ export function IssueAssessment({
           <Button
             onClick={handleSaveResponses}
             disabled={saveResponsesMutation.isPending}
+            className="bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-700 transition-colors"
             data-testid="button-save-assessment"
           >
             {saveResponsesMutation.isPending
