@@ -927,6 +927,7 @@ export default function Configs() {
     deviceTypes.forEach(deviceType => {
       initialCollapsedState[deviceType] = true; // All sections start collapsed
       initialCollapsedState[`defects-${deviceType}`] = true; // Defects sections also start collapsed
+      initialCollapsedState[`checklists-${deviceType}`] = true; // Checklists sections also start collapsed
     });
     setCollapsedSections(initialCollapsedState);
   }, []); // Only run once on mount
@@ -2698,110 +2699,107 @@ export default function Configs() {
                                     data-testid={`card-checklist-${checklist.id}`}
                                   >
                                     <CardContent className="p-4">
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                          {editingChecklist === checklist.id ? (
-                                            <div className="space-y-3">
-                                              <div className="space-y-1">
-                                                <Label className="text-xs text-slate-300">{t('name', 'Name')}</Label>
-                                                <Input
-                                                  value={checklist.name}
-                                                  onChange={(e) => handleUpdateChecklist(checklist, 'name', e.target.value)}
-                                                  className="bg-slate-700 border-slate-600 text-white text-sm"
-                                                  data-testid={`input-edit-checklist-name-${checklist.id}`}
-                                                />
-                                              </div>
-                                              <div className="space-y-1">
-                                                <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
-                                                <Select
-                                                  value={checklist.isActive ? 'active' : 'inactive'}
-                                                  onValueChange={(value) => handleUpdateChecklist(checklist, 'isActive', value === 'active')}
-                                                >
-                                                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
-                                                    <SelectValue />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="active">{t('active', 'Active')}</SelectItem>
-                                                    <SelectItem value="inactive">{t('inactive', 'Inactive')}</SelectItem>
-                                                  </SelectContent>
-                                                </Select>
-                                              </div>
-                                              <div className="flex justify-end gap-2">
-                                                <Button
-                                                  size="sm"
-                                                  variant="outline"
-                                                  onClick={() => setEditingChecklist(null)}
-                                                  data-testid={`button-cancel-edit-checklist-${checklist.id}`}
-                                                >
-                                                  {t('done', 'Done')}
-                                                </Button>
-                                              </div>
+                                      {editingChecklist === checklist.id ? (
+                                        <div className="space-y-3">
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                              <Label className="text-xs text-slate-300">{t('checklist_name', 'Checklist Name')}</Label>
+                                              <Input
+                                                value={checklist.name}
+                                                onChange={(e) => handleUpdateChecklist(checklist, 'name', e.target.value)}
+                                                className="bg-slate-700 border-slate-600 text-white text-sm"
+                                                data-testid={`input-edit-checklist-name-${checklist.id}`}
+                                              />
                                             </div>
-                                          ) : (
-                                            <div className="space-y-2">
-                                              <div className="flex items-center justify-between">
-                                                <h4 className="font-medium text-white">{checklist.name}</h4>
-                                                <div className="flex items-center gap-2">
-                                                  <Badge
-                                                    variant={checklist.isActive ? "default" : "secondary"}
-                                                    className={checklist.isActive 
-                                                      ? "bg-green-600/20 text-green-400 border-green-500/50" 
-                                                      : "bg-slate-600/20 text-slate-400 border-slate-500/50"
-                                                    }
-                                                  >
-                                                    {checklist.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                                  </Badge>
-                                                </div>
-                                              </div>
+                                            <div className="space-y-1">
+                                              <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
+                                              <Select
+                                                value={checklist.isActive ? 'active' : 'inactive'}
+                                                onValueChange={(value) => handleUpdateChecklist(checklist, 'isActive', value === 'active')}
+                                              >
+                                                <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="active">{t('active', 'Active')}</SelectItem>
+                                                  <SelectItem value="inactive">{t('inactive', 'Inactive')}</SelectItem>
+                                                </SelectContent>
+                                              </Select>
                                             </div>
-                                          )}
-                                      </div>
-
-                                        {editingChecklist !== checklist.id && (
-                                          <div className="flex items-center gap-2 ml-4">
+                                          </div>
+                                          <div className="flex justify-end gap-2">
                                             <Button
                                               size="sm"
-                                              variant="ghost"
-                                              onClick={() => handleEditChecklist(checklist)}
-                                              className="h-8 w-8 p-0 hover:bg-slate-600"
-                                              aria-label={t('edit_checklist', 'Edit checklist')}
-                                              data-testid={`button-edit-checklist-${checklist.id}`}
+                                              variant="outline"
+                                              onClick={() => setEditingChecklist(null)}
+                                              data-testid={`button-cancel-edit-checklist-${checklist.id}`}
                                             >
-                                              <Edit className="w-4 h-4 text-slate-400" />
+                                              {t('done', 'Done')}
                                             </Button>
-                                            <AlertDialog>
-                                              <AlertDialogTrigger asChild>
-                                                <Button
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
-                                                  aria-label={t('delete_checklist', 'Delete checklist')}
-                                                  data-testid={`button-delete-checklist-${checklist.id}`}
-                                                >
-                                                  <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                  <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
-                                                  <AlertDialogDescription>
-                                                    {t('confirm_delete_checklist_desc', `Are you sure you want to delete the checklist "${checklist.name}"? This action cannot be undone.`)}
-                                                  </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                  <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
-                                                  <AlertDialogAction
-                                                    onClick={() => handleDeleteChecklist(checklist.id)}
-                                                    className="bg-red-600 hover:bg-red-700"
-                                                  >
-                                                    {t('delete', 'Delete')}
-                                                  </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                            </AlertDialog>
                                           </div>
-                                        )}
-                                      </div>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-2">
+                                          <div>
+                                            <h4 className="font-medium text-white">{checklist.name}</h4>
+                                          </div>
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <Badge
+                                                variant={checklist.isActive ? "default" : "secondary"}
+                                                className={checklist.isActive 
+                                                  ? "bg-green-600/20 text-green-400 border-green-500/50" 
+                                                  : "bg-slate-600/20 text-slate-400 border-slate-500/50"
+                                                }
+                                              >
+                                                {checklist.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                              </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleEditChecklist(checklist)}
+                                                className="h-8 w-8 p-0 hover:bg-slate-600"
+                                                aria-label={t('edit_checklist', 'Edit checklist')}
+                                                data-testid={`button-edit-checklist-${checklist.id}`}
+                                              >
+                                                <Edit className="w-4 h-4 text-slate-400" />
+                                              </Button>
+                                              <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                                    aria-label={t('delete_checklist', 'Delete checklist')}
+                                                    data-testid={`button-delete-checklist-${checklist.id}`}
+                                                  >
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                  <AlertDialogHeader>
+                                                    <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                      {t('confirm_delete_checklist_desc', `Are you sure you want to delete the checklist "${checklist.name}"? This action cannot be undone.`)}
+                                                    </AlertDialogDescription>
+                                                  </AlertDialogHeader>
+                                                  <AlertDialogFooter>
+                                                    <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                      onClick={() => handleDeleteChecklist(checklist.id)}
+                                                      className="bg-red-600 hover:bg-red-700"
+                                                    >
+                                                      {t('delete', 'Delete')}
+                                                    </AlertDialogAction>
+                                                  </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                              </AlertDialog>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
                                     </CardContent>
                                   </Card>
                                 ))}
