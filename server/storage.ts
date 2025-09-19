@@ -220,6 +220,7 @@ export interface IStorage {
   createChecklist(checklist: InsertChecklist): Promise<Checklist>;
   updateChecklist(id: string, tenantId: string, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined>;
   deleteChecklist(id: string, tenantId: string): Promise<boolean>;
+  initializeDefaultChecklists(tenantId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1246,6 +1247,63 @@ export class DatabaseStorage implements IStorage {
       
     } catch (error) {
       console.error(`❌ Failed to initialize default defects for tenant ${tenantId}:`, error);
+      throw error;
+    }
+  }
+
+  async initializeDefaultChecklists(tenantId: string): Promise<void> {
+    console.log(`🔧 Initializing default checklists for tenant: ${tenantId}`);
+    
+    try {
+      // Check if checklists already exist for this tenant to ensure idempotency
+      const existingChecklists = await this.getChecklists(tenantId);
+      if (existingChecklists.length > 0) {
+        console.log(`📋 Tenant ${tenantId} already has ${existingChecklists.length} checklists, skipping initialization`);
+        return;
+      }
+
+      // Phone checklists (15 items)
+      const phoneChecklists = [
+        "Physical condition inspection", "Screen functionality test", "Touch responsiveness check", "Home/power button test",
+        "Volume button functionality", "Audio speaker test", "Microphone test", "Camera functionality check",
+        "Flash operation test", "Wi-Fi connectivity test", "Bluetooth connectivity test", "Charging port inspection",
+        "Battery performance test", "Fingerprint sensor test", "Overall device performance check"
+      ];
+
+      // Laptop checklists (15 items)
+      const laptopChecklists = [
+        "Physical condition inspection", "Screen display test", "Keyboard functionality check", "Trackpad responsiveness test",
+        "USB ports functionality", "Audio jack test", "Speakers and microphone test", "Wi-Fi connectivity test",
+        "Bluetooth functionality check", "Charging port and adapter test", "Battery performance evaluation", "Webcam functionality test",
+        "HDMI/display output test", "System boot and performance test", "Fan and cooling system check"
+      ];
+
+      // Desktop checklists (15 items)
+      const desktopChecklists = [
+        "Physical condition inspection", "Power supply functionality", "Monitor display output test", "Keyboard and mouse test",
+        "USB ports functionality check", "Audio input/output test", "Network connectivity test", "CD/DVD drive test",
+        "Hard drive performance check", "RAM functionality test", "CPU performance evaluation", "Graphics card test",
+        "Fan and cooling system check", "BIOS/UEFI access test", "Overall system stability test"
+      ];
+
+      // Create all checklists using batch insert for better performance
+      const allChecklists = [
+        ...phoneChecklists.map(name => ({ tenantId, deviceType: 'Phone', name, isActive: true })),
+        ...laptopChecklists.map(name => ({ tenantId, deviceType: 'Laptop', name, isActive: true })),
+        ...desktopChecklists.map(name => ({ tenantId, deviceType: 'Desktop', name, isActive: true }))
+      ];
+
+      console.log(`📝 Creating ${allChecklists.length} default checklists for tenant ${tenantId}`);
+      
+      // Insert all checklists in batches to avoid overwhelming the database
+      await withRetry(async () => {
+        await db.insert(checklists).values(allChecklists);
+      });
+
+      console.log(`✅ Successfully initialized ${allChecklists.length} default checklists for tenant ${tenantId}`);
+      
+    } catch (error) {
+      console.error(`❌ Failed to initialize default checklists for tenant ${tenantId}:`, error);
       throw error;
     }
   }

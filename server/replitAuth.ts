@@ -69,8 +69,9 @@ async function upsertUser(
         settings: {}
       });
 
-      // Initialize default defects for the new tenant
+      // Initialize default defects and checklists for the new tenant
       await storage.initializeDefaultDefects(tenant.id);
+      await storage.initializeDefaultChecklists(tenant.id);
     }
 
     // Create user with tenant

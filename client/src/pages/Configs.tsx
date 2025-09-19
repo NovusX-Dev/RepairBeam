@@ -2630,7 +2630,7 @@ export default function Configs() {
                   const paginatedChecklists = filteredChecklists.slice(startIndex, startIndex + CHECKLISTS_PER_PAGE);
 
                   return (
-                    <Card key={deviceType} className="bg-slate-900/50 border-slate-700">
+                    <Card key={deviceType} className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border-slate-600">
                       <CardHeader 
                         className="pb-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
                         onClick={() => setCollapsedSections(prev => ({
@@ -2638,19 +2638,28 @@ export default function Configs() {
                           [`checklists-${deviceType}`]: !prev[`checklists-${deviceType}`]
                         }))}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Smartphone className="w-5 h-5 text-cyan-400" />
-                            <CardTitle className="text-white">
-                              {getLocalizedDeviceType(deviceType)} {t('checklists', 'Checklists')} ({filteredChecklists.length})
-                            </CardTitle>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {collapsedSections[`checklists-${deviceType}`] ? (
-                              <ChevronRight className="w-4 h-4 text-slate-400" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-slate-400" />
-                            )}
+                        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 text-white">
+                              <Smartphone className="w-5 h-5 text-cyan-100" />
+                              <CardTitle className="text-white">
+                                {getLocalizedDeviceType(deviceType)} {t('checklists', 'Checklists')} ({filteredChecklists.length})
+                              </CardTitle>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-white hover:bg-white/10 p-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCollapsedSections(prev => ({
+                                  ...prev,
+                                  [`checklists-${deviceType}`]: !prev[`checklists-${deviceType}`]
+                                }));
+                              }}
+                            >
+                              {collapsedSections[`checklists-${deviceType}`] ? <ChevronRight className="w-4 h-4 text-cyan-100" /> : <ChevronDown className="w-4 h-4 text-cyan-100" />}
+                            </Button>
                           </div>
                         </div>
                       </CardHeader>
@@ -2665,119 +2674,120 @@ export default function Configs() {
                             </div>
                           ) : (
                             <>
-                              <div className="space-y-2">
+                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                                 {paginatedChecklists.map(checklist => (
-                                  <div 
+                                  <Card 
                                     key={checklist.id} 
-                                    className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/50 hover:bg-slate-800/50 transition-colors"
+                                    className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border-slate-600 hover:border-cyan-500/50 transition-all duration-200"
+                                    data-testid={`card-checklist-${checklist.id}`}
                                   >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex-1">
-                                        {editingChecklist === checklist.id ? (
-                                          <div className="space-y-3">
-                                            <div className="space-y-1">
-                                              <Label className="text-xs text-slate-300">{t('name', 'Name')}</Label>
-                                              <Input
-                                                value={checklist.name}
-                                                onChange={(e) => handleUpdateChecklist(checklist, 'name', e.target.value)}
-                                                className="bg-slate-700 border-slate-600 text-white text-sm"
-                                                data-testid={`input-edit-checklist-name-${checklist.id}`}
-                                              />
+                                    <CardContent className="p-4">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          {editingChecklist === checklist.id ? (
+                                            <div className="space-y-3">
+                                              <div className="space-y-1">
+                                                <Label className="text-xs text-slate-300">{t('name', 'Name')}</Label>
+                                                <Input
+                                                  value={checklist.name}
+                                                  onChange={(e) => handleUpdateChecklist(checklist, 'name', e.target.value)}
+                                                  className="bg-slate-700 border-slate-600 text-white text-sm"
+                                                  data-testid={`input-edit-checklist-name-${checklist.id}`}
+                                                />
+                                              </div>
+                                              <div className="space-y-1">
+                                                <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
+                                                <Select
+                                                  value={checklist.isActive ? 'active' : 'inactive'}
+                                                  onValueChange={(value) => handleUpdateChecklist(checklist, 'isActive', value === 'active')}
+                                                >
+                                                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
+                                                    <SelectValue />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    <SelectItem value="active">{t('active', 'Active')}</SelectItem>
+                                                    <SelectItem value="inactive">{t('inactive', 'Inactive')}</SelectItem>
+                                                  </SelectContent>
+                                                </Select>
+                                              </div>
+                                              <div className="flex justify-end gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => setEditingChecklist(null)}
+                                                  data-testid={`button-cancel-edit-checklist-${checklist.id}`}
+                                                >
+                                                  {t('done', 'Done')}
+                                                </Button>
+                                              </div>
                                             </div>
-                                            <div className="space-y-1">
-                                              <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
-                                              <Select
-                                                value={checklist.isActive ? 'active' : 'inactive'}
-                                                onValueChange={(value) => handleUpdateChecklist(checklist, 'isActive', value === 'active')}
-                                              >
-                                                <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
-                                                  <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="active">{t('active', 'Active')}</SelectItem>
-                                                  <SelectItem value="inactive">{t('inactive', 'Inactive')}</SelectItem>
-                                                </SelectContent>
-                                              </Select>
+                                          ) : (
+                                            <div className="space-y-2">
+                                              <div className="flex items-center justify-between">
+                                                <h4 className="font-medium text-white">{checklist.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                  <Badge
+                                                    variant={checklist.isActive ? "default" : "secondary"}
+                                                    className={checklist.isActive 
+                                                      ? "bg-green-600/20 text-green-400 border-green-500/50" 
+                                                      : "bg-slate-600/20 text-slate-400 border-slate-500/50"
+                                                    }
+                                                  >
+                                                    {checklist.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                                  </Badge>
+                                                </div>
+                                              </div>
                                             </div>
-                                          </div>
-                                        ) : (
-                                          <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                              <h4 className="text-white font-medium">{checklist.name}</h4>
-                                              <Badge 
-                                                variant={checklist.isActive ? 'default' : 'secondary'}
-                                                className={checklist.isActive 
-                                                  ? 'bg-green-600/20 text-green-100 border-green-600/50' 
-                                                  : 'bg-slate-600/20 text-slate-300 border-slate-600/50'
-                                                }
-                                              >
-                                                {checklist.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                              </Badge>
-                                            </div>
-                                          </div>
-                                        )}
+                                          )}
                                       </div>
-                                      <div className="flex items-center gap-2 ml-4">
-                                        {editingChecklist === checklist.id ? (
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => setEditingChecklist(null)}
-                                            className="h-8 w-8 p-0 hover:bg-slate-600"
-                                            aria-label={t('finish_editing', 'Finish editing')}
-                                            data-testid={`button-finish-edit-checklist-${checklist.id}`}
-                                          >
-                                            <CheckCircle2 className="w-4 h-4 text-green-400" />
-                                          </Button>
-                                        ) : (
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleEditChecklist(checklist)}
-                                            className="h-8 w-8 p-0 hover:bg-slate-600"
-                                            aria-label={t('edit_checklist', 'Edit checklist')}
-                                            data-testid={`button-edit-checklist-${checklist.id}`}
-                                          >
-                                            <Edit className="w-4 h-4 text-slate-400" />
-                                          </Button>
-                                        )}
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
+
+                                        {editingChecklist !== checklist.id && (
+                                          <div className="flex items-center gap-2 ml-4">
                                             <Button
                                               size="sm"
                                               variant="ghost"
-                                              className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
-                                              aria-label={t('delete_checklist', 'Delete checklist')}
-                                              data-testid={`button-delete-checklist-${checklist.id}`}
+                                              onClick={() => handleEditChecklist(checklist)}
+                                              className="h-8 w-8 p-0 hover:bg-slate-600"
+                                              aria-label={t('edit_checklist', 'Edit checklist')}
+                                              data-testid={`button-edit-checklist-${checklist.id}`}
                                             >
-                                              <Trash2 className="w-4 h-4" />
+                                              <Edit className="w-4 h-4 text-slate-400" />
                                             </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent className="bg-slate-900 border-slate-700">
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle className="text-white">
-                                                {t('delete_checklist_confirm', 'Delete Checklist')}
-                                              </AlertDialogTitle>
-                                              <AlertDialogDescription className="text-slate-300">
-                                                {t('delete_checklist_warning', 'Are you sure you want to delete this checklist? This action cannot be undone.')}
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
-                                                {t('cancel', 'Cancel')}
-                                              </AlertDialogCancel>
-                                              <AlertDialogAction
-                                                onClick={() => handleDeleteChecklist(checklist.id)}
-                                                className="bg-red-600 hover:bg-red-700"
-                                              >
-                                                {t('delete', 'Delete')}
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                                  aria-label={t('delete_checklist', 'Delete checklist')}
+                                                  data-testid={`button-delete-checklist-${checklist.id}`}
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    {t('confirm_delete_checklist_desc', `Are you sure you want to delete the checklist "${checklist.name}"? This action cannot be undone.`)}
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
+                                                  <AlertDialogAction
+                                                    onClick={() => handleDeleteChecklist(checklist.id)}
+                                                    className="bg-red-600 hover:bg-red-700"
+                                                  >
+                                                    {t('delete', 'Delete')}
+                                                  </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                  </div>
+                                    </CardContent>
+                                  </Card>
                                 ))}
                               </div>
 

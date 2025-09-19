@@ -694,8 +694,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         preferredLanguage: 'en'
       });
 
-      // Initialize default defects for the new tenant
+      // Initialize default defects and checklists for the new tenant
       await storage.initializeDefaultDefects(tenant.id);
+      await storage.initializeDefaultChecklists(tenant.id);
 
       // Update user's tenant association
       const userId = req.user.claims.sub;
@@ -2272,6 +2273,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching checklists by device type:", error);
       res.status(500).json({ message: "Failed to fetch checklists by device type" });
+    }
+  });
+
+  // Initialize default checklists for current tenant (for existing tenants)
+  app.post("/api/checklists/initialize", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log(`🔧 Initializing default checklists for tenant: ${user.tenantId}`);
+      await storage.initializeDefaultChecklists(user.tenantId);
+      
+      res.json({ message: "Default checklists initialized successfully" });
+    } catch (error) {
+      console.error("Error initializing default checklists:", error);
+      res.status(500).json({ message: "Failed to initialize default checklists" });
     }
   });
 
