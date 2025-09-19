@@ -102,6 +102,17 @@ export const possibleDefects = pgTable("possible_defects", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Checklists table
+export const checklists = pgTable("checklists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  deviceType: varchar("device_type").notNull(), // 'Phone', 'Laptop', 'Desktop'
+  name: varchar("name").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Clients table
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -329,6 +340,8 @@ export type RepairService = typeof repairServices.$inferSelect;
 export type InsertRepairService = typeof repairServices.$inferInsert;
 export type PossibleDefect = typeof possibleDefects.$inferSelect;
 export type InsertPossibleDefect = typeof possibleDefects.$inferInsert;
+export type Checklist = typeof checklists.$inferSelect;
+export type InsertChecklist = typeof checklists.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -397,6 +410,12 @@ export const insertRepairServiceSchema = createInsertSchema(repairServices).omit
 });
 
 export const insertPossibleDefectSchema = createInsertSchema(possibleDefects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChecklistSchema = createInsertSchema(checklists).omit({
   id: true,
   createdAt: true,
   updatedAt: true,

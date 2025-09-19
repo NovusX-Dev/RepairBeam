@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
 import { deviceColorService } from "./deviceColorService";
 import { normalizeCurrency, toCents, fromCents } from "@shared/money";
-import { insertTicketSchema } from "@shared/schema";
+import { insertTicketSchema, insertChecklistSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Enhanced validation schema for tickets with currency normalization
@@ -2233,6 +2233,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting possible defect:", error);
       res.status(500).json({ message: "Failed to delete possible defect" });
+    }
+  });
+
+  // Checklists routes
+  app.get("/api/checklists", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const checklists = await storage.getChecklists(user.tenantId);
+      res.json(checklists);
+    } catch (error) {
+      console.error("Error fetching checklists:", error);
+      res.status(500).json({ message: "Failed to fetch checklists" });
+    }
+  });
+
+  app.get("/api/checklists/device/:deviceType", isAuthenticated, async (req: any, res) => {
+    try {
+      const { deviceType } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!deviceType || deviceType.trim() === '') {
+        return res.status(400).json({ message: "Device type is required" });
+      }
+
+      const checklists = await storage.getChecklistsByDeviceType(user.tenantId, deviceType);
+      res.json(checklists);
+    } catch (error) {
+      console.error("Error fetching checklists by device type:", error);
+      res.status(500).json({ message: "Failed to fetch checklists by device type" });
+    }
+  });
+
+  app.post("/api/checklists", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Validate request body using Zod schema
+      const validationResult = insertChecklistSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid checklist data", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const checklist = await storage.createChecklist({
+        tenantId: user.tenantId,
+        ...validationResult.data
+      });
+      res.status(201).json(checklist);
+    } catch (error) {
+      console.error("Error creating checklist:", error);
+      res.status(500).json({ message: "Failed to create checklist" });
+    }
+  });
+
+  app.put("/api/checklists/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Validate request body using Zod schema (partial for updates)
+      const validationResult = insertChecklistSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid checklist data", 
+          errors: validationResult.error.errors 
+        });
+      }
+
+      const checklist = await storage.updateChecklist(id, user.tenantId, validationResult.data);
+      if (!checklist) {
+        return res.status(404).json({ message: "Checklist not found" });
+      }
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error updating checklist:", error);
+      res.status(500).json({ message: "Failed to update checklist" });
+    }
+  });
+
+  app.delete("/api/checklists/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const success = await storage.deleteChecklist(id, user.tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Checklist not found" });
+      }
+      res.json({ message: "Checklist deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting checklist:", error);
+      res.status(500).json({ message: "Failed to delete checklist" });
     }
   });
 

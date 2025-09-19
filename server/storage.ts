@@ -21,6 +21,7 @@ import {
   warrantyTiers,
   repairServices,
   possibleDefects,
+  checklists,
   type User,
   type UpsertUser,
   type Tenant,
@@ -65,6 +66,8 @@ import {
   type InsertRepairService,
   type PossibleDefect,
   type InsertPossibleDefect,
+  type Checklist,
+  type InsertChecklist,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -210,6 +213,13 @@ export interface IStorage {
   updatePossibleDefect(id: string, tenantId: string, defect: Partial<InsertPossibleDefect>): Promise<PossibleDefect | undefined>;
   deletePossibleDefect(id: string, tenantId: string): Promise<boolean>;
   initializeDefaultDefects(tenantId: string): Promise<void>;
+  
+  // Checklists operations
+  getChecklists(tenantId: string): Promise<Checklist[]>;
+  getChecklistsByDeviceType(tenantId: string, deviceType: string): Promise<Checklist[]>;
+  createChecklist(checklist: InsertChecklist): Promise<Checklist>;
+  updateChecklist(id: string, tenantId: string, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined>;
+  deleteChecklist(id: string, tenantId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1238,6 +1248,67 @@ export class DatabaseStorage implements IStorage {
       console.error(`❌ Failed to initialize default defects for tenant ${tenantId}:`, error);
       throw error;
     }
+  }
+
+  // Checklists operations implementation
+  async getChecklists(tenantId: string): Promise<Checklist[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(checklists)
+        .where(eq(checklists.tenantId, tenantId))
+        .orderBy(asc(checklists.deviceType), asc(checklists.name));
+    });
+  }
+
+  async getChecklistsByDeviceType(tenantId: string, deviceType: string): Promise<Checklist[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(checklists)
+        .where(and(
+          eq(checklists.tenantId, tenantId),
+          eq(checklists.deviceType, deviceType),
+          eq(checklists.isActive, true)
+        ))
+        .orderBy(asc(checklists.name));
+    });
+  }
+
+  async createChecklist(checklist: InsertChecklist): Promise<Checklist> {
+    return withRetry(async () => {
+      const [newChecklist] = await db
+        .insert(checklists)
+        .values(checklist)
+        .returning();
+      return newChecklist;
+    });
+  }
+
+  async updateChecklist(id: string, tenantId: string, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined> {
+    return withRetry(async () => {
+      const [updatedChecklist] = await db
+        .update(checklists)
+        .set({ ...checklist, updatedAt: new Date() })
+        .where(and(
+          eq(checklists.id, id),
+          eq(checklists.tenantId, tenantId)
+        ))
+        .returning();
+      return updatedChecklist;
+    });
+  }
+
+  async deleteChecklist(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(checklists)
+        .where(and(
+          eq(checklists.id, id),
+          eq(checklists.tenantId, tenantId)
+        ));
+      return (result.rowCount ?? 0) > 0;
+    });
   }
 }
 

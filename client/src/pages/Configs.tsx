@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench, ChevronDown, ChevronRight, CheckSquare } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +26,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
 import { FileUpload } from "@/components/FileUpload";
-import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect } from "@shared/schema";
+import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect, Checklist } from "@shared/schema";
 
 export default function Configs() {
   const { t, currentLanguage } = useLocalization();
@@ -68,6 +68,18 @@ export default function Configs() {
     Desktop: 1
   });
   const DEFECTS_PER_PAGE = 10;
+  
+  // Checklists state
+  const [editingChecklist, setEditingChecklist] = useState<string | null>(null);
+  const [newChecklist, setNewChecklist] = useState<Partial<Checklist>>({});
+  const [showAddChecklist, setShowAddChecklist] = useState(false);
+  const [checklistsSearchQuery, setChecklistsSearchQuery] = useState('');
+  const [checklistsCurrentPage, setChecklistsCurrentPage] = useState<Record<string, number>>({
+    Phone: 1,
+    Laptop: 1,
+    Desktop: 1
+  });
+  const CHECKLISTS_PER_PAGE = 10;
   
   // Repair services pagination and search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,6 +133,11 @@ export default function Configs() {
   // Fetch possible defects
   const { data: possibleDefects = [] } = useQuery<PossibleDefect[]>({
     queryKey: ['/api/possible-defects'],
+  });
+
+  // Fetch checklists
+  const { data: checklists = [] } = useQuery<Checklist[]>({
+    queryKey: ['/api/checklists'],
   });
 
   // Fetch auto-generated lists
@@ -363,6 +380,70 @@ export default function Configs() {
         description: t('possible_defect_deleted', 'Possible defect has been deleted successfully.'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/possible-defects'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('delete_failed', 'Delete Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Checklists mutations
+  const createChecklistMutation = useMutation({
+    mutationFn: async (data: Partial<Checklist>) => {
+      const response = await apiRequest('POST', '/api/checklists', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('checklist_created', 'Checklist Created'),
+        description: t('checklist_created_desc', 'Checklist has been created successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/checklists'] });
+      setShowAddChecklist(false);
+      setNewChecklist({});
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('create_failed', 'Create Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateChecklistMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Checklist> }) => {
+      const response = await apiRequest('PUT', `/api/checklists/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Don't show toast for individual field updates to avoid spam
+      queryClient.invalidateQueries({ queryKey: ['/api/checklists'] });
+      // Don't automatically exit edit mode - let user decide when they're done
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('update_failed', 'Update Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteChecklistMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/checklists/${id}`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('checklist_deleted', 'Checklist Deleted'),
+        description: t('checklist_deleted_desc', 'Checklist has been deleted successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/checklists'] });
     },
     onError: (error: Error) => {
       toast({
@@ -699,6 +780,29 @@ export default function Configs() {
   const handleDeleteDefect = (defectId: string) => {
     if (confirm(t('confirm_delete_defect', 'Are you sure you want to delete this possible defect?'))) {
       deleteDefectMutation.mutate(defectId);
+    }
+  };
+
+  // Checklists handlers
+  const handleChecklistSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (showAddChecklist) {
+      createChecklistMutation.mutate(newChecklist);
+    }
+  };
+
+  const handleEditChecklist = (checklist: Checklist) => {
+    setEditingChecklist(checklist.id);
+  };
+
+  const handleUpdateChecklist = (checklist: Checklist, field: string, value: any) => {
+    const updatedData = { [field]: value };
+    updateChecklistMutation.mutate({ id: checklist.id, data: updatedData });
+  };
+
+  const handleDeleteChecklist = (checklistId: string) => {
+    if (confirm(t('confirm_delete_checklist', 'Are you sure you want to delete this checklist?'))) {
+      deleteChecklistMutation.mutate(checklistId);
     }
   };
 
@@ -1093,6 +1197,10 @@ export default function Configs() {
           <TabsTrigger value="possible-defects" className="flex items-center gap-2" data-testid="tab-possible-defects">
             <AlertTriangle className="w-4 h-4" />
             {t('defects', 'Defects')}
+          </TabsTrigger>
+          <TabsTrigger value="checklists" className="flex items-center gap-2" data-testid="tab-checklists">
+            <CheckSquare className="w-4 h-4" />
+            {t('checklists', 'Checklists')}
           </TabsTrigger>
           <TabsTrigger value="ai-lists" className="flex items-center gap-2" data-testid="tab-ai-lists">
             <Bot className="w-4 h-4" />
@@ -2367,6 +2475,362 @@ export default function Configs() {
                                       disabled={currentPage === totalPages}
                                       className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
                                       data-testid={`button-defects-next-${deviceType.toLowerCase()}`}
+                                    >
+                                      {t('next', 'Next')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Checklists Management Tab */}
+        <TabsContent value="checklists" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <CheckSquare className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('checklists_management', 'Checklists Management')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('checklists_desc', 'Configure checklists that can be used for each device type')}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Add Checklist Button and Search */}
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-white">{t('checklists', 'Checklists')}</h3>
+                  <Button
+                    onClick={() => setShowAddChecklist(!showAddChecklist)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
+                    data-testid="button-add-checklist"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('add_checklist', 'Add Checklist')}
+                  </Button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Input
+                    value={checklistsSearchQuery}
+                    onChange={(e) => setChecklistsSearchQuery(e.target.value)}
+                    placeholder={t('search_checklists', 'Search checklists by name or device type...')}
+                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    data-testid="input-search-checklists"
+                  />
+                </div>
+              </div>
+
+              {/* Add New Checklist Form */}
+              {showAddChecklist && (
+                <Card className="mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 border border-slate-700">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg text-white font-semibold flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-cyan-100" />
+                      {t('add_checklist_title', 'Add Checklist')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleChecklistSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="checklistDeviceType">{t('device_type', 'Device Type')}</Label>
+                          <Select
+                            value={newChecklist.deviceType || ''}
+                            onValueChange={(value) => setNewChecklist(prev => ({ ...prev, deviceType: value }))}
+                          >
+                            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                              <SelectValue placeholder={t('select_device_type', 'Select device type')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {deviceTypes.map(type => (
+                                <SelectItem key={type} value={type}>
+                                  {getLocalizedDeviceType(type)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="checklistName">{t('checklist_name', 'Checklist Name')}</Label>
+                          <Input
+                            id="checklistName"
+                            value={newChecklist.name || ''}
+                            onChange={(e) => setNewChecklist(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder={t('enter_checklist_name', 'Enter checklist name')}
+                            className="bg-slate-700 border-slate-600 text-white"
+                            data-testid="input-checklist-name"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddChecklist(false);
+                            setNewChecklist({});
+                          }}
+                          className="border-slate-600 text-white hover:bg-slate-700"
+                          data-testid="button-cancel-checklist"
+                        >
+                          {t('cancel', 'Cancel')}
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={!newChecklist.deviceType || !newChecklist.name || createChecklistMutation.isPending}
+                          className="bg-cyan-600 hover:bg-cyan-700"
+                          data-testid="button-submit-checklist"
+                        >
+                          {createChecklistMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {t('creating', 'Creating...')}
+                            </>
+                          ) : (
+                            t('create_checklist', 'Create Checklist')
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Checklists by Device Type */}
+              <div className="space-y-4">
+                {deviceTypes.map(deviceType => {
+                  const deviceChecklists = checklists.filter(checklist => checklist.deviceType === deviceType);
+                  const filteredChecklists = deviceChecklists.filter(checklist =>
+                    checklist.name.toLowerCase().includes(checklistsSearchQuery.toLowerCase())
+                  );
+
+                  // Pagination
+                  const currentPage = checklistsCurrentPage[deviceType] || 1;
+                  const totalChecklists = filteredChecklists.length;
+                  const totalPages = Math.ceil(totalChecklists / CHECKLISTS_PER_PAGE);
+                  const startIndex = (currentPage - 1) * CHECKLISTS_PER_PAGE;
+                  const paginatedChecklists = filteredChecklists.slice(startIndex, startIndex + CHECKLISTS_PER_PAGE);
+
+                  return (
+                    <Card key={deviceType} className="bg-slate-900/50 border-slate-700">
+                      <CardHeader 
+                        className="pb-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                        onClick={() => setCollapsedSections(prev => ({
+                          ...prev,
+                          [`checklists-${deviceType}`]: !prev[`checklists-${deviceType}`]
+                        }))}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Smartphone className="w-5 h-5 text-cyan-400" />
+                            <CardTitle className="text-white">
+                              {getLocalizedDeviceType(deviceType)} {t('checklists', 'Checklists')} ({filteredChecklists.length})
+                            </CardTitle>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {collapsedSections[`checklists-${deviceType}`] ? (
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-slate-400" />
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      {!collapsedSections[`checklists-${deviceType}`] && (
+                        <CardContent>
+                          {filteredChecklists.length === 0 ? (
+                            <div className="text-center py-8 text-slate-400">
+                              <CheckSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                              <p>{t('no_checklists_found', 'No checklists found for this device type.')}</p>
+                              <p className="text-sm mt-2">{t('add_checklist_prompt', 'Click "Add Checklist" to create one.')}</p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="space-y-2">
+                                {paginatedChecklists.map(checklist => (
+                                  <div 
+                                    key={checklist.id} 
+                                    className="p-4 bg-slate-800/30 rounded-lg border border-slate-700/50 hover:bg-slate-800/50 transition-colors"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                        {editingChecklist === checklist.id ? (
+                                          <div className="space-y-3">
+                                            <div className="space-y-1">
+                                              <Label className="text-xs text-slate-300">{t('name', 'Name')}</Label>
+                                              <Input
+                                                value={checklist.name}
+                                                onChange={(e) => handleUpdateChecklist(checklist, 'name', e.target.value)}
+                                                className="bg-slate-700 border-slate-600 text-white text-sm"
+                                                data-testid={`input-edit-checklist-name-${checklist.id}`}
+                                              />
+                                            </div>
+                                            <div className="space-y-1">
+                                              <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
+                                              <Select
+                                                value={checklist.isActive ? 'active' : 'inactive'}
+                                                onValueChange={(value) => handleUpdateChecklist(checklist, 'isActive', value === 'active')}
+                                              >
+                                                <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm">
+                                                  <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="active">{t('active', 'Active')}</SelectItem>
+                                                  <SelectItem value="inactive">{t('inactive', 'Inactive')}</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                              <h4 className="text-white font-medium">{checklist.name}</h4>
+                                              <Badge 
+                                                variant={checklist.isActive ? 'default' : 'secondary'}
+                                                className={checklist.isActive 
+                                                  ? 'bg-green-600/20 text-green-100 border-green-600/50' 
+                                                  : 'bg-slate-600/20 text-slate-300 border-slate-600/50'
+                                                }
+                                              >
+                                                {checklist.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 ml-4">
+                                        {editingChecklist === checklist.id ? (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => setEditingChecklist(null)}
+                                            className="h-8 w-8 p-0 hover:bg-slate-600"
+                                            aria-label={t('finish_editing', 'Finish editing')}
+                                            data-testid={`button-finish-edit-checklist-${checklist.id}`}
+                                          >
+                                            <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleEditChecklist(checklist)}
+                                            className="h-8 w-8 p-0 hover:bg-slate-600"
+                                            aria-label={t('edit_checklist', 'Edit checklist')}
+                                            data-testid={`button-edit-checklist-${checklist.id}`}
+                                          >
+                                            <Edit className="w-4 h-4 text-slate-400" />
+                                          </Button>
+                                        )}
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                              aria-label={t('delete_checklist', 'Delete checklist')}
+                                              data-testid={`button-delete-checklist-${checklist.id}`}
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent className="bg-slate-900 border-slate-700">
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle className="text-white">
+                                                {t('delete_checklist_confirm', 'Delete Checklist')}
+                                              </AlertDialogTitle>
+                                              <AlertDialogDescription className="text-slate-300">
+                                                {t('delete_checklist_warning', 'Are you sure you want to delete this checklist? This action cannot be undone.')}
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel className="bg-slate-700 border-slate-600 text-white hover:bg-slate-600">
+                                                {t('cancel', 'Cancel')}
+                                              </AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => handleDeleteChecklist(checklist.id)}
+                                                className="bg-red-600 hover:bg-red-700"
+                                              >
+                                                {t('delete', 'Delete')}
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Pagination */}
+                              {totalPages > 1 && (
+                                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
+                                  <span className="text-sm text-slate-400">
+                                    {t('showing_checklists', `Showing ${startIndex + 1}-${Math.min(startIndex + CHECKLISTS_PER_PAGE, totalChecklists)} of ${totalChecklists} checklists`)}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setChecklistsCurrentPage(prev => ({
+                                        ...prev,
+                                        [deviceType]: currentPage - 1
+                                      }))}
+                                      disabled={currentPage === 1}
+                                      className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                      data-testid={`button-checklists-prev-${deviceType.toLowerCase()}`}
+                                    >
+                                      {t('previous', 'Previous')}
+                                    </Button>
+                                    <div className="flex items-center gap-1">
+                                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                        <Button
+                                          key={page}
+                                          variant={page === currentPage ? "default" : "outline"}
+                                          size="sm"
+                                          onClick={() => setChecklistsCurrentPage(prev => ({
+                                            ...prev,
+                                            [deviceType]: page
+                                          }))}
+                                          className={page === currentPage 
+                                            ? "bg-cyan-600 hover:bg-cyan-700 text-white" 
+                                            : "border-slate-600 text-white hover:bg-slate-700"
+                                          }
+                                          data-testid={`button-checklists-page-${page}-${deviceType.toLowerCase()}`}
+                                        >
+                                          {page}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setChecklistsCurrentPage(prev => ({
+                                        ...prev,
+                                        [deviceType]: currentPage + 1
+                                      }))}
+                                      disabled={currentPage === totalPages}
+                                      className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                      data-testid={`button-checklists-next-${deviceType.toLowerCase()}`}
                                     >
                                       {t('next', 'Next')}
                                     </Button>
