@@ -1255,35 +1255,48 @@ export class DatabaseStorage implements IStorage {
     console.log(`🔧 Initializing default checklists for tenant: ${tenantId}`);
     
     try {
-      // Check if checklists already exist for this tenant to ensure idempotency
+      // Check if checklists already exist for this tenant
       const existingChecklists = await this.getChecklists(tenantId);
       if (existingChecklists.length > 0) {
-        console.log(`📋 Tenant ${tenantId} already has ${existingChecklists.length} checklists, skipping initialization`);
-        return;
+        // Check if existing checklists are in English (need updating to Portuguese)
+        const hasEnglishChecklists = existingChecklists.some(checklist => 
+          checklist.name.includes('Physical condition inspection') || 
+          checklist.name.includes('Screen functionality test') ||
+          checklist.name.includes('Power supply functionality')
+        );
+        
+        if (hasEnglishChecklists) {
+          console.log(`🔄 Updating ${existingChecklists.length} existing English checklists to Portuguese for tenant ${tenantId}`);
+          await this.updateChecklistsToPortuguese(tenantId);
+          return;
+        } else {
+          console.log(`📋 Tenant ${tenantId} already has ${existingChecklists.length} Portuguese checklists, skipping initialization`);
+          return;
+        }
       }
 
       // Phone checklists (15 items)
       const phoneChecklists = [
-        "Physical condition inspection", "Screen functionality test", "Touch responsiveness check", "Home/power button test",
-        "Volume button functionality", "Audio speaker test", "Microphone test", "Camera functionality check",
-        "Flash operation test", "Wi-Fi connectivity test", "Bluetooth connectivity test", "Charging port inspection",
-        "Battery performance test", "Fingerprint sensor test", "Overall device performance check"
+        "Inspeção das condições físicas", "Teste de funcionalidade da tela", "Verificação de responsividade do touch", "Teste do botão home/liga",
+        "Funcionalidade dos botões de volume", "Teste do alto-falante", "Teste do microfone", "Verificação da funcionalidade da câmera",
+        "Teste de operação do flash", "Teste de conectividade Wi-Fi", "Teste de conectividade Bluetooth", "Inspeção da porta de carregamento",
+        "Teste de desempenho da bateria", "Teste do sensor de impressão digital", "Verificação geral de desempenho do aparelho"
       ];
 
       // Laptop checklists (15 items)
       const laptopChecklists = [
-        "Physical condition inspection", "Screen display test", "Keyboard functionality check", "Trackpad responsiveness test",
-        "USB ports functionality", "Audio jack test", "Speakers and microphone test", "Wi-Fi connectivity test",
-        "Bluetooth functionality check", "Charging port and adapter test", "Battery performance evaluation", "Webcam functionality test",
-        "HDMI/display output test", "System boot and performance test", "Fan and cooling system check"
+        "Inspeção das condições físicas", "Teste de exibição da tela", "Verificação da funcionalidade do teclado", "Teste de responsividade do trackpad",
+        "Funcionalidade das portas USB", "Teste da entrada de áudio", "Teste de alto-falantes e microfone", "Teste de conectividade Wi-Fi",
+        "Verificação da funcionalidade Bluetooth", "Teste da porta de carregamento e adaptador", "Avaliação do desempenho da bateria", "Teste de funcionalidade da webcam",
+        "Teste de saída HDMI/display", "Teste de boot e desempenho do sistema", "Verificação do sistema de ventilação e resfriamento"
       ];
 
       // Desktop checklists (15 items)
       const desktopChecklists = [
-        "Physical condition inspection", "Power supply functionality", "Monitor display output test", "Keyboard and mouse test",
-        "USB ports functionality check", "Audio input/output test", "Network connectivity test", "CD/DVD drive test",
-        "Hard drive performance check", "RAM functionality test", "CPU performance evaluation", "Graphics card test",
-        "Fan and cooling system check", "BIOS/UEFI access test", "Overall system stability test"
+        "Inspeção das condições físicas", "Funcionalidade da fonte de alimentação", "Teste de saída de exibição do monitor", "Teste de teclado e mouse",
+        "Verificação da funcionalidade das portas USB", "Teste de entrada/saída de áudio", "Teste de conectividade de rede", "Teste do drive de CD/DVD",
+        "Verificação do desempenho do disco rígido", "Teste de funcionalidade da RAM", "Avaliação do desempenho da CPU", "Teste da placa de vídeo",
+        "Verificação do sistema de ventilação e resfriamento", "Teste de acesso ao BIOS/UEFI", "Teste de estabilidade geral do sistema"
       ];
 
       // Create all checklists using batch insert for better performance
@@ -1304,6 +1317,83 @@ export class DatabaseStorage implements IStorage {
       
     } catch (error) {
       console.error(`❌ Failed to initialize default checklists for tenant ${tenantId}:`, error);
+      throw error;
+    }
+  }
+
+  async updateChecklistsToPortuguese(tenantId: string): Promise<void> {
+    const englishToPortuguese: Record<string, string> = {
+      // Phone checklists
+      "Physical condition inspection": "Inspeção das condições físicas",
+      "Screen functionality test": "Teste de funcionalidade da tela",
+      "Touch responsiveness check": "Verificação de responsividade do touch",
+      "Home/power button test": "Teste do botão home/liga",
+      "Volume button functionality": "Funcionalidade dos botões de volume",
+      "Audio speaker test": "Teste do alto-falante",
+      "Microphone test": "Teste do microfone",
+      "Camera functionality check": "Verificação da funcionalidade da câmera",
+      "Flash operation test": "Teste de operação do flash",
+      "Wi-Fi connectivity test": "Teste de conectividade Wi-Fi",
+      "Bluetooth connectivity test": "Teste de conectividade Bluetooth",
+      "Charging port inspection": "Inspeção da porta de carregamento",
+      "Battery performance test": "Teste de desempenho da bateria",
+      "Fingerprint sensor test": "Teste do sensor de impressão digital",
+      "Overall device performance check": "Verificação geral de desempenho do aparelho",
+      
+      // Laptop checklists
+      "Screen display test": "Teste de exibição da tela",
+      "Keyboard functionality check": "Verificação da funcionalidade do teclado",
+      "Trackpad responsiveness test": "Teste de responsividade do trackpad",
+      "USB ports functionality": "Funcionalidade das portas USB",
+      "Audio jack test": "Teste da entrada de áudio",
+      "Speakers and microphone test": "Teste de alto-falantes e microfone",
+      "Bluetooth functionality check": "Verificação da funcionalidade Bluetooth",
+      "Charging port and adapter test": "Teste da porta de carregamento e adaptador",
+      "Battery performance evaluation": "Avaliação do desempenho da bateria",
+      "Webcam functionality test": "Teste de funcionalidade da webcam",
+      "HDMI/display output test": "Teste de saída HDMI/display",
+      "System boot and performance test": "Teste de boot e desempenho do sistema",
+      "Fan and cooling system check": "Verificação do sistema de ventilação e resfriamento",
+      
+      // Desktop checklists
+      "Power supply functionality": "Funcionalidade da fonte de alimentação",
+      "Monitor display output test": "Teste de saída de exibição do monitor",
+      "Keyboard and mouse test": "Teste de teclado e mouse",
+      "USB ports functionality check": "Verificação da funcionalidade das portas USB",
+      "Audio input/output test": "Teste de entrada/saída de áudio",
+      "Network connectivity test": "Teste de conectividade de rede",
+      "CD/DVD drive test": "Teste do drive de CD/DVD",
+      "Hard drive performance check": "Verificação do desempenho do disco rígido",
+      "RAM functionality test": "Teste de funcionalidade da RAM",
+      "CPU performance evaluation": "Avaliação do desempenho da CPU",
+      "Graphics card test": "Teste da placa de vídeo",
+      "BIOS/UEFI access test": "Teste de acesso ao BIOS/UEFI",
+      "Overall system stability test": "Teste de estabilidade geral do sistema"
+    };
+
+    try {
+      const existingChecklists = await this.getChecklists(tenantId);
+      let updatedCount = 0;
+
+      for (const checklist of existingChecklists) {
+        const portugueseName = englishToPortuguese[checklist.name];
+        if (portugueseName) {
+          await withRetry(async () => {
+            await db
+              .update(checklists)
+              .set({ name: portugueseName, updatedAt: new Date() })
+              .where(and(
+                eq(checklists.id, checklist.id),
+                eq(checklists.tenantId, tenantId)
+              ));
+          });
+          updatedCount++;
+        }
+      }
+
+      console.log(`✅ Successfully updated ${updatedCount} checklists to Portuguese for tenant ${tenantId}`);
+    } catch (error) {
+      console.error(`❌ Failed to update checklists to Portuguese for tenant ${tenantId}:`, error);
       throw error;
     }
   }
