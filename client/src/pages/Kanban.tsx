@@ -80,6 +80,12 @@ interface ProblemsTabContentProps {
 function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTabContentProps) {
   const { t } = useLocalization();
   
+  // Prefilter responses to exclude special question types that are handled separately
+  const visibleResponses = issueResponses.filter(response => 
+    response.questionId !== 'selected_defects' && 
+    response.questionId !== 'additional_comments'
+  );
+  
   // Fetch issue questions to get question text and types
   const { data: questions = [] } = useQuery({
     queryKey: ['/api/issue-questions', deviceType],
@@ -122,7 +128,21 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
 
   return (
     <div className="space-y-4">
-      {!issueResponses || issueResponses.length === 0 ? (
+      {/* Handle additional comments separately first */}
+      {issueResponses.filter(r => r.questionId === 'additional_comments').map((response, index) => (
+        <div key={response.id || index} className="bg-blue-50/50 dark:bg-blue-950/20 p-2 rounded border border-blue-200/50 dark:border-blue-800/50">
+          <div className="font-medium text-xs mb-1 text-foreground flex items-center gap-2">
+            <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+            {t("additional_comments", "Additional Comments")}
+          </div>
+          <div className="text-xs text-muted-foreground italic">
+            "{response.response}"
+          </div>
+        </div>
+      ))}
+
+      {/* Main visible responses section */}
+      {!visibleResponses || visibleResponses.length === 0 ? (
         <div className="bg-muted/5 border border-muted/20 rounded-lg p-4 text-center">
           <AlertTriangle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <h3 className="font-semibold text-sm mb-1">{t("problems_identified", "Problems Identified")}</h3>
@@ -136,27 +156,12 @@ function ProblemsTabContent({ ticketId, deviceType, issueResponses }: ProblemsTa
             <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
             {t("problems_identified", "Problems Identified")}
             <span className="text-xs text-muted-foreground font-normal">
-              ({issueResponses.length} {t("responses", "responses")})
+              ({visibleResponses.length} {t("responses", "responses")})
             </span>
           </h3>
           
           <div className="space-y-2">
-            {issueResponses.map((response, index) => {
-              // Handle special case for additional comments
-              if (response.questionId === 'additional_comments') {
-                return (
-                  <div key={response.id || index} className="bg-blue-50/50 dark:bg-blue-950/20 p-2 rounded border border-blue-200/50 dark:border-blue-800/50">
-                    <div className="font-medium text-xs mb-1 text-foreground flex items-center gap-2">
-                      <MessageSquare className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                      {t("additional_comments", "Additional Comments")}
-                    </div>
-                    <div className="text-xs text-muted-foreground italic">
-                      "{response.response}"
-                    </div>
-                  </div>
-                );
-              }
-
+            {visibleResponses.map((response, index) => {
               const question = questionMap[response.questionId];
               const questionText = question ? t(question.questionKey, question.questionKey) : `${t("question", "Question")} ${index + 1}`;
               const formattedResponse = formatResponse(response.response, question);
