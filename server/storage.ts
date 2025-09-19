@@ -1260,9 +1260,11 @@ export class DatabaseStorage implements IStorage {
       if (existingChecklists.length > 0) {
         // Check if existing checklists are in English (need updating to Portuguese)
         const hasEnglishChecklists = existingChecklists.some(checklist => 
-          checklist.name.includes('Physical condition inspection') || 
-          checklist.name.includes('Screen functionality test') ||
-          checklist.name.includes('Power supply functionality')
+          checklist.name.includes('Audio System Check') || 
+          checklist.name.includes('Button Operation Test') ||
+          checklist.name.includes('Physical Condition Assessment') ||
+          checklist.name.includes('Power Supply Unit (PSU) Test') ||
+          checklist.name.includes('Audio and Microphone Check')
         );
         
         if (hasEnglishChecklists) {
@@ -1270,7 +1272,9 @@ export class DatabaseStorage implements IStorage {
           await this.updateChecklistsToPortuguese(tenantId);
           return;
         } else {
-          console.log(`📋 Tenant ${tenantId} already has ${existingChecklists.length} Portuguese checklists, skipping initialization`);
+          console.log(`📋 Tenant ${tenantId} already has ${existingChecklists.length} checklists, checking for Portuguese conversion...`);
+          // Force update check - if any English names exist, update them
+          await this.updateChecklistsToPortuguese(tenantId);
           return;
         }
       }
@@ -1324,51 +1328,100 @@ export class DatabaseStorage implements IStorage {
   async updateChecklistsToPortuguese(tenantId: string): Promise<void> {
     const englishToPortuguese: Record<string, string> = {
       // Phone checklists
-      "Physical condition inspection": "Inspeção das condições físicas",
-      "Screen functionality test": "Teste de funcionalidade da tela",
-      "Touch responsiveness check": "Verificação de responsividade do touch",
-      "Home/power button test": "Teste do botão home/liga",
-      "Volume button functionality": "Funcionalidade dos botões de volume",
-      "Audio speaker test": "Teste do alto-falante",
-      "Microphone test": "Teste do microfone",
-      "Camera functionality check": "Verificação da funcionalidade da câmera",
-      "Flash operation test": "Teste de operação do flash",
-      "Wi-Fi connectivity test": "Teste de conectividade Wi-Fi",
-      "Bluetooth connectivity test": "Teste de conectividade Bluetooth",
-      "Charging port inspection": "Inspeção da porta de carregamento",
-      "Battery performance test": "Teste de desempenho da bateria",
-      "Fingerprint sensor test": "Teste do sensor de impressão digital",
-      "Overall device performance check": "Verificação geral de desempenho do aparelho",
-      
+      "Audio System Check": "Verificação do Sistema de Áudio",
+      "Battery charging and capacity test": "Teste de carregamento e capacidade da bateria",
+      "Biometric Security Test": "Teste de Segurança Biométrica",
+      "Button Operation Test": "Teste de Operação dos Botões",
+      "Camera Functionality": "Funcionalidade da Câmera",
+      "Camera focus and image quality": "Foco da câmera e qualidade da imagem",
+      "Cellular signal strength test": "Teste de força do sinal celular",
+      "Charging port condition check": "Verificação da condição da porta de carregamento",
+      "Connectivity Assessment": "Avaliação de Conectividade",
+      "Fingerprint scanner functionality (if applicable)": "Funcionalidade do scanner de impressão digital (se aplicável)",
+      "Home/navigation buttons functionality": "Funcionalidade dos botões home/navegação",
+      "Liquid damage indicator inspection": "Inspeção do indicador de danos por líquidos",
+      "Network Signal Quality": "Qualidade do Sinal de Rede",
+      "Physical Condition Assessment": "Avaliação das Condições Físicas",
+      "Physical damage to housing/frame": "Danos físicos na carcaça/estrutura",
+      "Port and Connector Check": "Verificação de Portas e Conectores",
+      "Power and Battery Status": "Status da Energia e Bateria",
+      "Power button functionality test": "Teste de funcionalidade do botão de energia",
+      "Screen Display Test": "Teste de Exibição da Tela",
+      "Screen condition and crack assessment": "Avaliação da condição e rachaduras da tela",
+      "Sensor Verification": "Verificação de Sensores",
+      "SIM card slot condition": "Condição do slot do cartão SIM",
+      "Software Operation": "Operação do Software",
+      "Speaker and microphone quality test": "Teste de qualidade do alto-falante e microfone",
+      "Storage and Memory Test": "Teste de Armazenamento e Memória",
+      "Touch screen responsiveness check": "Verificação de responsividade da tela sensível ao toque",
+      "Vibration Motor Check": "Verificação do Motor de Vibração",
+      "Volume buttons operation test": "Teste de operação dos botões de volume",
+      "Water Damage Inspection": "Inspeção de Danos por Água",
+      "WiFi connectivity test": "Teste de conectividade WiFi",
+
       // Laptop checklists
-      "Screen display test": "Teste de exibição da tela",
-      "Keyboard functionality check": "Verificação da funcionalidade do teclado",
-      "Trackpad responsiveness test": "Teste de responsividade do trackpad",
-      "USB ports functionality": "Funcionalidade das portas USB",
-      "Audio jack test": "Teste da entrada de áudio",
-      "Speakers and microphone test": "Teste de alto-falantes e microfone",
-      "Bluetooth functionality check": "Verificação da funcionalidade Bluetooth",
-      "Charging port and adapter test": "Teste da porta de carregamento e adaptador",
-      "Battery performance evaluation": "Avaliação do desempenho da bateria",
-      "Webcam functionality test": "Teste de funcionalidade da webcam",
-      "HDMI/display output test": "Teste de saída HDMI/display",
-      "System boot and performance test": "Teste de boot e desempenho do sistema",
-      "Fan and cooling system check": "Verificação do sistema de ventilação e resfriamento",
-      
+      "Audio and Microphone Check": "Verificação de Áudio e Microfone",
+      "Audio output quality test": "Teste de qualidade de saída de áudio",
+      "Battery Health Assessment": "Avaliação da Saúde da Bateria",
+      "Battery charging status and capacity": "Status de carregamento e capacidade da bateria",
+      "Boot sequence and timing check": "Verificação da sequência e timing de boot",
+      "CPU temperature monitoring": "Monitoramento de temperatura da CPU",
+      "Display and Screen Quality": "Qualidade da Exibição e Tela",
+      "External Display Output": "Saída de Exibição Externa",
+      "Fan and Thermal Check": "Verificação de Ventilação e Térmica",
+      "Hard Drive/SSD Status": "Status do Disco Rígido/SSD",
+      "Hinge and Build Quality": "Qualidade da Dobradiça e Construção",
+      "Hinge operation and stability check": "Verificação de operação e estabilidade da dobradiça",
+      "Internal dust accumulation assessment": "Avaliação de acúmulo de poeira interna",
+      "Internal fan operation test": "Teste de operação do ventilador interno",
+      "Keyboard and Trackpad Test": "Teste de Teclado e Trackpad",
+      "Keyboard key responsiveness test": "Teste de responsividade das teclas do teclado",
+      "Memory (RAM) Test": "Teste de Memória (RAM)",
+      "Operating System Boot": "Boot do Sistema Operacional",
+      "Physical Port Inspection": "Inspeção de Portas Físicas",
+      "Power Adapter and Charging": "Adaptador de Energia e Carregamento",
+      "Power adapter functionality test": "Teste de funcionalidade do adaptador de energia",
+      "RAM recognition and capacity test": "Teste de reconhecimento e capacidade da RAM",
+      "Screen display quality and brightness": "Qualidade e brilho da exibição da tela",
+      "Storage device health check": "Verificação de saúde do dispositivo de armazenamento",
+      "System Performance": "Desempenho do Sistema",
+      "Trackpad accuracy and gesture test": "Teste de precisão e gestos do trackpad",
+      "USB and HDMI port functionality": "Funcionalidade das portas USB e HDMI",
+      "Webcam and Camera Test": "Teste de Webcam e Câmera",
+      "Wi-Fi and Bluetooth Test": "Teste de Wi-Fi e Bluetooth",
+      "WiFi and Bluetooth connectivity": "Conectividade WiFi e Bluetooth",
+
       // Desktop checklists
-      "Power supply functionality": "Funcionalidade da fonte de alimentação",
+      "All port functionality check": "Verificação de funcionalidade de todas as portas",
+      "Audio Input/Output Jacks": "Entradas/Saídas de Áudio",
+      "Audio system functionality": "Funcionalidade do sistema de áudio",
+      "BIOS/UEFI Access": "Acesso ao BIOS/UEFI",
+      "Cable and Connection Check": "Verificação de Cabos e Conexões",
+      "Cable connection integrity": "Integridade da conexão dos cabos",
+      "Case Fan Operation": "Operação do Ventilador da Carcaça",
+      "Component dust accumulation check": "Verificação de acúmulo de poeira nos componentes",
+      "CPU and Cooling System": "CPU e Sistema de Resfriamento",
+      "Front and Rear USB Ports": "Portas USB Frontais e Traseiras",
+      "Graphics Card Function": "Função da Placa de Vídeo",
+      "Hard Drive/SSD Recognition": "Reconhecimento do Disco Rígido/SSD",
+      "Internal component seating check": "Verificação do assentamento dos componentes internos",
+      "Internal fan operation assessment": "Avaliação da operação do ventilador interno",
+      "Keyboard and mouse responsiveness": "Responsividade do teclado e mouse",
+      "Memory (RAM) Detection": "Detecção de Memória (RAM)",
+      "Memory (RAM) recognition test": "Teste de reconhecimento da memória (RAM)",
+      "Monitor Connection and Display": "Conexão e Exibição do Monitor",
       "Monitor display output test": "Teste de saída de exibição do monitor",
-      "Keyboard and mouse test": "Teste de teclado e mouse",
-      "USB ports functionality check": "Verificação da funcionalidade das portas USB",
-      "Audio input/output test": "Teste de entrada/saída de áudio",
+      "Motherboard POST Test": "Teste POST da Placa-mãe",
+      "Network Interface Card": "Placa de Interface de Rede",
       "Network connectivity test": "Teste de conectividade de rede",
-      "CD/DVD drive test": "Teste do drive de CD/DVD",
-      "Hard drive performance check": "Verificação do desempenho do disco rígido",
-      "RAM functionality test": "Teste de funcionalidade da RAM",
-      "CPU performance evaluation": "Avaliação do desempenho da CPU",
-      "Graphics card test": "Teste da placa de vídeo",
-      "BIOS/UEFI access test": "Teste de acesso ao BIOS/UEFI",
-      "Overall system stability test": "Teste de estabilidade geral do sistema"
+      "Operating System Boot Test": "Teste de Boot do Sistema Operacional",
+      "Optical Drive Function": "Função da Unidade Óptica",
+      "Optical drive operation test": "Teste de operação da unidade óptica",
+      "Power Supply Unit (PSU) Test": "Teste da Fonte de Alimentação (PSU)",
+      "Power supply unit functionality test": "Teste de funcionalidade da fonte de alimentação",
+      "Storage device detection check": "Verificação de detecção do dispositivo de armazenamento",
+      "System boot sequence verification": "Verificação da sequência de boot do sistema",
+      "System temperature monitoring": "Monitoramento de temperatura do sistema"
     };
 
     try {
@@ -1398,8 +1451,42 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async ensureChecklistsAreInPortuguese(tenantId: string): Promise<void> {
+    try {
+      // Quick check to see if any English names exist
+      const checklistData = await withRetry(async () => {
+        return await db
+          .select({ id: checklists.id, name: checklists.name })
+          .from(checklists)
+          .where(eq(checklists.tenantId, tenantId))
+          .limit(5); // Just check first few to save performance
+      });
+
+      const hasEnglishNames = checklistData.some((item: { id: string; name: string }) => 
+        item.name.includes('Audio System Check') || 
+        item.name.includes('Button Operation Test') ||
+        item.name.includes('Physical Condition Assessment') ||
+        item.name.includes('Power Supply Unit') ||
+        item.name.includes('Test') ||
+        item.name.includes('Check') ||
+        item.name.includes('Assessment')
+      );
+
+      if (hasEnglishNames) {
+        console.log(`🔄 Converting English checklists to Portuguese for tenant ${tenantId}`);
+        await this.updateChecklistsToPortuguese(tenantId);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to ensure checklists are in Portuguese for tenant ${tenantId}:`, error);
+      // Don't throw error to avoid breaking checklist fetching
+    }
+  }
+
   // Checklists operations implementation
   async getChecklists(tenantId: string): Promise<Checklist[]> {
+    // First, trigger Portuguese conversion if needed (safety mechanism)
+    await this.ensureChecklistsAreInPortuguese(tenantId);
+    
     return withRetry(async () => {
       return await db
         .select()
