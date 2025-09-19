@@ -2292,9 +2292,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const { tenantId, ...checklistData } = validationResult.data;
       const checklist = await storage.createChecklist({
         tenantId: user.tenantId,
-        ...validationResult.data
+        ...checklistData
       });
       res.status(201).json(checklist);
     } catch (error) {
