@@ -1484,9 +1484,6 @@ export class DatabaseStorage implements IStorage {
 
   // Checklists operations implementation
   async getChecklists(tenantId: string): Promise<Checklist[]> {
-    // First, trigger Portuguese conversion if needed (safety mechanism)
-    await this.ensureChecklistsAreInPortuguese(tenantId);
-    
     return withRetry(async () => {
       return await db
         .select()
