@@ -337,7 +337,7 @@ interface TicketFormData {
   totalCost: string;
   costExplanation: string;
   // Service Checklist
-  deviceComponents: { [component: string]: string }; // component -> condition mapping
+  selectedChecklists: string[]; // Array of selected checklist IDs
   additionalNotes: string;
   // Issue Assessment
   issueResponses?: Array<{ questionId: string; answer: any }>;
@@ -687,7 +687,7 @@ export default function KanbanTickets() {
     totalCost: '',
     costExplanation: '',
     // Service Checklist
-    deviceComponents: {},
+    selectedChecklists: [],
     additionalNotes: '',
     // Issue Assessment
     issueResponses: [],
@@ -791,11 +791,14 @@ export default function KanbanTickets() {
     }));
   };
 
-  // Device checklist template query
-  const { data: checklistTemplate, isLoading: isLoadingChecklist } = useQuery<any>({
-    queryKey: ['/api/device-checklist-templates', formData.deviceType],
+  // Configuration checklists query
+  const { data: configurationChecklists, isLoading: isLoadingChecklists } = useQuery<any[]>({
+    queryKey: ['/api/checklists/device', formData.deviceType],
     enabled: !!formData.deviceType && currentStep === 5,
   });
+  
+  // Filter only active checklists
+  const activeChecklists = configurationChecklists?.filter(checklist => checklist.isActive) || [];
   
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
@@ -1098,7 +1101,7 @@ export default function KanbanTickets() {
         costExplanation: '',
         selectedServices: [],
         // Service Checklist defaults
-        deviceComponents: {},
+        selectedChecklists: [],
         additionalNotes: '',
         // Issue Assessment defaults
         issueResponses: [],
@@ -1810,7 +1813,7 @@ export default function KanbanTickets() {
         // Service Checklist data
         warrantyType: 'standard' as const,
         serviceChecklist: {
-          components: formData.deviceComponents,
+          selectedChecklists: formData.selectedChecklists,
           additionalNotes: formData.additionalNotes
         },
         issueResponses: formData.issueResponses || [],
@@ -1856,23 +1859,8 @@ export default function KanbanTickets() {
       // Issue Assessment step - trigger completion
       setShouldCompleteAssessment(true);
     } else if (currentStep === 5) {
-      // Service Checklist step - auto-set unselected components to N/A
-      if (checklistTemplate && checklistTemplate.components) {
-        const updatedComponents = { ...formData.deviceComponents };
-        
-        // Set any unselected components to "not_applicable" (N/A)
-        checklistTemplate.components.forEach((component: string) => {
-          if (!updatedComponents[component]) {
-            updatedComponents[component] = 'not_applicable';
-          }
-        });
-        
-        // Update form data with auto-set components
-        setFormData(prev => ({
-          ...prev,
-          deviceComponents: updatedComponents
-        }));
-      }
+      // Service Checklist step - no additional processing needed for checklist selection
+      // The selectedChecklists array already contains only the checked items
       
       setCurrentStep(currentStep + 1);
     } else if (currentStep < ticketSteps.length - 1) {
@@ -1928,7 +1916,7 @@ export default function KanbanTickets() {
         costExplanation: '',
         selectedServices: [],
         // Service Checklist defaults
-        deviceComponents: {},
+        selectedChecklists: [],
         additionalNotes: '',
         // Issue Assessment defaults
         issueResponses: [],
@@ -3210,83 +3198,94 @@ export default function KanbanTickets() {
                         {t("service_checklist", "Service Checklist")}
                       </h3>
                       <p className="text-cyan-100 text-sm mt-1">
-                        {t("checklist_description", "Document the current condition of each component to ensure accountability when returning the device to the client.")}
+                        {t("checklist_description_new", "Select applicable checklists from Configurations to document service requirements.")}
                       </p>
                     </div>
                     
                     <div className="p-6 space-y-6">
-
-                  {isLoadingChecklist ? (
-                    <div className="space-y-4">
-                      {[...Array(6)].map((_, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-8 w-32" />
+                      {isLoadingChecklists ? (
+                        <div className="space-y-4">
+                          {[...Array(4)].map((_, i) => (
+                            <div key={i} className="flex items-start gap-3 p-4 border border-border rounded-lg">
+                              <Skeleton className="h-4 w-4 mt-0.5" />
+                              <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-3 w-1/2" />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  ) : checklistTemplate?.components && Array.isArray(checklistTemplate.components) ? (
-                    <div className="space-y-4">
-                      <div className="grid gap-4">
-                        {(checklistTemplate.components as string[]).map((component: string) => (
-                          <div key={component} className="flex items-center justify-between p-4 border border-border rounded-lg bg-card">
-                            <Label className="font-medium text-sm capitalize" htmlFor={`component-${component}`}>
-                              {t(component.toLowerCase().replace(/\s+/g, '_'), component.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()))}
-                            </Label>
-                            <Select
-                              value={formData.deviceComponents[component] || ''}
-                              onValueChange={(value) => {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  deviceComponents: {
-                                    ...prev.deviceComponents,
-                                    [component]: value
-                                  }
-                                }));
-                              }}
-                            >
-                              <SelectTrigger className="w-48" data-testid={`select-component-${component.toLowerCase()}`}>
-                                <SelectValue placeholder={t("select_condition", "Select condition")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="excellent">{t("excellent", "Excellent")}</SelectItem>
-                                <SelectItem value="good">{t("good", "Good")}</SelectItem>
-                                <SelectItem value="fair">{t("fair", "Fair")}</SelectItem>
-                                <SelectItem value="poor">{t("poor", "Poor")}</SelectItem>
-                                <SelectItem value="damaged">{t("damaged", "Damaged")}</SelectItem>
-                                <SelectItem value="missing">{t("missing", "Missing")}</SelectItem>
-                                <SelectItem value="not_applicable">{t("not_applicable", "N/A - Not Applicable")}</SelectItem>
-                              </SelectContent>
-                            </Select>
+                      ) : activeChecklists && activeChecklists.length > 0 ? (
+                        <div className="space-y-4">
+                          <div className="grid gap-4">
+                            {activeChecklists.map((checklist: any) => (
+                              <div key={checklist.id} className="flex items-start gap-3 p-4 border border-border rounded-lg bg-card hover:bg-muted/50 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  id={`checklist-${checklist.id}`}
+                                  checked={formData.selectedChecklists.includes(checklist.id)}
+                                  onChange={(e) => {
+                                    const isChecked = e.target.checked;
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      selectedChecklists: isChecked
+                                        ? [...prev.selectedChecklists, checklist.id]
+                                        : prev.selectedChecklists.filter(id => id !== checklist.id)
+                                    }));
+                                  }}
+                                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#00FFFF] focus:ring-[#00FFFF] focus:ring-2"
+                                  data-testid={`checkbox-checklist-${checklist.id}`}
+                                />
+                                <Label 
+                                  htmlFor={`checklist-${checklist.id}`} 
+                                  className="flex-1 cursor-pointer"
+                                >
+                                  <div className="font-medium text-sm text-foreground">
+                                    {checklist.name}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {t("device_type", "Device Type")}: {checklist.deviceType}
+                                  </div>
+                                </Label>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
 
-                      {/* Additional Notes */}
-                      <FormFieldWithTooltip
-                        label={t("additional_notes", "Additional Notes")}
-                        tooltip={t("additional_notes_tooltip", "Any additional observations about the device condition or specific damage details.")}
-                      >
-                        <Textarea
-                          id="additionalNotes"
-                          value={formData.additionalNotes}
-                          onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
-                          placeholder={t("additional_notes_placeholder", "Example: Small scratch on back cover near camera, screen has minor scuffs but fully functional...")}
-                          rows={4}
-                          data-testid="textarea-additional-notes"
-                          className="resize-none"
-                        />
-                      </FormFieldWithTooltip>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <div className="space-y-4">
-                        <AlertTriangle className="w-12 h-12 mx-auto" />
-                        <h3 className="text-lg font-semibold">{t("no_checklist_template", "No Checklist Template Available")}</h3>
-                        <p>{t("no_checklist_message", "Please select a device type in the previous step to load the appropriate checklist.")}</p>
-                      </div>
-                    </div>
-                  )}
+                          {/* Selection Summary */}
+                          {formData.selectedChecklists.length > 0 && (
+                            <div className="bg-[#00FFFF]/10 border border-[#00FFFF]/20 rounded-lg p-4">
+                              <div className="flex items-center gap-2 text-[#00FFFF] text-sm font-medium">
+                                <Check className="w-4 h-4" />
+                                {formData.selectedChecklists.length} {t("checklists_selected", "checklist(s) selected")}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Additional Notes */}
+                          <FormFieldWithTooltip
+                            label={t("additional_notes", "Additional Notes")}
+                            tooltip={t("additional_notes_tooltip", "Any additional observations about the device condition or specific service requirements.")}
+                          >
+                            <Textarea
+                              id="additionalNotes"
+                              value={formData.additionalNotes}
+                              onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
+                              placeholder={t("additional_notes_placeholder", "Example: Device requires special handling due to water damage, client requested priority processing...")}
+                              rows={4}
+                              data-testid="textarea-additional-notes"
+                              className="resize-none"
+                            />
+                          </FormFieldWithTooltip>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <div className="space-y-4">
+                            <AlertTriangle className="w-12 h-12 mx-auto" />
+                            <h3 className="text-lg font-semibold">{t("no_checklists_available", "No Checklists Available")}</h3>
+                            <p>{t("no_checklists_message", "No active checklists found for this device type. Please configure checklists in the Configurations page.")}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
