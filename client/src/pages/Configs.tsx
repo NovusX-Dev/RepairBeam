@@ -2701,17 +2701,17 @@ export default function Configs() {
                                     <CardContent className="p-4">
                                       {editingChecklist === checklist.id ? (
                                         <div className="space-y-3">
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div className="space-y-3">
                                             <div className="space-y-1">
                                               <Label className="text-xs text-slate-300">{t('checklist_name', 'Checklist Name')}</Label>
                                               <Input
                                                 value={checklist.name}
                                                 onChange={(e) => handleUpdateChecklist(checklist, 'name', e.target.value)}
-                                                className="bg-slate-700 border-slate-600 text-white text-sm"
+                                                className="bg-slate-700 border-slate-600 text-white text-sm w-full"
                                                 data-testid={`input-edit-checklist-name-${checklist.id}`}
                                               />
                                             </div>
-                                            <div className="space-y-1">
+                                            <div className="space-y-1 max-w-xs">
                                               <Label className="text-xs text-slate-300">{t('status', 'Status')}</Label>
                                               <Select
                                                 value={checklist.isActive ? 'active' : 'inactive'}
