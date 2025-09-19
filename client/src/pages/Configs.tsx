@@ -2615,7 +2615,7 @@ export default function Configs() {
               )}
 
               {/* Checklists by Device Type */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {deviceTypes.map(deviceType => {
                   const deviceChecklists = checklists.filter(checklist => checklist.deviceType === deviceType);
                   const filteredChecklists = deviceChecklists.filter(checklist =>
@@ -2628,49 +2628,65 @@ export default function Configs() {
                   const totalPages = Math.ceil(totalChecklists / CHECKLISTS_PER_PAGE);
                   const startIndex = (currentPage - 1) * CHECKLISTS_PER_PAGE;
                   const paginatedChecklists = filteredChecklists.slice(startIndex, startIndex + CHECKLISTS_PER_PAGE);
+                  const isCollapsed = collapsedSections[`checklists-${deviceType}`];
+
+                  if (checklistsSearchQuery && filteredChecklists.length === 0) {
+                    return null; // Hide empty sections when searching
+                  }
 
                   return (
-                    <Card key={deviceType} className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-700 border-slate-600">
-                      <CardHeader 
-                        className="pb-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
-                        onClick={() => setCollapsedSections(prev => ({
-                          ...prev,
-                          [`checklists-${deviceType}`]: !prev[`checklists-${deviceType}`]
-                        }))}
-                      >
-                        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-white">
-                              <Smartphone className="w-5 h-5 text-cyan-100" />
-                              <CardTitle className="text-white">
-                                {getLocalizedDeviceType(deviceType)} {t('checklists', 'Checklists')} ({filteredChecklists.length})
-                              </CardTitle>
-                            </div>
+                    <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-checklists-${deviceType.toLowerCase()}`}>
+                      <CardHeader className="pb-3">
+                        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 mb-6 border border-slate-700">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => setCollapsedSections(prev => ({
+                              ...prev,
+                              [`checklists-${deviceType}`]: !isCollapsed
+                            }))}
+                            data-testid={`toggle-checklists-section-${deviceType.toLowerCase()}`}
+                          >
+                            <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
+                              <CheckSquare className="w-5 h-5 text-cyan-100" />
+                              {getLocalizedDeviceType(deviceType)} {t('checklists', 'Checklists')}
+                              <Badge variant="secondary" className="ml-auto bg-cyan-600/30 text-cyan-100 border-cyan-400/50">
+                                {totalChecklists} {t('checklists', 'checklists')}
+                              </Badge>
+                            </CardTitle>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-white hover:bg-white/10 p-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCollapsedSections(prev => ({
-                                  ...prev,
-                                  [`checklists-${deviceType}`]: !prev[`checklists-${deviceType}`]
-                                }));
-                              }}
+                              className="text-cyan-100 hover:text-white p-1"
                             >
-                              {collapsedSections[`checklists-${deviceType}`] ? <ChevronRight className="w-4 h-4 text-cyan-100" /> : <ChevronDown className="w-4 h-4 text-cyan-100" />}
+                              {isCollapsed ? <ChevronRight className="w-4 h-4 text-cyan-100" /> : <ChevronDown className="w-4 h-4 text-cyan-100" />}
                             </Button>
                           </div>
                         </div>
                       </CardHeader>
-                      
-                      {!collapsedSections[`checklists-${deviceType}`] && (
+
+                      {!isCollapsed && (
                         <CardContent>
                           {filteredChecklists.length === 0 ? (
-                            <div className="text-center py-8 text-slate-400">
-                              <CheckSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                              <p>{t('no_checklists_found', 'No checklists found for this device type.')}</p>
-                              <p className="text-sm mt-2">{t('add_checklist_prompt', 'Click "Add Checklist" to create one.')}</p>
+                            <div className="text-center py-8">
+                              <CheckSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-400 mb-2">
+                                {checklistsSearchQuery 
+                                  ? t('no_checklists_found', 'No checklists match your search.')
+                                  : t('no_checklists_device', `No checklists configured for ${getLocalizedDeviceType(deviceType)}.`)
+                                }
+                              </p>
+                              <Button
+                                onClick={() => {
+                                  setNewChecklist({ deviceType });
+                                  setShowAddChecklist(true);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                data-testid={`button-add-checklist-${deviceType.toLowerCase()}`}
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('add_first_checklist', 'Add First Checklist')}
+                              </Button>
                             </div>
                           ) : (
                             <>
@@ -2791,13 +2807,13 @@ export default function Configs() {
                                 ))}
                               </div>
 
-                              {/* Pagination */}
+                              {/* Pagination Controls */}
                               {totalPages > 1 && (
-                                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
-                                  <span className="text-sm text-slate-400">
-                                    {t('showing_checklists', `Showing ${startIndex + 1}-${Math.min(startIndex + CHECKLISTS_PER_PAGE, totalChecklists)} of ${totalChecklists} checklists`)}
-                                  </span>
-                                  <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
+                                  <div className="text-sm text-slate-400">
+                                    {t('showing_results', `Showing ${((currentPage - 1) * CHECKLISTS_PER_PAGE) + 1} - ${Math.min(currentPage * CHECKLISTS_PER_PAGE, totalChecklists)} of ${totalChecklists} checklists`)}
+                                  </div>
+                                  <div className="flex gap-2">
                                     <Button
                                       variant="outline"
                                       size="sm"
@@ -2811,8 +2827,8 @@ export default function Configs() {
                                     >
                                       {t('previous', 'Previous')}
                                     </Button>
-                                    <div className="flex items-center gap-1">
-                                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <div className="flex gap-1">
+                                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                                         <Button
                                           key={page}
                                           variant={page === currentPage ? "default" : "outline"}
