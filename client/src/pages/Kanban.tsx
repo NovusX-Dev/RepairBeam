@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -3204,9 +3205,9 @@ export default function KanbanTickets() {
                     
                     <div className="p-6 space-y-6">
                       {isLoadingChecklists ? (
-                        <div className="space-y-4">
-                          {[...Array(4)].map((_, i) => (
-                            <div key={i} className="flex items-start gap-3 p-4 border border-border rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {[...Array(6)].map((_, i) => (
+                            <div key={i} className="flex items-start space-x-3 p-4 rounded-lg border border-slate-600/50 bg-gradient-to-br from-slate-700/40 via-slate-700/40 to-slate-600/40">
                               <Skeleton className="h-4 w-4 mt-0.5" />
                               <div className="flex-1 space-y-2">
                                 <Skeleton className="h-4 w-3/4" />
@@ -3216,34 +3217,35 @@ export default function KanbanTickets() {
                           ))}
                         </div>
                       ) : activeChecklists && activeChecklists.length > 0 ? (
-                        <div className="space-y-4">
-                          <div className="grid gap-4">
+                        <div className="space-y-6">
+                          {/* Aurora Checklists Grid - Responsive 1-3 columns */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {activeChecklists.map((checklist: any) => (
-                              <div key={checklist.id} className="flex items-start gap-3 p-4 border border-border rounded-lg bg-card hover:bg-muted/50 transition-colors">
-                                <input
-                                  type="checkbox"
+                              <div
+                                key={checklist.id}
+                                className="flex items-start space-x-3 p-4 rounded-lg border border-slate-600/50 bg-gradient-to-br from-slate-700/40 via-slate-700/40 to-slate-600/40 hover:bg-gradient-to-br hover:from-cyan-900/20 hover:via-slate-700/40 hover:to-slate-600/40 hover:border-cyan-500/50 transition-all duration-200"
+                              >
+                                <Checkbox
                                   id={`checklist-${checklist.id}`}
                                   checked={formData.selectedChecklists.includes(checklist.id)}
-                                  onChange={(e) => {
-                                    const isChecked = e.target.checked;
+                                  onCheckedChange={(checked: boolean) => {
                                     setFormData(prev => ({
                                       ...prev,
-                                      selectedChecklists: isChecked
+                                      selectedChecklists: checked
                                         ? [...prev.selectedChecklists, checklist.id]
                                         : prev.selectedChecklists.filter(id => id !== checklist.id)
                                     }));
                                   }}
-                                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#00FFFF] focus:ring-[#00FFFF] focus:ring-2"
                                   data-testid={`checkbox-checklist-${checklist.id}`}
                                 />
                                 <Label 
                                   htmlFor={`checklist-${checklist.id}`} 
-                                  className="flex-1 cursor-pointer"
+                                  className="flex-1 cursor-pointer leading-relaxed"
                                 >
-                                  <div className="font-medium text-sm text-foreground">
+                                  <div className="font-medium text-sm text-white">
                                     {checklist.name}
                                   </div>
-                                  <div className="text-xs text-muted-foreground mt-1">
+                                  <div className="text-xs text-cyan-200/80 mt-1">
                                     {t("device_type", "Device Type")}: {checklist.deviceType}
                                   </div>
                                 </Label>
