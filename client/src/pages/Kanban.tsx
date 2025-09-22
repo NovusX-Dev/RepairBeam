@@ -65,7 +65,7 @@ const formatBrazilianPhone = (value: string): string => {
   }
 };
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
-import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, type Locale } from "@shared/money";
+import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
@@ -3124,13 +3124,21 @@ export default function KanbanTickets() {
                           {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
                         </span>
                         <Input
-                          type="number"
+                          type="text"
                           id="costEstimation"
                           value={formData.costEstimation}
-                          onChange={(e) => handleInputChange('costEstimation', e.target.value)}
-                          placeholder="50.00"
-                          min="0"
-                          step="0.01"
+                          onChange={(e) => {
+                            // Allow only numbers, dots, and commas
+                            const value = e.target.value.replace(/[^0-9.,]/g, '');
+                            handleInputChange('costEstimation', value);
+                          }}
+                          onBlur={(e) => {
+                            // Normalize currency format on blur
+                            const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                            const normalized = normalizeCurrency(e.target.value || '0', locale);
+                            handleInputChange('costEstimation', normalized);
+                          }}
+                          placeholder={currentLanguage.code === 'pt-BR' ? '50,00' : '50.00'}
                           data-testid="input-extra-costs"
                           className="flex-1"
                         />
@@ -3310,86 +3318,91 @@ export default function KanbanTickets() {
                     </div>
                     
                     <div className="p-6 space-y-4">
-                      {/* Aurora Card - Client Information */}
+                      {/* Aurora Card - Client & Device Information */}
                       <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
                           <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                             <User className="w-4 h-4" />
-                            {t("client_information", "Client Information")}
+                            {t("client_device_info", "Client & Device Information")}
                           </h4>
                         </div>
                         <div className="p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("full_name", "Full Name")}</span>
-                              <p className="text-sm font-medium text-white">
-                                {selectedClient 
-                                  ? `${selectedClient.firstName} ${selectedClient.lastName}`
-                                  : formData.firstName && formData.lastName 
-                                    ? `${formData.firstName} ${formData.lastName}`
-                                    : t("not_available", "N/A")
-                                }
-                              </p>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Client Information Section */}
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 mb-3">
+                                <User className="w-3 h-3 text-cyan-400" />
+                                <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">{t("client_information", "Client Information")}</span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("full_name", "Full Name")}</span>
+                                  <p className="text-sm font-medium text-white">
+                                    {selectedClient 
+                                      ? `${selectedClient.firstName} ${selectedClient.lastName}`
+                                      : formData.firstName && formData.lastName 
+                                        ? `${formData.firstName} ${formData.lastName}`
+                                        : t("not_available", "N/A")
+                                    }
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("cpf", "CPF")}</span>
+                                  <p className="text-sm font-medium text-white">
+                                    {selectedClient?.cpf || displayCPF || formData.cpf || t("not_available", "N/A")}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("email", "Email")}</span>
+                                  <p className="text-sm font-medium text-white">
+                                    {selectedClient?.email || formData.email || t("not_available", "N/A")}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("phone", "Phone")}</span>
+                                  <p className="text-sm font-medium text-white">
+                                    {selectedClient?.phone || formData.phone || t("not_available", "N/A")}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("cpf", "CPF")}</span>
-                              <p className="text-sm font-medium text-white">
-                                {selectedClient?.cpf || displayCPF || formData.cpf || t("not_available", "N/A")}
-                              </p>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("email", "Email")}</span>
-                              <p className="text-sm font-medium text-white">
-                                {selectedClient?.email || formData.email || t("not_available", "N/A")}
-                              </p>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("phone", "Phone")}</span>
-                              <p className="text-sm font-medium text-white">
-                                {selectedClient?.phone || formData.phone || t("not_available", "N/A")}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Aurora Card - Device Information */}
-                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
-                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                            <Smartphone className="w-4 h-4" />
-                            {t("device_information", "Device Information")}
-                          </h4>
-                        </div>
-                        <div className="p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("device_type", "Device Type")}</span>
-                              <p className="text-sm font-medium text-white">{formData.deviceType || t("not_available", "N/A")}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("brand_model", "Brand & Model")}</span>
-                              <p className="text-sm font-medium text-white">
-                                {formData.deviceBrand && formData.deviceModel 
-                                  ? `${formData.deviceBrand} ${formData.deviceModel}` 
-                                  : t("not_available", "N/A")
-                                }
-                              </p>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("color", "Color")}</span>
-                              <p className="text-sm font-medium text-white">{formData.deviceColor || t("not_available", "N/A")}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground">{t("memory_storage", "Memory & Storage")}</span>
-                              <p className="text-sm font-medium text-white">
-                                {(() => {
-                                  const parts = [];
-                                  if (formData.deviceMemory) parts.push(`${formData.deviceMemory} RAM`);
-                                  if (formData.deviceStorageCapacity) parts.push(`${formData.deviceStorageCapacity} Storage`);
-                                  return parts.length > 0 ? parts.join(', ') : t("not_available", "N/A");
-                                })()}
-                              </p>
+                            {/* Device Information Section */}
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Smartphone className="w-3 h-3 text-cyan-400" />
+                                <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">{t("device_information", "Device Information")}</span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("device_type", "Device Type")}</span>
+                                  <p className="text-sm font-medium text-white">{formData.deviceType || t("not_available", "N/A")}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("brand_model", "Brand & Model")}</span>
+                                  <p className="text-sm font-medium text-white">
+                                    {formData.deviceBrand && formData.deviceModel 
+                                      ? `${formData.deviceBrand} ${formData.deviceModel}` 
+                                      : t("not_available", "N/A")
+                                    }
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("color", "Color")}</span>
+                                  <p className="text-sm font-medium text-white">{formData.deviceColor || t("not_available", "N/A")}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <span className="text-xs text-muted-foreground">{t("memory_storage", "Memory & Storage")}</span>
+                                  <p className="text-sm font-medium text-white">
+                                    {(() => {
+                                      const parts = [];
+                                      if (formData.deviceMemory) parts.push(`${formData.deviceMemory} RAM`);
+                                      if (formData.deviceStorageCapacity) parts.push(`${formData.deviceStorageCapacity} Storage`);
+                                      return parts.length > 0 ? parts.join(', ') : t("not_available", "N/A");
+                                    })()}
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
