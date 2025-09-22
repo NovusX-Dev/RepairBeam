@@ -4542,82 +4542,99 @@ export default function KanbanTickets() {
                   <div className="space-y-3">
                     <h3 className="font-semibold text-lg">{t("service_checklist", "Service Checklist")}</h3>
                     
-                    {!(selectedTicketSummary.serviceChecklist as any)?.components || Object.keys((selectedTicketSummary.serviceChecklist as any).components).length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        {t("no_checklist_available", "No service checklist available")}
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {/* Compact Grid Layout */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {checklistComponentOrder.map((component) => {
-                            const condition = (selectedTicketSummary.serviceChecklist as any).components[component];
-                            if (!condition) return null;
-                            return (
-                              <div key={component} className="flex items-center justify-between p-2 bg-muted/5 border border-muted/20 rounded-md text-xs">
-                                <span className="font-medium capitalize truncate pr-2">{component.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0 ${
-                                  condition === 'excellent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
-                                  condition === 'good' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' :
-                                  condition === 'fair' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300' :
-                                  condition === 'poor' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
-                                  condition === 'damaged' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' :
-                                  condition === 'missing' ? 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  condition === 'not_applicable' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
-                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                                }`}>
-                                  {condition === 'not_applicable' ? 'N/A' : condition.replace('_', ' ')}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
+                    {(() => {
+                      const serviceChecklist = selectedTicketSummary.serviceChecklist as any;
+                      const selectedChecklists = serviceChecklist?.selectedChecklists || [];
+                      
+                      if (!selectedChecklists || selectedChecklists.length === 0) {
+                        return (
+                          <div className="text-sm text-muted-foreground">
+                            {t("no_checklist_available", "No service checklist available")}
+                          </div>
+                        );
+                      }
 
-                        {/* Summary Stats */}
-                        <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-sm">{t("condition_summary", "Condition Summary")}</h4>
-                            <span className="text-xs text-muted-foreground">
-                              {Object.values((selectedTicketSummary.serviceChecklist as any).components).filter((c: unknown) => c && c !== 'not_applicable').length} {t("components_assessed", "components assessed")}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {(() => {
-                              const conditions = Object.values((selectedTicketSummary.serviceChecklist as any).components).filter((c: unknown) => c && c !== 'not_applicable') as string[];
-                              const conditionCounts = conditions.reduce((acc: Record<string, number>, condition: string) => {
-                                acc[condition] = (acc[condition] || 0) + 1;
-                                return acc;
-                              }, {} as Record<string, number>);
-                              
-                              return Object.entries(conditionCounts).map(([condition, count]: [string, number]) => (
-                                <span key={condition} className={`text-xs px-2 py-1 rounded-full font-medium ${
-                                  condition === 'excellent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' :
-                                  condition === 'good' ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300' :
-                                  condition === 'fair' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300' :
-                                  condition === 'poor' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' :
-                                  condition === 'damaged' ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' :
-                                  condition === 'missing' ? 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                                  'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-                                }`}>
-                                  {count}× {condition.replace('_', ' ')}
-                                </span>
-                              ));
-                            })()}
-                          </div>
-                        </div>
-                        
-                        {/* Additional Notes */}
-                        {(selectedTicketSummary.serviceChecklist as any)?.additionalNotes && (selectedTicketSummary.serviceChecklist as any).additionalNotes.trim() && (
-                          <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                              <h4 className="font-medium text-sm">{t("additional_notes", "Additional Notes")}</h4>
+                      return (
+                        <div className="space-y-4">
+                          {/* Selected Checklists Header */}
+                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                              <Check className="w-5 h-5 text-white" />
+                              <h4 className="font-semibold text-white">
+                                {t("selected_checklists", "Selected Checklists")}
+                              </h4>
+                              <div className="bg-white/20 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                {selectedChecklists.length}
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground italic">"{(selectedTicketSummary.serviceChecklist as any).additionalNotes}"</p>
+                            <p className="text-cyan-100 text-sm mt-1">
+                              {t("checklists_for_service", "Checklists configured for this service")}
+                            </p>
                           </div>
-                        )}
-                      </div>
-                    )}
+
+                          {/* Checklists Grid */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {selectedChecklists.map((checklistId: string, index: number) => {
+                              // Try to find the checklist name from the configuration checklists
+                              const checklistName = (() => {
+                                if (configurationChecklists) {
+                                  const checklist = configurationChecklists.find(c => c.id === checklistId);
+                                  return checklist?.name || `${t("checklist", "Checklist")} ${index + 1}`;
+                                }
+                                return `${t("checklist", "Checklist")} ${index + 1}`;
+                              })();
+
+                              return (
+                                <div key={checklistId || index} className="bg-gradient-to-br from-slate-800/70 to-slate-700/70 rounded-lg p-4 border border-cyan-500/20">
+                                  <div className="flex items-center gap-3">
+                                    <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full p-1.5">
+                                      <Check className="w-3 h-3 text-white" />
+                                    </div>
+                                    <div>
+                                      <h5 className="font-medium text-white text-sm">
+                                        {checklistName}
+                                      </h5>
+                                      <p className="text-cyan-300 text-xs">
+                                        {selectedTicketSummary.deviceType} {t("checklist", "Checklist")}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Summary Stats */}
+                          <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-sm">{t("checklist_summary", "Checklist Summary")}</h4>
+                              <span className="text-xs text-muted-foreground">
+                                {selectedChecklists.length} {t("checklists_selected", "checklists selected")}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs px-2 py-1 rounded-full font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                {selectedChecklists.length}× {t("active_checklists", "Active Checklists")}
+                              </span>
+                              <span className="text-xs px-2 py-1 rounded-full font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300">
+                                {selectedTicketSummary.deviceType} {t("device", "Device")}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Additional Notes */}
+                          {serviceChecklist?.additionalNotes && serviceChecklist.additionalNotes.trim() && (
+                            <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                <h4 className="font-medium text-sm">{t("additional_notes", "Additional Notes")}</h4>
+                              </div>
+                              <p className="text-sm text-muted-foreground italic">"{serviceChecklist.additionalNotes}"</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </TabsContent>
               </Tabs>
