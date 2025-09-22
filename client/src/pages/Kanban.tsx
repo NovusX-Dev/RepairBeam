@@ -3588,6 +3588,61 @@ export default function KanbanTickets() {
                         </div>
                       </div>
 
+                      {/* Aurora Card - Selected Checklists */}
+                      {formData.selectedChecklists && formData.selectedChecklists.length > 0 && (
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                              <Check className="w-4 h-4" />
+                              {t("selected_checklists", "Selected Checklists")}
+                              <Badge variant="secondary" className="ml-2 bg-cyan-500/20 text-cyan-300 border-cyan-500/30">
+                                {formData.selectedChecklists.length}
+                              </Badge>
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-sm text-muted-foreground mb-3">
+                              {t("checklists_for_service", "Checklists configured for this service")}
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {(() => {
+                                // Get checklist names from the activeChecklists data
+                                return formData.selectedChecklists.map((checklistId) => {
+                                  // Find the checklist name from activeChecklists
+                                  const checklist = activeChecklists?.find(c => c.id === checklistId);
+                                  const checklistName = checklist?.name || `${t("checklist", "Checklist")} ID: ${checklistId.slice(-8)}`;
+                                  
+                                  return (
+                                    <div
+                                      key={checklistId}
+                                      className="flex items-center gap-3 p-3 rounded-lg border border-slate-600/50 bg-gradient-to-br from-slate-700/40 via-slate-700/40 to-slate-600/40"
+                                    >
+                                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-500/30">
+                                        <Check className="w-3 h-3 text-cyan-400" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium text-white">
+                                          {checklistName}
+                                        </div>
+                                        <div className="text-xs text-cyan-200/80">
+                                          {t("device_type", "Device Type")}: {formData.deviceType}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                            {formData.additionalNotes && (
+                              <div className="mt-4 p-3 bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20">
+                                <span className="text-xs text-muted-foreground block mb-2">{t("additional_notes", "Additional Notes")}</span>
+                                <p className="text-sm text-white">{formData.additionalNotes}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Aurora Card - Client Approval */}
                       <div className="bg-slate-800/50 rounded-lg border-2 border-[#00FFFF]/30 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
