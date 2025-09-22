@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -803,9 +803,72 @@ export default function KanbanTickets() {
     queryKey: ['/api/checklists/device', selectedTicketSummary?.deviceType],
     enabled: !!selectedTicketSummary?.deviceType,
   });
+
+  // Query for tickets currently being serviced (same device type) - for queue information
+  const { data: servicingTickets = [] } = useQuery<TicketWithClient[]>({
+    queryKey: ['/api/tickets', 'servicing', formData.deviceType],
+    queryFn: async () => {
+      const response = await fetch('/api/tickets');
+      const allTickets = await response.json();
+      // Filter tickets that are being serviced and match the device type
+      return allTickets.filter((ticket: any) => 
+        ticket.status === 'servicing' && 
+        ticket.deviceType === formData.deviceType
+      );
+    },
+    enabled: !!formData.deviceType && currentStep === 3,
+  });
   
   // Filter only active checklists
   const activeChecklists = configurationChecklists?.filter(checklist => checklist.isActive) || [];
+
+  // Calculate queue information for servicing tickets
+  const getQueueInformation = () => {
+    if (!servicingTickets || servicingTickets.length === 0) {
+      return {
+        count: 0,
+        totalHours: 0,
+        totalMinutes: 0,
+        formattedTime: t("no_queue", "No queue - your device can start immediately")
+      };
+    }
+
+    let totalMinutes = 0;
+    
+    // Calculate total time from all servicing tickets of same device type
+    servicingTickets.forEach(ticket => {
+      if (ticket.selectedServices && Array.isArray(ticket.selectedServices)) {
+        ticket.selectedServices.forEach(serviceId => {
+          const service = repairServices.find(s => s.id === serviceId);
+          if (service) {
+            const serviceMinutes = (service.estimatedCompletionTimeHours || 0) * 60 + (service.estimatedCompletionTimeMinutes || 0);
+            totalMinutes += serviceMinutes;
+          }
+        });
+      }
+    });
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    let formattedTime = "";
+    if (hours === 0 && minutes === 0) {
+      formattedTime = t("queue_almost_done", "Queue almost complete - starting soon");
+    } else if (hours === 0) {
+      formattedTime = `~${minutes}${t("minutes_short", "min")} ${t("queue_wait", "wait time")}`;
+    } else if (minutes === 0) {
+      formattedTime = `~${hours}${t("hours_short", "h")} ${t("queue_wait", "wait time")}`;
+    } else {
+      formattedTime = `~${hours}${t("hours_short", "h")} ${minutes}${t("minutes_short", "min")} ${t("queue_wait", "wait time")}`;
+    }
+
+    return {
+      count: servicingTickets.length,
+      totalHours: hours,
+      totalMinutes: minutes,
+      formattedTime
+    };
+  };
   
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
@@ -3042,6 +3105,72 @@ export default function KanbanTickets() {
                       </div>
                     </FormFieldWithTooltip>
                   </div>
+
+                  {/* Queue Information */}
+                  {formData.deviceType && (
+                    <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                      <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                        <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          {t("queue_information", "Service Queue Information")}
+                        </h4>
+                        <p className="text-cyan-100 text-xs mt-1">
+                          {t("queue_subtitle", "See how many devices are ahead of yours")}
+                        </p>
+                      </div>
+                      <div className="p-4">
+                        {(() => {
+                          const queueInfo = getQueueInformation();
+                          
+                          return (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Devices in Queue */}
+                              <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                  <span className="text-2xl font-bold text-[#00FFFF]" data-testid="queue-device-count">
+                                    {queueInfo.count}
+                                  </span>
+                                  <div className="text-left">
+                                    <div className="text-xs text-muted-foreground">{formData.deviceType}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {queueInfo.count === 1 ? t("device_ahead", "device ahead") : t("devices_ahead", "devices ahead")}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {queueInfo.count === 0 
+                                    ? t("no_devices_ahead", "No devices ahead of yours")
+                                    : `${queueInfo.count} ${formData.deviceType} ${queueInfo.count === 1 ? t("device_currently", "device currently") : t("devices_currently", "devices currently")} ${t("being_serviced", "being serviced")}`
+                                  }
+                                </div>
+                              </div>
+
+                              {/* Estimated Wait Time */}
+                              <div className="bg-gradient-to-r from-emerald-500/5 to-[#0A192F]/20 rounded-md border border-emerald-500/20 p-3 text-center">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                  <Clock className="w-5 h-5 text-emerald-400" />
+                                  <div className="text-left">
+                                    <div className="text-sm font-semibold text-emerald-400" data-testid="queue-wait-time">
+                                      {queueInfo.count === 0 ? t("immediate_start", "Can start now") : queueInfo.formattedTime}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {t("estimated_queue_time", "Estimated queue time")}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {queueInfo.count === 0 
+                                    ? t("technician_available", "Technician can start on your device immediately")
+                                    : t("wait_time_estimate", "Based on estimated completion times of devices ahead")
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Repair Services Selection */}
                   <div className="mt-8">
