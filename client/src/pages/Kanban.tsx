@@ -797,6 +797,12 @@ export default function KanbanTickets() {
     queryKey: ['/api/checklists/device', formData.deviceType],
     enabled: !!formData.deviceType && currentStep === 5,
   });
+
+  // Checklists query for ticket summary context
+  const { data: summaryChecklists } = useQuery<any[]>({
+    queryKey: ['/api/checklists/device', selectedTicketSummary?.deviceType],
+    enabled: !!selectedTicketSummary?.deviceType,
+  });
   
   // Filter only active checklists
   const activeChecklists = configurationChecklists?.filter(checklist => checklist.isActive) || [];
@@ -4574,13 +4580,40 @@ export default function KanbanTickets() {
 
                           {/* Checklists Grid */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {selectedChecklists.map((checklistId: string, index: number) => {
-                              // Try to find the checklist name from the configuration checklists
+                            {selectedChecklists.map((checklistItem: any, index: number) => {
+                              // Backward-compatible parsing for different data formats
+                              const checklistId = (() => {
+                                if (typeof checklistItem === 'string') return checklistItem;
+                                if (checklistItem?.id) return checklistItem.id;
+                                return `checklist-${index}`;
+                              })();
+
                               const checklistName = (() => {
+                                // If checklistItem is an object with name, use it directly (legacy format)
+                                if (checklistItem?.name) return checklistItem.name;
+                                
+                                // If checklistItem is a plain string name (not an ID), use it
+                                if (typeof checklistItem === 'string' && !checklistItem.includes('-') && checklistItem.length < 50) {
+                                  return checklistItem;
+                                }
+
+                                // Try to find the checklist name from the summary checklists (preferred)
+                                if (summaryChecklists) {
+                                  const checklist = summaryChecklists.find(c => c.id === checklistId);
+                                  if (checklist?.name) return checklist.name;
+                                }
+
+                                // Fallback: try configuration checklists (ticket creation context)
                                 if (configurationChecklists) {
                                   const checklist = configurationChecklists.find(c => c.id === checklistId);
-                                  return checklist?.name || `${t("checklist", "Checklist")} ${index + 1}`;
+                                  if (checklist?.name) return checklist.name;
                                 }
+
+                                // Last resort: show the ID or raw value for debugging
+                                if (typeof checklistItem === 'string') {
+                                  return checklistId.length > 30 ? `Unknown checklist (${checklistId.substring(0, 8)}...)` : `Unknown checklist (${checklistId})`;
+                                }
+                                
                                 return `${t("checklist", "Checklist")} ${index + 1}`;
                               })();
 
