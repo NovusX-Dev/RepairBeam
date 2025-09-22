@@ -3128,15 +3128,9 @@ export default function KanbanTickets() {
                           id="costEstimation"
                           value={formData.costEstimation}
                           onChange={(e) => {
-                            // Allow only numbers, dots, and commas
+                            // Allow only numbers, dots, and commas - store raw input
                             const value = e.target.value.replace(/[^0-9.,]/g, '');
-                            handleInputChange('costEstimation', value);
-                          }}
-                          onBlur={(e) => {
-                            // Normalize currency format on blur
-                            const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
-                            const normalized = normalizeCurrency(e.target.value || '0', locale);
-                            handleInputChange('costEstimation', normalized);
+                            setFormData(prev => ({ ...prev, costEstimation: value }));
                           }}
                           placeholder={currentLanguage.code === 'pt-BR' ? '50,00' : '50.00'}
                           data-testid="input-extra-costs"
