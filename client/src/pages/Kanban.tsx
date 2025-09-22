@@ -848,6 +848,10 @@ export default function KanbanTickets() {
       }
     });
 
+    // Add extra 30 minutes per device for steps before reaching Service stage
+    const extraMinutesPerDevice = 30;
+    totalMinutes += servicingTickets.length * extraMinutesPerDevice;
+
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
 
@@ -3126,14 +3130,13 @@ export default function KanbanTickets() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {/* Devices in Queue */}
                               <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-3 text-center">
-                                <div className="flex items-center justify-center gap-2 mb-2">
+                                <div className="flex items-center justify-center gap-3 mb-2">
                                   <span className="text-2xl font-bold text-[#00FFFF]" data-testid="queue-device-count">
                                     {queueInfo.count}
                                   </span>
-                                  <div className="text-left">
-                                    <div className="text-xs text-muted-foreground">{formData.deviceType}</div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {queueInfo.count === 1 ? t("device_ahead", "device ahead") : t("devices_ahead", "devices ahead")}
+                                  <div className="text-left flex-1 min-w-0">
+                                    <div className="text-xs text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">
+                                      {formData.deviceType} {queueInfo.count === 1 ? t("device_ahead", "device ahead") : t("devices_ahead", "devices ahead")}
                                     </div>
                                   </div>
                                 </div>
