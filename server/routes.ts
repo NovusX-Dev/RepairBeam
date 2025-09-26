@@ -360,6 +360,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete ticket
+  app.delete("/api/tickets/:ticketId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const deleted = await storage.deleteTicket(ticketId, user.tenantId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json({ success: true, message: "Ticket deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting ticket:", error);
+      res.status(500).json({ message: "Failed to delete ticket" });
+    }
+  });
+
   // Create sample tickets for testing Kanban (development only)
   app.post("/api/tickets/create-samples", isAuthenticated, async (req: any, res) => {
     try {

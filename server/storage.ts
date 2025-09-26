@@ -470,7 +470,7 @@ export class DatabaseStorage implements IStorage {
         .delete(tickets)
         .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
 
-      return result.rowCount !== undefined && result.rowCount > 0;
+      return (result.rowCount ?? 0) > 0;
     });
   }
 
