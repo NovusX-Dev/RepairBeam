@@ -1244,6 +1244,42 @@ export default function KanbanTickets() {
     },
   });
 
+  const deleteTicketMutation = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await apiRequest("DELETE", `/api/tickets/${ticketId}`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      // Refresh tickets query to update the list
+      queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+      
+      // Close both dialogs
+      setShowDeleteConfirmation(false);
+      setSelectedTicketSummary(null);
+      
+      // Show success toast
+      toast({
+        title: t("success", "Success"),
+        description: t("ticket_deleted", "Ticket deleted successfully"),
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to delete ticket:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("ticket_deletion_failed", "Failed to delete ticket. Please try again."),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle ticket deletion
+  const handleDeleteTicket = () => {
+    if (selectedTicketSummary) {
+      deleteTicketMutation.mutate(selectedTicketSummary.id);
+    }
+  };
+
   // Check for CPF conflict
   const checkCPFConflict = async (cpf: string) => {
     if (cpf.length !== 11) return;
@@ -4857,6 +4893,50 @@ export default function KanbanTickets() {
             </Button>
             <Button onClick={handleConfirmCreateTicket} className="bg-green-600 hover:bg-green-700">
               {t("create_ticket", "Create Ticket")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Deletion Confirmation Dialog */}
+      <Dialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              {t("delete_ticket", "Delete Ticket")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("delete_warning", "Are you sure you want to delete this ticket? This action cannot be undone.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+              <div className="text-sm space-y-1">
+                <p className="font-medium text-destructive">{t("delete_permanent", "This action is permanent")}</p>
+                <p className="text-muted-foreground">{t("delete_confirmation_details", "All ticket data, notes, and history will be permanently deleted.")}</p>
+              </div>
+            </div>
+
+            {selectedTicketSummary && (
+              <div className="bg-muted/20 p-3 rounded-md space-y-1 text-sm">
+                <div><strong>{t("ticket_id", "Ticket ID")}:</strong> {selectedTicketSummary.id}</div>
+                <div><strong>{t("client", "Client")}:</strong> {selectedTicketSummary.client ? `${selectedTicketSummary.client.firstName} ${selectedTicketSummary.client.lastName}` : "N/A"}</div>
+                <div><strong>{t("device", "Device")}:</strong> {selectedTicketSummary.deviceType} {selectedTicketSummary.deviceBrand} {selectedTicketSummary.deviceModel}</div>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+            <Button variant="outline" onClick={() => setShowDeleteConfirmation(false)} data-testid="button-cancel-delete">
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteTicket}
+              data-testid="button-confirm-delete"
+              disabled={deleteTicketMutation.isPending}
+            >
+              {deleteTicketMutation.isPending ? t("deleting", "Deleting...") : t("yes_delete", "Yes, Delete")}
             </Button>
           </div>
         </DialogContent>
