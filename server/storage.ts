@@ -123,6 +123,7 @@ export interface IStorage {
   updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined>;
   updateTicketPriority(ticketId: string, priority: string, tenantId: string): Promise<Ticket | undefined>;
   checkTicketIdExists(ticketId: string, tenantId: string): Promise<boolean>;
+  deleteTicket(ticketId: string, tenantId: string): Promise<boolean>;
   
   // Inventory operations
   getInventoryItems(tenantId: string): Promise<InventoryItem[]>;
@@ -443,6 +444,34 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
     
     return result.count > 0;
+  }
+
+  async deleteTicket(ticketId: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      // First, verify ticket exists and belongs to tenant
+      const ticket = await this.getTicket(ticketId, tenantId);
+      if (!ticket) {
+        return false;
+      }
+
+      // Delete associated data in order due to foreign key constraints
+      // 1. Delete ticket notes
+      await db
+        .delete(ticketNotes)
+        .where(and(eq(ticketNotes.ticketId, ticketId), eq(ticketNotes.tenantId, tenantId)));
+
+      // 2. Delete issue responses
+      await db
+        .delete(issueResponses)
+        .where(eq(issueResponses.ticketId, ticketId));
+
+      // 3. Delete the ticket itself
+      const result = await db
+        .delete(tickets)
+        .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)));
+
+      return result.rowCount !== undefined && result.rowCount > 0;
+    });
   }
 
   // Inventory operations
