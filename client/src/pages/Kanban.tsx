@@ -723,6 +723,7 @@ export default function KanbanTickets() {
   
   // Ticket creation confirmation state
   const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
   // Filter state management
   const [filters, setFilters] = useState({
@@ -4804,8 +4805,16 @@ export default function KanbanTickets() {
                 </TabsContent>
               </Tabs>
               
-              <div className="flex justify-end">
-                <Button variant="outline" onClick={() => setSelectedTicketSummary(null)}>
+              <div className="flex justify-between">
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => setShowDeleteConfirmation(true)}
+                  data-testid="button-delete-ticket"
+                >
+                  {t("delete", "Delete")}
+                </Button>
+                <Button variant="outline" onClick={() => setSelectedTicketSummary(null)} data-testid="button-close-ticket-summary">
                   {t("close", "Close")}
                 </Button>
               </div>
