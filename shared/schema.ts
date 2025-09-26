@@ -187,6 +187,22 @@ export const tickets = pgTable("tickets", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Authorization requests table for WhatsApp client authorization
+export const authorizationRequests = pgTable("authorization_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  ticketId: varchar("ticket_id").notNull(),
+  clientPhone: varchar("client_phone").notNull(),
+  status: varchar("status").notNull().default('pending'), // 'pending', 'authorized', 'rejected', 'expired'
+  whatsappMessageId: varchar("whatsapp_message_id"),
+  ticketSummaryFormat: varchar("ticket_summary_format").notNull().default('message'), // 'message' or 'pdf'
+  sentAt: timestamp("sent_at"),
+  respondedAt: timestamp("responded_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Inventory items table
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -342,6 +358,8 @@ export type PossibleDefect = typeof possibleDefects.$inferSelect;
 export type InsertPossibleDefect = typeof possibleDefects.$inferInsert;
 export type Checklist = typeof checklists.$inferSelect;
 export type InsertChecklist = typeof checklists.$inferInsert;
+export type AuthorizationRequest = typeof authorizationRequests.$inferSelect;
+export type InsertAuthorizationRequest = z.infer<typeof insertAuthorizationRequestSchema>;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -416,6 +434,12 @@ export const insertPossibleDefectSchema = createInsertSchema(possibleDefects).om
 });
 
 export const insertChecklistSchema = createInsertSchema(checklists).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAuthorizationRequestSchema = createInsertSchema(authorizationRequests).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
