@@ -4922,7 +4922,7 @@ export default function KanbanTickets() {
               <div className="bg-muted/20 p-3 rounded-md space-y-1 text-sm">
                 <div><strong>{t("ticket_id", "Ticket ID")}:</strong> {selectedTicketSummary.id}</div>
                 <div><strong>{t("client", "Client")}:</strong> {selectedTicketSummary.client ? `${selectedTicketSummary.client.firstName} ${selectedTicketSummary.client.lastName}` : "N/A"}</div>
-                <div><strong>{t("device", "Device")}:</strong> {selectedTicketSummary.deviceType} {selectedTicketSummary.deviceBrand} {selectedTicketSummary.deviceModel}</div>
+                <div><strong>{t("device", "Device")}:</strong> {selectedTicketSummary.deviceType} {selectedTicketSummary.deviceModel}</div>
               </div>
             )}
           </div>
