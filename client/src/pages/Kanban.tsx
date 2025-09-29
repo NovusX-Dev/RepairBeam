@@ -5410,7 +5410,7 @@ export default function KanbanTickets() {
                     </div>
                     
                     <div className="p-6">
-                      {(() => {
+                      {finalizationChecklists && finalizationChecklists.length > 0 ? (() => {
                         // Get initial defects from ticket
                         const initialDefects = ticketToFinalize?.serviceChecklist?.selectedChecklists || [];
                         const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
