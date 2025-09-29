@@ -234,6 +234,37 @@ input[type="date"]::-webkit-input-placeholder {
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
 }
 
+/* Quality Check Button Animation */
+@keyframes pulse-red {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(239, 68, 68, 0.7);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgb(239, 68, 68, 0);
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes glow-red {
+  0%, 100% {
+    box-shadow: 0 0 5px rgb(239, 68, 68, 0.5), 0 0 10px rgb(239, 68, 68, 0.3), 0 0 15px rgb(239, 68, 68, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 10px rgb(239, 68, 68, 0.8), 0 0 20px rgb(239, 68, 68, 0.6), 0 0 30px rgb(239, 68, 68, 0.4);
+  }
+}
+
+.animate-glow-red {
+  animation: glow-red 1.5s ease-in-out infinite;
+}
+
 .btn-next-hover:active {
   @apply transform scale-95;
 }
