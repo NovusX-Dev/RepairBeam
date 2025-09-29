@@ -4714,6 +4714,23 @@ export default function KanbanTickets() {
                           </div>
                         </div>
                       </div>
+                      
+                      {/* Selected Services List */}
+                      {selectedTicketSummary.selectedServices && Array.isArray(selectedTicketSummary.selectedServices) && selectedTicketSummary.selectedServices.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-muted/20">
+                          <div className="font-medium text-cyan-400 text-xs mb-2">{t("selected_services", "Selected Services")}</div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {ticketRepairServices
+                              .filter(service => selectedTicketSummary.selectedServices.includes(service.id))
+                              .map((service) => (
+                                <div key={service.id} className="flex items-center gap-2 text-xs bg-slate-700/30 rounded p-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[#00FFFF]"></div>
+                                  <span className="text-slate-200 truncate">{service.name}</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Cost Summary */}
