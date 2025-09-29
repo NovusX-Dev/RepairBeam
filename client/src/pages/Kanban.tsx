@@ -64,7 +64,7 @@ const formatBrazilianPhone = (value: string): string => {
     return `(${limitedDigits.slice(0, 2)})${limitedDigits.slice(2, 7)}-${limitedDigits.slice(7)}`;
   }
 };
-import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
+import type { Ticket, Client, TicketStatus, TicketPriority, WarrantyTier } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
@@ -739,6 +739,7 @@ export default function KanbanTickets() {
   const [wizardData, setWizardData] = useState({
     finalChecklist: {} as Record<string, boolean>,
     clientAuthorized: false,
+    selectedWarrantyTier: 'standard' as string, // Default to standard warranty
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
@@ -769,6 +770,7 @@ export default function KanbanTickets() {
     setWizardData({
       finalChecklist: {},
       clientAuthorized: false,
+      selectedWarrantyTier: 'standard', // Reset to default warranty
     });
     setValidationErrors([]);
   };
@@ -1053,6 +1055,14 @@ export default function KanbanTickets() {
   // Load repair services for finalization wizard (when finalizing tickets)
   const { data: finalizationRepairServices = [] } = useQuery<RepairService[]>({
     queryKey: [`/api/repair-services/device/${ticketToFinalize?.deviceType}`],
+    enabled: !!ticketToFinalize?.deviceType && showCompletionDialog,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Load warranty tiers for finalization wizard (when finalizing tickets)
+  const { data: finalizationWarrantyTiers = [] } = useQuery<WarrantyTier[]>({
+    queryKey: [`/api/warranty-tiers/${ticketToFinalize?.deviceType}`],
     enabled: !!ticketToFinalize?.deviceType && showCompletionDialog,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
