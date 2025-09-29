@@ -1058,6 +1058,41 @@ export default function KanbanTickets() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Auto-populate final cost with estimated total cost when finalization wizard opens
+  useEffect(() => {
+    if (showCompletionDialog && ticketToFinalize && finalizationRepairServices.length > 0 && completionData.finalActualCost === '') {
+      const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+      
+      // Calculate total estimated cost (services + extra costs)
+      if (ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0) {
+        // Calculate services cost
+        const serviceCostsCents = (ticketToFinalize.selectedServices as string[]).map(serviceId => {
+          const service = finalizationRepairServices.find(s => s.id === serviceId);
+          return service ? toCents(service.estimatedLaborCost, locale) : 0;
+        });
+        const totalServicesCents = addCents(...serviceCostsCents);
+        
+        // Add extra costs
+        const extraCostsCents = ticketToFinalize.costEstimation ? toCents(ticketToFinalize.costEstimation, locale) : 0;
+        const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+        
+        // Convert back to decimal string for input field
+        const totalCostDecimal = (grandTotalCents / 100).toFixed(2);
+        
+        setCompletionData(prev => ({
+          ...prev,
+          finalActualCost: totalCostDecimal
+        }));
+      } else if (ticketToFinalize.costEstimation) {
+        // If no services, just use extra costs
+        setCompletionData(prev => ({
+          ...prev,
+          finalActualCost: parseFloat(ticketToFinalize.costEstimation).toFixed(2)
+        }));
+      }
+    }
+  }, [showCompletionDialog, ticketToFinalize, finalizationRepairServices, completionData.finalActualCost, currentLanguage.code]);
+
   // Derive estimated time using useMemo to prevent infinite loops
   const servicesIndex = useMemo(() => {
     return new Map((repairServices || []).map(s => [s.id, s]));
@@ -1597,7 +1632,7 @@ export default function KanbanTickets() {
           setCompletionData({
             completionNotes: '',
             actualHours: ticket.technicianEstimatedHours?.toString() || '',
-            finalActualCost: ticket.totalCost?.toString() || ticket.costEstimation?.toString() || '',
+            finalActualCost: '', // Will be auto-populated by useEffect once repair services are loaded
           });
           resetWizard(); // Reset wizard to step 1
           setShowCompletionDialog(true);
