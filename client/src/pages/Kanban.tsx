@@ -5395,103 +5395,152 @@ export default function KanbanTickets() {
                     </div>
                     
                     <div className="p-6">
-                      {finalizationChecklists && finalizationChecklists.length > 0 ? (
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Initial Status */}
-                            <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                              <div className="bg-gradient-to-r from-[#0A192F] to-orange-500 px-4 py-3">
-                                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                                  <X className="w-4 h-4" />
-                                  {t("initial_checklist", "Initial Checklist")}
-                                </h4>
+                      {(() => {
+                        // Get initial defects from ticket
+                        const initialDefects = ticketToFinalize?.serviceChecklist?.selectedChecklists || [];
+                        const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
+                        const newDefectsFound = finalDefects.length > initialDefects.length;
+                        
+                        return (
+                          <div className="space-y-6">
+                            {/* Quality Check Warning */}
+                            {newDefectsFound && (
+                              <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
+                                <div className="flex items-start gap-3">
+                                  <AlertTriangle className="w-6 h-6 text-red-400 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <h4 className="text-red-400 font-semibold mb-2">
+                                      {t("quality_check_required", "Quality Check Required")}
+                                    </h4>
+                                    <p className="text-red-300 text-sm">
+                                      {t("new_defects_found", "Additional defects have been identified that were not present during initial inspection. This ticket requires quality review before completion.")}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="p-4">
-                                <p className="text-xs text-orange-300 mb-3">
-                                  Issues identified during initial inspection:
-                                </p>
-                                <div className="space-y-2">
-                                  {finalizationChecklists.map((checklist) => (
-                                    <div key={`initial-${checklist.id}`} className="flex items-center space-x-2">
-                                      <div className="w-4 h-4 rounded-full flex items-center justify-center bg-red-500">
-                                        <X className="w-3 h-3 text-white" />
-                                      </div>
-                                      <span className="text-sm text-gray-300">{checklist.name}</span>
+                            )}
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                              {/* Initial Defects */}
+                              <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                                <div className="bg-gradient-to-r from-[#0A192F] to-orange-500 px-4 py-3">
+                                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                                    <FileText className="w-4 h-4" />
+                                    {t("initial_defects", "Initial Defects")}
+                                  </h4>
+                                </div>
+                                <div className="p-4">
+                                  <p className="text-xs text-orange-300 mb-3">
+                                    {t("defects_found_intake", "Defects identified during device intake:")}
+                                  </p>
+                                  <div className="space-y-2">
+                                    {initialDefects.length > 0 ? (
+                                      finalizationChecklists
+                                        .filter(checklist => initialDefects.includes(checklist.id))
+                                        .map((checklist) => (
+                                          <div key={`initial-${checklist.id}`} className="flex items-center space-x-2">
+                                            <div className="w-4 h-4 rounded-full flex items-center justify-center bg-red-500">
+                                              <X className="w-3 h-3 text-white" />
+                                            </div>
+                                            <span className="text-sm text-gray-300">{checklist.name}</span>
+                                          </div>
+                                        ))
+                                    ) : (
+                                      <p className="text-sm text-gray-400 italic">
+                                        {t("no_initial_defects", "No defects identified during intake")}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="mt-3 text-center">
+                                    <div className="text-lg font-bold text-orange-400">{initialDefects.length}</div>
+                                    <div className="text-xs text-orange-300">{t("total_defects", "Total Defects")}</div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Final Defects */}
+                              <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                                <div className={`bg-gradient-to-r from-[#0A192F] ${newDefectsFound ? 'to-red-500' : 'to-green-500'} px-4 py-3`}>
+                                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                                    <CheckSquare className="w-4 h-4" />
+                                    {t("final_defects", "Final Defects")}
+                                  </h4>
+                                </div>
+                                <div className="p-4">
+                                  <p className={`text-xs mb-3 ${newDefectsFound ? 'text-red-300' : 'text-green-300'}`}>
+                                    {t("defects_after_repair", "Defects remaining after repair work:")}
+                                  </p>
+                                  <div className="space-y-2">
+                                    {finalDefects.length > 0 ? (
+                                      finalizationChecklists
+                                        .filter(checklist => finalDefects.includes(checklist.id))
+                                        .map((checklist) => {
+                                          const wasInitial = initialDefects.includes(checklist.id);
+                                          return (
+                                            <div key={`final-${checklist.id}`} className="flex items-center space-x-2">
+                                              <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                                wasInitial ? 'bg-orange-500' : 'bg-red-600'
+                                              }`}>
+                                                <X className="w-3 h-3 text-white" />
+                                              </div>
+                                              <span className="text-sm text-gray-300 flex items-center gap-2">
+                                                {checklist.name}
+                                                {!wasInitial && (
+                                                  <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+                                                    {t("new", "NEW")}
+                                                  </span>
+                                                )}
+                                              </span>
+                                            </div>
+                                          );
+                                        })
+                                    ) : (
+                                      <p className="text-sm text-green-400 italic">
+                                        {t("no_remaining_defects", "No defects remaining")}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="mt-3 text-center">
+                                    <div className={`text-lg font-bold ${newDefectsFound ? 'text-red-400' : 'text-green-400'}`}>
+                                      {finalDefects.length}
                                     </div>
-                                  ))}
+                                    <div className="text-xs text-gray-300">{t("total_defects", "Total Defects")}</div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
 
-                            {/* Final Status */}
-                            <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                              <div className="bg-gradient-to-r from-[#0A192F] to-green-500 px-4 py-3">
-                                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                                  <Check className="w-4 h-4" />
-                                  {t("final_checklist", "Final Checklist")}
-                                </h4>
-                              </div>
-                              <div className="p-4">
-                                <p className="text-xs text-green-300 mb-3">
-                                  Current status after repair work:
-                                </p>
-                                <div className="space-y-2">
-                                  {finalizationChecklists.map((checklist) => {
-                                    const isFixed = wizardData.finalChecklist[checklist.id] || false;
-                                    return (
-                                      <div key={`final-${checklist.id}`} className="flex items-center space-x-2">
-                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                                          isFixed ? 'bg-green-500' : 'bg-red-500'
-                                        }`}>
-                                          {isFixed ? <Check className="w-3 h-3 text-white" /> : <X className="w-3 h-3 text-white" />}
-                                        </div>
-                                        <span className="text-sm text-gray-300">{checklist.name}</span>
-                                      </div>
-                                    );
-                                  })}
+                            {/* Comparison Summary */}
+                            <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
+                              <h4 className="text-cyan-400 font-medium mb-4 flex items-center gap-2">
+                                <GitCompare className="w-4 h-4" />
+                                {t("repair_analysis", "Repair Analysis")}
+                              </h4>
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                <div className="text-center">
+                                  <div className="text-2xl font-bold text-orange-400">{initialDefects.length}</div>
+                                  <div className="text-xs text-cyan-400">{t("initial_count", "Initial")}</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`text-2xl font-bold ${newDefectsFound ? 'text-red-400' : 'text-green-400'}`}>
+                                    {finalDefects.length}
+                                  </div>
+                                  <div className="text-xs text-cyan-400">{t("final_count", "Final")}</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`text-2xl font-bold ${
+                                    newDefectsFound ? 'text-red-400' : finalDefects.length === 0 ? 'text-green-400' : 'text-yellow-400'
+                                  }`}>
+                                    {newDefectsFound ? t("needs_review", "Needs Review") : 
+                                     finalDefects.length === 0 ? t("perfect", "Perfect") : t("acceptable", "Acceptable")}
+                                  </div>
+                                  <div className="text-xs text-cyan-400">{t("repair_status", "Status")}</div>
                                 </div>
                               </div>
                             </div>
                           </div>
-
-                          {/* Improvement Summary */}
-                          <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
-                            <h4 className="text-cyan-400 font-medium mb-4 flex items-center gap-2">
-                              <GitCompare className="w-4 h-4" />
-                              {t("improvement_status", "Improvement Status")}
-                            </h4>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                              {(() => {
-                                const totalItems = finalizationChecklists.length;
-                                const fixedItems = finalizationChecklists.filter(checklist => 
-                                  wizardData.finalChecklist[checklist.id]
-                                ).length;
-                                
-                                const improvementRate = totalItems > 0 ? Math.round((fixedItems / totalItems) * 100) : 0;
-
-                                return (
-                                  <>
-                                    <div className="text-center">
-                                      <div className="text-2xl font-bold text-white">{fixedItems}/{totalItems}</div>
-                                      <div className="text-xs text-cyan-400">Categories Fixed</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className="text-2xl font-bold text-green-400">{improvementRate}%</div>
-                                      <div className="text-xs text-cyan-400">Success Rate</div>
-                                    </div>
-                                    <div className="text-center">
-                                      <div className={`text-2xl font-bold ${improvementRate >= 80 ? 'text-green-400' : improvementRate >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
-                                        {improvementRate >= 80 ? 'Excellent' : improvementRate >= 60 ? 'Good' : 'Needs Review'}
-                                      </div>
-                                      <div className="text-xs text-cyan-400">Repair Quality</div>
-                                    </div>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
+                        );
+                      })() : (
                         <div className="text-center text-cyan-300 py-8">
                           <GitCompare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
                           <p className="text-lg font-medium">No comparison data available</p>
