@@ -744,24 +744,22 @@ export default function KanbanTickets() {
   
   // Quality check detection
   const getQualityCheckStatus = () => {
-    if (!ticketToFinalize) return { requiresQualityReview: false, initialCount: 0, finalCount: 0 };
+    if (!ticketToFinalize) return { requiresQualityReview: false, initialCount: 0, finalCount: 0, hasNewDefects: false };
     
     const initialDefects = (ticketToFinalize.serviceChecklist as any)?.selectedChecklists || [];
     const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
     
-    // Quality check required if:
-    // 1. More defects found after repair (count increased)
-    // 2. Different defects found (same count but different items)
-    const countIncreased = finalDefects.length > initialDefects.length;
-    const defectsChanged = initialDefects.length === finalDefects.length && 
-                          !finalDefects.every(defect => initialDefects.includes(defect));
+    // Check if any final defect is NOT in the initial defects list (NEW defects)
+    const hasNewDefects = finalDefects.some(defect => !initialDefects.includes(defect));
     
-    const requiresQualityReview = countIncreased || defectsChanged;
+    // Quality check required if ANY new defects are detected
+    const requiresQualityReview = hasNewDefects;
     
     return {
       requiresQualityReview,
       initialCount: initialDefects.length,
-      finalCount: finalDefects.length
+      finalCount: finalDefects.length,
+      hasNewDefects
     };
   };
 
@@ -5417,11 +5415,9 @@ export default function KanbanTickets() {
                         const initialDefects = (ticketToFinalize?.serviceChecklist as any)?.selectedChecklists || [];
                         const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
                         
-                        // Check if defects changed (count increased OR different defects found)
-                        const countIncreased = finalDefects.length > initialDefects.length;
-                        const defectsChanged = initialDefects.length === finalDefects.length && 
-                                              !finalDefects.every(defect => initialDefects.includes(defect));
-                        const newDefectsFound = countIncreased || defectsChanged;
+                        // Check if any new defects were found (any final defect not in initial list)
+                        const hasNewDefects = finalDefects.some(defect => !initialDefects.includes(defect));
+                        const newDefectsFound = hasNewDefects;
                         
                         return (
                           <div className="space-y-6">
