@@ -106,14 +106,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = user.tenantId;
       
       // Get basic counts for dashboard
-      const [tickets, clients, inventoryItems, transactions] = await Promise.all([
+      const [tickets, clients, inventoryItems, transactions, completionAnalytics] = await Promise.all([
         storage.getTickets(tenantId),
         storage.getClients(tenantId),
         storage.getInventoryItems(tenantId),
-        storage.getTransactions(tenantId)
+        storage.getTransactions(tenantId),
+        storage.getCompletionAnalytics(tenantId, 100) // Get recent completion analytics
       ]);
 
-      const openTickets = tickets.filter(t => t.status !== 'completed').length;
+      const openTickets = tickets.filter(t => t.status !== 'finalized').length;
+      const completedTickets = tickets.filter(t => t.status === 'finalized').length;
+      const totalTickets = tickets.length;
       const lowStockItems = inventoryItems.filter(item => item.quantity <= item.minQuantity).length;
       
       // Calculate monthly revenue from current month transactions
@@ -132,11 +135,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const formattedMonthlyRevenue = fromCents(monthlyRevenue, 'en');
 
+      // Calculate completion analytics metrics
+      const completionRate = totalTickets > 0 ? ((completedTickets / totalTickets) * 100).toFixed(1) : '0.0';
+      
+      // Calculate average accuracy score from recent completions
+      const avgAccuracyScore = completionAnalytics.length > 0 
+        ? (completionAnalytics.reduce((sum, a) => sum + parseFloat(a.accuracyScore || '0'), 0) / completionAnalytics.length).toFixed(1)
+        : '0.0';
+      
+      // Calculate revenue from completed tickets this month
+      const completedTicketsThisMonth = tickets.filter(t => {
+        if (t.status !== 'finalized' || !t.completedAt) return false;
+        const completedDate = new Date(t.completedAt);
+        return completedDate.getMonth() === currentMonth && completedDate.getFullYear() === currentYear;
+      });
+      
+      const completionRevenue = completedTicketsThisMonth.reduce((sum, t) => {
+        if (t.finalActualCost) {
+          const cents = toCents(t.finalActualCost.toString(), 'en');
+          return sum + cents;
+        }
+        return sum;
+      }, 0);
+      
+      const formattedCompletionRevenue = fromCents(completionRevenue, 'en');
+      
+      // Calculate time variance trend (positive = over-estimated, negative = under-estimated)
+      const avgTimeVariance = completionAnalytics.length > 0
+        ? (completionAnalytics.reduce((sum, a) => sum + parseFloat(a.hoursVariancePercentage || '0'), 0) / completionAnalytics.length).toFixed(1)
+        : '0.0';
+      
+      // Calculate cost variance trend
+      const avgCostVariance = completionAnalytics.length > 0
+        ? (completionAnalytics.reduce((sum, a) => sum + parseFloat(a.costVariancePercentage || '0'), 0) / completionAnalytics.length).toFixed(1)
+        : '0.0';
+
       res.json({
         openTickets,
         monthlyRevenue: formattedMonthlyRevenue,
         lowStockItems,
-        activeClients: clients.length
+        activeClients: clients.length,
+        // Completion Analytics Metrics
+        completionRate: parseFloat(completionRate),
+        completedTickets,
+        totalTickets,
+        avgAccuracyScore: parseFloat(avgAccuracyScore),
+        completionRevenue: formattedCompletionRevenue,
+        avgTimeVariance: parseFloat(avgTimeVariance),
+        avgCostVariance: parseFloat(avgCostVariance),
+        recentCompletions: completionAnalytics.length
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
