@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -1527,7 +1527,7 @@ export default function KanbanTickets() {
       case 'final_customer_check':
         return 'bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-300 hover:shadow-indigo-200';
       case 'finalized':
-        return 'bg-gradient-to-br from-green-50 to-green-100 border-green-300 hover:shadow-green-200';
+        return 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300 opacity-60';
       default:
         return 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300 hover:shadow-gray-200';
     }
@@ -1551,7 +1551,7 @@ export default function KanbanTickets() {
       case 'final_customer_check':
         return 'text-indigo-800';
       case 'finalized':
-        return 'text-green-800';
+        return 'text-gray-600';
       default:
         return 'text-gray-700';
     }
@@ -4238,9 +4238,9 @@ export default function KanbanTickets() {
                   return (
                     <Card
                       key={ticket.id}
-                      className={`cursor-pointer hover:shadow-md transition-all duration-200 ${getStatusCardStyling(ticket.status)}`}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, ticket.id)}
+                      className={`${ticket.status === 'finalized' ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md'} transition-all duration-200 ${getStatusCardStyling(ticket.status)}`}
+                      draggable={ticket.status !== 'finalized'}
+                      onDragStart={(e) => ticket.status !== 'finalized' ? handleDragStart(e, ticket.id) : e.preventDefault()}
                       onClick={() => setSelectedTicketSummary(ticket)}
                       data-testid={`ticket-${ticket.id}`}
                     >
@@ -4255,6 +4255,12 @@ export default function KanbanTickets() {
                             <span className={`text-xs ${getStatusMutedColor(ticket.status)}`}>
                               #{ticket.id.slice(-6).toUpperCase()}
                             </span>
+                            {ticket.status === 'finalized' && (
+                              <Lock 
+                                className="w-3 h-3 text-gray-500" 
+                                title={t("finalized", "Finalized")}
+                              />
+                            )}
                           </div>
                           
                           {/* Individual card expand/collapse button */}
