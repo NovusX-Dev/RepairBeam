@@ -1050,6 +1050,14 @@ export default function KanbanTickets() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Load repair services for finalization wizard (when finalizing tickets)
+  const { data: finalizationRepairServices = [] } = useQuery<RepairService[]>({
+    queryKey: [`/api/repair-services/device/${ticketToFinalize?.deviceType}`],
+    enabled: !!ticketToFinalize?.deviceType && showCompletionDialog,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Derive estimated time using useMemo to prevent infinite loops
   const servicesIndex = useMemo(() => {
     return new Map((repairServices || []).map(s => [s.id, s]));
@@ -5355,11 +5363,31 @@ export default function KanbanTickets() {
                               className="bg-slate-800/50 border-[#00FFFF]/20 text-white"
                               data-testid="input-final-cost"
                             />
-                            {ticketToFinalize.costEstimation && (
-                              <p className="text-xs text-cyan-300">
-                                {t("estimated", "Estimated")}: ${parseFloat(ticketToFinalize.costEstimation).toFixed(2)}
-                              </p>
-                            )}
+                            <p className="text-xs text-cyan-300">
+                              {t("estimated", "Estimated")}: {(() => {
+                                // Calculate total estimated cost (services + extra costs)
+                                if (ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0) {
+                                  const locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                  
+                                  // Calculate services cost
+                                  const serviceCostsCents = (ticketToFinalize.selectedServices as string[]).map(serviceId => {
+                                    const service = finalizationRepairServices.find(s => s.id === serviceId);
+                                    return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                  });
+                                  const totalServicesCents = addCents(...serviceCostsCents);
+                                  
+                                  // Add extra costs
+                                  const extraCostsCents = ticketToFinalize.costEstimation ? toCents(ticketToFinalize.costEstimation, locale) : 0;
+                                  const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+                                  
+                                  return formatCurrencyFromUtility(grandTotalCents, locale);
+                                } else if (ticketToFinalize.costEstimation) {
+                                  // If no services, just show extra costs
+                                  return `$${parseFloat(ticketToFinalize.costEstimation).toFixed(2)}`;
+                                }
+                                return "$0.00";
+                              })()}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -5663,7 +5691,7 @@ export default function KanbanTickets() {
                               {t("selected_services_for_repair", "Selected services for this repair")}
                             </p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {ticketRepairServices
+                              {finalizationRepairServices
                                 .filter(service => (ticketToFinalize.selectedServices as string[])?.includes(service.id))
                                 .map((service) => (
                                   <div key={service.id} className="flex items-center gap-3 text-sm">
