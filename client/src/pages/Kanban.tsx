@@ -752,10 +752,10 @@ export default function KanbanTickets() {
 
   const canAdvanceWizard = () => {
     switch(wizardStep) {
-      case 1: // Summary - always can advance
-        return true;
-      case 2: // Checklist - must have completion notes and hours
+      case 1: // Summary - must have completion notes and hours
         return completionData.completionNotes && completionData.actualHours && completionData.finalActualCost;
+      case 2: // Checklist - always can advance (optional checklist selection)
+        return true;
       case 3: // Comparison - always can advance
         return true;
       case 4: // Authorization - must be authorized
@@ -5279,42 +5279,44 @@ export default function KanbanTickets() {
                     <div className="p-6">
                       {finalizationChecklists && finalizationChecklists.length > 0 ? (
                         <div className="space-y-4">
-                          {finalizationChecklists.map((checklist) => (
-                            <div key={checklist.id} className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                              <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
-                                <h4 className="text-sm font-semibold text-white">{checklist.name}</h4>
-                              </div>
-                              <div className="p-4">
-                                <div className="grid grid-cols-1 gap-3">
-                                  {checklist.components.map((component: string, index: number) => (
-                                    <div key={index} className="flex items-center space-x-3">
-                                      <Checkbox
-                                        id={`final-${checklist.id}-${index}`}
-                                        checked={wizardData.finalChecklist[`${checklist.id}-${index}`] || false}
-                                        onCheckedChange={(checked) => {
-                                          setWizardData(prev => ({
-                                            ...prev,
-                                            finalChecklist: {
-                                              ...prev.finalChecklist,
-                                              [`${checklist.id}-${index}`]: checked as boolean
-                                            }
-                                          }));
-                                        }}
-                                        className="border-cyan-400 data-[state=checked]:bg-cyan-500"
-                                        data-testid={`checkbox-final-${checklist.id}-${index}`}
-                                      />
-                                      <Label 
-                                        htmlFor={`final-${checklist.id}-${index}`}
-                                        className="text-sm text-white cursor-pointer"
-                                      >
-                                        {component}
-                                      </Label>
-                                    </div>
-                                  ))}
+                          <p className="text-cyan-300 text-sm mb-4">
+                            Review and confirm completion of these inspection categories:
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {finalizationChecklists.map((checklist) => (
+                              <div
+                                key={checklist.id}
+                                className="flex items-start space-x-3 p-4 rounded-lg border border-slate-600/50 bg-gradient-to-br from-slate-700/40 via-slate-700/40 to-slate-600/40 hover:bg-gradient-to-br hover:from-cyan-900/20 hover:via-slate-700/40 hover:to-slate-600/40 hover:border-cyan-500/50 transition-all duration-200"
+                              >
+                                <Checkbox
+                                  id={`final-checklist-${checklist.id}`}
+                                  checked={wizardData.finalChecklist[checklist.id] || false}
+                                  onCheckedChange={(checked) => {
+                                    setWizardData(prev => ({
+                                      ...prev,
+                                      finalChecklist: {
+                                        ...prev.finalChecklist,
+                                        [checklist.id]: checked as boolean
+                                      }
+                                    }));
+                                  }}
+                                  className="border-cyan-400 data-[state=checked]:bg-cyan-500 mt-0.5"
+                                  data-testid={`checkbox-final-${checklist.id}`}
+                                />
+                                <div className="flex-1">
+                                  <Label 
+                                    htmlFor={`final-checklist-${checklist.id}`}
+                                    className="text-sm font-medium text-white cursor-pointer block"
+                                  >
+                                    {checklist.name}
+                                  </Label>
+                                  <p className="text-xs text-cyan-300 mt-1">
+                                    {t("device_type", "Device Type")}: {checklist.deviceType}
+                                  </p>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center text-cyan-300 py-8">
@@ -5345,63 +5347,62 @@ export default function KanbanTickets() {
                     <div className="p-6">
                       {finalizationChecklists && finalizationChecklists.length > 0 ? (
                         <div className="space-y-6">
-                          {finalizationChecklists.map((checklist) => (
-                            <div key={checklist.id} className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                              <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
-                                <h4 className="text-sm font-semibold text-white">{checklist.name} - Comparison</h4>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Initial Status */}
+                            <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                              <div className="bg-gradient-to-r from-[#0A192F] to-orange-500 px-4 py-3">
+                                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                                  <X className="w-4 h-4" />
+                                  {t("initial_checklist", "Initial Checklist")}
+                                </h4>
                               </div>
                               <div className="p-4">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                  {/* Initial Status */}
-                                  <div>
-                                    <h5 className="text-cyan-400 font-medium mb-3 flex items-center gap-2">
-                                      <X className="w-4 h-4 text-orange-400" />
-                                      {t("initial_checklist", "Initial Checklist")}
-                                    </h5>
-                                    <div className="space-y-2">
-                                      {checklist.components.map((component: string, index: number) => {
-                                        // Get original checklist data - assuming failed/problematic initially
-                                        const originalState = false; // Most items start as issues
-                                        return (
-                                          <div key={`original-${index}`} className="flex items-center space-x-2">
-                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                                              originalState ? 'bg-green-500' : 'bg-red-500'
-                                            }`}>
-                                              {originalState ? <Check className="w-3 h-3 text-white" /> : <X className="w-3 h-3 text-white" />}
-                                            </div>
-                                            <span className="text-sm text-gray-300">{component}</span>
-                                          </div>
-                                        );
-                                      })}
+                                <p className="text-xs text-orange-300 mb-3">
+                                  Issues identified during initial inspection:
+                                </p>
+                                <div className="space-y-2">
+                                  {finalizationChecklists.map((checklist) => (
+                                    <div key={`initial-${checklist.id}`} className="flex items-center space-x-2">
+                                      <div className="w-4 h-4 rounded-full flex items-center justify-center bg-red-500">
+                                        <X className="w-3 h-3 text-white" />
+                                      </div>
+                                      <span className="text-sm text-gray-300">{checklist.name}</span>
                                     </div>
-                                  </div>
-
-                                  {/* Final Status */}
-                                  <div>
-                                    <h5 className="text-green-400 font-medium mb-3 flex items-center gap-2">
-                                      <Check className="w-4 h-4 text-green-400" />
-                                      {t("final_checklist", "Final Checklist")}
-                                    </h5>
-                                    <div className="space-y-2">
-                                      {checklist.components.map((component: string, index: number) => {
-                                        const finalState = wizardData.finalChecklist[`${checklist.id}-${index}`] || false;
-                                        return (
-                                          <div key={`final-${index}`} className="flex items-center space-x-2">
-                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                                              finalState ? 'bg-green-500' : 'bg-red-500'
-                                            }`}>
-                                              {finalState ? <Check className="w-3 h-3 text-white" /> : <X className="w-3 h-3 text-white" />}
-                                            </div>
-                                            <span className="text-sm text-gray-300">{component}</span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
+                                  ))}
                                 </div>
                               </div>
                             </div>
-                          ))}
+
+                            {/* Final Status */}
+                            <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                              <div className="bg-gradient-to-r from-[#0A192F] to-green-500 px-4 py-3">
+                                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                                  <Check className="w-4 h-4" />
+                                  {t("final_checklist", "Final Checklist")}
+                                </h4>
+                              </div>
+                              <div className="p-4">
+                                <p className="text-xs text-green-300 mb-3">
+                                  Current status after repair work:
+                                </p>
+                                <div className="space-y-2">
+                                  {finalizationChecklists.map((checklist) => {
+                                    const isFixed = wizardData.finalChecklist[checklist.id] || false;
+                                    return (
+                                      <div key={`final-${checklist.id}`} className="flex items-center space-x-2">
+                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                          isFixed ? 'bg-green-500' : 'bg-red-500'
+                                        }`}>
+                                          {isFixed ? <Check className="w-3 h-3 text-white" /> : <X className="w-3 h-3 text-white" />}
+                                        </div>
+                                        <span className="text-sm text-gray-300">{checklist.name}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
                           {/* Improvement Summary */}
                           <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
@@ -5411,25 +5412,18 @@ export default function KanbanTickets() {
                             </h4>
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                               {(() => {
-                                let totalItems = 0;
-                                let fixedItems = 0;
+                                const totalItems = finalizationChecklists.length;
+                                const fixedItems = finalizationChecklists.filter(checklist => 
+                                  wizardData.finalChecklist[checklist.id]
+                                ).length;
                                 
-                                finalizationChecklists.forEach(checklist => {
-                                  checklist.components.forEach((_: string, index: number) => {
-                                    totalItems++;
-                                    if (wizardData.finalChecklist[`${checklist.id}-${index}`]) {
-                                      fixedItems++;
-                                    }
-                                  });
-                                });
-
                                 const improvementRate = totalItems > 0 ? Math.round((fixedItems / totalItems) * 100) : 0;
 
                                 return (
                                   <>
                                     <div className="text-center">
                                       <div className="text-2xl font-bold text-white">{fixedItems}/{totalItems}</div>
-                                      <div className="text-xs text-cyan-400">Items Fixed</div>
+                                      <div className="text-xs text-cyan-400">Categories Fixed</div>
                                     </div>
                                     <div className="text-center">
                                       <div className="text-2xl font-bold text-green-400">{improvementRate}%</div>
