@@ -748,7 +748,15 @@ export default function KanbanTickets() {
     
     const initialDefects = ticketToFinalize.serviceChecklist?.selectedChecklists || [];
     const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
-    const requiresQualityReview = finalDefects.length > initialDefects.length;
+    
+    // Quality check required if:
+    // 1. More defects found after repair (count increased)
+    // 2. Different defects found (same count but different items)
+    const countIncreased = finalDefects.length > initialDefects.length;
+    const defectsChanged = initialDefects.length === finalDefects.length && 
+                          !finalDefects.every(defect => initialDefects.includes(defect));
+    
+    const requiresQualityReview = countIncreased || defectsChanged;
     
     return {
       requiresQualityReview,
@@ -5408,7 +5416,12 @@ export default function KanbanTickets() {
                         // Get initial defects from ticket
                         const initialDefects = ticketToFinalize?.serviceChecklist?.selectedChecklists || [];
                         const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
-                        const newDefectsFound = finalDefects.length > initialDefects.length;
+                        
+                        // Check if defects changed (count increased OR different defects found)
+                        const countIncreased = finalDefects.length > initialDefects.length;
+                        const defectsChanged = initialDefects.length === finalDefects.length && 
+                                              !finalDefects.every(defect => initialDefects.includes(defect));
+                        const newDefectsFound = countIncreased || defectsChanged;
                         
                         return (
                           <div className="space-y-6">
