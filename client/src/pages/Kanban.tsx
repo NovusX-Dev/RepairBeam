@@ -741,6 +741,7 @@ export default function KanbanTickets() {
     cpf: '',
     deviceType: 'all',
     ticketId: '',
+    showArchived: true, // Show finalized tickets by default
   });
   const [showFilters, setShowFilters] = useState(false);
   
@@ -1400,6 +1401,11 @@ export default function KanbanTickets() {
       }
     }
     
+    // Filter archived tickets (finalized status)
+    if (!filters.showArchived && ticket.status === 'finalized') {
+      return false;
+    }
+    
     return true;
   });
 
@@ -1418,11 +1424,12 @@ export default function KanbanTickets() {
       cpf: '',
       deviceType: 'all',
       ticketId: '',
+      showArchived: true, // Reset to show all tickets including finalized
     });
   };
 
   // Check if any filters are active
-  const hasActiveFilters = filters.priority !== 'all' || filters.name || filters.cpf || filters.deviceType !== 'all' || filters.ticketId;
+  const hasActiveFilters = filters.priority !== 'all' || filters.name || filters.cpf || filters.deviceType !== 'all' || filters.ticketId || !filters.showArchived;
 
   // Group filtered tickets by status
   const ticketsByStatus = kanbanColumns.reduce((acc, column) => {
@@ -4110,7 +4117,7 @@ export default function KanbanTickets() {
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Priority Filter */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">{t("filter_by_priority", "Filter by Priority")}</Label>
@@ -4186,6 +4193,25 @@ export default function KanbanTickets() {
                 className="w-full"
                 data-testid="input-ticket-id-filter"
               />
+            </div>
+
+            {/* Archive Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("archive_filter", "Archive Filter")}</Label>
+              <div className="flex items-center space-x-2 h-9">
+                <Switch
+                  id="show-archived"
+                  checked={filters.showArchived}
+                  onCheckedChange={(checked) => setFilters(prev => ({ ...prev, showArchived: checked }))}
+                  data-testid="switch-show-archived"
+                />
+                <Label 
+                  htmlFor="show-archived" 
+                  className="text-sm cursor-pointer"
+                >
+                  {t("show_finalized", "Show Finalized")}
+                </Label>
+              </div>
             </div>
           </div>
 
