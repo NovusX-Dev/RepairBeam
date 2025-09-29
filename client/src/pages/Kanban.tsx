@@ -741,6 +741,21 @@ export default function KanbanTickets() {
     clientAuthorized: false,
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  
+  // Quality check detection
+  const getQualityCheckStatus = () => {
+    if (!ticketToFinalize) return { requiresQualityReview: false, initialCount: 0, finalCount: 0 };
+    
+    const initialDefects = ticketToFinalize.serviceChecklist?.selectedChecklists || [];
+    const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
+    const requiresQualityReview = finalDefects.length > initialDefects.length;
+    
+    return {
+      requiresQualityReview,
+      initialCount: initialDefects.length,
+      finalCount: finalDefects.length
+    };
+  };
 
   // Wizard navigation functions
   const resetWizard = () => {
@@ -5636,35 +5651,74 @@ export default function KanbanTickets() {
               {wizardStep === 1 ? t("cancel", "Cancel") : t("previous", "Previous")}
             </Button>
 
-            <Button 
-              onClick={() => {
-                if (wizardStep === 4) {
-                  // Final completion
-                  if (ticketToFinalize && completionData.completionNotes && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
-                    finalizeTicket.mutate({
-                      ticketId: ticketToFinalize.id,
-                      completionNotes: completionData.completionNotes,
-                      actualHours: parseInt(completionData.actualHours),
-                      finalActualCost: parseFloat(completionData.finalActualCost)
-                    });
+            <div className="flex gap-3">
+              {/* Quality Check Button - Show when new defects detected */}
+              {(() => {
+                const qualityStatus = getQualityCheckStatus();
+                return qualityStatus.requiresQualityReview && wizardStep === 4 && (
+                  <Button 
+                    onClick={() => {
+                      if (ticketToFinalize) {
+                        updateTicketStatus.mutate({
+                          ticketId: ticketToFinalize.id,
+                          status: 'quality_check' as TicketStatus
+                        });
+                      }
+                    }}
+                    disabled={updateTicketStatus.isPending}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                    data-testid="button-quality-check"
+                  >
+                    {updateTicketStatus.isPending 
+                      ? t("returning", "Returning...") 
+                      : t("return_to_quality_check", "Return to Quality Check")
+                    }
+                  </Button>
+                );
+              })()}
+
+              {/* Main Action Button */}
+              <Button 
+                onClick={() => {
+                  if (wizardStep === 4) {
+                    const qualityStatus = getQualityCheckStatus();
+                    // Block completion if quality check is required
+                    if (qualityStatus.requiresQualityReview) {
+                      toast({
+                        title: t("quality_check_required", "Quality Check Required"),
+                        description: t("new_defects_found", "Additional defects have been identified that were not present during initial inspection. This ticket requires quality review before completion."),
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    // Normal finalization
+                    if (ticketToFinalize && completionData.completionNotes && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
+                      finalizeTicket.mutate({
+                        ticketId: ticketToFinalize.id,
+                        completionNotes: completionData.completionNotes,
+                        actualHours: parseInt(completionData.actualHours),
+                        finalActualCost: parseFloat(completionData.finalActualCost)
+                      });
+                    }
+                  } else {
+                    handleWizardNext();
                   }
-                } else {
-                  handleWizardNext();
+                }}
+                disabled={
+                  (wizardStep === 4 && (!wizardData.clientAuthorized || finalizeTicket.isPending)) ||
+                  (wizardStep === 1 && (!completionData.completionNotes || !completionData.actualHours || !completionData.finalActualCost)) ||
+                  !canAdvanceWizard()
                 }
-              }}
-              disabled={
-                (wizardStep === 4 && (!wizardData.clientAuthorized || finalizeTicket.isPending)) ||
-                (wizardStep === 2 && (!completionData.completionNotes || !completionData.actualHours || !completionData.finalActualCost)) ||
-                !canAdvanceWizard()
-              }
-              className={wizardStep === 4 ? "bg-green-600 hover:bg-green-700" : "bg-[#00FFFF] text-[#0A192F] hover:bg-[#00FFFF]/90"}
-              data-testid={wizardStep === 4 ? "button-finalize-ticket" : "button-wizard-next"}
-            >
-              {wizardStep === 4 
-                ? (finalizeTicket.isPending ? t("finalizing", "Finalizing...") : t("complete", "Complete"))
-                : t("next", "Next")
-              }
-            </Button>
+                className={wizardStep === 4 ? "bg-green-600 hover:bg-green-700" : "bg-[#00FFFF] text-[#0A192F] hover:bg-[#00FFFF]/90"}
+                data-testid={wizardStep === 4 ? "button-finalize-ticket" : "button-wizard-next"}
+              >
+                {wizardStep === 4 
+                  ? (finalizeTicket.isPending ? t("finalizing", "Finalizing...") : t("complete", "Complete"))
+                  : t("next", "Next")
+                }
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
