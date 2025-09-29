@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -5631,6 +5631,33 @@ export default function KanbanTickets() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Services Performed */}
+                      {ticketToFinalize && ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0 && (
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                              <Wrench className="w-4 h-4" />
+                              {t("services_performed", "Services Performed")}
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-xs text-cyan-300 mb-3">
+                              {t("selected_services_for_repair", "Selected services for this repair")}
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {ticketRepairServices
+                                .filter(service => (ticketToFinalize.selectedServices as string[])?.includes(service.id))
+                                .map((service) => (
+                                  <div key={service.id} className="flex items-center gap-3 text-sm">
+                                    <div className="w-2 h-2 rounded-full bg-[#00FFFF]"></div>
+                                    <span className="text-gray-300 truncate">{service.name}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Authorization Switch */}
                       <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
