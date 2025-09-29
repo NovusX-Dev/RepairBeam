@@ -334,6 +334,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Finalize ticket with completion data
+  app.put("/api/tickets/:ticketId/finalize", isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticketId } = req.params;
+      const { completionNotes, actualHours, finalActualCost } = req.body;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!completionNotes || actualHours === undefined || finalActualCost === undefined) {
+        return res.status(400).json({ message: "Completion notes, actual hours, and final cost are required" });
+      }
+
+      const finalizedTicket = await storage.finalizeTicket(
+        ticketId, 
+        user.tenantId,
+        userId,
+        completionNotes,
+        parseInt(actualHours),
+        parseFloat(finalActualCost)
+      );
+      
+      if (!finalizedTicket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(finalizedTicket);
+    } catch (error: any) {
+      console.error("Error finalizing ticket:", error);
+      if (error.message === "Cannot modify finalized ticket") {
+        return res.status(409).json({ message: "Ticket is already finalized" });
+      }
+      res.status(500).json({ message: "Failed to finalize ticket" });
+    }
+  });
+
   // Update ticket priority
   app.put("/api/tickets/:ticketId/priority", isAuthenticated, async (req: any, res) => {
     try {

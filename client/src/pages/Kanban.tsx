@@ -725,6 +725,15 @@ export default function KanbanTickets() {
   const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
+  // Completion dialog state
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [ticketToFinalize, setTicketToFinalize] = useState<TicketWithClient | null>(null);
+  const [completionData, setCompletionData] = useState({
+    completionNotes: '',
+    actualHours: '',
+    finalActualCost: '',
+  });
+  
   // Filter state management
   const [filters, setFilters] = useState({
     priority: 'all',
@@ -1057,6 +1066,63 @@ export default function KanbanTickets() {
   const { validateBrand } = useValidateBrand();
   const { validateModel } = useValidateModel();
   const { saveCustomColor } = useSaveCustomColor();
+
+  // Finalize ticket with completion data mutation
+  const finalizeTicket = useMutation({
+    mutationFn: async ({ 
+      ticketId, 
+      completionNotes, 
+      actualHours, 
+      finalActualCost 
+    }: { 
+      ticketId: string; 
+      completionNotes: string; 
+      actualHours: number; 
+      finalActualCost: number; 
+    }) => {
+      return await apiRequest("PUT", `/api/tickets/${ticketId}/finalize`, { 
+        completionNotes, 
+        actualHours, 
+        finalActualCost 
+      });
+    },
+    onMutate: async ({ ticketId }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/tickets"] });
+      const previousTickets = queryClient.getQueryData(["/api/tickets"]);
+      
+      // Optimistically update to finalized status
+      queryClient.setQueryData(["/api/tickets"], (old: any) => {
+        if (!old) return old;
+        return old.map((ticket: any) =>
+          ticket.id === ticketId ? { ...ticket, status: 'finalized' } : ticket
+        );
+      });
+      
+      return { previousTickets };
+    },
+    onError: (err: any, variables, context) => {
+      if (context?.previousTickets) {
+        queryClient.setQueryData(["/api/tickets"], context.previousTickets);
+      }
+      toast({
+        title: t("error", "Error"),
+        description: err.message || t("finalization_failed", "Failed to finalize ticket"),
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: t("success", "Success"),
+        description: t("ticket_finalized", "Ticket finalized successfully"),
+      });
+      setShowCompletionDialog(false);
+      setTicketToFinalize(null);
+      setCompletionData({ completionNotes: '', actualHours: '', finalActualCost: '' });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+    },
+  });
 
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
@@ -1400,7 +1466,19 @@ export default function KanbanTickets() {
     if (draggedTicket) {
       const ticket = tickets.find(t => t.id === draggedTicket);
       if (ticket && ticket.status !== newStatus) {
-        updateTicketStatus.mutate({ ticketId: draggedTicket, status: newStatus });
+        // Intercept finalization attempts to show completion dialog
+        if (newStatus === 'finalized') {
+          setTicketToFinalize(ticket);
+          setCompletionData({
+            completionNotes: '',
+            actualHours: ticket.technicianEstimatedHours?.toString() || '',
+            finalActualCost: ticket.totalCost?.toString() || ticket.costEstimation?.toString() || '',
+          });
+          setShowCompletionDialog(true);
+        } else {
+          // For other status changes, proceed normally
+          updateTicketStatus.mutate({ ticketId: draggedTicket, status: newStatus });
+        }
       }
     }
     setDraggedTicket(null);
@@ -1927,6 +2005,12 @@ export default function KanbanTickets() {
           selectedChecklists: formData.selectedChecklists,
           additionalNotes: formData.additionalNotes
         },
+        // Completion tracking fields (null for new tickets)
+        completedAt: null,
+        completedBy: null,
+        finalActualCost: null,
+        completionNotes: null,
+        actualHours: null,
         issueResponses: formData.issueResponses || [],
       };
       
@@ -4937,6 +5021,129 @@ export default function KanbanTickets() {
               disabled={deleteTicketMutation.isPending}
             >
               {deleteTicketMutation.isPending ? t("deleting", "Deleting...") : t("yes_delete", "Yes, Delete")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Completion Dialog */}
+      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="w-5 h-5 text-green-600" />
+              {t("finalize_ticket", "Finalize Ticket")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("finalize_description", "Complete the ticket with final details. This action cannot be undone.")}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {ticketToFinalize && (
+            <div className="space-y-4">
+              {/* Ticket Information */}
+              <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
+                <div className="text-sm space-y-1">
+                  <div><strong>{t("ticket_id", "Ticket ID")}:</strong> {ticketToFinalize.id}</div>
+                  <div><strong>{t("client", "Client")}:</strong> {ticketToFinalize.client ? `${ticketToFinalize.client.firstName} ${ticketToFinalize.client.lastName}` : "N/A"}</div>
+                  <div><strong>{t("device", "Device")}:</strong> {ticketToFinalize.deviceType} {ticketToFinalize.deviceModel}</div>
+                </div>
+              </div>
+
+              {/* Completion Form */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="completion-notes">{t("completion_notes", "Completion Notes")}</Label>
+                  <Textarea
+                    id="completion-notes"
+                    placeholder={t("completion_notes_placeholder", "Describe the work completed, any issues found, and resolution...")}
+                    value={completionData.completionNotes}
+                    onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
+                    className="min-h-[80px]"
+                    data-testid="textarea-completion-notes"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="actual-hours">{t("actual_hours", "Actual Hours")}</Label>
+                    <Input
+                      id="actual-hours"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder={t("hours", "Hours")}
+                      value={completionData.actualHours}
+                      onChange={(e) => setCompletionData(prev => ({ ...prev, actualHours: e.target.value }))}
+                      data-testid="input-actual-hours"
+                    />
+                    {ticketToFinalize.technicianEstimatedHours && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("estimated", "Estimated")}: {ticketToFinalize.technicianEstimatedHours}h
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="final-cost">{t("final_actual_cost", "Final Cost")}</Label>
+                    <Input
+                      id="final-cost"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={completionData.finalActualCost}
+                      onChange={(e) => setCompletionData(prev => ({ ...prev, finalActualCost: e.target.value }))}
+                      data-testid="input-final-cost"
+                    />
+                    {ticketToFinalize.costEstimation && (
+                      <p className="text-xs text-muted-foreground">
+                        {t("estimated", "Estimated")}: ${parseFloat(ticketToFinalize.costEstimation).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/50 rounded-lg p-3">
+                <div className="text-sm text-amber-800 dark:text-amber-200">
+                  <p className="font-medium">{t("finalization_warning", "Finalization Warning")}</p>
+                  <p>{t("finalization_warning_details", "Once finalized, this ticket cannot be modified, moved, or deleted.")}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowCompletionDialog(false)}
+              data-testid="button-cancel-finalize"
+            >
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button 
+              onClick={() => {
+                if (ticketToFinalize && completionData.completionNotes && completionData.actualHours && completionData.finalActualCost) {
+                  finalizeTicket.mutate({
+                    ticketId: ticketToFinalize.id,
+                    completionNotes: completionData.completionNotes,
+                    actualHours: parseInt(completionData.actualHours),
+                    finalActualCost: parseFloat(completionData.finalActualCost)
+                  });
+                }
+              }}
+              disabled={
+                finalizeTicket.isPending || 
+                !completionData.completionNotes || 
+                !completionData.actualHours || 
+                !completionData.finalActualCost
+              }
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="button-confirm-finalize"
+            >
+              {finalizeTicket.isPending ? t("finalizing", "Finalizing...") : t("finalize_ticket", "Finalize Ticket")}
             </Button>
           </div>
         </DialogContent>

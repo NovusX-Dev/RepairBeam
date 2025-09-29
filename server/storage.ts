@@ -434,6 +434,36 @@ export class DatabaseStorage implements IStorage {
     return ticket?.status === 'finalized';
   }
 
+  async finalizeTicket(
+    ticketId: string, 
+    tenantId: string,
+    completedBy: string,
+    completionNotes: string,
+    actualHours: number,
+    finalActualCost: number
+  ): Promise<Ticket | undefined> {
+    // Check if ticket is already finalized
+    if (await this.isTicketFinalized(ticketId, tenantId)) {
+      throw new Error('Cannot modify finalized ticket');
+    }
+
+    const now = new Date();
+    const [finalizedTicket] = await db
+      .update(tickets)
+      .set({ 
+        status: 'finalized',
+        completedAt: now,
+        completedBy,
+        completionNotes,
+        actualHours,
+        finalActualCost: finalActualCost.toString(),
+        updatedAt: now
+      })
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
+      .returning();
+    return finalizedTicket;
+  }
+
   async updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined> {
     // Check if ticket is finalized and prevent changes (except when setting TO finalized)
     if (status !== 'finalized' && await this.isTicketFinalized(ticketId, tenantId)) {
