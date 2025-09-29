@@ -5667,7 +5667,7 @@ export default function KanbanTickets() {
               {/* Quality Check Button - Show when new defects detected */}
               {(() => {
                 const qualityStatus = getQualityCheckStatus();
-                return qualityStatus.requiresQualityReview && wizardStep === 4 && (
+                return qualityStatus.requiresQualityReview && (wizardStep === 3 || wizardStep === 4) && (
                   <Button 
                     onClick={() => {
                       if (ticketToFinalize) {
@@ -5678,7 +5678,7 @@ export default function KanbanTickets() {
                       }
                     }}
                     disabled={updateTicketStatus.isPending}
-                    className="bg-red-600 hover:bg-red-700 text-white"
+                    className="bg-red-600 hover:bg-red-700 text-white text-lg px-6 py-3 animate-pulse-red animate-glow-red font-bold"
                     data-testid="button-quality-check"
                   >
                     {updateTicketStatus.isPending 
