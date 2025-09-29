@@ -5699,28 +5699,6 @@ export default function KanbanTickets() {
                     </div>
                     
                     <div className="p-6 space-y-6">
-                      {/* Work Summary */}
-                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
-                          <h4 className="text-sm font-semibold text-white">{t("work_completed", "Work Completed")}</h4>
-                        </div>
-                        <div className="p-4">
-                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <span className="text-xs text-cyan-400">{t("actual_hours", "Actual Hours")}</span>
-                              <p className="text-white font-medium">{completionData.actualHours}h</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-cyan-400">{t("final_actual_cost", "Final Cost")}</span>
-                              <p className="text-white font-medium">${completionData.finalActualCost}</p>
-                            </div>
-                            <div>
-                              <span className="text-xs text-cyan-400">{t("completion_notes", "Completion Notes")}</span>
-                              <p className="text-white font-medium line-clamp-2">{completionData.completionNotes}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
                       {/* Services Performed */}
                       {ticketToFinalize && ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0 && (
@@ -5748,6 +5726,87 @@ export default function KanbanTickets() {
                           </div>
                         </div>
                       )}
+
+                      {/* Warranty Selection */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <Shield className="w-4 h-4" />
+                            {t("warranty_coverage", "Warranty Coverage")}
+                          </h4>
+                        </div>
+                        <div className="p-4">
+                          <p className="text-xs text-cyan-300 mb-3">
+                            {t("select_warranty_for_repair", "Select warranty coverage for this repair")}
+                          </p>
+                          <div className="space-y-3">
+                            {finalizationWarrantyTiers.map((tier) => (
+                              <div key={tier.id} className="flex items-center space-x-3">
+                                <input
+                                  type="radio"
+                                  id={`warranty-${tier.id}`}
+                                  name="warranty-selection"
+                                  value={tier.tierType}
+                                  checked={wizardData.selectedWarrantyTier === tier.tierType}
+                                  onChange={(e) => setWizardData(prev => ({ ...prev, selectedWarrantyTier: e.target.value }))}
+                                  className="w-4 h-4 text-cyan-500 bg-slate-800 border-cyan-400 focus:ring-cyan-500"
+                                  data-testid={`radio-warranty-${tier.tierType}`}
+                                />
+                                <Label htmlFor={`warranty-${tier.id}`} className="flex-1 cursor-pointer">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <span className="text-sm font-medium text-gray-300">
+                                        {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
+                                          tier.tierType === 'standard' ? 'Standard Warranty' : 'Extended Warranty')}
+                                      </span>
+                                      <p className="text-xs text-cyan-400 mt-1">
+                                        {tier.durationMonths} {t("months", "months")} - {tier.description}
+                                      </p>
+                                    </div>
+                                    <span className="text-sm font-semibold text-cyan-400">
+                                      {parseFloat(tier.price) === 0 ? t("free", "Free") : `$${parseFloat(tier.price).toFixed(2)}`}
+                                    </span>
+                                  </div>
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Work Summary - moved below warranty to reflect updated cost */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white">{t("work_completed", "Work Completed")}</h4>
+                        </div>
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("actual_hours", "Actual Hours")}</span>
+                              <p className="text-white font-medium">{completionData.actualHours}h</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("final_actual_cost", "Final Cost")}</span>
+                              <p className="text-white font-medium">{(() => {
+                                // Calculate total final cost including warranty
+                                let baseCost = parseFloat(completionData.finalActualCost || '0');
+                                
+                                // Add warranty cost if selected
+                                const selectedTier = finalizationWarrantyTiers.find(tier => tier.tierType === wizardData.selectedWarrantyTier);
+                                if (selectedTier) {
+                                  baseCost += parseFloat(selectedTier.price || '0');
+                                }
+                                
+                                return `$${baseCost.toFixed(2)}`;
+                              })()}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("completion_notes", "Completion Notes")}</span>
+                              <p className="text-white font-medium line-clamp-2">{completionData.completionNotes}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
                       {/* Authorization Switch */}
                       <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
