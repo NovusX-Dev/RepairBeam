@@ -740,6 +740,7 @@ export default function KanbanTickets() {
     finalChecklist: {} as Record<string, boolean>,
     clientAuthorized: false,
   });
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Wizard navigation functions
   const resetWizard = () => {
@@ -748,6 +749,7 @@ export default function KanbanTickets() {
       finalChecklist: {},
       clientAuthorized: false,
     });
+    setValidationErrors([]);
   };
 
   const canAdvanceWizard = () => {
@@ -766,8 +768,22 @@ export default function KanbanTickets() {
   };
 
   const handleWizardNext = () => {
-    if (wizardStep < 4 && canAdvanceWizard()) {
-      setWizardStep(wizardStep + 1);
+    if (wizardStep < 4) {
+      if (canAdvanceWizard()) {
+        setWizardStep(wizardStep + 1);
+        setValidationErrors([]); // Clear errors when advancing
+      } else {
+        // Show validation errors based on current step
+        const errors: string[] = [];
+        if (wizardStep === 1) {
+          if (!completionData.completionNotes) errors.push(t("completion_notes_required", "Completion notes are required"));
+          if (!completionData.actualHours) errors.push(t("actual_hours_required", "Actual hours are required"));
+          if (!completionData.finalActualCost) errors.push(t("final_cost_required", "Final cost is required"));
+        } else if (wizardStep === 4) {
+          if (!wizardData.clientAuthorized) errors.push(t("client_authorization_required", "Client authorization is required"));
+        }
+        setValidationErrors(errors);
+      }
     }
   };
 
@@ -5177,6 +5193,12 @@ export default function KanbanTickets() {
                       <p className="text-cyan-100 text-sm mt-1">
                         {t("review_details", "Review the completion details below")}
                       </p>
+                      <div className="mt-3 p-3 bg-cyan-900/20 rounded-lg border border-cyan-500/30">
+                        <p className="text-xs text-cyan-300 flex items-center gap-1">
+                          <span className="text-red-400">*</span>
+                          {t("required_fields_note", "Fields marked with an asterisk are required to proceed")}
+                        </p>
+                      </div>
                     </div>
                     
                     <div className="p-6 space-y-6">
@@ -5203,10 +5225,32 @@ export default function KanbanTickets() {
                         </div>
                       </div>
 
+                      {/* Validation Errors */}
+                      {validationErrors.length > 0 && (
+                        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <X className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="text-red-400 font-medium text-sm mb-2">
+                                {t("validation_errors", "Please correct the following errors:")}
+                              </h4>
+                              <ul className="space-y-1">
+                                {validationErrors.map((error, index) => (
+                                  <li key={index} className="text-red-300 text-sm">• {error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Completion Form */}
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="completion-notes" className="text-cyan-400">{t("completion_notes", "Completion Notes")}</Label>
+                          <Label htmlFor="completion-notes" className="text-cyan-400 flex items-center gap-1">
+                            {t("completion_notes", "Completion Notes")}
+                            <span className="text-red-400 text-sm">*</span>
+                          </Label>
                           <Textarea
                             id="completion-notes"
                             placeholder={t("completion_notes_placeholder", "Describe the work completed, any issues found, and resolution...")}
@@ -5219,7 +5263,10 @@ export default function KanbanTickets() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="actual-hours" className="text-cyan-400">{t("actual_hours", "Actual Hours")}</Label>
+                            <Label htmlFor="actual-hours" className="text-cyan-400 flex items-center gap-1">
+                              {t("actual_hours", "Actual Hours")}
+                              <span className="text-red-400 text-sm">*</span>
+                            </Label>
                             <Input
                               id="actual-hours"
                               type="number"
@@ -5237,7 +5284,10 @@ export default function KanbanTickets() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="final-cost" className="text-cyan-400">{t("final_actual_cost", "Final Cost")}</Label>
+                            <Label htmlFor="final-cost" className="text-cyan-400 flex items-center gap-1">
+                              {t("final_actual_cost", "Final Cost")}
+                              <span className="text-red-400 text-sm">*</span>
+                            </Label>
                             <Input
                               id="final-cost"
                               type="number"
