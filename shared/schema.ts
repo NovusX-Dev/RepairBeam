@@ -183,6 +183,12 @@ export const tickets = pgTable("tickets", {
   costExplanation: text("cost_explanation"),
   // Service Checklist - JSON storing component conditions when device was received
   serviceChecklist: jsonb("service_checklist"),
+  // Completion tracking fields
+  completedAt: timestamp("completed_at"),
+  completedBy: varchar("completed_by"), // User ID who finalized the ticket
+  finalActualCost: decimal("final_actual_cost", { precision: 10, scale: 2 }), // Locked final cost
+  completionNotes: text("completion_notes"), // Notes about completion
+  actualHours: integer("actual_hours"), // Actual time spent in hours
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
