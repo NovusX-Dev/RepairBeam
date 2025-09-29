@@ -5369,7 +5369,7 @@ export default function KanbanTickets() {
                       {finalizationChecklists && finalizationChecklists.length > 0 ? (
                         <div className="space-y-4">
                           <p className="text-cyan-300 text-sm mb-4">
-                            Review and confirm completion of these inspection categories:
+                            {t("review_checklist_completion", "Review and confirm completion of these inspection categories:")}
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {finalizationChecklists.map((checklist) => (
@@ -5411,7 +5411,7 @@ export default function KanbanTickets() {
                         <div className="text-center text-cyan-300 py-8">
                           <CheckSquare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
                           <p className="text-lg font-medium">{t("no_checklists", "No checklists available")}</p>
-                          <p className="text-sm text-gray-400 mt-2">No checklists found for {ticketToFinalize.deviceType}</p>
+                          <p className="text-sm text-gray-400 mt-2">{t("no_checklists_found_for", "No checklists found for")} {ticketToFinalize.deviceType}</p>
                         </div>
                       )}
                     </div>
@@ -5585,8 +5585,8 @@ export default function KanbanTickets() {
                       })() : (
                         <div className="text-center text-cyan-300 py-8">
                           <GitCompare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
-                          <p className="text-lg font-medium">No comparison data available</p>
-                          <p className="text-sm text-gray-400 mt-2">Complete Step 2 first to see comparison</p>
+                          <p className="text-lg font-medium">{t("no_comparison_data", "No comparison data available")}</p>
+                          <p className="text-sm text-gray-400 mt-2">{t("complete_step_2_first", "Complete Step 2 first to see comparison")}</p>
                         </div>
                       )}
                     </div>
@@ -5637,7 +5637,7 @@ export default function KanbanTickets() {
                         <div className="flex items-center justify-between">
                           <div>
                             <Label className="text-cyan-400 font-medium">{t("authorize_completion", "Authorize Completion")}</Label>
-                            <p className="text-xs text-gray-400 mt-1">Client confirms all work is satisfactory</p>
+                            <p className="text-xs text-gray-400 mt-1">{t("client_confirms_satisfactory", "Client confirms all work is satisfactory")}</p>
                           </div>
                           <Switch
                             checked={wizardData.clientAuthorized}
