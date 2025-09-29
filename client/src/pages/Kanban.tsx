@@ -5208,12 +5208,6 @@ export default function KanbanTickets() {
                       <p className="text-cyan-100 text-sm mt-1">
                         {t("review_details", "Review the completion details below")}
                       </p>
-                      <div className="mt-3 p-3 bg-cyan-900/20 rounded-lg border border-cyan-500/30">
-                        <p className="text-xs text-cyan-300 flex items-center gap-1">
-                          <span className="text-red-400">*</span>
-                          {t("required_fields_note", "Fields marked with an asterisk are required to proceed")}
-                        </p>
-                      </div>
                     </div>
                     
                     <div className="p-6 space-y-6">
@@ -5633,6 +5627,15 @@ export default function KanbanTickets() {
               )}
             </div>
           )}
+
+          {/* Required Fields Notice */}
+          <div className="mt-6 mb-4 bg-cyan-900/20 border border-cyan-500/30 rounded-lg p-3">
+            <p className="text-cyan-300 text-sm flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-red-400">*</span>
+              {t("required_fields_note", "Fields marked with an asterisk are required to proceed")}
+            </p>
+          </div>
 
           {/* Navigation Footer */}
           <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
