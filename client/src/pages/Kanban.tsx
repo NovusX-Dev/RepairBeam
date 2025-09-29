@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -746,7 +746,7 @@ export default function KanbanTickets() {
   const getQualityCheckStatus = () => {
     if (!ticketToFinalize) return { requiresQualityReview: false, initialCount: 0, finalCount: 0 };
     
-    const initialDefects = ticketToFinalize.serviceChecklist?.selectedChecklists || [];
+    const initialDefects = (ticketToFinalize.serviceChecklist as any)?.selectedChecklists || [];
     const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
     
     // Quality check required if:
@@ -5414,7 +5414,7 @@ export default function KanbanTickets() {
                     <div className="p-6">
                       {finalizationChecklists && finalizationChecklists.length > 0 ? (() => {
                         // Get initial defects from ticket
-                        const initialDefects = ticketToFinalize?.serviceChecklist?.selectedChecklists || [];
+                        const initialDefects = (ticketToFinalize?.serviceChecklist as any)?.selectedChecklists || [];
                         const finalDefects = Object.keys(wizardData.finalChecklist).filter(key => wizardData.finalChecklist[key]);
                         
                         // Check if defects changed (count increased OR different defects found)
