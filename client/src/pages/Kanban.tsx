@@ -5109,11 +5109,9 @@ export default function KanbanTickets() {
                       onChange={(e) => setCompletionData(prev => ({ ...prev, actualHours: e.target.value }))}
                       data-testid="input-actual-hours"
                     />
-                    {ticketToFinalize.technicianEstimatedHours && (
-                      <p className="text-xs text-muted-foreground">
-                        {t("estimated", "Estimated")}: {ticketToFinalize.technicianEstimatedHours}h
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {t("estimated", "Estimated")}: {ticketToFinalize.technicianEstimatedHours || 0}h
+                    </p>
                   </div>
 
                   <div className="space-y-2">
