@@ -1234,11 +1234,35 @@ export default function KanbanTickets() {
       // Return a context object with the snapshotted value
       return { previousTickets };
     },
+    onSuccess: (data, variables) => {
+      // If returning to quality check, close the finalization dialog
+      if (variables.status === 'quality_check') {
+        setShowCompletionDialog(false);
+        resetWizard();
+        setCompletionData({ completionNotes: '', actualHours: '', finalActualCost: '' });
+        toast({
+          title: t("returned_to_quality_check", "Returned to Quality Check"),
+          description: t("quality_check_message", "Ticket has been returned to Quality Check due to new defects found."),
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: t("success", "Success"),
+          description: t("status_updated", "Ticket status updated successfully"),
+          variant: "default",
+        });
+      }
+    },
     onError: (err, variables, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousTickets) {
         queryClient.setQueryData(["/api/tickets"], context.previousTickets);
       }
+      toast({
+        title: t("error", "Error"),
+        description: err.message || t("status_update_failed", "Failed to update ticket status"),
+        variant: "destructive",
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
