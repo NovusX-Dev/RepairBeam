@@ -22,6 +22,7 @@ import {
   repairServices,
   possibleDefects,
   checklists,
+  completionAnalytics,
   type User,
   type UpsertUser,
   type Tenant,
@@ -68,6 +69,8 @@ import {
   type InsertPossibleDefect,
   type Checklist,
   type InsertChecklist,
+  type CompletionAnalytics,
+  type InsertCompletionAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
@@ -124,6 +127,14 @@ export interface IStorage {
   updateTicketPriority(ticketId: string, priority: string, tenantId: string): Promise<Ticket | undefined>;
   checkTicketIdExists(ticketId: string, tenantId: string): Promise<boolean>;
   deleteTicket(ticketId: string, tenantId: string): Promise<boolean>;
+  finalizeTicket(ticketId: string, tenantId: string, completedBy: string, completionNotes: string, actualHours: number, finalActualCost: number): Promise<Ticket | undefined>;
+  
+  // Completion analytics operations
+  createCompletionAnalytics(analytics: InsertCompletionAnalytics): Promise<CompletionAnalytics>;
+  getCompletionAnalytics(tenantId: string, limit?: number): Promise<CompletionAnalytics[]>;
+  getAnalyticsByDateRange(tenantId: string, startDate: Date, endDate: Date): Promise<CompletionAnalytics[]>;
+  getAnalyticsByDeviceType(tenantId: string, deviceType: string): Promise<CompletionAnalytics[]>;
+  getAnalyticsByTechnician(tenantId: string, completedBy: string): Promise<CompletionAnalytics[]>;
   
   // Inventory operations
   getInventoryItems(tenantId: string): Promise<InventoryItem[]>;
@@ -447,6 +458,12 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Cannot modify finalized ticket');
     }
 
+    // Get current ticket data for analytics calculation
+    const currentTicket = await this.getTicket(ticketId, tenantId);
+    if (!currentTicket) {
+      throw new Error('Ticket not found');
+    }
+
     const now = new Date();
     const [finalizedTicket] = await db
       .update(tickets)
@@ -461,6 +478,12 @@ export class DatabaseStorage implements IStorage {
       })
       .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
       .returning();
+
+    // Create completion analytics record
+    if (finalizedTicket) {
+      await this.createCompletionAnalyticsRecord(finalizedTicket, actualHours, finalActualCost);
+    }
+
     return finalizedTicket;
   }
 
@@ -1629,6 +1652,133 @@ export class DatabaseStorage implements IStorage {
           eq(checklists.tenantId, tenantId)
         ));
       return (result.rowCount ?? 0) > 0;
+    });
+  }
+
+  // Completion Analytics Operations
+
+  private async createCompletionAnalyticsRecord(
+    ticket: Ticket, 
+    actualHours: number, 
+    finalActualCost: number
+  ): Promise<void> {
+    try {
+      // Calculate variance data
+      const estimatedHours = ticket.technicianEstimatedHours || 0;
+      const estimatedCost = parseFloat(ticket.costEstimation || '0');
+      
+      const hoursVariance = actualHours - estimatedHours;
+      const hoursVariancePercentage = estimatedHours > 0 ? ((hoursVariance / estimatedHours) * 100) : 0;
+      
+      const costVariance = finalActualCost - estimatedCost;
+      const costVariancePercentage = estimatedCost > 0 ? ((costVariance / estimatedCost) * 100) : 0;
+      
+      // Calculate accuracy score (0-100, where 100 is perfect estimate)
+      const timeAccuracy = estimatedHours > 0 ? Math.max(0, 100 - Math.abs(hoursVariancePercentage)) : 50;
+      const costAccuracy = estimatedCost > 0 ? Math.max(0, 100 - Math.abs(costVariancePercentage)) : 50;
+      const accuracyScore = (timeAccuracy + costAccuracy) / 2;
+      
+      // Determine service complexity based on services selected
+      let serviceComplexity = 'medium';
+      const servicesCount = Array.isArray(ticket.selectedServices) ? ticket.selectedServices.length : 0;
+      if (servicesCount <= 1) serviceComplexity = 'low';
+      else if (servicesCount >= 4) serviceComplexity = 'high';
+      
+      const analyticsData: InsertCompletionAnalytics = {
+        tenantId: ticket.tenantId,
+        ticketId: ticket.id,
+        deviceType: ticket.deviceType || 'Unknown',
+        estimatedHours,
+        actualHours,
+        hoursVariance,
+        hoursVariancePercentage: hoursVariancePercentage.toString(),
+        estimatedCost: estimatedCost.toString(),
+        finalActualCost: finalActualCost.toString(),
+        costVariance: costVariance.toString(),
+        costVariancePercentage: costVariancePercentage.toString(),
+        accuracyScore: accuracyScore.toString(),
+        completedBy: ticket.completedBy!,
+        selectedServices: ticket.selectedServices || [],
+        serviceComplexity,
+        completedAt: ticket.completedAt!,
+      };
+      
+      await this.createCompletionAnalytics(analyticsData);
+    } catch (error) {
+      console.error('Failed to create completion analytics record:', error);
+      // Don't throw error to avoid breaking ticket finalization
+    }
+  }
+
+  async createCompletionAnalytics(analytics: InsertCompletionAnalytics): Promise<CompletionAnalytics> {
+    return withRetry(async () => {
+      const [result] = await db
+        .insert(completionAnalytics)
+        .values(analytics)
+        .returning();
+      return result;
+    });
+  }
+
+  async getCompletionAnalytics(tenantId: string, limit?: number): Promise<CompletionAnalytics[]> {
+    return withRetry(async () => {
+      let query = db
+        .select()
+        .from(completionAnalytics)
+        .where(eq(completionAnalytics.tenantId, tenantId))
+        .orderBy(desc(completionAnalytics.completedAt));
+      
+      if (limit) {
+        query = query.limit(limit);
+      }
+      
+      return await query;
+    });
+  }
+
+  async getAnalyticsByDateRange(tenantId: string, startDate: Date, endDate: Date): Promise<CompletionAnalytics[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(completionAnalytics)
+        .where(
+          and(
+            eq(completionAnalytics.tenantId, tenantId),
+            sql`${completionAnalytics.completedAt} >= ${startDate}`,
+            sql`${completionAnalytics.completedAt} <= ${endDate}`
+          )
+        )
+        .orderBy(desc(completionAnalytics.completedAt));
+    });
+  }
+
+  async getAnalyticsByDeviceType(tenantId: string, deviceType: string): Promise<CompletionAnalytics[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(completionAnalytics)
+        .where(
+          and(
+            eq(completionAnalytics.tenantId, tenantId),
+            eq(completionAnalytics.deviceType, deviceType)
+          )
+        )
+        .orderBy(desc(completionAnalytics.completedAt));
+    });
+  }
+
+  async getAnalyticsByTechnician(tenantId: string, completedBy: string): Promise<CompletionAnalytics[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(completionAnalytics)
+        .where(
+          and(
+            eq(completionAnalytics.tenantId, tenantId),
+            eq(completionAnalytics.completedBy, completedBy)
+          )
+        )
+        .orderBy(desc(completionAnalytics.completedAt));
     });
   }
 }

@@ -330,6 +330,40 @@ export const deviceColors = pgTable("device_colors", {
   index("idx_device_colors_tenant_id").on(table.tenantId),
 ]);
 
+// Completion analytics table - tracks performance metrics and variance data for business intelligence
+export const completionAnalytics = pgTable("completion_analytics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  ticketId: varchar("ticket_id").notNull(), // Reference to completed ticket
+  deviceType: varchar("device_type").notNull(), // For category analysis
+  // Time tracking
+  estimatedHours: integer("estimated_hours"), // Original technician estimate
+  actualHours: integer("actual_hours").notNull(), // Actual time spent
+  hoursVariance: integer("hours_variance").notNull(), // Actual - Estimated (positive = over, negative = under)
+  hoursVariancePercentage: decimal("hours_variance_percentage", { precision: 5, scale: 2 }), // Percentage variance
+  // Cost tracking  
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }), // Original cost estimation
+  finalActualCost: decimal("final_actual_cost", { precision: 10, scale: 2 }).notNull(), // Final locked cost
+  costVariance: decimal("cost_variance", { precision: 10, scale: 2 }).notNull(), // Final - Estimated
+  costVariancePercentage: decimal("cost_variance_percentage", { precision: 5, scale: 2 }), // Percentage variance
+  // Performance metrics
+  accuracyScore: decimal("accuracy_score", { precision: 3, scale: 2 }), // Combined accuracy score (0-100)
+  completedBy: varchar("completed_by").notNull(), // Technician who completed the work
+  // Service analysis
+  selectedServices: jsonb("selected_services").default('[]'), // Services that were performed
+  serviceComplexity: varchar("service_complexity").default('medium'), // low, medium, high, critical
+  // Business intelligence fields
+  completedAt: timestamp("completed_at").notNull(), // When ticket was finalized
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_completion_analytics_tenant").on(table.tenantId),
+  index("idx_completion_analytics_ticket").on(table.ticketId),
+  index("idx_completion_analytics_device_type").on(table.deviceType),
+  index("idx_completion_analytics_completed_by").on(table.completedBy),
+  index("idx_completion_analytics_completed_at").on(table.completedAt),
+  index("idx_completion_analytics_accuracy").on(table.accuracyScore),
+]);
+
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -366,6 +400,8 @@ export type Checklist = typeof checklists.$inferSelect;
 export type InsertChecklist = typeof checklists.$inferInsert;
 export type AuthorizationRequest = typeof authorizationRequests.$inferSelect;
 export type InsertAuthorizationRequest = z.infer<typeof insertAuthorizationRequestSchema>;
+export type CompletionAnalytics = typeof completionAnalytics.$inferSelect;
+export type InsertCompletionAnalytics = typeof completionAnalytics.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -449,6 +485,11 @@ export const insertAuthorizationRequestSchema = createInsertSchema(authorization
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertCompletionAnalyticsSchema = createInsertSchema(completionAnalytics).omit({
+  id: true,
+  createdAt: true,
 });
 
 // User progress tracking for gamification
