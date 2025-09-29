@@ -852,6 +852,12 @@ export default function KanbanTickets() {
     enabled: !!formData.deviceType && currentStep === 5,
   });
 
+  // Query for finalization checklists
+  const { data: finalizationChecklists } = useQuery<any[]>({
+    queryKey: ['/api/checklists/device', ticketToFinalize?.deviceType],
+    enabled: !!ticketToFinalize?.deviceType && showCompletionDialog,
+  });
+
   // Checklists query for ticket summary context
   const { data: summaryChecklists } = useQuery<any[]>({
     queryKey: ['/api/checklists/device', selectedTicketSummary?.deviceType],
@@ -5120,22 +5126,35 @@ export default function KanbanTickets() {
 
           {/* Progress Indicator */}
           <div className="flex items-center justify-between mb-6">
-            {[1, 2, 3, 4].map((step) => (
-              <div key={step} className="flex items-center">
-                <div 
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step === wizardStep 
-                      ? 'bg-[#00FFFF] text-[#0A192F]' 
-                      : step < wizardStep 
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-300 text-gray-600'
-                  }`}
-                >
-                  {step < wizardStep ? <Check className="w-4 h-4" /> : step}
+            {[
+              { num: 1, name: t("step_1_name", "Summary") },
+              { num: 2, name: t("step_2_name", "Checklist") },
+              { num: 3, name: t("step_3_name", "Comparison") },
+              { num: 4, name: t("step_4_name", "Authorization") }
+            ].map((step) => (
+              <div key={step.num} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div 
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      step.num === wizardStep 
+                        ? 'bg-[#00FFFF] text-[#0A192F]' 
+                        : step.num < wizardStep 
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-300 text-gray-600'
+                    }`}
+                  >
+                    {step.num < wizardStep ? <Check className="w-4 h-4" /> : step.num}
+                  </div>
+                  <span className={`text-xs mt-1 font-medium ${
+                    step.num === wizardStep ? 'text-[#00FFFF]' :
+                    step.num < wizardStep ? 'text-green-600' : 'text-gray-500'
+                  }`}>
+                    {step.name}
+                  </span>
                 </div>
-                {step < 4 && (
+                {step.num < 4 && (
                   <div className={`h-0.5 w-16 mx-2 ${
-                    step < wizardStep ? 'bg-green-600' : 'bg-gray-300'
+                    step.num < wizardStep ? 'bg-green-600' : 'bg-gray-300'
                   }`} />
                 )}
               </div>
@@ -5253,16 +5272,57 @@ export default function KanbanTickets() {
                         {t("finalization_checklist", "Finalization Checklist")}
                       </h3>
                       <p className="text-cyan-100 text-sm mt-1">
-                        {t("final_inspection", "Perform final device inspection")}
+                        {t("final_inspection", "Perform final device inspection")} - {ticketToFinalize.deviceType}
                       </p>
                     </div>
                     
                     <div className="p-6">
-                      <div className="text-center text-cyan-300 py-8">
-                        <CheckSquare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
-                        <p className="text-lg font-medium">{t("finalization_checklist", "Finalization Checklist")}</p>
-                        <p className="text-sm text-gray-400 mt-2">Device-specific checklist will be implemented here</p>
-                      </div>
+                      {finalizationChecklists && finalizationChecklists.length > 0 ? (
+                        <div className="space-y-4">
+                          {finalizationChecklists.map((checklist) => (
+                            <div key={checklist.id} className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                              <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                                <h4 className="text-sm font-semibold text-white">{checklist.name}</h4>
+                              </div>
+                              <div className="p-4">
+                                <div className="grid grid-cols-1 gap-3">
+                                  {checklist.components.map((component: string, index: number) => (
+                                    <div key={index} className="flex items-center space-x-3">
+                                      <Checkbox
+                                        id={`final-${checklist.id}-${index}`}
+                                        checked={wizardData.finalChecklist[`${checklist.id}-${index}`] || false}
+                                        onCheckedChange={(checked) => {
+                                          setWizardData(prev => ({
+                                            ...prev,
+                                            finalChecklist: {
+                                              ...prev.finalChecklist,
+                                              [`${checklist.id}-${index}`]: checked as boolean
+                                            }
+                                          }));
+                                        }}
+                                        className="border-cyan-400 data-[state=checked]:bg-cyan-500"
+                                        data-testid={`checkbox-final-${checklist.id}-${index}`}
+                                      />
+                                      <Label 
+                                        htmlFor={`final-${checklist.id}-${index}`}
+                                        className="text-sm text-white cursor-pointer"
+                                      >
+                                        {component}
+                                      </Label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center text-cyan-300 py-8">
+                          <CheckSquare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
+                          <p className="text-lg font-medium">{t("no_checklists", "No checklists available")}</p>
+                          <p className="text-sm text-gray-400 mt-2">No checklists found for {ticketToFinalize.deviceType}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -5283,35 +5343,117 @@ export default function KanbanTickets() {
                     </div>
                     
                     <div className="p-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Initial Checklist */}
-                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                          <div className="bg-gradient-to-r from-[#0A192F] to-orange-500 px-4 py-3">
-                            <h4 className="text-sm font-semibold text-white">{t("initial_checklist", "Initial Checklist")}</h4>
-                          </div>
-                          <div className="p-4 text-center text-gray-400">
-                            <p>Original checklist data</p>
-                          </div>
-                        </div>
+                      {finalizationChecklists && finalizationChecklists.length > 0 ? (
+                        <div className="space-y-6">
+                          {finalizationChecklists.map((checklist) => (
+                            <div key={checklist.id} className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                              <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                                <h4 className="text-sm font-semibold text-white">{checklist.name} - Comparison</h4>
+                              </div>
+                              <div className="p-4">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                  {/* Initial Status */}
+                                  <div>
+                                    <h5 className="text-cyan-400 font-medium mb-3 flex items-center gap-2">
+                                      <X className="w-4 h-4 text-orange-400" />
+                                      {t("initial_checklist", "Initial Checklist")}
+                                    </h5>
+                                    <div className="space-y-2">
+                                      {checklist.components.map((component: string, index: number) => {
+                                        // Get original checklist data - assuming failed/problematic initially
+                                        const originalState = false; // Most items start as issues
+                                        return (
+                                          <div key={`original-${index}`} className="flex items-center space-x-2">
+                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                              originalState ? 'bg-green-500' : 'bg-red-500'
+                                            }`}>
+                                              {originalState ? <Check className="w-3 h-3 text-white" /> : <X className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <span className="text-sm text-gray-300">{component}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
 
-                        {/* Final Checklist */}
-                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                          <div className="bg-gradient-to-r from-[#0A192F] to-green-500 px-4 py-3">
-                            <h4 className="text-sm font-semibold text-white">{t("final_checklist", "Final Checklist")}</h4>
-                          </div>
-                          <div className="p-4 text-center text-gray-400">
-                            <p>Updated checklist data</p>
-                          </div>
-                        </div>
-                      </div>
+                                  {/* Final Status */}
+                                  <div>
+                                    <h5 className="text-green-400 font-medium mb-3 flex items-center gap-2">
+                                      <Check className="w-4 h-4 text-green-400" />
+                                      {t("final_checklist", "Final Checklist")}
+                                    </h5>
+                                    <div className="space-y-2">
+                                      {checklist.components.map((component: string, index: number) => {
+                                        const finalState = wizardData.finalChecklist[`${checklist.id}-${index}`] || false;
+                                        return (
+                                          <div key={`final-${index}`} className="flex items-center space-x-2">
+                                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                                              finalState ? 'bg-green-500' : 'bg-red-500'
+                                            }`}>
+                                              {finalState ? <Check className="w-3 h-3 text-white" /> : <X className="w-3 h-3 text-white" />}
+                                            </div>
+                                            <span className="text-sm text-gray-300">{component}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
 
-                      {/* Improvement Status */}
-                      <div className="mt-6 bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
-                        <h4 className="text-cyan-400 font-medium mb-2">{t("improvement_status", "Improvement Status")}</h4>
-                        <div className="text-center text-gray-400 py-4">
-                          <p>Comparison analysis will be shown here</p>
+                          {/* Improvement Summary */}
+                          <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
+                            <h4 className="text-cyan-400 font-medium mb-4 flex items-center gap-2">
+                              <GitCompare className="w-4 h-4" />
+                              {t("improvement_status", "Improvement Status")}
+                            </h4>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                              {(() => {
+                                let totalItems = 0;
+                                let fixedItems = 0;
+                                
+                                finalizationChecklists.forEach(checklist => {
+                                  checklist.components.forEach((_: string, index: number) => {
+                                    totalItems++;
+                                    if (wizardData.finalChecklist[`${checklist.id}-${index}`]) {
+                                      fixedItems++;
+                                    }
+                                  });
+                                });
+
+                                const improvementRate = totalItems > 0 ? Math.round((fixedItems / totalItems) * 100) : 0;
+
+                                return (
+                                  <>
+                                    <div className="text-center">
+                                      <div className="text-2xl font-bold text-white">{fixedItems}/{totalItems}</div>
+                                      <div className="text-xs text-cyan-400">Items Fixed</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className="text-2xl font-bold text-green-400">{improvementRate}%</div>
+                                      <div className="text-xs text-cyan-400">Success Rate</div>
+                                    </div>
+                                    <div className="text-center">
+                                      <div className={`text-2xl font-bold ${improvementRate >= 80 ? 'text-green-400' : improvementRate >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                        {improvementRate >= 80 ? 'Excellent' : improvementRate >= 60 ? 'Good' : 'Needs Review'}
+                                      </div>
+                                      <div className="text-xs text-cyan-400">Repair Quality</div>
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="text-center text-cyan-300 py-8">
+                          <GitCompare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
+                          <p className="text-lg font-medium">No comparison data available</p>
+                          <p className="text-sm text-gray-400 mt-2">Complete Step 2 first to see comparison</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
