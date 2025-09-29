@@ -325,8 +325,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(updatedTicket);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating ticket status:", error);
+      if (error.message === "Cannot modify finalized ticket") {
+        return res.status(409).json({ message: "Cannot modify a finalized ticket" });
+      }
       res.status(500).json({ message: "Failed to update ticket status" });
     }
   });
@@ -354,8 +357,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(updatedTicket);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating ticket priority:", error);
+      if (error.message === "Cannot modify finalized ticket") {
+        return res.status(409).json({ message: "Cannot modify a finalized ticket" });
+      }
       res.status(500).json({ message: "Failed to update ticket priority" });
     }
   });
@@ -378,8 +384,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ success: true, message: "Ticket deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting ticket:", error);
+      if (error.message === "Cannot delete finalized ticket") {
+        return res.status(409).json({ message: "Cannot delete a finalized ticket" });
+      }
       res.status(500).json({ message: "Failed to delete ticket" });
     }
   });

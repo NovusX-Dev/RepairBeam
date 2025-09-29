@@ -377,6 +377,12 @@ export class DatabaseStorage implements IStorage {
         warrantyType: tickets.warrantyType,
         costEstimation: tickets.costEstimation,
         costExplanation: tickets.costExplanation,
+        // Completion tracking fields
+        completedAt: tickets.completedAt,
+        completedBy: tickets.completedBy,
+        finalActualCost: tickets.finalActualCost,
+        completionNotes: tickets.completionNotes,
+        actualHours: tickets.actualHours,
         createdAt: tickets.createdAt,
         updatedAt: tickets.updatedAt,
         client: {
@@ -419,7 +425,21 @@ export class DatabaseStorage implements IStorage {
     return newTicket;
   }
 
+  private async isTicketFinalized(ticketId: string, tenantId: string): Promise<boolean> {
+    const [ticket] = await db
+      .select({ status: tickets.status })
+      .from(tickets)
+      .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
+      .limit(1);
+    return ticket?.status === 'finalized';
+  }
+
   async updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined> {
+    // Check if ticket is finalized and prevent changes (except when setting TO finalized)
+    if (status !== 'finalized' && await this.isTicketFinalized(ticketId, tenantId)) {
+      throw new Error('Cannot modify finalized ticket');
+    }
+
     const [updatedTicket] = await db
       .update(tickets)
       .set({ status, updatedAt: new Date() })
@@ -429,6 +449,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTicketPriority(ticketId: string, priority: string, tenantId: string): Promise<Ticket | undefined> {
+    // Prevent priority changes on finalized tickets
+    if (await this.isTicketFinalized(ticketId, tenantId)) {
+      throw new Error('Cannot modify finalized ticket');
+    }
+
     const [updatedTicket] = await db
       .update(tickets)
       .set({ priority, updatedAt: new Date() })
@@ -452,6 +477,11 @@ export class DatabaseStorage implements IStorage {
       const ticket = await this.getTicket(ticketId, tenantId);
       if (!ticket) {
         return false;
+      }
+
+      // Prevent deletion of finalized tickets
+      if (ticket.status === 'finalized') {
+        throw new Error('Cannot delete finalized ticket');
       }
 
       // Delete associated data in order due to foreign key constraints
