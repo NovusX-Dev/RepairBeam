@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -733,6 +733,49 @@ export default function KanbanTickets() {
     actualHours: '',
     finalActualCost: '',
   });
+
+  // Finalization wizard state
+  const [wizardStep, setWizardStep] = useState(1);
+  const [wizardData, setWizardData] = useState({
+    finalChecklist: {} as Record<string, boolean>,
+    clientAuthorized: false,
+  });
+
+  // Wizard navigation functions
+  const resetWizard = () => {
+    setWizardStep(1);
+    setWizardData({
+      finalChecklist: {},
+      clientAuthorized: false,
+    });
+  };
+
+  const canAdvanceWizard = () => {
+    switch(wizardStep) {
+      case 1: // Summary - always can advance
+        return true;
+      case 2: // Checklist - must have completion notes and hours
+        return completionData.completionNotes && completionData.actualHours && completionData.finalActualCost;
+      case 3: // Comparison - always can advance
+        return true;
+      case 4: // Authorization - must be authorized
+        return wizardData.clientAuthorized;
+      default:
+        return false;
+    }
+  };
+
+  const handleWizardNext = () => {
+    if (wizardStep < 4 && canAdvanceWizard()) {
+      setWizardStep(wizardStep + 1);
+    }
+  };
+
+  const handleWizardPrevious = () => {
+    if (wizardStep > 1) {
+      setWizardStep(wizardStep - 1);
+    }
+  };
   
   // Filter state management
   const [filters, setFilters] = useState({
@@ -1481,6 +1524,7 @@ export default function KanbanTickets() {
             actualHours: ticket.technicianEstimatedHours?.toString() || '',
             finalActualCost: ticket.totalCost?.toString() || ticket.costEstimation?.toString() || '',
           });
+          resetWizard(); // Reset wizard to step 1
           setShowCompletionDialog(true);
         } else {
           // For other status changes, proceed normally
@@ -4282,10 +4326,7 @@ export default function KanbanTickets() {
                               #{ticket.id.slice(-6).toUpperCase()}
                             </span>
                             {ticket.status === 'finalized' && (
-                              <Lock 
-                                className="w-3 h-3 text-gray-500" 
-                                title={t("finalized", "Finalized")}
-                              />
+                              <Lock className="w-3 h-3 text-gray-500" />
                             )}
                           </div>
                           
@@ -5058,122 +5099,336 @@ export default function KanbanTickets() {
         </DialogContent>
       </Dialog>
 
-      {/* Ticket Completion Dialog */}
-      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-        <DialogContent className="sm:max-w-lg">
+      {/* Finalization Wizard Dialog */}
+      <Dialog open={showCompletionDialog} onOpenChange={(open) => {
+        setShowCompletionDialog(open);
+        if (!open) resetWizard();
+      }}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Check className="w-5 h-5 text-green-600" />
-              {t("finalize_ticket", "Finalize Ticket")}
+              {t("finalize_ticket", "Finalize Ticket")} - {t("step", "Step")} {wizardStep} / 4
             </DialogTitle>
             <DialogDescription>
-              {t("finalize_description", "Complete the ticket with final details. This action cannot be undone.")}
+              {wizardStep === 1 && t("review_details", "Review the completion details below")}
+              {wizardStep === 2 && t("final_inspection", "Perform final device inspection")}
+              {wizardStep === 3 && t("before_vs_after", "Before vs After Analysis")}
+              {wizardStep === 4 && t("authorize_completion", "Authorize Completion")}
             </DialogDescription>
           </DialogHeader>
-          
+
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-between mb-6">
+            {[1, 2, 3, 4].map((step) => (
+              <div key={step} className="flex items-center">
+                <div 
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    step === wizardStep 
+                      ? 'bg-[#00FFFF] text-[#0A192F]' 
+                      : step < wizardStep 
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-300 text-gray-600'
+                  }`}
+                >
+                  {step < wizardStep ? <Check className="w-4 h-4" /> : step}
+                </div>
+                {step < 4 && (
+                  <div className={`h-0.5 w-16 mx-2 ${
+                    step < wizardStep ? 'bg-green-600' : 'bg-gray-300'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+
           {ticketToFinalize && (
-            <div className="space-y-4">
-              {/* Ticket Information */}
-              <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/50 rounded-lg p-3">
-                <div className="text-sm space-y-1">
-                  <div><strong>{t("ticket_id", "Ticket ID")}:</strong> {ticketToFinalize.id}</div>
-                  <div><strong>{t("client", "Client")}:</strong> {ticketToFinalize.client ? `${ticketToFinalize.client.firstName} ${ticketToFinalize.client.lastName}` : "N/A"}</div>
-                  <div><strong>{t("device", "Device")}:</strong> {ticketToFinalize.deviceType} {ticketToFinalize.deviceModel}</div>
-                </div>
-              </div>
-
-              {/* Completion Form */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="completion-notes">{t("completion_notes", "Completion Notes")}</Label>
-                  <Textarea
-                    id="completion-notes"
-                    placeholder={t("completion_notes_placeholder", "Describe the work completed, any issues found, and resolution...")}
-                    value={completionData.completionNotes}
-                    onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
-                    className="min-h-[80px]"
-                    data-testid="textarea-completion-notes"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="actual-hours">{t("actual_hours", "Actual Hours")}</Label>
-                    <Input
-                      id="actual-hours"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder={t("hours", "Hours")}
-                      value={completionData.actualHours}
-                      onChange={(e) => setCompletionData(prev => ({ ...prev, actualHours: e.target.value }))}
-                      data-testid="input-actual-hours"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t("estimated", "Estimated")}: {ticketToFinalize.technicianEstimatedHours || 0}h
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="final-cost">{t("final_actual_cost", "Final Cost")}</Label>
-                    <Input
-                      id="final-cost"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={completionData.finalActualCost}
-                      onChange={(e) => setCompletionData(prev => ({ ...prev, finalActualCost: e.target.value }))}
-                      data-testid="input-final-cost"
-                    />
-                    {ticketToFinalize.costEstimation && (
-                      <p className="text-xs text-muted-foreground">
-                        {t("estimated", "Estimated")}: ${parseFloat(ticketToFinalize.costEstimation).toFixed(2)}
+            <div className="space-y-6">
+              {/* Step 1: Completion Summary */}
+              {wizardStep === 1 && (
+                <div className="max-w-4xl mx-auto">
+                  {/* Aurora Card Layout */}
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
+                    {/* Aurora Gradient Header */}
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                        <FileText className="w-5 h-5" />
+                        {t("completion_summary", "Completion Summary")}
+                      </h3>
+                      <p className="text-cyan-100 text-sm mt-1">
+                        {t("review_details", "Review the completion details below")}
                       </p>
-                    )}
+                    </div>
+                    
+                    <div className="p-6 space-y-6">
+                      {/* Ticket Information */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white">{t("ticket_id", "Ticket ID")}: {ticketToFinalize.id}</h4>
+                        </div>
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("client", "Client")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {ticketToFinalize.client ? `${ticketToFinalize.client.firstName} ${ticketToFinalize.client.lastName}` : "N/A"}
+                              </p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("device", "Device")}</span>
+                              <p className="text-sm font-medium text-white">
+                                {ticketToFinalize.deviceType} {ticketToFinalize.deviceModel}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Completion Form */}
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="completion-notes" className="text-cyan-400">{t("completion_notes", "Completion Notes")}</Label>
+                          <Textarea
+                            id="completion-notes"
+                            placeholder={t("completion_notes_placeholder", "Describe the work completed, any issues found, and resolution...")}
+                            value={completionData.completionNotes}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
+                            className="min-h-[100px] bg-slate-800/50 border-[#00FFFF]/20 text-white"
+                            data-testid="textarea-completion-notes"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="actual-hours" className="text-cyan-400">{t("actual_hours", "Actual Hours")}</Label>
+                            <Input
+                              id="actual-hours"
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder={t("hours", "Hours")}
+                              value={completionData.actualHours}
+                              onChange={(e) => setCompletionData(prev => ({ ...prev, actualHours: e.target.value }))}
+                              className="bg-slate-800/50 border-[#00FFFF]/20 text-white"
+                              data-testid="input-actual-hours"
+                            />
+                            <p className="text-xs text-cyan-300">
+                              {t("estimated", "Estimated")}: {ticketToFinalize.technicianEstimatedHours || 0}h
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="final-cost" className="text-cyan-400">{t("final_actual_cost", "Final Cost")}</Label>
+                            <Input
+                              id="final-cost"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={completionData.finalActualCost}
+                              onChange={(e) => setCompletionData(prev => ({ ...prev, finalActualCost: e.target.value }))}
+                              className="bg-slate-800/50 border-[#00FFFF]/20 text-white"
+                              data-testid="input-final-cost"
+                            />
+                            {ticketToFinalize.costEstimation && (
+                              <p className="text-xs text-cyan-300">
+                                {t("estimated", "Estimated")}: ${parseFloat(ticketToFinalize.costEstimation).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Warning */}
-              <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/50 rounded-lg p-3">
-                <div className="text-sm text-amber-800 dark:text-amber-200">
-                  <p className="font-medium">{t("finalization_warning", "Finalization Warning")}</p>
-                  <p>{t("finalization_warning_details", "Once finalized, this ticket cannot be modified, moved, or deleted.")}</p>
+              {/* Step 2: Finalization Checklist */}
+              {wizardStep === 2 && (
+                <div className="max-w-4xl mx-auto">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                        <CheckSquare className="w-5 h-5" />
+                        {t("finalization_checklist", "Finalization Checklist")}
+                      </h3>
+                      <p className="text-cyan-100 text-sm mt-1">
+                        {t("final_inspection", "Perform final device inspection")}
+                      </p>
+                    </div>
+                    
+                    <div className="p-6">
+                      <div className="text-center text-cyan-300 py-8">
+                        <CheckSquare className="w-16 h-16 mx-auto mb-4 text-cyan-400" />
+                        <p className="text-lg font-medium">{t("finalization_checklist", "Finalization Checklist")}</p>
+                        <p className="text-sm text-gray-400 mt-2">Device-specific checklist will be implemented here</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Step 3: Checklist Comparison */}
+              {wizardStep === 3 && (
+                <div className="max-w-4xl mx-auto">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                        <GitCompare className="w-5 h-5" />
+                        {t("checklist_comparison", "Checklist Comparison")}
+                      </h3>
+                      <p className="text-cyan-100 text-sm mt-1">
+                        {t("before_vs_after", "Before vs After Analysis")}
+                      </p>
+                    </div>
+                    
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Initial Checklist */}
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-orange-500 px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white">{t("initial_checklist", "Initial Checklist")}</h4>
+                          </div>
+                          <div className="p-4 text-center text-gray-400">
+                            <p>Original checklist data</p>
+                          </div>
+                        </div>
+
+                        {/* Final Checklist */}
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-green-500 px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white">{t("final_checklist", "Final Checklist")}</h4>
+                          </div>
+                          <div className="p-4 text-center text-gray-400">
+                            <p>Updated checklist data</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Improvement Status */}
+                      <div className="mt-6 bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
+                        <h4 className="text-cyan-400 font-medium mb-2">{t("improvement_status", "Improvement Status")}</h4>
+                        <div className="text-center text-gray-400 py-4">
+                          <p>Comparison analysis will be shown here</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Client Authorization */}
+              {wizardStep === 4 && (
+                <div className="max-w-4xl mx-auto">
+                  <div className="bg-slate-800/70 rounded-xl shadow-lg border border-[#00FFFF]/20 overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                        <Shield className="w-5 h-5" />
+                        {t("client_authorization", "Client Authorization")}
+                      </h3>
+                      <p className="text-cyan-100 text-sm mt-1">
+                        {t("final_summary", "Final Summary")} & {t("authorize_completion", "Authorize Completion")}
+                      </p>
+                    </div>
+                    
+                    <div className="p-6 space-y-6">
+                      {/* Work Summary */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white">{t("work_completed", "Work Completed")}</h4>
+                        </div>
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("actual_hours", "Actual Hours")}</span>
+                              <p className="text-white font-medium">{completionData.actualHours}h</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("final_actual_cost", "Final Cost")}</span>
+                              <p className="text-white font-medium">${completionData.finalActualCost}</p>
+                            </div>
+                            <div>
+                              <span className="text-xs text-cyan-400">{t("completion_notes", "Completion Notes")}</span>
+                              <p className="text-white font-medium line-clamp-2">{completionData.completionNotes}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Authorization Switch */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-cyan-400 font-medium">{t("authorize_completion", "Authorize Completion")}</Label>
+                            <p className="text-xs text-gray-400 mt-1">Client confirms all work is satisfactory</p>
+                          </div>
+                          <Switch
+                            checked={wizardData.clientAuthorized}
+                            onCheckedChange={(checked) => setWizardData(prev => ({ ...prev, clientAuthorized: checked }))}
+                            data-testid="switch-client-authorization"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Warning */}
+                      <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4">
+                        <div className="text-sm text-amber-200">
+                          <p className="font-medium">{t("finalization_warning", "Finalization Warning")}</p>
+                          <p>{t("finalization_warning_details", "Once finalized, this ticket cannot be modified, moved, or deleted.")}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
+          {/* Navigation Footer */}
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
             <Button 
               variant="outline" 
-              onClick={() => setShowCompletionDialog(false)}
-              data-testid="button-cancel-finalize"
+              onClick={() => {
+                if (wizardStep === 1) {
+                  setShowCompletionDialog(false);
+                  resetWizard();
+                } else {
+                  handleWizardPrevious();
+                }
+              }}
+              data-testid="button-wizard-previous"
             >
-              {t("cancel", "Cancel")}
+              {wizardStep === 1 ? t("cancel", "Cancel") : t("previous", "Previous")}
             </Button>
+
             <Button 
               onClick={() => {
-                if (ticketToFinalize && completionData.completionNotes && completionData.actualHours && completionData.finalActualCost) {
-                  finalizeTicket.mutate({
-                    ticketId: ticketToFinalize.id,
-                    completionNotes: completionData.completionNotes,
-                    actualHours: parseInt(completionData.actualHours),
-                    finalActualCost: parseFloat(completionData.finalActualCost)
-                  });
+                if (wizardStep === 4) {
+                  // Final completion
+                  if (ticketToFinalize && completionData.completionNotes && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
+                    finalizeTicket.mutate({
+                      ticketId: ticketToFinalize.id,
+                      completionNotes: completionData.completionNotes,
+                      actualHours: parseInt(completionData.actualHours),
+                      finalActualCost: parseFloat(completionData.finalActualCost)
+                    });
+                  }
+                } else {
+                  handleWizardNext();
                 }
               }}
               disabled={
-                finalizeTicket.isPending || 
-                !completionData.completionNotes || 
-                !completionData.actualHours || 
-                !completionData.finalActualCost
+                (wizardStep === 4 && (!wizardData.clientAuthorized || finalizeTicket.isPending)) ||
+                (wizardStep === 2 && (!completionData.completionNotes || !completionData.actualHours || !completionData.finalActualCost)) ||
+                !canAdvanceWizard()
               }
-              className="bg-green-600 hover:bg-green-700"
-              data-testid="button-confirm-finalize"
+              className={wizardStep === 4 ? "bg-green-600 hover:bg-green-700" : "bg-[#00FFFF] text-[#0A192F] hover:bg-[#00FFFF]/90"}
+              data-testid={wizardStep === 4 ? "button-finalize-ticket" : "button-wizard-next"}
             >
-              {finalizeTicket.isPending ? t("finalizing", "Finalizing...") : t("finalize_ticket", "Finalize Ticket")}
+              {wizardStep === 4 
+                ? (finalizeTicket.isPending ? t("finalizing", "Finalizing...") : t("complete", "Complete"))
+                : t("next", "Next")
+              }
             </Button>
           </div>
         </DialogContent>
