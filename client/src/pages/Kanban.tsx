@@ -777,8 +777,8 @@ export default function KanbanTickets() {
 
   const canAdvanceWizard = () => {
     switch(wizardStep) {
-      case 1: // Summary - must have completion notes and hours
-        return completionData.completionNotes && completionData.actualHours && completionData.finalActualCost;
+      case 1: // Summary - must have hours and cost
+        return completionData.actualHours && completionData.finalActualCost;
       case 2: // Checklist - always can advance (optional checklist selection)
         return true;
       case 3: // Comparison - always can advance
@@ -799,7 +799,6 @@ export default function KanbanTickets() {
         // Show validation errors based on current step
         const errors: string[] = [];
         if (wizardStep === 1) {
-          if (!completionData.completionNotes) errors.push(t("completion_notes_required", "Completion notes are required"));
           if (!completionData.actualHours) errors.push(t("actual_hours_required", "Actual hours are required"));
           if (!completionData.finalActualCost) errors.push(t("final_cost_required", "Final cost is required"));
         } else if (wizardStep === 4) {
@@ -5356,9 +5355,8 @@ export default function KanbanTickets() {
                       {/* Completion Form */}
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="completion-notes" className="text-cyan-400 flex items-center gap-1">
+                          <Label htmlFor="completion-notes" className="text-cyan-400">
                             {t("completion_notes", "Completion Notes")}
-                            <span className="text-red-400 text-sm">*</span>
                           </Label>
                           <Textarea
                             id="completion-notes"
@@ -5757,10 +5755,15 @@ export default function KanbanTickets() {
                                     className="w-4 h-4 text-cyan-500 bg-slate-800 border-cyan-400 focus:ring-cyan-500"
                                     data-testid={`radio-warranty-${tier.tierType}`}
                                   />
-                                  <span className="text-sm font-medium text-gray-300">
-                                    {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
-                                      tier.tierType === 'standard' ? 'Standard' : 'Extended')}
-                                  </span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-sm font-medium text-gray-300">
+                                      {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
+                                        tier.tierType === 'standard' ? 'Standard' : 'Extended')}
+                                    </span>
+                                    <span className="text-xs text-cyan-400">
+                                      {tier.durationMonths} {t("months", "months")}
+                                    </span>
+                                  </div>
                                 </div>
                                 <span className="text-sm font-semibold text-cyan-400 ml-2">
                                   {parseFloat(tier.price) === 0 ? t("free", "Free") : `$${parseFloat(tier.price).toFixed(2)}`}
@@ -5902,10 +5905,10 @@ export default function KanbanTickets() {
                     }
                     
                     // Normal finalization
-                    if (ticketToFinalize && completionData.completionNotes && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
+                    if (ticketToFinalize && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
                       finalizeTicket.mutate({
                         ticketId: ticketToFinalize.id,
-                        completionNotes: completionData.completionNotes,
+                        completionNotes: completionData.completionNotes || '', // Optional notes
                         actualHours: parseInt(completionData.actualHours),
                         finalActualCost: parseFloat(completionData.finalActualCost)
                       });
@@ -5916,7 +5919,7 @@ export default function KanbanTickets() {
                 }}
                 disabled={
                   (wizardStep === 4 && (!wizardData.clientAuthorized || finalizeTicket.isPending)) ||
-                  (wizardStep === 1 && (!completionData.completionNotes || !completionData.actualHours || !completionData.finalActualCost)) ||
+                  (wizardStep === 1 && (!completionData.actualHours || !completionData.finalActualCost)) ||
                   !canAdvanceWizard()
                 }
                 className={wizardStep === 4 ? "bg-green-600 hover:bg-green-700" : "bg-[#00FFFF] text-[#0A192F] hover:bg-[#00FFFF]/90"}
