@@ -2757,6 +2757,34 @@ export default function KanbanTickets() {
                                 </div>
                               </div>
                             </div>
+                            
+                            {/* Visual indicators for previous services and defects */}
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {/* Services indicator */}
+                              {ticket.selectedServices && Array.isArray(ticket.selectedServices) && ticket.selectedServices.length > 0 && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs">
+                                  <Wrench className="w-3 h-3" />
+                                  <span>{ticket.selectedServices.length} {t("services", "services")}</span>
+                                </div>
+                              )}
+                              
+                              {/* Defects indicator */}
+                              {ticket.serviceChecklist && typeof ticket.serviceChecklist === 'object' && Object.keys(ticket.serviceChecklist as Record<string, any>).length > 0 && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-xs">
+                                  <AlertCircle className="w-3 h-3" />
+                                  <span>{Object.keys(ticket.serviceChecklist as Record<string, any>).length} {t("defects_found", "defects")}</span>
+                                </div>
+                              )}
+                              
+                              {/* Warranty indicator */}
+                              {ticket.warrantyType && ticket.status === 'finalized' && (
+                                <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs">
+                                  <Shield className="w-3 h-3" />
+                                  <span>{ticket.warrantyType === 'extended' ? t("extended_warranty", "Extended") : t("standard_warranty", "Standard")}</span>
+                                </div>
+                              )}
+                            </div>
+                            
                             <div className="text-xs text-gray-500 mb-3">
                               <span className="font-medium">{t("last_service", "Last Service")}:</span> {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}
                             </div>
