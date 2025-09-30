@@ -163,6 +163,19 @@ export default function CompletedHistory() {
     return service ? service.name : serviceId;
   };
 
+  // Calculate warranty expiration date
+  const getWarrantyExpirationDate = (completedAt: string | Date | null | undefined, warrantyType: string | null | undefined) => {
+    if (!completedAt || !warrantyType) return null;
+    const completionDate = typeof completedAt === 'string' ? new Date(completedAt) : completedAt;
+    const expirationDate = new Date(completionDate);
+    
+    // Add months based on warranty type
+    const monthsToAdd = warrantyType === 'extended' ? 6 : 3;
+    expirationDate.setMonth(expirationDate.getMonth() + monthsToAdd);
+    
+    return expirationDate;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -418,13 +431,16 @@ export default function CompletedHistory() {
                       {selectedTicket.warrantyType && (
                         <div className="col-span-2">
                           <span className="text-muted-foreground">{t("warranty_coverage", "Warranty Coverage")}</span>
-                          <div className="text-white">
+                          <div className="text-white space-y-1">
                             <Badge variant="outline" className="bg-green-950/50 text-green-400 border-green-600">
                               <Shield className="w-3 h-3 mr-1" />
                               {selectedTicket.warrantyType === 'standard' 
                                 ? t("standard_3_months", "Standard (3 months)") 
                                 : t("extended_6_months", "Extended (6 months)")}
                             </Badge>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {t("expires_on", "Expires on")}: {formatDate(getWarrantyExpirationDate(selectedTicket.completedAt, selectedTicket.warrantyType))}
+                            </p>
                           </div>
                         </div>
                       )}
