@@ -17,6 +17,8 @@ const getPageTitleFromRoute = (pathname: string, t: (key: string, fallback?: str
       return t("clients", "Clients");
     case "/kanban":
       return t("kanban_board", "Kanban Board");
+    case "/completed-history":
+      return t("completed_history", "Completed History");
     case "/inventory":
       return t("inventory", "Inventory");
     case "/pos":

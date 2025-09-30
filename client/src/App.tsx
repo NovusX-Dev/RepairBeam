@@ -13,6 +13,7 @@ import TenantSetup from "@/pages/TenantSetup";
 import Dashboard from "@/pages/Dashboard";
 import Clients from "@/pages/Clients";
 import KanbanTickets from "@/pages/Kanban";
+import CompletedHistory from "@/pages/CompletedHistory";
 import Inventory from "@/pages/Inventory";
 import POS from "@/pages/POS";
 import Support from "@/pages/Support";
@@ -57,6 +58,7 @@ function Router() {
             <Route path="/" component={() => <Layout><Dashboard /></Layout>} />
             <Route path="/clients" component={() => <Layout><Clients /></Layout>} />
             <Route path="/kanban" component={() => <Layout><KanbanTickets /></Layout>} />
+            <Route path="/completed-history" component={() => <Layout><CompletedHistory /></Layout>} />
             <Route path="/inventory" component={() => <Layout><Inventory /></Layout>} />
             <Route path="/pos" component={() => <Layout><POS /></Layout>} />
             <Route path="/support" component={() => <Layout><Support /></Layout>} />
