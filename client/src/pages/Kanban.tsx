@@ -5739,36 +5739,38 @@ export default function KanbanTickets() {
                           <p className="text-xs text-cyan-300 mb-3">
                             {t("select_warranty_for_repair", "Select warranty coverage for this repair")}
                           </p>
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             {finalizationWarrantyTiers.map((tier) => (
-                              <div key={tier.id} className="flex items-center space-x-3">
-                                <input
-                                  type="radio"
-                                  id={`warranty-${tier.id}`}
-                                  name="warranty-selection"
-                                  value={tier.tierType}
-                                  checked={wizardData.selectedWarrantyTier === tier.tierType}
-                                  onChange={(e) => setWizardData(prev => ({ ...prev, selectedWarrantyTier: e.target.value }))}
-                                  className="w-4 h-4 text-cyan-500 bg-slate-800 border-cyan-400 focus:ring-cyan-500"
-                                  data-testid={`radio-warranty-${tier.tierType}`}
-                                />
-                                <Label htmlFor={`warranty-${tier.id}`} className="flex-1 cursor-pointer">
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <span className="text-sm font-medium text-gray-300">
-                                        {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
-                                          tier.tierType === 'standard' ? 'Standard Warranty' : 'Extended Warranty')}
-                                      </span>
-                                      <p className="text-xs text-cyan-400 mt-1">
-                                        {tier.durationMonths} {t("months", "months")} - {tier.description}
-                                      </p>
-                                    </div>
-                                    <span className="text-sm font-semibold text-cyan-400">
-                                      {parseFloat(tier.price) === 0 ? t("free", "Free") : `$${parseFloat(tier.price).toFixed(2)}`}
+                              <Label 
+                                key={tier.id} 
+                                htmlFor={`warranty-${tier.id}`} 
+                                className="flex items-center justify-between p-2.5 rounded-md border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800/30 cursor-pointer transition-all"
+                              >
+                                <div className="flex items-center gap-3 flex-1">
+                                  <input
+                                    type="radio"
+                                    id={`warranty-${tier.id}`}
+                                    name="warranty-selection"
+                                    value={tier.tierType}
+                                    checked={wizardData.selectedWarrantyTier === tier.tierType}
+                                    onChange={(e) => setWizardData(prev => ({ ...prev, selectedWarrantyTier: e.target.value }))}
+                                    className="w-4 h-4 text-cyan-500 bg-slate-800 border-cyan-400 focus:ring-cyan-500"
+                                    data-testid={`radio-warranty-${tier.tierType}`}
+                                  />
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-sm font-medium text-gray-300">
+                                      {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
+                                        tier.tierType === 'standard' ? 'Standard' : 'Extended')}
+                                    </span>
+                                    <span className="text-xs text-cyan-400">
+                                      ({tier.durationMonths} {t("months", "months")})
                                     </span>
                                   </div>
-                                </Label>
-                              </div>
+                                </div>
+                                <span className="text-sm font-semibold text-cyan-400 ml-2">
+                                  {parseFloat(tier.price) === 0 ? t("free", "Free") : `$${parseFloat(tier.price).toFixed(2)}`}
+                                </span>
+                              </Label>
                             ))}
                           </div>
                         </div>
