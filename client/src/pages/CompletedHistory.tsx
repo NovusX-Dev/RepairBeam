@@ -176,6 +176,13 @@ export default function CompletedHistory() {
     return expirationDate;
   };
 
+  // Check if warranty has expired
+  const isWarrantyExpired = (completedAt: string | Date | null | undefined, warrantyType: string | null | undefined) => {
+    const expirationDate = getWarrantyExpirationDate(completedAt, warrantyType);
+    if (!expirationDate) return false;
+    return new Date() > expirationDate;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -430,7 +437,14 @@ export default function CompletedHistory() {
                       </div>
                       {selectedTicket.warrantyType && (
                         <div className="col-span-2">
-                          <span className="text-muted-foreground">{t("warranty_coverage", "Warranty Coverage")}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">{t("warranty_coverage", "Warranty Coverage")}</span>
+                            {isWarrantyExpired(selectedTicket.completedAt, selectedTicket.warrantyType) && (
+                              <span className="text-red-500 text-sm font-semibold uppercase">
+                                {t("expired", "Expired")}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-white space-y-1">
                             <Badge variant="outline" className="bg-green-950/50 text-green-400 border-green-600">
                               <Shield className="w-3 h-3 mr-1" />
