@@ -6,6 +6,15 @@ Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It p
 
 ## Recent Changes
 
+### September 30, 2025
+- **Device History & Warranty Coverage System**: Implemented comprehensive device history tracking for returning clients with automatic warranty coverage pricing:
+  - Client search now displays previous tickets with device information and "Use This Device" functionality
+  - Visual indicators (badges) show previously performed services, found defects, and warranty tier status
+  - Warranty coverage logic automatically matches defect+service combinations from previous tickets with active warranties
+  - Cost calculations throughout the system now exclude warranty-covered services, displaying $0 for covered items
+  - Warranty expiration checking ensures only active warranties provide coverage
+  - Full integration with Step 4 (Price Estimation) showing warranty badges and cost exclusions
+
 ### September 06, 2025
 - **Warranty System Removal**: Completely removed warranty functionality from the Kanban ticketing system to prepare for repair services integration. This includes removal of warranty coverage selection, warranty cost calculations, and warranty displays from ticket summaries.
 - **Repair Services Configuration**: Enhanced repair services management with pagination (10 per page), real-time search/filtering, collapsible device type sections (default collapsed), and lazy loading with intersection observer for improved performance.
