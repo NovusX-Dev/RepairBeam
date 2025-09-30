@@ -347,7 +347,7 @@ export const completionAnalytics = pgTable("completion_analytics", {
   costVariance: decimal("cost_variance", { precision: 10, scale: 2 }).notNull(), // Final - Estimated
   costVariancePercentage: decimal("cost_variance_percentage", { precision: 5, scale: 2 }), // Percentage variance
   // Performance metrics
-  accuracyScore: decimal("accuracy_score", { precision: 3, scale: 2 }), // Combined accuracy score (0-100)
+  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }), // Combined accuracy score (0-100)
   completedBy: varchar("completed_by").notNull(), // Technician who completed the work
   // Service analysis
   selectedServices: jsonb("selected_services").default('[]'), // Services that were performed

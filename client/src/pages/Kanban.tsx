@@ -5412,14 +5412,16 @@ export default function KanbanTickets() {
               </Tabs>
               
               <div className="flex justify-between">
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => setShowDeleteConfirmation(true)}
-                  data-testid="button-delete-ticket"
-                >
-                  {t("delete", "Delete")}
-                </Button>
+                {selectedTicketSummary.status !== 'finalized' && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => setShowDeleteConfirmation(true)}
+                    data-testid="button-delete-ticket"
+                  >
+                    {t("delete", "Delete")}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => setSelectedTicketSummary(null)} data-testid="button-close-ticket-summary">
                   {t("close", "Close")}
                 </Button>
@@ -6182,24 +6184,12 @@ export default function KanbanTickets() {
                     }
                     
                     // Normal finalization
-                    console.log('Finalize attempt:', { completionData, wizardData });
                     if (ticketToFinalize && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
-                      console.log('Calling finalizeTicket.mutate with:', {
-                        actualHours: parseInt(completionData.actualHours),
-                        finalActualCost: parseFloat(completionData.finalActualCost)
-                      });
                       finalizeTicket.mutate({
                         ticketId: ticketToFinalize.id,
                         completionNotes: completionData.completionNotes || '', // Optional notes
                         actualHours: parseInt(completionData.actualHours),
                         finalActualCost: parseFloat(completionData.finalActualCost)
-                      });
-                    } else {
-                      console.log('Finalization blocked:', {
-                        hasTicket: !!ticketToFinalize,
-                        hasActualHours: !!completionData.actualHours,
-                        hasFinalCost: !!completionData.finalActualCost,
-                        isAuthorized: wizardData.clientAuthorized
                       });
                     }
                   } else {
