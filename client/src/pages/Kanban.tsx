@@ -1134,7 +1134,7 @@ export default function KanbanTickets() {
         // If no services, just use extra costs
         setCompletionData(prev => ({
           ...prev,
-          finalActualCost: parseFloat(ticketToFinalize.costEstimation).toFixed(2)
+          finalActualCost: parseFloat(ticketToFinalize.costEstimation || '0').toFixed(2)
         }));
       }
     }

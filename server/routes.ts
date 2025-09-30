@@ -411,15 +411,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      if (!completionNotes || actualHours === undefined || finalActualCost === undefined) {
-        return res.status(400).json({ message: "Completion notes, actual hours, and final cost are required" });
+      if (actualHours === undefined || finalActualCost === undefined) {
+        return res.status(400).json({ message: "Actual hours and final cost are required" });
       }
 
       const finalizedTicket = await storage.finalizeTicket(
         ticketId, 
         user.tenantId,
         userId,
-        completionNotes,
+        completionNotes || '', // Allow empty completion notes
         parseInt(actualHours),
         parseFloat(finalActualCost)
       );
