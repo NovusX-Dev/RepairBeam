@@ -442,9 +442,11 @@ interface RepairServiceCardsProps {
   deviceType: string;
   selectedServices: string[];
   onServiceToggle: (serviceId: string) => void;
+  warrantyCoverage?: Map<string, { ticketId: string; warrantyType: string; expiresAt: Date }>;
+  currentDefects?: string[];
 }
 
-function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: RepairServiceCardsProps) {
+function RepairServiceCards({ deviceType, selectedServices, onServiceToggle, warrantyCoverage, currentDefects }: RepairServiceCardsProps) {
   const { t, currentLanguage } = useLocalization();
   
   // Fetch repair services for the selected device type
@@ -581,6 +583,31 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         {activeServices.map((service) => {
           const isSelected = selectedServices.includes(service.id);
+          
+          // Check if this service is warranty-covered
+          const isWarrantyCovered = (() => {
+            if (!warrantyCoverage || !currentDefects || currentDefects.length === 0) return false;
+            
+            // Check if any current defect+service combination is covered
+            return currentDefects.some(defectId => {
+              const coverageKey = `${defectId}:${service.id}`;
+              return warrantyCoverage.has(coverageKey);
+            });
+          })();
+          
+          // Get warranty info if covered
+          const warrantyInfo = (() => {
+            if (!isWarrantyCovered || !warrantyCoverage || !currentDefects) return null;
+            
+            for (const defectId of currentDefects) {
+              const coverageKey = `${defectId}:${service.id}`;
+              if (warrantyCoverage.has(coverageKey)) {
+                return warrantyCoverage.get(coverageKey);
+              }
+            }
+            return null;
+          })();
+          
           return (
             <Card 
               key={service.id}
@@ -590,6 +617,7 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
                   ? 'border-[#00FFFF] bg-[#00FFFF]/10 shadow-md shadow-[#00FFFF]/20' 
                   : 'border-slate-600 hover:border-[#00FFFF]/50 bg-slate-800/50'
                 }
+                ${isWarrantyCovered ? 'ring-2 ring-green-500/50' : ''}
               `}
               onClick={() => onServiceToggle(service.id)}
               data-testid={`service-card-${service.id}`}
@@ -607,7 +635,17 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle }: R
                     `}>
                       {isSelected && <Check className="w-2.5 h-2.5 text-slate-900" />}
                     </div>
-                    <h5 className="font-medium text-white text-sm leading-tight">{service.name}</h5>
+                    <div className="flex-1 min-w-0">
+                      <h5 className="font-medium text-white text-sm leading-tight">{service.name}</h5>
+                      {isWarrantyCovered && warrantyInfo && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Shield className="w-3 h-3 text-green-400" />
+                          <span className="text-xs text-green-400 font-medium">
+                            {t("warranty_covered", "Warranty Covered")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Description (if exists) */}
@@ -1190,6 +1228,73 @@ export default function KanbanTickets() {
     staleTime: 30 * 1000, // 30 seconds
     retry: 1,
   });
+
+  // Warranty coverage checking utility
+  const checkWarrantyCoverage = useMemo(() => {
+    if (!clientTickets || clientTickets.length === 0 || !formData.deviceType || !formData.selectedChecklists || formData.selectedChecklists.length === 0) {
+      return new Map<string, { ticketId: string; warrantyType: string; expiresAt: Date }>();
+    }
+
+    const now = new Date();
+    const warrantyCoverage = new Map<string, { ticketId: string; warrantyType: string; expiresAt: Date }>();
+
+    // Get current defects from form
+    const currentDefects = formData.selectedChecklists;
+
+    // Filter to finalized tickets with the same device type
+    const relevantTickets = clientTickets.filter(ticket => 
+      ticket.status === 'finalized' && 
+      ticket.completedAt && 
+      ticket.deviceType === formData.deviceType &&
+      ticket.warrantyType
+    );
+
+    relevantTickets.forEach(ticket => {
+      // Calculate warranty expiration date
+      const completedDate = new Date(ticket.completedAt!);
+      const warrantyDurationMonths = ticket.warrantyType === 'extended' ? 6 : 3;
+      const warrantyExpiresAt = new Date(completedDate);
+      warrantyExpiresAt.setMonth(warrantyExpiresAt.getMonth() + warrantyDurationMonths);
+
+      // CRITICAL: Skip this ticket if warranty has expired
+      if (warrantyExpiresAt <= now) {
+        return; // Warranty expired, skip to next ticket
+      }
+
+      // Warranty is still active - proceed with coverage checking
+      // Get defects from the previous ticket
+      const previousTicketData = ticket.serviceChecklist as any;
+      const previousDefects = previousTicketData?.selectedChecklists || [];
+
+      // Get services from the previous ticket
+      const previousServices = Array.isArray(ticket.selectedServices) 
+        ? ticket.selectedServices as string[] 
+        : [];
+
+      // Match current defects with previous defects and services
+      currentDefects.forEach(currentDefect => {
+        if (previousDefects.includes(currentDefect)) {
+          // This defect was found before - check which services were performed
+          previousServices.forEach(serviceId => {
+            // Create a unique key for this defect+service combination
+            const coverageKey = `${currentDefect}:${serviceId}`;
+            
+            // If this combination is not already covered or has a longer warranty, add it
+            if (!warrantyCoverage.has(coverageKey) || 
+                warrantyCoverage.get(coverageKey)!.expiresAt < warrantyExpiresAt) {
+              warrantyCoverage.set(coverageKey, {
+                ticketId: ticket.id,
+                warrantyType: ticket.warrantyType!,
+                expiresAt: warrantyExpiresAt
+              });
+            }
+          });
+        }
+      });
+    });
+
+    return warrantyCoverage;
+  }, [clientTickets, formData.deviceType, formData.selectedChecklists]);
 
   // Device brands query - fetches AI-generated brand list based on device type
   const { data: deviceBrands, isLoading: brandsLoading } = useDeviceBrands(
@@ -3598,6 +3703,8 @@ export default function KanbanTickets() {
                       deviceType={formData.deviceType}
                       selectedServices={formData.selectedServices}
                       onServiceToggle={handleServiceToggle}
+                      warrantyCoverage={checkWarrantyCoverage}
+                      currentDefects={formData.selectedChecklists}
                     />
                   </div>
 
