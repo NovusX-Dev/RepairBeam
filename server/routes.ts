@@ -225,6 +225,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get tickets by client ID
+  app.get("/api/tickets/client/:clientId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { clientId } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tickets = await storage.getTicketsByClientId(clientId, user.tenantId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets by client:", error);
+      res.status(500).json({ message: "Failed to fetch tickets by client" });
+    }
+  });
+
   // Check if ticket ID exists (for unique ID generation)
   app.get("/api/tickets/check-id/:ticketId", isAuthenticated, async (req: any, res) => {
     try {

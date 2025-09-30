@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -1181,6 +1181,14 @@ export default function KanbanTickets() {
     },
     enabled: clientSearchQuery.length >= 2,
     retry: false,
+  });
+
+  // Fetch client ticket history when a client is selected
+  const { data: clientTickets = [], isLoading: isLoadingClientTickets, isError: isClientTicketsError } = useQuery<Ticket[]>({
+    queryKey: ["/api/tickets/client", selectedClient?.id],
+    enabled: !!selectedClient?.id && isTicketDialogOpen,
+    staleTime: 30 * 1000, // 30 seconds
+    retry: 1,
   });
 
   // Device brands query - fetches AI-generated brand list based on device type
@@ -2695,6 +2703,96 @@ export default function KanbanTickets() {
                             }
                           </p>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client Ticket History - Show previous devices */}
+                  {selectedClient && !showClientForm && isLoadingClientTickets && (
+                    <div className="mt-4 border rounded-lg p-6 bg-blue-50 border-blue-200">
+                      <div className="flex items-center justify-center gap-2 text-blue-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>{t("loading_device_history", "Loading device history...")}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedClient && !showClientForm && isClientTicketsError && (
+                    <div className="mt-4 border rounded-lg p-6 bg-red-50 border-red-200">
+                      <p className="text-sm text-red-600">
+                        {t("error_loading_history", "Unable to load device history")}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {selectedClient && !showClientForm && !isLoadingClientTickets && !isClientTicketsError && clientTickets.length > 0 && (
+                    <div className="mt-4 border rounded-lg p-6 bg-blue-50 border-blue-200">
+                      <h4 className="font-semibold text-blue-800 mb-4">
+                        {t("device_history", "Device History")} ({clientTickets.length} {clientTickets.length === 1 ? t("device", "device") : t("devices", "devices")})
+                      </h4>
+                      <p className="text-sm text-blue-600 mb-4">
+                        {t("select_previous_device", "Select a previously serviced device to auto-fill information")}
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {clientTickets.map((ticket) => (
+                          <div
+                            key={ticket.id}
+                            className="border rounded-lg p-4 bg-white hover:bg-blue-50 transition-all cursor-pointer hover:shadow-md"
+                            data-testid={`device-card-${ticket.id}`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {ticket.deviceType === 'Phone' && <Smartphone className="w-4 h-4 text-blue-600" />}
+                                  {ticket.deviceType === 'Laptop' && <Laptop className="w-4 h-4 text-blue-600" />}
+                                  {ticket.deviceType === 'Desktop' && <Monitor className="w-4 h-4 text-blue-600" />}
+                                  <span className="font-semibold text-gray-800">
+                                    {ticket.deviceType} - {ticket.deviceModel}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-gray-600 space-y-1">
+                                  <div><span className="font-medium">{t("color", "Color")}:</span> {ticket.deviceColor}</div>
+                                  {ticket.deviceMemory && <div><span className="font-medium">{t("memory", "Memory")}:</span> {ticket.deviceMemory}</div>}
+                                  {ticket.deviceStorageCapacity && <div><span className="font-medium">{t("storage", "Storage")}:</span> {ticket.deviceStorageCapacity}</div>}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500 mb-3">
+                              <span className="font-medium">{t("last_service", "Last Service")}:</span> {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                              onClick={() => {
+                                // Auto-fill device information from selected ticket
+                                // Reset dependent fields to avoid stale state
+                                setFormData(prev => ({
+                                  ...prev,
+                                  deviceType: ticket.deviceType || '',
+                                  deviceBrand: '', // Reset brand - will be auto-populated based on deviceType
+                                  deviceModel: ticket.deviceModel || '',
+                                  deviceColor: ticket.deviceColor || '',
+                                  deviceMemory: ticket.deviceMemory || '',
+                                  deviceStorageCapacity: ticket.deviceStorageCapacity || '',
+                                  // Reset service-related fields to avoid inconsistencies
+                                  selectedServices: [],
+                                  technicianEstimatedHours: '',
+                                  costEstimation: '',
+                                  totalCost: '',
+                                }));
+                                // Move to next step
+                                setCurrentStep(1);
+                                toast({
+                                  title: t("device_selected", "Device Selected"),
+                                  description: t("device_info_filled", "Device information has been auto-filled"),
+                                });
+                              }}
+                              data-testid={`button-use-device-${ticket.id}`}
+                            >
+                              {t("use_this_device", "Use This Device")}
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}

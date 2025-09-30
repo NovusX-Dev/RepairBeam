@@ -121,6 +121,7 @@ export interface IStorage {
   // Ticket operations
   getTickets(tenantId: string): Promise<Ticket[]>;
   getTicketsWithClients(tenantId: string): Promise<(Ticket & { client?: Client })[]>;
+  getTicketsByClientId(clientId: string, tenantId: string): Promise<Ticket[]>;
   getTicket(id: string, tenantId: string): Promise<Ticket | undefined>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined>;
@@ -421,6 +422,14 @@ export class DatabaseStorage implements IStorage {
       ...row,
       client: row.client?.id ? row.client : undefined
     }));
+  }
+
+  async getTicketsByClientId(clientId: string, tenantId: string): Promise<Ticket[]> {
+    return db
+      .select()
+      .from(tickets)
+      .where(and(eq(tickets.clientId, clientId), eq(tickets.tenantId, tenantId)))
+      .orderBy(desc(tickets.createdAt));
   }
 
   async getTicket(id: string, tenantId: string): Promise<Ticket | undefined> {
