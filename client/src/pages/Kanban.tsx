@@ -5757,15 +5757,10 @@ export default function KanbanTickets() {
                                     className="w-4 h-4 text-cyan-500 bg-slate-800 border-cyan-400 focus:ring-cyan-500"
                                     data-testid={`radio-warranty-${tier.tierType}`}
                                   />
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-sm font-medium text-gray-300">
-                                      {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
-                                        tier.tierType === 'standard' ? 'Standard' : 'Extended')}
-                                    </span>
-                                    <span className="text-xs text-cyan-400">
-                                      ({tier.durationMonths} {t("months", "months")})
-                                    </span>
-                                  </div>
+                                  <span className="text-sm font-medium text-gray-300">
+                                    {t(tier.tierType === 'standard' ? 'standard_warranty' : 'extended_warranty', 
+                                      tier.tierType === 'standard' ? 'Standard' : 'Extended')}
+                                  </span>
                                 </div>
                                 <span className="text-sm font-semibold text-cyan-400 ml-2">
                                   {parseFloat(tier.price) === 0 ? t("free", "Free") : `$${parseFloat(tier.price).toFixed(2)}`}
