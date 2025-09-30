@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
-import type { Ticket, Client } from "@shared/schema";
+import type { Ticket, Client, RepairService } from "@shared/schema";
 import { formatCurrency as formatCurrencyFromUtility, type Locale } from "@shared/money";
 
 // Extended ticket type with client info
@@ -68,6 +68,11 @@ export default function CompletedHistory() {
   // Fetch all tickets
   const { data: allTickets = [], isLoading } = useQuery<TicketWithClient[]>({
     queryKey: ["/api/tickets"],
+  });
+
+  // Fetch repair services for service name mapping
+  const { data: repairServices = [] } = useQuery<RepairService[]>({
+    queryKey: ["/api/repair-services"],
   });
 
   // Filter only finalized tickets
@@ -150,6 +155,12 @@ export default function CompletedHistory() {
     if (!dateString) return t("not_available", "N/A");
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return format(date, "PPP", { locale: locale === 'pt-BR' ? ptBR : undefined });
+  };
+
+  // Get service name by ID
+  const getServiceName = (serviceId: string) => {
+    const service = repairServices.find(s => s.id === serviceId);
+    return service ? service.name : serviceId;
   };
 
   return (
@@ -407,14 +418,14 @@ export default function CompletedHistory() {
                       {selectedTicket.warrantyType && (
                         <div className="col-span-2">
                           <span className="text-muted-foreground">{t("warranty_coverage", "Warranty Coverage")}</span>
-                          <p className="text-white">
+                          <div className="text-white">
                             <Badge variant="outline" className="bg-green-950/50 text-green-400 border-green-600">
                               <Shield className="w-3 h-3 mr-1" />
                               {selectedTicket.warrantyType === 'standard' 
                                 ? t("standard_3_months", "Standard (3 months)") 
                                 : t("extended_6_months", "Extended (6 months)")}
                             </Badge>
-                          </p>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -430,7 +441,7 @@ export default function CompletedHistory() {
                         {(selectedTicket.selectedServices as string[]).map((serviceId, index) => (
                           <li key={index} className="flex items-center gap-2 text-white">
                             <Wrench className="w-4 h-4 text-cyan-400" />
-                            <span>{serviceId}</span>
+                            <span>{getServiceName(serviceId)}</span>
                           </li>
                         ))}
                       </ul>
