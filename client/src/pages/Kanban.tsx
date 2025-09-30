@@ -3742,6 +3742,16 @@ export default function KanbanTickets() {
                             const service = repairServices.find(s => s.id === serviceId);
                             if (!service) return null;
                             
+                            // Check if this service is warranty-covered
+                            const isWarrantyCovered = (() => {
+                              if (!checkWarrantyCoverage || !formData.selectedChecklists || formData.selectedChecklists.length === 0) return false;
+                              
+                              return formData.selectedChecklists.some(defectId => {
+                                const coverageKey = `${defectId}:${serviceId}`;
+                                return checkWarrantyCoverage.has(coverageKey);
+                              });
+                            })();
+                            
                             const formatCurrency = (amount: string) => {
                               const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
                               const cents = toCents(amount, locale);
@@ -3750,9 +3760,17 @@ export default function KanbanTickets() {
                             
                             return (
                               <div key={serviceId} className="flex items-center justify-between text-sm">
-                                <span className="text-foreground">{service.name}</span>
-                                <span className="text-primary font-medium" data-testid={`service-cost-${serviceId}`}>
-                                  {formatCurrency(service.estimatedLaborCost)}
+                                <div className="flex items-center gap-2">
+                                  <span className="text-foreground">{service.name}</span>
+                                  {isWarrantyCovered && (
+                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                                      <Shield className="w-3 h-3" />
+                                      <span>{t("warranty", "Warranty")}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className={`font-medium ${isWarrantyCovered ? 'text-green-600 line-through' : 'text-primary'}`} data-testid={`service-cost-${serviceId}`}>
+                                  {isWarrantyCovered ? formatCurrency('0') : formatCurrency(service.estimatedLaborCost)}
                                 </span>
                               </div>
                             );
@@ -3765,7 +3783,20 @@ export default function KanbanTickets() {
                                   const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
                                   const serviceCostsCents = formData.selectedServices.map(serviceId => {
                                     const service = repairServices.find(s => s.id === serviceId);
-                                    return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                    if (!service) return 0;
+                                    
+                                    // Check if this service is warranty-covered
+                                    const isWarrantyCovered = (() => {
+                                      if (!checkWarrantyCoverage || !formData.selectedChecklists || formData.selectedChecklists.length === 0) return false;
+                                      
+                                      return formData.selectedChecklists.some(defectId => {
+                                        const coverageKey = `${defectId}:${serviceId}`;
+                                        return checkWarrantyCoverage.has(coverageKey);
+                                      });
+                                    })();
+                                    
+                                    // Return 0 cost for warranty-covered services
+                                    return isWarrantyCovered ? 0 : toCents(service.estimatedLaborCost, locale);
                                   });
                                   const totalServicesCents = addCents(...serviceCostsCents);
                                   return formatCurrencyFromUtility(totalServicesCents, locale);
@@ -3814,10 +3845,23 @@ export default function KanbanTickets() {
                           <span className="text-lg font-bold text-primary" data-testid="text-total-cost">
                             {(() => {
                               const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
-                              // Calculate total from selected services using cents
+                              // Calculate total from selected services using cents, excluding warranty-covered services
                               const serviceCostsCents = formData.selectedServices.map(serviceId => {
                                 const service = repairServices.find(s => s.id === serviceId);
-                                return service ? toCents(service.estimatedLaborCost, locale) : 0;
+                                if (!service) return 0;
+                                
+                                // Check if this service is warranty-covered
+                                const isWarrantyCovered = (() => {
+                                  if (!checkWarrantyCoverage || !formData.selectedChecklists || formData.selectedChecklists.length === 0) return false;
+                                  
+                                  return formData.selectedChecklists.some(defectId => {
+                                    const coverageKey = `${defectId}:${serviceId}`;
+                                    return checkWarrantyCoverage.has(coverageKey);
+                                  });
+                                })();
+                                
+                                // Return 0 cost for warranty-covered services
+                                return isWarrantyCovered ? 0 : toCents(service.estimatedLaborCost, locale);
                               });
                               const totalServicesCents = addCents(...serviceCostsCents);
                               
