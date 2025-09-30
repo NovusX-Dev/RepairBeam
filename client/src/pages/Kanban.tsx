@@ -5740,7 +5740,7 @@ export default function KanbanTickets() {
                             {t("select_warranty_for_repair", "Select warranty coverage for this repair")}
                           </p>
                           <div className="space-y-2">
-                            {finalizationWarrantyTiers.map((tier) => (
+                            {[...finalizationWarrantyTiers].sort((a, b) => a.durationMonths - b.durationMonths).map((tier) => (
                               <Label 
                                 key={tier.id} 
                                 htmlFor={`warranty-${tier.id}`} 
