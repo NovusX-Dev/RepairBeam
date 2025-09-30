@@ -411,6 +411,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Debug logging
+      console.log('Finalize request body:', { completionNotes, actualHours, finalActualCost, type_actualHours: typeof actualHours, type_finalActualCost: typeof finalActualCost });
+
       if (actualHours === undefined || finalActualCost === undefined) {
         return res.status(400).json({ message: "Actual hours and final cost are required" });
       }

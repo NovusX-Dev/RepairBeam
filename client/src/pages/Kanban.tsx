@@ -6182,12 +6182,24 @@ export default function KanbanTickets() {
                     }
                     
                     // Normal finalization
+                    console.log('Finalize attempt:', { completionData, wizardData });
                     if (ticketToFinalize && completionData.actualHours && completionData.finalActualCost && wizardData.clientAuthorized) {
+                      console.log('Calling finalizeTicket.mutate with:', {
+                        actualHours: parseInt(completionData.actualHours),
+                        finalActualCost: parseFloat(completionData.finalActualCost)
+                      });
                       finalizeTicket.mutate({
                         ticketId: ticketToFinalize.id,
                         completionNotes: completionData.completionNotes || '', // Optional notes
                         actualHours: parseInt(completionData.actualHours),
                         finalActualCost: parseFloat(completionData.finalActualCost)
+                      });
+                    } else {
+                      console.log('Finalization blocked:', {
+                        hasTicket: !!ticketToFinalize,
+                        hasActualHours: !!completionData.actualHours,
+                        hasFinalCost: !!completionData.finalActualCost,
+                        isAuthorized: wizardData.clientAuthorized
                       });
                     }
                   } else {
