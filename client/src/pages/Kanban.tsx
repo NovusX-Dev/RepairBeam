@@ -2940,11 +2940,11 @@ export default function KanbanTickets() {
                                 </div>
                                 
                                 {/* Warranty Expiration Date */}
-                                {ticket.warrantyType && ticket.status === 'finalized' && ticket.finalizedAt && (
+                                {ticket.warrantyType && ticket.status === 'finalized' && ticket.completedAt && (
                                   (() => {
-                                    const finalizedDate = new Date(ticket.finalizedAt);
+                                    const completedDate = new Date(ticket.completedAt);
                                     const monthsToAdd = ticket.warrantyType === 'extended' ? 6 : 3;
-                                    const expirationDate = new Date(finalizedDate);
+                                    const expirationDate = new Date(completedDate);
                                     expirationDate.setMonth(expirationDate.getMonth() + monthsToAdd);
                                     const isExpired = new Date() > expirationDate;
                                     
