@@ -447,7 +447,7 @@ interface RepairServiceCardsProps {
 }
 
 function RepairServiceCards({ deviceType, selectedServices, onServiceToggle, warrantyCoverage, currentDefects }: RepairServiceCardsProps) {
-  const { t, currentLanguage } = useLocalization();
+  const { t, currentLanguage, formatDate } = useLocalization();
   
   // Fetch repair services for the selected device type
   const { data: services = [], isLoading, error, isError } = useQuery<RepairService[]>({
@@ -865,7 +865,7 @@ export default function KanbanTickets() {
   const [showFilters, setShowFilters] = useState(false);
   
   const queryClient = useQueryClient();
-  const { t, currentLanguage } = useLocalization();
+  const { t, currentLanguage, formatDate } = useLocalization();
   const { toast } = useToast();
 
   // Fetch notes and issue responses when ticket summary modal opens
@@ -1957,22 +1957,6 @@ export default function KanbanTickets() {
   };
 
   // Handle form input changes
-  // Date formatting and validation
-  const formatDateForLocale = (dateString: string, locale: string) => {
-    if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    
-    if (locale.startsWith('pt')) {
-      // Brazilian format: dd/mm/yyyy
-      return date.toLocaleDateString('pt-BR');
-    } else {
-      // English format: mm/dd/yyyy
-      return date.toLocaleDateString('en-US');
-    }
-  };
-
   const handleDateChange = (value: string) => {
     // Limit year to 4 digits by validating the date format
     if (value) {
@@ -2936,7 +2920,7 @@ export default function KanbanTickets() {
                                 <div className="flex items-center gap-2 text-xs text-gray-400">
                                   <Clock className="w-3 h-3" />
                                   <span className="font-medium">{t("last_service", "Last Service")}:</span>
-                                  <span>{ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}</span>
+                                  <span>{ticket.createdAt ? formatDate(ticket.createdAt) : t("not_available", "N/A")}</span>
                                 </div>
                                 
                                 {/* Warranty Expiration Date */}
@@ -2955,7 +2939,7 @@ export default function KanbanTickets() {
                                           {t("warranty_expires", "Warranty Expires")}:
                                         </span>
                                         <span className={isExpired ? 'text-red-400 font-semibold' : 'text-gray-400'}>
-                                          {expirationDate.toLocaleDateString()}
+                                          {formatDate(expirationDate)}
                                         </span>
                                         {isExpired && (
                                           <Badge variant="destructive" className="text-xs py-0 px-2 bg-red-500/20 text-red-400 border-red-500/30">
@@ -4288,7 +4272,7 @@ export default function KanbanTickets() {
                               <span className="text-xs text-muted-foreground block">{t("client_deadline", "Client Deadline")}</span>
                               <p className="text-sm font-medium text-[#00FFFF] mt-1">
                                 {formData.clientDeadline 
-                                  ? new Date(formData.clientDeadline).toLocaleDateString(currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en-US')
+                                  ? formatDate(formData.clientDeadline)
                                   : t("not_set", "Not set")
                                 }
                               </p>
@@ -4912,7 +4896,7 @@ export default function KanbanTickets() {
                             {/* Created date */}
                             <div className={`flex items-center text-xs ${getStatusMutedColor(ticket.status)}`}>
                               <Clock className="w-3 h-3 mr-1" />
-                              {new Date(ticket.createdAt!).toLocaleDateString()}
+                              {formatDate(ticket.createdAt)}
                             </div>
                           </div>
                         )}
@@ -5106,7 +5090,7 @@ export default function KanbanTickets() {
                           <div className="font-medium text-cyan-400">{t("client_deadline", "Client Deadline")}</div>
                           <div className="text-slate-200">
                             {selectedTicketSummary.clientDeadline 
-                              ? new Date(selectedTicketSummary.clientDeadline).toLocaleDateString(currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en-US')
+                              ? formatDate(selectedTicketSummary.clientDeadline)
                               : t("not_set", "Not set")
                             }
                           </div>
@@ -5257,7 +5241,7 @@ export default function KanbanTickets() {
                       {/* Created Date */}
                       <div className="mt-2 bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                         <div className="font-medium text-cyan-400">{t("created_on", "Created")}</div>
-                        <div className="text-slate-200">{new Date(selectedTicketSummary.createdAt!).toLocaleDateString()}</div>
+                        <div className="text-slate-200">{formatDate(selectedTicketSummary.createdAt)}</div>
                       </div>
 
                       {selectedTicketSummary.description && (
