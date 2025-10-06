@@ -2931,11 +2931,41 @@ export default function KanbanTickets() {
                                 )}
                               </div>
                               
-                              {/* Last Service Date */}
-                              <div className="flex items-center gap-2 text-xs text-gray-400 mb-3 pb-3 border-b border-cyan-500/20">
-                                <Clock className="w-3 h-3" />
-                                <span className="font-medium">{t("last_service", "Last Service")}:</span>
-                                <span>{ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}</span>
+                              {/* Last Service Date and Warranty Expiration */}
+                              <div className="space-y-2 mb-3 pb-3 border-b border-cyan-500/20">
+                                <div className="flex items-center gap-2 text-xs text-gray-400">
+                                  <Clock className="w-3 h-3" />
+                                  <span className="font-medium">{t("last_service", "Last Service")}:</span>
+                                  <span>{ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}</span>
+                                </div>
+                                
+                                {/* Warranty Expiration Date */}
+                                {ticket.warrantyType && ticket.status === 'finalized' && ticket.finalizedAt && (
+                                  (() => {
+                                    const finalizedDate = new Date(ticket.finalizedAt);
+                                    const monthsToAdd = ticket.warrantyType === 'extended' ? 6 : 3;
+                                    const expirationDate = new Date(finalizedDate);
+                                    expirationDate.setMonth(expirationDate.getMonth() + monthsToAdd);
+                                    const isExpired = new Date() > expirationDate;
+                                    
+                                    return (
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <Shield className={`w-3 h-3 ${isExpired ? 'text-red-400' : 'text-blue-400'}`} />
+                                        <span className={`font-medium ${isExpired ? 'text-red-400' : 'text-gray-400'}`}>
+                                          {t("warranty_expires", "Warranty Expires")}:
+                                        </span>
+                                        <span className={isExpired ? 'text-red-400 font-semibold' : 'text-gray-400'}>
+                                          {expirationDate.toLocaleDateString()}
+                                        </span>
+                                        {isExpired && (
+                                          <Badge variant="destructive" className="text-xs py-0 px-2 bg-red-500/20 text-red-400 border-red-500/30">
+                                            {t("expired", "Expired")}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    );
+                                  })()
+                                )}
                               </div>
                               
                               {/* Use Device Button */}
