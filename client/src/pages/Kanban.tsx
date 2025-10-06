@@ -2848,101 +2848,128 @@ export default function KanbanTickets() {
                   )}
                   
                   {selectedClient && !showClientForm && !isLoadingClientTickets && !isClientTicketsError && clientTickets.length > 0 && (
-                    <div className="mt-4 border rounded-lg p-6 bg-blue-50 border-blue-200">
-                      <h4 className="font-semibold text-blue-800 mb-4">
-                        {t("device_history", "Device History")} ({clientTickets.length} {clientTickets.length === 1 ? t("device", "device") : t("devices", "devices")})
-                      </h4>
-                      <p className="text-sm text-blue-600 mb-4">
-                        {t("select_previous_device", "Select a previously serviced device to auto-fill information")}
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {clientTickets.map((ticket) => (
-                          <div
-                            key={ticket.id}
-                            className="border rounded-lg p-4 bg-white hover:bg-blue-50 transition-all cursor-pointer hover:shadow-md"
-                            data-testid={`device-card-${ticket.id}`}
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  {ticket.deviceType === 'Phone' && <Smartphone className="w-4 h-4 text-blue-600" />}
-                                  {ticket.deviceType === 'Laptop' && <Laptop className="w-4 h-4 text-blue-600" />}
-                                  {ticket.deviceType === 'Desktop' && <Monitor className="w-4 h-4 text-blue-600" />}
-                                  <span className="font-semibold text-gray-800">
-                                    {ticket.deviceType} - {ticket.deviceModel}
-                                  </span>
+                    <div className="mt-4 bg-slate-700/40 border border-blue-500/40 rounded-lg overflow-hidden shadow-lg">
+                      {/* Aurora Gradient Header */}
+                      <div className="bg-gradient-to-r from-blue-900/60 via-blue-700/60 to-cyan-800/60 px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                            <Clock className="w-6 h-6 text-blue-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-white text-lg">
+                              {t("device_history", "Device History")} <span className="text-blue-200">({clientTickets.length} {clientTickets.length === 1 ? t("device", "device") : t("devices", "devices")})</span>
+                            </h4>
+                            <p className="text-blue-200 text-xs">
+                              {t("select_previous_device", "Select a previously serviced device to auto-fill information")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Device Cards Grid */}
+                      <div className="p-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {clientTickets.map((ticket) => (
+                            <div
+                              key={ticket.id}
+                              className="bg-slate-800/60 border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-400/60 hover:bg-slate-800/80 transition-all shadow-md hover:shadow-xl"
+                              data-testid={`device-card-${ticket.id}`}
+                            >
+                              {/* Device Header */}
+                              <div className="flex items-start gap-3 mb-3">
+                                <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                                  {ticket.deviceType === 'Phone' && <Smartphone className="w-5 h-5 text-cyan-400" />}
+                                  {ticket.deviceType === 'Laptop' && <Laptop className="w-5 h-5 text-cyan-400" />}
+                                  {ticket.deviceType === 'Desktop' && <Monitor className="w-5 h-5 text-cyan-400" />}
                                 </div>
-                                <div className="text-sm text-gray-600 space-y-1">
-                                  <div><span className="font-medium">{t("color", "Color")}:</span> {ticket.deviceColor}</div>
-                                  {ticket.deviceMemory && <div><span className="font-medium">{t("memory", "Memory")}:</span> {ticket.deviceMemory}</div>}
-                                  {ticket.deviceStorageCapacity && <div><span className="font-medium">{t("storage", "Storage")}:</span> {ticket.deviceStorageCapacity}</div>}
+                                <div className="flex-1 min-w-0">
+                                  <h5 className="font-bold text-white text-sm mb-1 truncate">
+                                    {ticket.deviceType} - {ticket.deviceModel}
+                                  </h5>
+                                  <div className="space-y-1 text-xs text-gray-300">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-cyan-400">{t("color", "Color")}:</span> 
+                                      <span className="font-medium">{ticket.deviceColor}</span>
+                                    </div>
+                                    {ticket.deviceMemory && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-cyan-400">{t("memory", "Memory")}:</span>
+                                        <span className="font-medium">{ticket.deviceMemory}</span>
+                                      </div>
+                                    )}
+                                    {ticket.deviceStorageCapacity && (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-cyan-400">{t("storage", "Storage")}:</span>
+                                        <span className="font-medium">{ticket.deviceStorageCapacity}</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            
-                            {/* Visual indicators for previous services and defects */}
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {/* Services indicator */}
-                              {ticket.selectedServices && Array.isArray(ticket.selectedServices) && ticket.selectedServices.length > 0 && (
-                                <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs">
-                                  <Wrench className="w-3 h-3" />
-                                  <span>{ticket.selectedServices.length} {t("services", "services")}</span>
-                                </div>
-                              )}
                               
-                              {/* Defects indicator */}
-                              {ticket.serviceChecklist && typeof ticket.serviceChecklist === 'object' && Object.keys(ticket.serviceChecklist as Record<string, any>).length > 0 && (
-                                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-xs">
-                                  <AlertCircle className="w-3 h-3" />
-                                  <span>{Object.keys(ticket.serviceChecklist as Record<string, any>).length} {t("defects_found", "defects")}</span>
-                                </div>
-                              )}
+                              {/* Service Indicators */}
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {ticket.selectedServices && Array.isArray(ticket.selectedServices) && ticket.selectedServices.length > 0 && (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 border border-green-500/30 text-green-300 rounded-md text-xs font-medium">
+                                    <Wrench className="w-3 h-3" />
+                                    <span>{ticket.selectedServices.length} {t("services", "services")}</span>
+                                  </div>
+                                )}
+                                
+                                {ticket.serviceChecklist && typeof ticket.serviceChecklist === 'object' && Object.keys(ticket.serviceChecklist as Record<string, any>).length > 0 && (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-300 rounded-md text-xs font-medium">
+                                    <AlertCircle className="w-3 h-3" />
+                                    <span>{Object.keys(ticket.serviceChecklist as Record<string, any>).length} {t("defects_found", "defects")}</span>
+                                  </div>
+                                )}
+                                
+                                {ticket.warrantyType && ticket.status === 'finalized' && (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded-md text-xs font-medium">
+                                    <Shield className="w-3 h-3" />
+                                    <span>{ticket.warrantyType === 'extended' ? t("extended_warranty", "Extended") : t("standard_warranty", "Standard")}</span>
+                                  </div>
+                                )}
+                              </div>
                               
-                              {/* Warranty indicator */}
-                              {ticket.warrantyType && ticket.status === 'finalized' && (
-                                <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs">
-                                  <Shield className="w-3 h-3" />
-                                  <span>{ticket.warrantyType === 'extended' ? t("extended_warranty", "Extended") : t("standard_warranty", "Standard")}</span>
-                                </div>
-                              )}
+                              {/* Last Service Date */}
+                              <div className="flex items-center gap-2 text-xs text-gray-400 mb-3 pb-3 border-b border-cyan-500/20">
+                                <Clock className="w-3 h-3" />
+                                <span className="font-medium">{t("last_service", "Last Service")}:</span>
+                                <span>{ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}</span>
+                              </div>
+                              
+                              {/* Use Device Button */}
+                              <Button
+                                size="sm"
+                                className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold shadow-md"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    deviceType: ticket.deviceType || '',
+                                    deviceBrand: '',
+                                    deviceModel: ticket.deviceModel || '',
+                                    deviceColor: ticket.deviceColor || '',
+                                    deviceMemory: ticket.deviceMemory || '',
+                                    deviceStorageCapacity: ticket.deviceStorageCapacity || '',
+                                    selectedServices: [],
+                                    technicianEstimatedHours: '',
+                                    costEstimation: '',
+                                    totalCost: '',
+                                  }));
+                                  setCurrentStep(1);
+                                  toast({
+                                    title: t("device_selected", "Device Selected"),
+                                    description: t("device_info_filled", "Device information has been auto-filled"),
+                                  });
+                                }}
+                                data-testid={`button-use-device-${ticket.id}`}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                {t("use_this_device", "Use This Device")}
+                              </Button>
                             </div>
-                            
-                            <div className="text-xs text-gray-500 mb-3">
-                              <span className="font-medium">{t("last_service", "Last Service")}:</span> {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : t("not_available", "N/A")}
-                            </div>
-                            <Button
-                              size="sm"
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => {
-                                // Auto-fill device information from selected ticket
-                                // Reset dependent fields to avoid stale state
-                                setFormData(prev => ({
-                                  ...prev,
-                                  deviceType: ticket.deviceType || '',
-                                  deviceBrand: '', // Reset brand - will be auto-populated based on deviceType
-                                  deviceModel: ticket.deviceModel || '',
-                                  deviceColor: ticket.deviceColor || '',
-                                  deviceMemory: ticket.deviceMemory || '',
-                                  deviceStorageCapacity: ticket.deviceStorageCapacity || '',
-                                  // Reset service-related fields to avoid inconsistencies
-                                  selectedServices: [],
-                                  technicianEstimatedHours: '',
-                                  costEstimation: '',
-                                  totalCost: '',
-                                }));
-                                // Move to next step
-                                setCurrentStep(1);
-                                toast({
-                                  title: t("device_selected", "Device Selected"),
-                                  description: t("device_info_filled", "Device information has been auto-filled"),
-                                });
-                              }}
-                              data-testid={`button-use-device-${ticket.id}`}
-                            >
-                              {t("use_this_device", "Use This Device")}
-                            </Button>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
