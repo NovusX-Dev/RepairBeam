@@ -73,7 +73,7 @@ interface Activity {
 export function GamificationTracker() {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const { t } = useLocalization();
+  const { t, formatDate } = useLocalization();
   const [showAchievements, setShowAchievements] = useState(false);
 
   // Fetch user progress
@@ -226,7 +226,7 @@ export function GamificationTracker() {
                               </Badge>
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {new Date(userAchievement.unlockedAt).toLocaleDateString()}
+                                {formatDate(userAchievement.unlockedAt)}
                               </span>
                             </div>
                           </div>
@@ -314,7 +314,7 @@ export function GamificationTracker() {
                     </span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {new Date(activity.createdAt).toLocaleDateString()}
+                    {formatDate(activity.createdAt)}
                   </div>
                   {activity.experienceGained > 0 && (
                     <Badge variant="outline" className="text-xs">

@@ -29,7 +29,7 @@ import { FileUpload } from "@/components/FileUpload";
 import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect, Checklist } from "@shared/schema";
 
 export default function Configs() {
-  const { t, currentLanguage } = useLocalization();
+  const { t, currentLanguage, formatDate } = useLocalization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -2981,7 +2981,7 @@ export default function Configs() {
                             <div className="space-y-2 text-sm">
                               <p className="text-gray-400">
                                 <span className="font-medium">{t('last_updated', 'Last updated')}:</span> {' '}
-                                {list.lastGenerated ? new Date(list.lastGenerated).toLocaleDateString() : t('never', 'Never')}
+                                {list.lastGenerated ? formatDate(list.lastGenerated) : t('never', 'Never')}
                               </p>
                               <p className="text-gray-400">
                                 <span className="font-medium">{t('next_update', 'Next update')}:</span> {' '}

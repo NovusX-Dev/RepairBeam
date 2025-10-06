@@ -125,7 +125,7 @@ export default function ProgressVisualization({
   showAdvanceButton = true,
   headerStyle = 'detailed'
 }: ProgressVisualizationProps) {
-  const { t } = useLocalization();
+  const { t, formatDate } = useLocalization();
   const stages = getProgressStages(t);
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [renderKey, setRenderKey] = useState(0);
@@ -195,7 +195,7 @@ export default function ProgressVisualization({
           <div className="hidden lg:flex items-center text-xs text-muted-foreground space-x-1 shrink-0">
             <Clock className="h-3 w-3" />
             <span className="whitespace-nowrap">
-              {estimatedCompletion.toLocaleDateString()}
+              {formatDate(estimatedCompletion)}
             </span>
           </div>
         )}
