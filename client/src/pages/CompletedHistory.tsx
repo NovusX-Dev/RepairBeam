@@ -37,8 +37,6 @@ import {
   Wrench,
   MessageSquare
 } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from 'date-fns/locale';
 import type { Ticket, Client, RepairService } from "@shared/schema";
 import { formatCurrency as formatCurrencyFromUtility, type Locale } from "@shared/money";
 
@@ -56,7 +54,7 @@ const getDeviceIcon = (deviceType: string) => {
 };
 
 export default function CompletedHistory() {
-  const { t, currentLanguage } = useLocalization();
+  const { t, currentLanguage, formatDate } = useLocalization();
   const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
   
   // State management
@@ -148,13 +146,6 @@ export default function CompletedHistory() {
     if (!amount) return formatCurrencyFromUtility(0, locale);
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return formatCurrencyFromUtility(Math.round(numAmount * 100), locale);
-  };
-
-  // Format date helper
-  const formatDate = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return t("not_available", "N/A");
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
-    return format(date, "PPP", { locale: locale === 'pt-BR' ? ptBR : undefined });
   };
 
   // Get service name by ID
