@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -2737,76 +2737,93 @@ export default function KanbanTickets() {
                     </div>
                   )}
 
-                  {/* Selected Client Display */}
+                  {/* Selected Client Display - Aurora Design */}
                   {selectedClient && !showClientForm && (
-                    <div className="border rounded-lg p-6 bg-green-50 border-green-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-green-800">
-                          {t("selected_client", "Selected Client")}
-                        </h4>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditClientData({
-                                firstName: selectedClient.firstName,
-                                lastName: selectedClient.lastName,
-                                cpf: selectedClient.cpf || '',
-                                email: selectedClient.email || '',
-                                phone: selectedClient.phone || ''
-                              });
-                              setShowEditClientModal(true);
-                            }}
-                            data-testid="button-modify-client"
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            {t("modify", "Modify")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedClient(null)}
-                            data-testid="button-change-client"
-                          >
-                            {t("change", "Change")}
-                          </Button>
+                    <div className="bg-slate-700/40 border border-green-500/40 rounded-lg overflow-hidden shadow-lg">
+                      {/* Aurora Gradient Header */}
+                      <div className="bg-gradient-to-r from-green-900/60 via-green-700/60 to-cyan-800/60 px-5 py-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                              <CheckCircle className="w-6 h-6 text-green-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-white text-lg">
+                                {t("selected_client", "Selected Client")}
+                              </h4>
+                              <p className="text-green-200 text-xs">{t("client_confirmed", "Client information confirmed")}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditClientData({
+                                  firstName: selectedClient.firstName,
+                                  lastName: selectedClient.lastName,
+                                  cpf: selectedClient.cpf || '',
+                                  email: selectedClient.email || '',
+                                  phone: selectedClient.phone || ''
+                                });
+                                setShowEditClientModal(true);
+                              }}
+                              className="bg-white/10 hover:bg-white/20 border-white/30 text-white"
+                              data-testid="button-modify-client"
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              {t("modify", "Modify")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedClient(null)}
+                              className="bg-white/10 hover:bg-white/20 border-white/30 text-white"
+                              data-testid="button-change-client"
+                            >
+                              <Repeat className="w-4 h-4 mr-1" />
+                              {t("change", "Change")}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-sm font-medium text-green-600">{t("name", "Name")}:</span>
-                          <p className="text-green-800 font-medium">
-                            {selectedClient.firstName} {selectedClient.lastName}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <span className="text-sm font-medium text-green-600">{t("cpf", "CPF")}:</span>
-                          <p className="text-green-800 font-medium">
-                            {selectedClient.cpf 
-                              ? selectedClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-                              : t("not_provided", "Not provided")
-                            }
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <span className="text-sm font-medium text-green-600">{t("email", "Email")}:</span>
-                          <p className="text-green-800 font-medium">
-                            {selectedClient.email || t("not_provided", "Not provided")}
-                          </p>
-                        </div>
-                        
-                        <div>
-                          <span className="text-sm font-medium text-green-600">{t("phone", "Phone")}:</span>
-                          <p className="text-green-800 font-medium">
-                            {selectedClient.phone 
-                              ? (selectedClient.phone.includes('(') ? selectedClient.phone : formatBrazilianPhone(selectedClient.phone))
-                              : t("not_provided", "Not provided")
-                            }
-                          </p>
+                      {/* Client Details */}
+                      <div className="p-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-slate-800/50 p-3 rounded-lg border border-cyan-500/20">
+                            <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">{t("name", "Name")}</span>
+                            <p className="text-white font-semibold mt-1">
+                              {selectedClient.firstName} {selectedClient.lastName}
+                            </p>
+                          </div>
+                          
+                          <div className="bg-slate-800/50 p-3 rounded-lg border border-cyan-500/20">
+                            <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">{t("cpf", "CPF")}</span>
+                            <p className="text-white font-semibold mt-1">
+                              {selectedClient.cpf 
+                                ? selectedClient.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                                : t("not_provided", "Not provided")
+                              }
+                            </p>
+                          </div>
+                          
+                          <div className="bg-slate-800/50 p-3 rounded-lg border border-cyan-500/20">
+                            <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">{t("email", "Email")}</span>
+                            <p className="text-white font-semibold mt-1 break-all">
+                              {selectedClient.email || t("not_provided", "Not provided")}
+                            </p>
+                          </div>
+                          
+                          <div className="bg-slate-800/50 p-3 rounded-lg border border-cyan-500/20">
+                            <span className="text-xs font-medium text-cyan-400 uppercase tracking-wide">{t("phone", "Phone")}</span>
+                            <p className="text-white font-semibold mt-1">
+                              {selectedClient.phone 
+                                ? (selectedClient.phone.includes('(') ? selectedClient.phone : formatBrazilianPhone(selectedClient.phone))
+                                : t("not_provided", "Not provided")
+                              }
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2932,18 +2949,27 @@ export default function KanbanTickets() {
 
                   {/* Add New Client Form */}
                   {showClientForm && (
-                    <div className="space-y-6 border rounded-lg p-6 bg-muted/20">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold">{t("add_new_client", "Add New Client")}</h4>
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-cyan-400">{t("client_form", "Client Registration Form")}</h4>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setShowClientForm(false)}
+                          className="hover:bg-slate-700/50"
                           data-testid="button-cancel-add-client"
                         >
+                          <X className="w-4 h-4 mr-1" />
                           {t("cancel", "Cancel")}
                         </Button>
                       </div>
+                      
+                      {/* Personal Information Section */}
+                      <div className="bg-slate-700/30 border border-cyan-500/20 rounded-lg p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <User className="w-4 h-4 text-cyan-400" />
+                          <h5 className="text-sm font-semibold text-cyan-300 uppercase tracking-wide">{t("personal_information", "Personal Information")}</h5>
+                        </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     {/* First Name */}
@@ -2982,6 +3008,22 @@ export default function KanbanTickets() {
                       />
                     </FormFieldWithTooltip>
                   </div>
+                  </div>
+                      
+                      {/* Contact Information Section */}
+                      <div className="bg-slate-700/30 border border-cyan-500/20 rounded-lg p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          <h5 className="text-sm font-semibold text-cyan-300 uppercase tracking-wide">{t("contact_information", "Contact Information")}</h5>
+                        </div>
+                        <div className="text-xs text-cyan-200/60 mb-4 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                          {t("privacy_note", "Your information is stored securely and used only for repair services")}
+                        </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     {/* CPF */}
@@ -3049,6 +3091,17 @@ export default function KanbanTickets() {
                       />
                     </FormFieldWithTooltip>
                   </div>
+                  </div>
+                      
+                      {/* Address Information Section */}
+                      <div className="bg-slate-700/30 border border-cyan-500/20 rounded-lg p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <h5 className="text-sm font-semibold text-cyan-300 uppercase tracking-wide">{t("address_information", "Address Information")}</h5>
+                        </div>
 
                   {/* Address Fields */}
                   <div className="grid grid-cols-2 gap-4">
@@ -3131,6 +3184,7 @@ export default function KanbanTickets() {
                       />
                     </FormFieldWithTooltip>
                     <div></div>
+                  </div>
                   </div>
 
                     </div>
