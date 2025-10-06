@@ -13,6 +13,7 @@ interface LocalizationContextType {
   setCurrentLanguage: (language: typeof LANGUAGES[0]) => void;
   translations: Record<string, string>;
   t: (key: string, fallback?: string) => string;
+  formatDate: (date: Date | string | null | undefined) => string;
   isLoading: boolean;
   isChangingLanguage: boolean;
 }
@@ -138,6 +139,28 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     return translations[key] || fallback || key;
   };
 
+  // Date formatting function based on current language
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return 'N/A';
+    
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    
+    if (isNaN(dateObj.getTime())) return 'N/A';
+    
+    const day = dateObj.getDate();
+    const month = dateObj.getMonth() + 1;
+    const year = dateObj.getFullYear();
+    
+    // Format based on language
+    if (currentLanguage.code === 'pt-BR') {
+      // Brazilian format: dd/mm/yyyy
+      return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+    } else {
+      // English/US format: mm/dd/yyyy
+      return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`;
+    }
+  };
+
   // Enhanced setCurrentLanguage that saves to tenant if authenticated
   const setLanguage = async (language: typeof LANGUAGES[0]) => {
     // Don't show overlay if it's the same language
@@ -164,6 +187,7 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     setCurrentLanguage: setLanguage,
     translations,
     t,
+    formatDate,
     isLoading,
     isChangingLanguage,
   };
