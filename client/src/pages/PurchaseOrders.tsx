@@ -81,7 +81,7 @@ interface ReceiveItemForm {
 }
 
 export default function PurchaseOrders() {
-  const { t } = useLocalization();
+  const { t, getCurrencySymbol } = useLocalization();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -335,10 +335,10 @@ export default function PurchaseOrders() {
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { className: string; label: string }> = {
-      pending: { className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", label: t("pending", "Pending") },
-      ordered: { className: "bg-blue-500/20 text-blue-400 border-blue-500/30", label: t("ordered", "Ordered") },
-      received: { className: "bg-green-500/20 text-green-400 border-green-500/30", label: t("received", "Received") },
-      cancelled: { className: "bg-red-500/20 text-red-400 border-red-500/30", label: t("cancelled", "Cancelled") },
+      pending: { className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", label: t("status_pending", "Pending") },
+      ordered: { className: "bg-blue-500/20 text-blue-400 border-blue-500/30", label: t("status_ordered", "Ordered") },
+      received: { className: "bg-green-500/20 text-green-400 border-green-500/30", label: t("status_received", "Received") },
+      cancelled: { className: "bg-red-500/20 text-red-400 border-red-500/30", label: t("status_cancelled", "Cancelled") },
     };
     const config = statusMap[status] || statusMap.pending;
     return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
@@ -721,7 +721,7 @@ export default function PurchaseOrders() {
                         <div>
                           <Label className="text-xs text-slate-400">{t("cost_per_unit", "Cost per Unit")} *</Label>
                           <div className="relative mt-1">
-                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">{getCurrencySymbol()}</span>
                             <Input
                               type="number"
                               min="0"
@@ -740,7 +740,7 @@ export default function PurchaseOrders() {
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-400">{t("item_total", "Item Total")}:</span>
                           <span className="text-white font-semibold">
-                            ${(item.receivedQuantity * item.unitCost).toFixed(2)}
+                            {getCurrencySymbol()}{(item.receivedQuantity * item.unitCost).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -757,7 +757,7 @@ export default function PurchaseOrders() {
                       <span className="text-lg font-semibold text-white">{t("total_cost", "Total Cost")}:</span>
                     </div>
                     <span className="text-2xl font-bold text-cyan-400" data-testid="text-total-cost">
-                      ${totalCost.toFixed(2)}
+                      {getCurrencySymbol()}{totalCost.toFixed(2)}
                     </span>
                   </div>
                 </CardContent>
