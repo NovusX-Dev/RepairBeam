@@ -2496,46 +2496,6 @@ export default function KanbanTickets() {
             
             {/* Enhanced Progress Stepper */}
             <div className="bg-slate-800/50 border-b border-[#00FFFF]/20 py-6">
-              {/* Progress Percentage Display with Motivational Messages */}
-              <div className="mb-6 text-center space-y-3">
-                <div className="inline-flex items-center gap-3 bg-slate-700/80 px-6 py-3 rounded-full shadow-md border border-[#00FFFF]/30">
-                  <div className="text-2xl font-bold bg-gradient-to-r from-[#0A192F] to-[#00FFFF] bg-clip-text text-transparent">
-                    {Math.round((currentStep / (ticketSteps.length - 1)) * 100)}%
-                  </div>
-                  <div className="text-sm text-slate-300">
-                    {t("progress_complete", "Complete")}
-                  </div>
-                </div>
-                
-                {/* Motivational Message */}
-                <div className="text-sm text-center transition-all duration-500">
-                  {currentStep === 0 && (
-                    <div className="text-primary animate-pulse-text font-medium">
-                      🎯 {t("motivational_start", "Great! Let's find your client and get started")}
-                    </div>
-                  )}
-                  {currentStep > 0 && currentStep < ticketSteps.length - 1 && (
-                    <div className="text-green-400 animate-bounce-subtle font-medium">
-                      🚀 {t("motivational_progress", "You're making excellent progress!")}
-                    </div>
-                  )}
-                  {currentStep === ticketSteps.length - 1 && (
-                    <div className="text-yellow-400 animate-celebrate font-bold">
-                      🎉 {t("motivational_complete", "Almost there! You're a champion!")}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Achievement Badges */}
-                {currentStep > 0 && (
-                  <div className="flex justify-center gap-2">
-                    {Array.from({ length: currentStep }, (_, i) => (
-                      <div key={i} className="w-3 h-3 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }}></div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
               <div className="flex items-center justify-between relative">
                 {/* Animated Connection Line */}
                 <div className="absolute top-4 left-8 right-8 h-1 bg-muted-foreground/10 rounded-full z-0"></div>
