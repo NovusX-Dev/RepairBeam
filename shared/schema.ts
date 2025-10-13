@@ -216,7 +216,9 @@ export const suppliers = pgTable("suppliers", {
   tenantId: varchar("tenant_id").notNull(),
   name: varchar("name").notNull(),
   address: text("address"),
-  contactInfo: text("contact_info"),
+  phone: varchar("phone"),
+  cellphone: varchar("cellphone"),
+  email: varchar("email"),
   cnpj: varchar("cnpj"), // Brazilian tax ID
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

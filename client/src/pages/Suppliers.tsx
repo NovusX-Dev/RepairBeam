@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search, Building2, Phone, MapPin, FileText } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Building2, Phone, Smartphone, Mail, MapPin, FileText } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 interface Supplier {
@@ -17,7 +17,9 @@ interface Supplier {
   tenantId: string;
   name: string;
   address: string | null;
-  contactInfo: string | null;
+  phone: string | null;
+  cellphone: string | null;
+  email: string | null;
   cnpj: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -32,7 +34,9 @@ export default function Suppliers() {
   const [formData, setFormData] = useState({
     name: "",
     address: "",
-    contactInfo: "",
+    phone: "",
+    cellphone: "",
+    email: "",
     cnpj: "",
   });
 
@@ -46,17 +50,16 @@ export default function Suppliers() {
     return suppliers.filter(supplier => 
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (supplier.cnpj && supplier.cnpj.includes(searchTerm)) ||
-      (supplier.contactInfo && supplier.contactInfo.toLowerCase().includes(searchTerm.toLowerCase()))
+      (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (supplier.cellphone && supplier.cellphone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [suppliers, searchTerm]);
 
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: Partial<Supplier>) => {
-      return await apiRequest("/api/suppliers", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("POST", "/api/suppliers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
@@ -78,10 +81,7 @@ export default function Suppliers() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Supplier> }) => {
-      return await apiRequest(`/api/suppliers/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("PUT", `/api/suppliers/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
@@ -103,9 +103,7 @@ export default function Suppliers() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/suppliers/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/suppliers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
@@ -129,12 +127,14 @@ export default function Suppliers() {
       setFormData({
         name: supplier.name,
         address: supplier.address || "",
-        contactInfo: supplier.contactInfo || "",
+        phone: supplier.phone || "",
+        cellphone: supplier.cellphone || "",
+        email: supplier.email || "",
         cnpj: supplier.cnpj || "",
       });
     } else {
       setEditingSupplier(null);
-      setFormData({ name: "", address: "", contactInfo: "", cnpj: "" });
+      setFormData({ name: "", address: "", phone: "", cellphone: "", email: "", cnpj: "" });
     }
     setIsDialogOpen(true);
   };
@@ -142,7 +142,7 @@ export default function Suppliers() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingSupplier(null);
-    setFormData({ name: "", address: "", contactInfo: "", cnpj: "" });
+    setFormData({ name: "", address: "", phone: "", cellphone: "", email: "", cnpj: "" });
   };
 
   const handleSubmit = () => {
@@ -225,7 +225,9 @@ export default function Suppliers() {
                   <TableRow className="border-slate-700">
                     <TableHead className="text-slate-300">{t("name", "Name")}</TableHead>
                     <TableHead className="text-slate-300">{t("cnpj", "CNPJ")}</TableHead>
-                    <TableHead className="text-slate-300">{t("contact", "Contact")}</TableHead>
+                    <TableHead className="text-slate-300">{t("phone", "Phone")}</TableHead>
+                    <TableHead className="text-slate-300">{t("cellphone", "Cellphone")}</TableHead>
+                    <TableHead className="text-slate-300">{t("email", "Email")}</TableHead>
                     <TableHead className="text-slate-300">{t("address", "Address")}</TableHead>
                     <TableHead className="text-slate-300">{t("actions", "Actions")}</TableHead>
                   </TableRow>
@@ -235,7 +237,9 @@ export default function Suppliers() {
                     <TableRow key={supplier.id} className="border-slate-700" data-testid={`row-supplier-${supplier.id}`}>
                       <TableCell className="text-white font-medium">{supplier.name}</TableCell>
                       <TableCell className="text-slate-300">{supplier.cnpj || "-"}</TableCell>
-                      <TableCell className="text-slate-300">{supplier.contactInfo || "-"}</TableCell>
+                      <TableCell className="text-slate-300">{supplier.phone || "-"}</TableCell>
+                      <TableCell className="text-slate-300">{supplier.cellphone || "-"}</TableCell>
+                      <TableCell className="text-slate-300">{supplier.email || "-"}</TableCell>
                       <TableCell className="text-slate-300">{supplier.address || "-"}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -307,15 +311,44 @@ export default function Suppliers() {
             </div>
 
             <div>
-              <Label className="text-slate-300">{t("contact_info", "Contact Information")}</Label>
+              <Label className="text-slate-300">{t("phone", "Phone")}</Label>
               <div className="relative mt-1">
-                <Phone className="absolute left-3 top-3 text-slate-400 w-4 h-4" />
-                <Textarea
-                  placeholder={t("enter_contact_info", "Enter phone, email, or other contact details")}
-                  value={formData.contactInfo}
-                  onChange={(e) => setFormData({ ...formData, contactInfo: e.target.value })}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white min-h-[80px]"
-                  data-testid="input-supplier-contact"
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  placeholder={t("enter_phone", "Enter phone number")}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="pl-10 bg-slate-800 border-slate-700 text-white"
+                  data-testid="input-supplier-phone"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-slate-300">{t("cellphone", "Cellphone")}</Label>
+              <div className="relative mt-1">
+                <Smartphone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  placeholder={t("enter_cellphone", "Enter cellphone number")}
+                  value={formData.cellphone}
+                  onChange={(e) => setFormData({ ...formData, cellphone: e.target.value })}
+                  className="pl-10 bg-slate-800 border-slate-700 text-white"
+                  data-testid="input-supplier-cellphone"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-slate-300">{t("email", "Email")}</Label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Input
+                  type="email"
+                  placeholder={t("enter_email", "Enter email address")}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="pl-10 bg-slate-800 border-slate-700 text-white"
+                  data-testid="input-supplier-email"
                 />
               </div>
             </div>

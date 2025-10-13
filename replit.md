@@ -6,6 +6,16 @@ Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It p
 
 ## Recent Changes
 
+### October 13, 2025
+- **Phase 2 Supplier Management**: Implemented comprehensive supplier management system with CRUD operations:
+  - Supplier contact information separated into dedicated fields: Phone, Cellphone, and Email for better data organization
+  - Database schema updated with separate contact fields (phone, cellphone, email) replacing the previous single contactInfo field
+  - Aurora-designed Suppliers page with full create, read, update, delete functionality
+  - Real-time search across name, CNPJ, and all contact fields
+  - Full localization support in English and Portuguese for all supplier-related features
+  - Navigation integration with Building2 icon in sidebar
+  - Prepared for Phase 2 purchase order integration
+
 ### September 30, 2025
 - **Device History & Warranty Coverage System**: Implemented comprehensive device history tracking for returning clients with automatic warranty coverage pricing:
   - Client search now displays previous tickets with device information and "Use This Device" functionality
