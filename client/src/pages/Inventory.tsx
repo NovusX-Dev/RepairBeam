@@ -76,7 +76,6 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -150,26 +149,7 @@ export default function Inventory() {
     return items.filter(item => item.quantity <= item.minQuantity);
   }, [items]);
 
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: async (data: Partial<InventoryItem>) => {
-      const response = await fetch("/api/inventory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error("Failed to create item");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({
-        title: t("item_added_success", "Item added successfully"),
-      });
-      setShowAddDialog(false);
-      resetForm();
-    },
-  });
+  // Items now come from finalized purchase orders only
 
   // Update mutation
   const updateMutation = useMutation({
@@ -226,19 +206,6 @@ export default function Inventory() {
     });
   };
 
-  const handleAdd = () => {
-    createMutation.mutate({
-      name: formData.name,
-      description: formData.description,
-      sku: formData.sku,
-      category: formData.category,
-      quantity: parseInt(formData.quantity) || 0,
-      minQuantity: parseInt(formData.minQuantity) || 0,
-      cost: formData.cost,
-      price: formData.price,
-      supplier: formData.supplier,
-    });
-  };
 
   const handleEdit = (item: InventoryItem) => {
     setSelectedItem(item);
@@ -299,20 +266,9 @@ export default function Inventory() {
               {t("inventory_dashboard", "Inventory Dashboard")}
             </h1>
             <p className="text-slate-400 mt-1">
-              {t("inventory_management", "Inventory Management")}
+              {t("inventory_from_pos", "Items are added through Purchase Orders")}
             </p>
           </div>
-          <Button 
-            onClick={() => {
-              resetForm();
-              setShowAddDialog(true);
-            }}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-            data-testid="button-add-item"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {t("add_item", "Add Item")}
-          </Button>
         </div>
       </div>
 
@@ -544,141 +500,6 @@ export default function Inventory() {
           )}
         </CardContent>
       </Card>
-
-      {/* Add Item Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="bg-slate-900 border-cyan-500/30 max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
-              {t("add_item", "Add Item")}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-slate-300">{t("item_name", "Item Name")} *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder={t("enter_item_name", "Enter item name")}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sku" className="text-slate-300">{t("sku", "SKU")}</Label>
-              <Input
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                placeholder={t("enter_sku", "Enter SKU code")}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-sku"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="description" className="text-slate-300">{t("item_description", "Description")}</Label>
-              <Input
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder={t("enter_description", "Enter description")}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-description"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="category" className="text-slate-300">{t("category", "Category")}</Label>
-              <Input
-                id="category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder={t("select_category", "Select category")}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-category"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="supplier" className="text-slate-300">{t("supplier", "Supplier")}</Label>
-              <Input
-                id="supplier"
-                value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                placeholder={t("enter_supplier", "Enter supplier name")}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-supplier"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantity" className="text-slate-300">{t("quantity", "Quantity")} *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-quantity"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="minQuantity" className="text-slate-300">{t("min_quantity", "Minimum Quantity")} *</Label>
-              <Input
-                id="minQuantity"
-                type="number"
-                value={formData.minQuantity}
-                onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-min-quantity"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cost" className="text-slate-300">{t("cost_price", "Cost Price")}</Label>
-              <Input
-                id="cost"
-                type="number"
-                step="0.01"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-cost"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="price" className="text-slate-300">{t("selling_price", "Selling Price")}</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-price"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowAddDialog(false);
-                resetForm();
-              }}
-              className="border-slate-700"
-              data-testid="button-cancel-add"
-            >
-              {t("cancel", "Cancel")}
-            </Button>
-            <Button 
-              onClick={handleAdd}
-              disabled={!formData.name || createMutation.isPending}
-              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-              data-testid="button-confirm-add"
-            >
-              {createMutation.isPending ? t("adding", "Adding...") : t("add_item", "Add Item")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Item Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>

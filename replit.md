@@ -6,7 +6,24 @@ Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It p
 
 ## Recent Changes
 
-### October 13, 2025
+### October 13, 2025 (Phase 2 Complete)
+- **Phase 2 Purchase Order System**: Implemented complete purchase order workflow with unique inventory unit tracking:
+  - Purchase Orders page with create PO dialog: supplier selection, add items with name and ordered quantity
+  - Receive Items workflow: enter actual received quantity and cost per unit for each item
+  - Finalize PO functionality: generates unique IDs (tags) for each physical inventory unit (e.g., SCR-001, SCR-002)
+  - Backend routes for PO CRUD operations and finalize endpoint that creates inventory units
+  - PO status tracking: pending, ordered, received, cancelled
+  - Cost entry system: cost per unit (not total cost) for clarity with partial deliveries
+  - Navigation integration with ShoppingCart icon in sidebar
+  - 52 new localization keys in English and Portuguese for all PO features
+  
+- **Inventory System Update**: Refactored to reflect Phase 2 procurement flow:
+  - Removed "Add Item" button and direct item creation
+  - Items now only come from finalized purchase orders
+  - Header message indicates "Items are added through Purchase Orders"
+  - Preserved edit/delete functionality for inventory adjustments
+  - Unit-level tracking ready for future expansion
+
 - **Phase 2 Supplier Management**: Implemented comprehensive supplier management system with CRUD operations:
   - Supplier contact information separated into dedicated fields: Phone, Cellphone, and Email for better data organization
   - Database schema updated with separate contact fields (phone, cellphone, email) replacing the previous single contactInfo field
@@ -14,7 +31,6 @@ Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It p
   - Real-time search across name, CNPJ, and all contact fields
   - Full localization support in English and Portuguese for all supplier-related features
   - Navigation integration with Building2 icon in sidebar
-  - Prepared for Phase 2 purchase order integration
 
 ### September 30, 2025
 - **Device History & Warranty Coverage System**: Implemented comprehensive device history tracking for returning clients with automatic warranty coverage pricing:
