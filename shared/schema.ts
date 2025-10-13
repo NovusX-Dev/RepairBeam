@@ -264,6 +264,9 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
   orderedQuantity: integer("ordered_quantity").notNull(),
   receivedQuantity: integer("received_quantity").notNull().default(0),
   unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  deviceType: varchar("device_type"), // 'Phone', 'Laptop', 'Desktop', or null for 'Other'
+  itemType: varchar("item_type").notNull().default('Service'), // 'Service' or 'Sales'
+  description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -276,6 +279,9 @@ export const inventoryUnits = pgTable("inventory_units", {
   purchaseOrderItemId: varchar("purchase_order_item_id"),
   uniqueTag: varchar("unique_tag").notNull().unique(), // Generated unique ID for non-barcode items
   status: varchar("status").notNull().default('in_stock'), // 'in_stock', 'used', 'defective'
+  deviceType: varchar("device_type"), // Inherited from PO item: 'Phone', 'Laptop', 'Desktop', or null for 'Other'
+  itemType: varchar("item_type").notNull().default('Service'), // Inherited from PO item: 'Service' or 'Sales'
+  description: text("description"), // Inherited from PO item
   receivedAt: timestamp("received_at").defaultNow(),
   usedAt: timestamp("used_at"),
   ticketId: varchar("ticket_id"), // Associated ticket if used in repair
