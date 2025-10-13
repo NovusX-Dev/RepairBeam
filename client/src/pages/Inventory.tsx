@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { apiRequest } from "@/lib/queryClient";
@@ -87,6 +87,8 @@ export default function Inventory() {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   
   const [formData, setFormData] = useState<InventoryFormData>({
     name: "",
@@ -138,6 +140,7 @@ export default function Inventory() {
       setSortColumn(column);
       setSortDirection('asc');
     }
+    setCurrentPage(1); // Reset to first page when sorting changes
   };
 
   // Filter and sort items
@@ -215,6 +218,19 @@ export default function Inventory() {
 
     return filtered;
   }, [items, searchTerm, filterDeviceType, filterStatus, sortColumn, sortDirection]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredItems.slice(startIndex, endIndex);
+  }, [filteredItems, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterDeviceType, filterStatus]);
 
   // Low stock items for alerts (includes out of stock items)
   const lowStockItems = useMemo(() => {
@@ -603,7 +619,7 @@ export default function Inventory() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item) => {
+                  {paginatedItems.map((item) => {
                     const stockStatus = getStockStatus(item);
                     const itemValue = parseFloat(item.price || "0") * item.quantity;
                     
@@ -672,6 +688,75 @@ export default function Inventory() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!isLoading && filteredItems.length > 0 && (
+            <div className="flex items-center justify-between mt-6 px-2">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span>{t("page", "Page")} {currentPage} {t("of", "of")} {totalPages}</span>
+                <span className="text-slate-600">•</span>
+                <span>{filteredItems.length} {t("items_per_page", "items total")}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="border-slate-700"
+                  data-testid="button-previous-page"
+                >
+                  {t("previous", "Previous")}
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first page, last page, current page, and pages around current
+                      return page === 1 || 
+                             page === totalPages || 
+                             Math.abs(page - currentPage) <= 1;
+                    })
+                    .map((page, index, array) => {
+                      // Add ellipsis if there's a gap
+                      const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                      
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsisBefore && (
+                            <span className="px-2 text-slate-600">...</span>
+                          )}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className={currentPage === page 
+                              ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500" 
+                              : "border-slate-700"
+                            }
+                            data-testid={`button-page-${page}`}
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="border-slate-700"
+                  data-testid="button-next-page"
+                >
+                  {t("next", "Next")}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
