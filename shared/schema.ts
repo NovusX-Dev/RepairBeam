@@ -232,6 +232,8 @@ export const inventoryItems = pgTable("inventory_items", {
   description: text("description"),
   sku: varchar("sku"),
   category: varchar("category"),
+  deviceType: varchar("device_type"), // 'Phone', 'Laptop', 'Desktop', or null for 'Other'
+  itemType: varchar("item_type"), // 'Service' or 'Sales'
   quantity: integer("quantity").notNull().default(0),
   minQuantity: integer("min_quantity").notNull().default(0),
   cost: decimal("cost", { precision: 10, scale: 2 }),

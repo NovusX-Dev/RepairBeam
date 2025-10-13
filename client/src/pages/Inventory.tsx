@@ -76,7 +76,7 @@ export default function Inventory() {
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterDeviceType, setFilterDeviceType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -118,20 +118,21 @@ export default function Inventory() {
     };
   }, [items]);
 
-  // Get unique categories
-  const categories = useMemo(() => {
-    const cats = new Set(items.map(item => item.category).filter(Boolean));
-    return Array.from(cats) as string[];
+  // Get unique device types
+  const deviceTypes = useMemo(() => {
+    const types = new Set(items.map(item => item.deviceType).filter(Boolean));
+    return Array.from(types) as string[];
   }, [items]);
 
   // Filter items
   const filteredItems = useMemo(() => {
     return items.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+                          item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.deviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.itemType?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesCategory = filterCategory === "all" || item.category === filterCategory;
+      const matchesDeviceType = filterDeviceType === "all" || item.deviceType === filterDeviceType;
       
       let matchesStatus = true;
       if (filterStatus === "in_stock") {
@@ -142,9 +143,9 @@ export default function Inventory() {
         matchesStatus = item.quantity === 0;
       }
 
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesDeviceType && matchesStatus;
     });
-  }, [items, searchTerm, filterCategory, filterStatus]);
+  }, [items, searchTerm, filterDeviceType, filterStatus]);
 
   // Low stock items for alerts (includes out of stock items)
   const lowStockItems = useMemo(() => {
@@ -231,15 +232,10 @@ export default function Inventory() {
     updateMutation.mutate({
       id: selectedItem.id,
       data: {
-        name: formData.name,
-        description: formData.description,
-        sku: formData.sku,
-        category: formData.category,
         quantity: parseInt(formData.quantity) || 0,
         minQuantity: parseInt(formData.minQuantity) || 0,
         cost: formData.cost,
         price: formData.price,
-        supplier: formData.supplier,
       },
     });
   };
@@ -356,8 +352,20 @@ export default function Inventory() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <p className="font-semibold text-white">{item.name}</p>
-                      <p className="text-sm text-slate-400">{item.sku}</p>
+                      {item.description && (
+                        <p className="text-sm text-slate-400">{item.description}</p>
+                      )}
                       <div className="mt-2 flex items-center gap-2">
+                        {item.deviceType && (
+                          <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
+                            {item.deviceType}
+                          </Badge>
+                        )}
+                        {item.itemType && (
+                          <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
+                            {item.itemType}
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400">
                           {item.quantity} {t("in_stock", "In Stock")}
                         </Badge>
@@ -388,14 +396,14 @@ export default function Inventory() {
                 data-testid="input-search"
               />
             </div>
-            <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-full md:w-[200px] bg-slate-900/50 border-slate-700" data-testid="select-filter-category">
-                <SelectValue placeholder={t("filter_by_category", "Filter by category")} />
+            <Select value={filterDeviceType} onValueChange={setFilterDeviceType}>
+              <SelectTrigger className="w-full md:w-[200px] bg-slate-900/50 border-slate-700" data-testid="select-filter-device-type">
+                <SelectValue placeholder={t("filter_by_device_type", "Filter by device type")} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("all_items", "All Items")}</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {deviceTypes.map((type) => (
+                  <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -430,8 +438,6 @@ export default function Inventory() {
                 <TableHeader>
                   <TableRow className="border-slate-700">
                     <TableHead className="text-slate-300">{t("item", "Item")}</TableHead>
-                    <TableHead className="text-slate-300">{t("sku", "SKU")}</TableHead>
-                    <TableHead className="text-slate-300">{t("category", "Category")}</TableHead>
                     <TableHead className="text-slate-300">{t("stock_level", "Stock Level")}</TableHead>
                     <TableHead className="text-slate-300">{t("status", "Status")}</TableHead>
                     <TableHead className="text-slate-300">{t("cost_price", "Cost")}</TableHead>
@@ -467,8 +473,6 @@ export default function Inventory() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-slate-300">{item.sku || "-"}</TableCell>
-                        <TableCell className="text-slate-300">{item.category || "-"}</TableCell>
                         <TableCell className="text-slate-300">
                           {item.quantity} / {item.minQuantity}
                         </TableCell>
@@ -523,102 +527,79 @@ export default function Inventory() {
               {t("edit_item", "Edit Item")}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name" className="text-slate-300">{t("item_name", "Item Name")} *</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-name"
-              />
+          <div className="space-y-4">
+            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">{t("item_name", "Item Name")}</Label>
+                <div className="text-white font-medium">{selectedItem?.name}</div>
+              </div>
+              {selectedItem?.description && (
+                <div className="space-y-2 mt-3">
+                  <Label className="text-slate-300">{t("item_description", "Description")}</Label>
+                  <div className="text-slate-400 text-sm">{selectedItem.description}</div>
+                </div>
+              )}
+              <div className="flex gap-2 mt-3">
+                {selectedItem?.deviceType && (
+                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
+                    {selectedItem.deviceType}
+                  </Badge>
+                )}
+                {selectedItem?.itemType && (
+                  <Badge variant={selectedItem.itemType === 'Sales' ? "default" : "secondary"}>
+                    {selectedItem.itemType}
+                  </Badge>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-sku" className="text-slate-300">{t("sku", "SKU")}</Label>
-              <Input
-                id="edit-sku"
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-sku"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="edit-description" className="text-slate-300">{t("item_description", "Description")}</Label>
-              <Input
-                id="edit-description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-description"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-category" className="text-slate-300">{t("category", "Category")}</Label>
-              <Input
-                id="edit-category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-category"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-supplier" className="text-slate-300">{t("supplier", "Supplier")}</Label>
-              <Input
-                id="edit-supplier"
-                value={formData.supplier}
-                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-supplier"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-quantity" className="text-slate-300">{t("quantity", "Quantity")} *</Label>
-              <Input
-                id="edit-quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-quantity"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-minQuantity" className="text-slate-300">{t("min_quantity", "Minimum Quantity")} *</Label>
-              <Input
-                id="edit-minQuantity"
-                type="number"
-                value={formData.minQuantity}
-                onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-min-quantity"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-cost" className="text-slate-300">{t("cost_price", "Cost Price")}</Label>
-              <Input
-                id="edit-cost"
-                type="number"
-                step="0.01"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-cost"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-price" className="text-slate-300">{t("selling_price", "Selling Price")}</Label>
-              <Input
-                id="edit-price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                className="bg-slate-800 border-slate-700"
-                data-testid="input-edit-price"
-              />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-quantity" className="text-slate-300">{t("quantity", "Quantity")} *</Label>
+                <Input
+                  id="edit-quantity"
+                  type="number"
+                  value={formData.quantity}
+                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                  className="bg-slate-800 border-slate-700"
+                  data-testid="input-edit-quantity"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-minQuantity" className="text-slate-300">{t("min_quantity", "Minimum Quantity")} *</Label>
+                <Input
+                  id="edit-minQuantity"
+                  type="number"
+                  value={formData.minQuantity}
+                  onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
+                  className="bg-slate-800 border-slate-700"
+                  data-testid="input-edit-min-quantity"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-cost" className="text-slate-300">{t("cost_price", "Cost Price")}</Label>
+                <Input
+                  id="edit-cost"
+                  type="number"
+                  step="0.01"
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                  className="bg-slate-800 border-slate-700"
+                  data-testid="input-edit-cost"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-price" className="text-slate-300">{t("selling_price", "Selling Price")}</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="bg-slate-800 border-slate-700"
+                  data-testid="input-edit-price"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

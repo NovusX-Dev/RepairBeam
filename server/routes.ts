@@ -805,6 +805,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: item.itemName,
           quantity: 0,
           minQuantity: 0,
+          deviceType: item.deviceType || null,
+          itemType: item.itemType || 'Service',
+          description: item.description || null,
         });
 
         await storage.createPurchaseOrderItem({
