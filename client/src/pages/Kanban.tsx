@@ -1957,28 +1957,6 @@ export default function KanbanTickets() {
     return Object.keys(errors).length === 0;
   };
 
-  // Handle form input changes
-  const handleDateChange = (value: string) => {
-    // Limit year to 4 digits by validating the date format
-    if (value) {
-      const dateParts = value.split('-');
-      if (dateParts.length === 3) {
-        const [year, month, day] = dateParts;
-        // Ensure year is exactly 4 digits and within reasonable range
-        if (year.length > 4 || parseInt(year) > new Date().getFullYear() + 100) {
-          return; // Don't update if year is invalid
-        }
-      }
-    }
-    
-    // Update form data without validation for birthday field
-    setFormData(prev => ({ ...prev, birthday: value }));
-    
-    // Clear any errors
-    if (formErrors.birthday) {
-      setFormErrors(prev => ({ ...prev, birthday: undefined }));
-    }
-  };
 
   const validateField = (field: keyof TicketFormData, value: string) => {
     let isValid = false;
@@ -2003,10 +1981,15 @@ export default function KanbanTickets() {
         break;
       case 'birthday':
         if (!value) return false; // Don't show valid indicator when empty
-        const date = new Date(value);
-        const currentYear = new Date().getFullYear();
-        const birthYear = date.getFullYear();
-        isValid = !isNaN(date.getTime()) && birthYear >= 1900 && birthYear <= currentYear;
+        // Validate MM/DD or DD/MM format
+        const birthdayParts = value.split('/');
+        if (birthdayParts.length === 2) {
+          const [first, second] = birthdayParts.map(p => parseInt(p));
+          // Check if both parts are numbers and within valid ranges
+          isValid = !isNaN(first) && !isNaN(second) && 
+                   first >= 1 && first <= 31 && 
+                   second >= 1 && second <= 12;
+        }
         break;
       case 'apartment':
         isValid = value.trim().length > 0; // Show valid when has content
@@ -3221,29 +3204,6 @@ export default function KanbanTickets() {
                         onChange={(e) => handleInputChange('apartment', e.target.value)}
                         placeholder={t("apartment_placeholder", "e.g., Apt 4B, Block C")}
                         data-testid="input-apartment"
-                      />
-                    </FormFieldWithTooltip>
-                    <div></div>
-                  </div>
-
-                  {/* Birthday */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormFieldWithTooltip
-                      label={t("birthday", "Birthday")}
-                      tooltip={t("birthday_tooltip", "Optional field for the client's date of birth. This can help with customer identification and may be useful for warranty tracking or age-specific service policies. The date is stored securely and used only for business purposes.")}
-                      hasError={!!formErrors.birthday}
-                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0}
-                      errorMessage={formErrors.birthday}
-                    >
-                      <Input
-                        id="birthday"
-                        type="date"
-                        value={formData.birthday}
-                        onChange={(e) => handleDateChange(e.target.value)}
-                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
-                        min="1900-01-01" // Reasonable minimum year
-                        placeholder={'YYYY-MM-DD'}
-                        data-testid="input-birthday"
                       />
                     </FormFieldWithTooltip>
                     <div></div>
