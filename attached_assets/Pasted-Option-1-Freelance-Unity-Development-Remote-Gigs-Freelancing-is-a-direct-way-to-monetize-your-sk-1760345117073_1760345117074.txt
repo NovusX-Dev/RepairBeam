@@ -1,0 +1,24 @@
+Option 1: Freelance Unity Development (Remote Gigs)
+
+Freelancing is a direct way to monetize your skills by working on other people’s projects. You can take short contracts or part-time gigs in your 10 available hours weekly. Here’s how to get started and succeed in Unity freelancing:
+
+Use Freelance Platforms: Create a profile on marketplaces like Upwork, Freelancer.com, Fiverr, or Toptal. These platforms have many Unity-related jobs posted (game prototypes, bug fixes, feature additions, AR/VR apps, etc.). For example, Upwork’s marketplace shows Unity developers typically charging $20–$40 per hour
+upwork.com
+. Even at $25/hr, ~10 hours per week can yield about $1,000 per month. One Upwork veteran noted that earning $1K/month part-time is very achievable once you build a good reputation, though new freelancers might start with lower rates initially
+reddit.com
+. This means with consistency and good client reviews, you can reach your goal via freelancing.
+
+Highlight Your Niche Skills: Stand out by emphasizing what you’re best at. Mention your 2D game development experience and WebGL optimization know-how prominently in your profile/portfolio. These are sought-after skills (e.g. some clients specifically need to optimize a Unity WebGL build for the web or need a 2D expert). Also underline your Beamable expertise – Beamable is a backend-as-a-service for Unity that not many developers know deeply. If a client wants cloud features (like leaderboards, user accounts, microtransactions) without building a server from scratch, you can offer to implement Beamable for them. Your familiarity with Beamable’s Unity SDK is a unique selling point (it’s a “serverless” game backend that lets devs add online features quickly
+gate.com
+). By marketing these specialties, you can attract clients looking for exactly those solutions, reducing competition and allowing for higher rates.
+
+Start Small to Build Reputation: In the beginning, consider taking a couple of small gigs to get 5-star reviews. For instance, you might fix a few bugs, develop a simple feature, or create a mini-game prototype for a modest fee. The goal is to gather positive feedback on your profile. Once you have a strong rating and some portfolio pieces, it becomes easier to land higher-paying projects. (In the Upwork community, freelancers often say the first month or two involve hustle – after ~3 months, good freelancers start getting invites from clients instead of always bidding
+reddit.com
+reddit.com
+.)
+
+Choose Projects Strategically: Since you only have ~10 hours/week, look for short-term or part-time projects that match your expertise. Good examples: a company needs a Unity 2D developer to implement UI and animations, or an indie dev needs help porting a game to WebGL, or someone wants to add Beamable-based leaderboards to their game. Avoid commitments that require daily long hours or are heavy on things you’re not comfortable with (e.g. low-level multiplayer networking with Photon, since you indicated “Photon: No”). Focus on frontend gameplay, UI, and integrations – things you can deliver quickly and confidently. This will ensure you deliver quality on time, leading to happy clients and possible repeat contracts (recurring income).
+
+Network and Market Yourself: Even though you prefer not to “teach,” you can still engage in developer communities for networking. Consider joining Unity communities on Reddit, Unity Forums job boards, or game dev Discord groups where gigs are posted. Sometimes clients post “paid work” requests in such communities. A strong LinkedIn profile listing “Unity Developer (2D/WebGL/Beamable expert)” with a note you’re open to freelance can attract recruiters or studios looking for part-time help. Since you already work at Beamable, be sure to avoid any conflict of interest (do your freelance on personal time, and check your employment contract just to be safe). As long as it’s non-competing, most companies are fine with side gigs, but it’s good practice to keep everything transparent and separate.
+
+Why Freelancing? It offers immediate pay for work done. If you charge, say, $30/hr and work ~40 hours in a month (10 hrs/week), that’s $1,200. Plus, you can choose projects that fit your schedule. The downside is it’s an active income – you only earn for the hours/projects you work. It might not be fully “passive” or recurring if you take only one-off jobs. However, you can cultivate a few long-term clients who come back with ongoing work (e.g. monthly updates or new features for their game), giving you a steadier side income. Many freelancers eventually find stable relationships like this. With your skills and a bit of profile building, freelancing could start bringing in money within weeks. Just remember to balance it with your main job to avoid burnout (10 hours is a sensible limit).
