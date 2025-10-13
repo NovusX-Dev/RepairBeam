@@ -463,7 +463,7 @@ export default function PurchaseOrders() {
           <div className="space-y-4">
             <div>
               <Label className="text-slate-300">{t("supplier", "Supplier")} *</Label>
-              <Select value={formData.supplierId} onValueChange={(value) => setFormData({ ...formData, supplierId: value })}>
+              <Select value={formData.supplierId} onValueChange={(value) => setFormData({ ...formData, supplierId: value })} disabled={createPOMutation.isPending}>
                 <SelectTrigger className="bg-slate-800 border-slate-700 text-white mt-1" data-testid="select-supplier">
                   <SelectValue placeholder={t("select_supplier", "Select supplier")} />
                 </SelectTrigger>
@@ -485,6 +485,7 @@ export default function PurchaseOrders() {
                 onChange={(e) => setFormData({ ...formData, expectedDate: e.target.value })}
                 className="bg-slate-800 border-slate-700 text-white mt-1"
                 data-testid="input-expected-date"
+                disabled={createPOMutation.isPending}
               />
             </div>
 
@@ -498,6 +499,7 @@ export default function PurchaseOrders() {
                   onClick={handleAddItem}
                   className="border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"
                   data-testid="button-add-item"
+                  disabled={createPOMutation.isPending}
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   {t("add_item", "Add Item")}
@@ -519,6 +521,7 @@ export default function PurchaseOrders() {
                                 className="bg-slate-900 border-slate-600 text-white mt-1"
                                 placeholder={t("enter_item_name", "Enter item name")}
                                 data-testid={`input-item-name-${index}`}
+                                disabled={createPOMutation.isPending}
                               />
                             </div>
                             <div>
@@ -530,6 +533,7 @@ export default function PurchaseOrders() {
                                 onChange={(e) => handleItemChange(index, "orderedQuantity", parseInt(e.target.value) || 1)}
                                 className="bg-slate-900 border-slate-600 text-white mt-1"
                                 data-testid={`input-item-quantity-${index}`}
+                                disabled={createPOMutation.isPending}
                               />
                             </div>
                           </div>
@@ -540,6 +544,7 @@ export default function PurchaseOrders() {
                               <Select 
                                 value={item.deviceType || "other"} 
                                 onValueChange={(value) => handleItemChange(index, "deviceType", value === "other" ? null : value)}
+                                disabled={createPOMutation.isPending}
                               >
                                 <SelectTrigger className="bg-slate-900 border-slate-600 text-white mt-1" data-testid={`select-device-type-${index}`}>
                                   <SelectValue />
@@ -565,6 +570,7 @@ export default function PurchaseOrders() {
                                     onChange={(e) => handleItemChange(index, "itemType", e.target.checked ? 'Sales' : 'Service')}
                                     className="sr-only peer"
                                     data-testid={`toggle-item-type-${index}`}
+                                    disabled={createPOMutation.isPending}
                                   />
                                   <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
                                 </label>
@@ -583,6 +589,7 @@ export default function PurchaseOrders() {
                               className="bg-slate-900 border-slate-600 text-white mt-1 min-h-[60px]"
                               placeholder={t("enter_description", "Enter item description...")}
                               data-testid={`input-description-${index}`}
+                              disabled={createPOMutation.isPending}
                             />
                           </div>
                         </div>
@@ -593,6 +600,7 @@ export default function PurchaseOrders() {
                             onClick={() => handleRemoveItem(index)}
                             className="hover:bg-red-500/20 hover:text-red-400 mt-6"
                             data-testid={`button-remove-item-${index}`}
+                            disabled={createPOMutation.isPending}
                           >
                             <X className="w-4 h-4" />
                           </Button>
@@ -612,6 +620,7 @@ export default function PurchaseOrders() {
                 className="bg-slate-800 border-slate-700 text-white mt-1"
                 placeholder={t("enter_notes", "Enter any additional notes...")}
                 data-testid="input-notes"
+                disabled={createPOMutation.isPending}
               />
             </div>
           </div>
@@ -622,6 +631,7 @@ export default function PurchaseOrders() {
               onClick={handleCloseCreateDialog}
               className="border-slate-700 text-slate-300 hover:bg-slate-800"
               data-testid="button-cancel"
+              disabled={createPOMutation.isPending}
             >
               {t("cancel", "Cancel")}
             </Button>
@@ -631,7 +641,7 @@ export default function PurchaseOrders() {
               className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
               data-testid="button-save-po"
             >
-              {t("create", "Create")}
+              {createPOMutation.isPending ? t("creating", "Creating...") : t("create", "Create")}
             </Button>
           </DialogFooter>
         </DialogContent>
