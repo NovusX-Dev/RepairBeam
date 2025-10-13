@@ -759,6 +759,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Purchase order routes
+  app.get("/api/purchase-orders", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const purchaseOrders = await storage.getPurchaseOrders(user.tenantId);
+      res.json(purchaseOrders);
+    } catch (error) {
+      console.error("Error fetching purchase orders:", error);
+      res.status(500).json({ message: "Failed to fetch purchase orders" });
+    }
+  });
+
+  app.post("/api/purchase-orders", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { supplierId, items, expectedDate, notes } = req.body;
+
+      // Create the purchase order
+      const poData = {
+        tenantId: user.tenantId,
+        supplierId,
+        status: 'pending',
+        expectedDate: expectedDate ? new Date(expectedDate) : null,
+        notes: notes || null,
+      };
+
+      const newPO = await storage.createPurchaseOrder(poData);
+
+      // Create PO items - for now just store item names, we'll create inventory items when receiving
+      for (const item of items) {
+        // Create a placeholder inventory item if it doesn't exist
+        const inventoryItem = await storage.createInventoryItem({
+          tenantId: user.tenantId,
+          name: item.itemName,
+          quantity: 0,
+          minQuantity: 0,
+        });
+
+        await storage.createPurchaseOrderItem({
+          purchaseOrderId: newPO.id,
+          inventoryItemId: inventoryItem.id,
+          orderedQuantity: item.orderedQuantity,
+          receivedQuantity: 0,
+          unitCost: '0.00',
+        });
+      }
+
+      res.status(201).json(newPO);
+    } catch (error) {
+      console.error("Error creating purchase order:", error);
+      res.status(500).json({ message: "Failed to create purchase order" });
+    }
+  });
+
+  app.get("/api/purchase-orders/:id/items", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { id } = req.params;
+
+      // Verify PO belongs to tenant
+      const po = await storage.getPurchaseOrder(id, user.tenantId);
+      if (!po) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      // Get PO items with inventory item details
+      const poItems = await storage.getPurchaseOrderItems(id);
+      
+      // Fetch inventory item names
+      const itemsWithNames = await Promise.all(
+        poItems.map(async (poItem) => {
+          const inventoryItem = await storage.getInventoryItem(poItem.inventoryItemId, user.tenantId);
+          return {
+            ...poItem,
+            itemName: inventoryItem?.name || 'Unknown Item',
+          };
+        })
+      );
+
+      res.json(itemsWithNames);
+    } catch (error) {
+      console.error("Error fetching purchase order items:", error);
+      res.status(500).json({ message: "Failed to fetch purchase order items" });
+    }
+  });
+
+  app.post("/api/purchase-orders/:id/finalize", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { id } = req.params;
+      const { items } = req.body;
+
+      // Get the PO
+      const po = await storage.getPurchaseOrder(id, user.tenantId);
+      if (!po) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+
+      // Get PO items
+      const poItems = await storage.getPurchaseOrderItems(id);
+
+      let totalCost = 0;
+
+      // Process each item
+      for (const receivedItem of items) {
+        const poItem = poItems.find(item => item.inventoryItemId === receivedItem.inventoryItemId);
+        if (!poItem) continue;
+
+        // Update PO item with received quantity and unit cost
+        await storage.updatePurchaseOrderItem(poItem.id, {
+          receivedQuantity: receivedItem.receivedQuantity,
+          unitCost: receivedItem.unitCost.toString(),
+        });
+
+        // Calculate total cost
+        totalCost += receivedItem.receivedQuantity * receivedItem.unitCost;
+
+        // Generate unique IDs for each item and update inventory
+        for (let i = 0; i < receivedItem.receivedQuantity; i++) {
+          const uniqueTag = `${receivedItem.itemName.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
+          
+          await storage.createInventoryUnit({
+            inventoryItemId: poItem.inventoryItemId,
+            supplierId: po.supplierId,
+            purchaseOrderItemId: poItem.id,
+            uniqueTag,
+            status: 'in_stock',
+          });
+        }
+
+        // Update inventory item quantity
+        const inventoryItem = await storage.getInventoryItem(poItem.inventoryItemId, user.tenantId);
+        if (inventoryItem) {
+          await storage.updateInventoryItem(poItem.inventoryItemId, user.tenantId, {
+            quantity: inventoryItem.quantity + receivedItem.receivedQuantity,
+            cost: receivedItem.unitCost.toString(),
+          });
+        }
+      }
+
+      // Update PO status and total cost
+      await storage.updatePurchaseOrder(id, user.tenantId, {
+        status: 'received',
+        receivedDate: new Date(),
+        totalCost: totalCost.toString(),
+      });
+
+      res.json({ message: "Purchase order finalized successfully" });
+    } catch (error) {
+      console.error("Error finalizing purchase order:", error);
+      res.status(500).json({ message: "Failed to finalize purchase order" });
+    }
+  });
+
   // Transaction routes
   app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
