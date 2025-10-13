@@ -728,7 +728,7 @@ export default function PurchaseOrders() {
                               step="0.01"
                               value={item.unitCost}
                               onChange={(e) => handleReceiveItemChange(index, 'unitCost', parseFloat(e.target.value) || 0)}
-                              className="bg-slate-900 border-slate-600 text-white pl-7"
+                              className="bg-slate-900 border-slate-600 text-white pl-12"
                               placeholder="0.00"
                               data-testid={`input-unit-cost-${index}`}
                             />
