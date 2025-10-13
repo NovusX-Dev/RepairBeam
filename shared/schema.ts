@@ -210,6 +210,18 @@ export const authorizationRequests = pgTable("authorization_requests", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Suppliers table
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  name: varchar("name").notNull(),
+  address: text("address"),
+  contactInfo: text("contact_info"),
+  cnpj: varchar("cnpj"), // Brazilian tax ID
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Inventory items table
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -225,6 +237,61 @@ export const inventoryItems = pgTable("inventory_items", {
   supplier: varchar("supplier"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Purchase orders table
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  supplierId: varchar("supplier_id").notNull(),
+  status: varchar("status").notNull().default('pending'), // 'pending', 'ordered', 'received', 'cancelled'
+  orderDate: timestamp("order_date").defaultNow(),
+  expectedDate: timestamp("expected_date"),
+  receivedDate: timestamp("received_date"),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }).default('0.00'),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Purchase order items table
+export const purchaseOrderItems = pgTable("purchase_order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  purchaseOrderId: varchar("purchase_order_id").notNull(),
+  inventoryItemId: varchar("inventory_item_id").notNull(),
+  orderedQuantity: integer("ordered_quantity").notNull(),
+  receivedQuantity: integer("received_quantity").notNull().default(0),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Inventory units table - tracks individual items with unique IDs
+export const inventoryUnits = pgTable("inventory_units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  inventoryItemId: varchar("inventory_item_id").notNull(),
+  supplierId: varchar("supplier_id"),
+  purchaseOrderItemId: varchar("purchase_order_item_id"),
+  uniqueTag: varchar("unique_tag").notNull().unique(), // Generated unique ID for non-barcode items
+  status: varchar("status").notNull().default('in_stock'), // 'in_stock', 'used', 'defective'
+  receivedAt: timestamp("received_at").defaultNow(),
+  usedAt: timestamp("used_at"),
+  ticketId: varchar("ticket_id"), // Associated ticket if used in repair
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Inventory usage tracking table
+export const inventoryUsage = pgTable("inventory_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  inventoryItemId: varchar("inventory_item_id").notNull(),
+  inventoryUnitId: varchar("inventory_unit_id"), // Specific unit if tracked
+  ticketId: varchar("ticket_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  usageType: varchar("usage_type").notNull().default('repair'), // 'repair', 'return', 'defective'
+  cost: decimal("cost", { precision: 10, scale: 2 }),
+  occurredAt: timestamp("occurred_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Sales transactions for POS
@@ -375,8 +442,18 @@ export type Client = typeof clients.$inferSelect;
 export type InsertClient = typeof clients.$inferInsert;
 export type Ticket = typeof tickets.$inferSelect;
 export type InsertTicket = typeof tickets.$inferInsert;
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = typeof suppliers.$inferInsert;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type InsertInventoryItem = typeof inventoryItems.$inferInsert;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
+export type InsertPurchaseOrderItem = typeof purchaseOrderItems.$inferInsert;
+export type InventoryUnit = typeof inventoryUnits.$inferSelect;
+export type InsertInventoryUnit = typeof inventoryUnits.$inferInsert;
+export type InventoryUsage = typeof inventoryUsage.$inferSelect;
+export type InsertInventoryUsage = typeof inventoryUsage.$inferInsert;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = typeof transactions.$inferInsert;
 export type SupportTicket = typeof supportTickets.$inferSelect;
@@ -489,6 +566,34 @@ export const insertAuthorizationRequestSchema = createInsertSchema(authorization
 });
 
 export const insertCompletionAnalyticsSchema = createInsertSchema(completionAnalytics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryUnitSchema = createInsertSchema(inventoryUnits).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInventoryUsageSchema = createInsertSchema(inventoryUsage).omit({
   id: true,
   createdAt: true,
 });
