@@ -20,7 +20,10 @@ import {
   Edit, 
   Trash2, 
   DollarSign,
-  PackageCheck
+  PackageCheck,
+  ArrowUpDown,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react";
 import {
   Table,
@@ -82,6 +85,8 @@ export default function Inventory() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   const [formData, setFormData] = useState<InventoryFormData>({
     name: "",
@@ -125,9 +130,19 @@ export default function Inventory() {
     return Array.from(types) as string[];
   }, [items]);
 
-  // Filter items
+  // Handle sorting
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Filter and sort items
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
+    let filtered = items.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.deviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -146,7 +161,60 @@ export default function Inventory() {
 
       return matchesSearch && matchesDeviceType && matchesStatus;
     });
-  }, [items, searchTerm, filterDeviceType, filterStatus]);
+
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortColumn) {
+          case 'name':
+            aValue = a.name.toLowerCase();
+            bValue = b.name.toLowerCase();
+            break;
+          case 'category':
+            aValue = a.itemType || '';
+            bValue = b.itemType || '';
+            break;
+          case 'available':
+            aValue = a.quantity;
+            bValue = b.quantity;
+            break;
+          case 'status':
+            const statusOrder = { 'out_of_stock': 0, 'low_stock': 1, 'in_stock': 2 };
+            const getStatus = (item: InventoryItem) => {
+              if (item.quantity === 0) return 'out_of_stock';
+              if (item.quantity <= item.minQuantity) return 'low_stock';
+              return 'in_stock';
+            };
+            aValue = statusOrder[getStatus(a) as keyof typeof statusOrder];
+            bValue = statusOrder[getStatus(b) as keyof typeof statusOrder];
+            break;
+          case 'cost':
+            aValue = parseFloat(a.cost || "0");
+            bValue = parseFloat(b.cost || "0");
+            break;
+          case 'price':
+            aValue = parseFloat(a.price || "0");
+            bValue = parseFloat(b.price || "0");
+            break;
+          case 'value':
+            aValue = parseFloat(a.price || "0") * a.quantity;
+            bValue = parseFloat(b.price || "0") * b.quantity;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [items, searchTerm, filterDeviceType, filterStatus, sortColumn, sortDirection]);
 
   // Low stock items for alerts (includes out of stock items)
   const lowStockItems = useMemo(() => {
@@ -438,14 +506,100 @@ export default function Inventory() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-700">
-                    <TableHead className="text-slate-300">{t("item", "Item")}</TableHead>
-                    <TableHead className="text-slate-300">{t("category", "Category")}</TableHead>
-                    <TableHead className="text-slate-300">{t("available", "Available")}</TableHead>
-                    <TableHead className="text-slate-300">{t("status", "Status")}</TableHead>
-                    <TableHead className="text-slate-300">{t("cost_price", "Cost")}</TableHead>
-                    <TableHead className="text-slate-300">{t("selling_price", "Price")}</TableHead>
-                    <TableHead className="text-slate-300">{t("selling_value", "Selling Value")}</TableHead>
-                    <TableHead className="text-slate-300">{t("actions", "Actions")}</TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("item", "Item")}
+                        {sortColumn === 'name' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('category')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("category", "Category")}
+                        {sortColumn === 'category' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('available')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("available", "Available")}
+                        {sortColumn === 'available' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("status", "Status")}
+                        {sortColumn === 'status' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('cost')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("cost_price", "Cost Price")}
+                        {sortColumn === 'cost' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('price')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("selling_price", "Selling Price")}
+                        {sortColumn === 'price' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('value')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("selling_value", "Selling Value")}
+                        {sortColumn === 'value' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-white font-bold text-base">
+                      {t("actions", "Actions")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
