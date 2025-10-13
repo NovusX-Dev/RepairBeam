@@ -740,7 +740,7 @@ export default function PurchaseOrders() {
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-slate-400">{t("item_total", "Item Total")}:</span>
                           <span className="text-white font-semibold">
-                            {getCurrencySymbol()}{(item.receivedQuantity * item.unitCost).toFixed(2)}
+                            {getCurrencySymbol()} {(item.receivedQuantity * item.unitCost).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -753,11 +753,11 @@ export default function PurchaseOrders() {
                 <CardContent className="p-4">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-cyan-400" />
+                      <span className="text-lg font-semibold text-cyan-400">{getCurrencySymbol()}</span>
                       <span className="text-lg font-semibold text-white">{t("total_cost", "Total Cost")}:</span>
                     </div>
                     <span className="text-2xl font-bold text-cyan-400" data-testid="text-total-cost">
-                      {getCurrencySymbol()}{totalCost.toFixed(2)}
+                      {getCurrencySymbol()} {totalCost.toFixed(2)}
                     </span>
                   </div>
                 </CardContent>
