@@ -709,7 +709,7 @@ export default function PurchaseOrders() {
                             max={item.orderedQuantity}
                             value={item.receivedQuantity}
                             onChange={(e) => handleReceiveItemChange(index, 'receivedQuantity', parseInt(e.target.value) || 0)}
-                            className="bg-slate-900 border-slate-600 text-white mt-1"
+                            className="bg-slate-900 border-slate-600 text-white mt-1 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                             data-testid={`input-received-qty-${index}`}
                           />
                           {item.receivedQuantity > item.orderedQuantity && (
@@ -728,7 +728,7 @@ export default function PurchaseOrders() {
                               step="0.01"
                               value={item.unitCost}
                               onChange={(e) => handleReceiveItemChange(index, 'unitCost', parseFloat(e.target.value) || 0)}
-                              className="bg-slate-900 border-slate-600 text-white pl-12"
+                              className="bg-slate-900 border-slate-600 text-white pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                               placeholder="0.00"
                               data-testid={`input-unit-cost-${index}`}
                             />
