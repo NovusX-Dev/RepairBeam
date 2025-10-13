@@ -752,7 +752,8 @@ export default function KanbanTickets() {
     lastName: '',
     cpf: '',
     email: '',
-    phone: ''
+    phone: '',
+    birthday: ''
   });
   
   // CPF conflict state
@@ -2748,7 +2749,8 @@ export default function KanbanTickets() {
                                   lastName: selectedClient.lastName,
                                   cpf: selectedClient.cpf || '',
                                   email: selectedClient.email || '',
-                                  phone: selectedClient.phone || ''
+                                  phone: selectedClient.phone || '',
+                                  birthday: selectedClient.birthday || ''
                                 });
                                 setShowEditClientModal(true);
                               }}
@@ -3046,6 +3048,26 @@ export default function KanbanTickets() {
                         className={formErrors.lastName ? 'border-red-500' : ''}
                         placeholder={t("last_name_placeholder", "e.g., Silva Santos")}
                         data-testid="input-last-name"
+                      />
+                    </FormFieldWithTooltip>
+
+                    {/* Birthday */}
+                    <FormFieldWithTooltip
+                      label={t("birthday", "Birthday")}
+                      tooltip={t("birthday_tooltip", currentLanguage.code === 'pt-BR' 
+                        ? "Digite o aniversário do cliente (apenas mês e dia). Isso ajuda com felicitações de aniversário e ofertas especiais. Formato: DD/MM" 
+                        : "Enter the client's birthday (month and day only). This helps with birthday greetings and special offers. Format: MM/DD")}
+                      hasError={!!formErrors.birthday}
+                      isValid={fieldValidation.birthday?.isValid && formData.birthday.length > 0}
+                    >
+                      <Input
+                        id="birthday"
+                        value={formData.birthday}
+                        onChange={(e) => handleInputChange('birthday', e.target.value)}
+                        className={formErrors.birthday ? 'border-red-500' : ''}
+                        placeholder={t("birthday_placeholder", currentLanguage.code === 'pt-BR' ? 'DD/MM' : 'MM/DD')}
+                        maxLength={5}
+                        data-testid="input-birthday"
                       />
                     </FormFieldWithTooltip>
                   </div>
@@ -6381,6 +6403,18 @@ export default function KanbanTickets() {
                 data-testid="input-edit-phone"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-birthday">{t("birthday", "Birthday")}</Label>
+              <Input
+                id="edit-birthday"
+                value={editClientData.birthday}
+                onChange={(e) => setEditClientData(prev => ({ ...prev, birthday: e.target.value }))}
+                placeholder={t("birthday_placeholder", currentLanguage.code === 'pt-BR' ? 'DD/MM' : 'MM/DD')}
+                maxLength={5}
+                data-testid="input-edit-birthday"
+              />
+            </div>
           </div>
           
           <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
@@ -6401,7 +6435,8 @@ export default function KanbanTickets() {
                       lastName: editClientData.lastName,
                       cpf: editClientData.cpf,
                       email: editClientData.email,
-                      phone: editClientData.phone
+                      phone: editClientData.phone,
+                      birthday: editClientData.birthday
                     }
                   });
                 }
