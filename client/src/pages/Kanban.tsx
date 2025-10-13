@@ -3201,16 +3201,21 @@ export default function KanbanTickets() {
                     <Select
                       value={formData.deviceType}
                       onValueChange={(value) => {
-                        // Reset dependent fields when device type changes
-                        setFormData(prev => ({
-                          ...prev,
-                          deviceType: value,
-                          deviceBrand: '',
-                          deviceModel: '',
-                          deviceColor: '',
-                          deviceMemory: '',
-                          deviceStorageCapacity: ''
-                        }));
+                        // Reset dependent fields only when device type actually changes
+                        setFormData(prev => {
+                          if (prev.deviceType === value) {
+                            return prev;
+                          }
+                          return {
+                            ...prev,
+                            deviceType: value,
+                            deviceBrand: '',
+                            deviceModel: '',
+                            deviceColor: '',
+                            deviceMemory: '',
+                            deviceStorageCapacity: ''
+                          };
+                        });
                       }}
                       data-testid="select-device-type"
                     >
