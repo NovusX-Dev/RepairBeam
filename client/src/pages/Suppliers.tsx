@@ -143,6 +143,41 @@ export default function Suppliers() {
     }
   };
 
+  // Format Brazilian landline phone: (XX) XXXX-XXXX
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    const limitedNumbers = numbers.slice(0, 10);
+    
+    if (limitedNumbers.length <= 2) {
+      return limitedNumbers;
+    } else if (limitedNumbers.length <= 6) {
+      return `(${limitedNumbers.slice(0, 2)}) ${limitedNumbers.slice(2)}`;
+    } else {
+      return `(${limitedNumbers.slice(0, 2)}) ${limitedNumbers.slice(2, 6)}-${limitedNumbers.slice(6)}`;
+    }
+  };
+
+  // Format Brazilian cellphone: (XX) XXXXX-XXXX
+  const formatCellphone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    const limitedNumbers = numbers.slice(0, 11);
+    
+    if (limitedNumbers.length <= 2) {
+      return limitedNumbers;
+    } else if (limitedNumbers.length <= 7) {
+      return `(${limitedNumbers.slice(0, 2)}) ${limitedNumbers.slice(2)}`;
+    } else {
+      return `(${limitedNumbers.slice(0, 2)}) ${limitedNumbers.slice(2, 7)}-${limitedNumbers.slice(7)}`;
+    }
+  };
+
+  // Validate email format
+  const isValidEmail = (email: string) => {
+    if (!email) return true; // Empty is valid (optional field)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleOpenDialog = (supplier?: Supplier) => {
     if (supplier) {
       setEditingSupplier(supplier);
@@ -172,6 +207,15 @@ export default function Suppliers() {
       toast({
         title: t("error", "Error"),
         description: t("supplier_name_required", "Supplier name is required"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.email && !isValidEmail(formData.email)) {
+      toast({
+        title: t("error", "Error"),
+        description: t("invalid_email", "Please enter a valid email address"),
         variant: "destructive",
       });
       return;
@@ -338,11 +382,12 @@ export default function Suppliers() {
               <div className="relative mt-1">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder={t("enter_phone", "Enter phone number")}
+                  placeholder="(11) 1234-5678"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
                   className="pl-10 bg-slate-800 border-slate-700 text-white"
                   data-testid="input-supplier-phone"
+                  maxLength={14}
                 />
               </div>
             </div>
@@ -352,11 +397,12 @@ export default function Suppliers() {
               <div className="relative mt-1">
                 <Smartphone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder={t("enter_cellphone", "Enter cellphone number")}
+                  placeholder="(11) 91234-5678"
                   value={formData.cellphone}
-                  onChange={(e) => setFormData({ ...formData, cellphone: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, cellphone: formatCellphone(e.target.value) })}
                   className="pl-10 bg-slate-800 border-slate-700 text-white"
                   data-testid="input-supplier-cellphone"
+                  maxLength={15}
                 />
               </div>
             </div>
@@ -367,12 +413,15 @@ export default function Suppliers() {
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
                   type="email"
-                  placeholder={t("enter_email", "Enter email address")}
+                  placeholder="supplier@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="pl-10 bg-slate-800 border-slate-700 text-white"
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
+                  className={`pl-10 bg-slate-800 border-slate-700 text-white ${formData.email && !isValidEmail(formData.email) ? 'border-red-500' : ''}`}
                   data-testid="input-supplier-email"
                 />
+                {formData.email && !isValidEmail(formData.email) && (
+                  <p className="text-red-400 text-xs mt-1">{t("invalid_email_format", "Invalid email format")}</p>
+                )}
               </div>
             </div>
 

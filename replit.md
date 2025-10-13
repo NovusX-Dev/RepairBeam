@@ -29,6 +29,11 @@ Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It p
   - Database schema updated with separate contact fields (phone, cellphone, email) replacing the previous single contactInfo field
   - Aurora-designed Suppliers page with full create, read, update, delete functionality
   - Real-time search across name, CNPJ, and all contact fields
+  - Brazilian formatting standards:
+    - CNPJ: Automatic formatting to XX.XXX.XXX/XXXX-XX (14 digits, 18 chars with formatting)
+    - Phone (Landline): Automatic formatting to (XX) XXXX-XXXX (10 digits, 14 chars with formatting)
+    - Cellphone: Automatic formatting to (XX) XXXXX-XXXX (11 digits, 15 chars with formatting)
+    - Email: Real-time validation with error highlighting and auto-lowercase conversion
   - Full localization support in English and Portuguese for all supplier-related features
   - Navigation integration with Building2 icon in sidebar
 
