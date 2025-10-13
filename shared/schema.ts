@@ -168,6 +168,7 @@ export const tickets = pgTable("tickets", {
   estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
   actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
   deviceType: varchar("device_type"),
+  deviceBrand: varchar("device_brand"),
   deviceModel: varchar("device_model"),
   deviceColor: varchar("device_color"),
   deviceMemory: varchar("device_memory"),

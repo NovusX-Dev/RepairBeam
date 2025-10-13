@@ -2902,13 +2902,6 @@ export default function KanbanTickets() {
                                 size="sm"
                                 className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold shadow-md"
                                 onClick={() => {
-                                  console.log('🔍 Use This Device clicked. Ticket data:', {
-                                    deviceType: ticket.deviceType,
-                                    deviceBrand: ticket.deviceBrand,
-                                    deviceModel: ticket.deviceModel,
-                                    deviceColor: ticket.deviceColor,
-                                  });
-                                  
                                   setFormData(prev => ({
                                     ...prev,
                                     deviceType: ticket.deviceType || '',
@@ -2922,9 +2915,6 @@ export default function KanbanTickets() {
                                     costEstimation: '',
                                     totalCost: '',
                                   }));
-                                  
-                                  console.log('✅ FormData updated. New brand value:', ticket.deviceBrand || '(empty)');
-                                  
                                   setCurrentStep(1);
                                   toast({
                                     title: t("device_selected", "Device Selected"),
