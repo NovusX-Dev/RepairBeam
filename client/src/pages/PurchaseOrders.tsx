@@ -14,6 +14,16 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Search, ShoppingCart, Package, DollarSign, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Supplier {
   id: string;
@@ -76,8 +86,10 @@ export default function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
-  const [items, setItems] = useState<POItem[]>([{ itemName: "", orderedQuantity: 1 }]);
+  const [poToCancel, setPoToCancel] = useState<PurchaseOrder | null>(null);
+  const [items, setItems] = useState<POItem[]>([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
   const [receiveItems, setReceiveItems] = useState<ReceiveItemForm[]>([]);
   const [formData, setFormData] = useState({
     supplierId: "",
@@ -149,6 +161,29 @@ export default function PurchaseOrders() {
     },
   });
 
+  // Cancel PO mutation
+  const cancelPOMutation = useMutation({
+    mutationFn: async (poId: string) => {
+      return await apiRequest("PATCH", `/api/purchase-orders/${poId}/cancel`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+      toast({
+        title: t("success", "Success"),
+        description: t("po_cancelled", "Purchase order cancelled successfully"),
+      });
+      setIsCancelDialogOpen(false);
+      setPoToCancel(null);
+    },
+    onError: () => {
+      toast({
+        title: t("error", "Error"),
+        description: t("po_cancel_failed", "Failed to cancel purchase order"),
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleOpenCreateDialog = () => {
     setFormData({ supplierId: "", expectedDate: "", notes: "" });
     setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
@@ -169,7 +204,7 @@ export default function PurchaseOrders() {
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleItemChange = (index: number, field: keyof POItem, value: string | number) => {
+  const handleItemChange = (index: number, field: keyof POItem, value: string | number | null) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
@@ -287,15 +322,26 @@ export default function PurchaseOrders() {
     });
   };
 
+  const handleCancelPO = (po: PurchaseOrder) => {
+    setPoToCancel(po);
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancelPO = () => {
+    if (poToCancel) {
+      cancelPOMutation.mutate(poToCancel.id);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-      pending: { variant: "secondary", label: t("pending", "Pending") },
-      ordered: { variant: "default", label: t("ordered", "Ordered") },
-      received: { variant: "outline", label: t("received", "Received") },
-      cancelled: { variant: "destructive", label: t("cancelled", "Cancelled") },
+    const statusMap: Record<string, { className: string; label: string }> = {
+      pending: { className: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", label: t("pending", "Pending") },
+      ordered: { className: "bg-blue-500/20 text-blue-400 border-blue-500/30", label: t("ordered", "Ordered") },
+      received: { className: "bg-green-500/20 text-green-400 border-green-500/30", label: t("received", "Received") },
+      cancelled: { className: "bg-red-500/20 text-red-400 border-red-500/30", label: t("cancelled", "Cancelled") },
     };
     const config = statusMap[status] || statusMap.pending;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant="outline" className={config.className}>{config.label}</Badge>;
   };
 
   return (
@@ -333,9 +379,9 @@ export default function PurchaseOrders() {
       </Card>
 
       {/* Purchase Orders Table */}
-      <Card className="bg-slate-800/50 border-cyan-500/20">
-        <CardHeader className="bg-gradient-to-r from-slate-900 to-slate-800 border-b border-cyan-500/20">
-          <CardTitle className="text-white flex items-center gap-2">
+      <Card className="bg-slate-900 border-cyan-500/20">
+        <CardHeader className="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 border-b border-cyan-500/20">
+          <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
             <ShoppingCart className="w-5 h-5 text-cyan-400" />
             {t("po_list", "Purchase Order List")}
           </CardTitle>
@@ -357,7 +403,6 @@ export default function PurchaseOrders() {
                     <TableHead className="text-slate-300">{t("supplier", "Supplier")}</TableHead>
                     <TableHead className="text-slate-300">{t("status", "Status")}</TableHead>
                     <TableHead className="text-slate-300">{t("order_date", "Order Date")}</TableHead>
-                    <TableHead className="text-slate-300">{t("total_cost", "Total Cost")}</TableHead>
                     <TableHead className="text-slate-300">{t("actions", "Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -370,19 +415,29 @@ export default function PurchaseOrders() {
                         <TableCell className="text-slate-300">{supplier?.name || "-"}</TableCell>
                         <TableCell>{getStatusBadge(po.status)}</TableCell>
                         <TableCell className="text-slate-300">{format(new Date(po.orderDate), "MMM dd, yyyy")}</TableCell>
-                        <TableCell className="text-slate-300">${po.totalCost}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {po.status === 'pending' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenReceiveDialog(po)}
-                                className="hover:bg-green-500/20 hover:text-green-400"
-                                data-testid={`button-receive-${po.id}`}
-                              >
-                                <Package className="w-4 h-4" />
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenReceiveDialog(po)}
+                                  className="hover:bg-green-500/20 hover:text-green-400"
+                                  data-testid={`button-receive-${po.id}`}
+                                >
+                                  <Package className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleCancelPO(po)}
+                                  className="hover:bg-red-500/20 hover:text-red-400"
+                                  data-testid={`button-cancel-${po.id}`}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
                             )}
                           </div>
                         </TableCell>
@@ -597,6 +652,12 @@ export default function PurchaseOrders() {
             )}
           </DialogHeader>
 
+          <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3 mb-4">
+            <p className="text-sm text-cyan-300">
+              {t("receive_items_note", "Enter the actual received quantities and cost per unit for each item. The system will generate unique IDs for inventory tracking when you finalize.")}
+            </p>
+          </div>
+
           {isLoadingPOItems ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-500 border-t-transparent"></div>
@@ -735,6 +796,38 @@ export default function PurchaseOrders() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel PO Confirmation Dialog */}
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent className="bg-slate-900 border-red-500/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl text-white">
+              {t("cancel_po_title", "Cancel Purchase Order")}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              {t("cancel_po_message", "Are you sure you want to cancel this purchase order? This action cannot be undone.")}
+              {poToCancel && (
+                <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                  <p className="text-sm text-slate-300">
+                    <span className="font-semibold">PO #:</span> {poToCancel.id.slice(0, 8).toUpperCase()}
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 text-slate-300 hover:bg-slate-800">
+              {t("keep_po", "Keep Purchase Order")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelPO}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {cancelPOMutation.isPending ? t("cancelling", "Cancelling...") : t("yes_cancel", "Yes, Cancel")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
