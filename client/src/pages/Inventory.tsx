@@ -126,11 +126,8 @@ export default function Inventory() {
     };
   }, [items]);
 
-  // Get unique device types
-  const deviceTypes = useMemo(() => {
-    const types = new Set(items.map(item => item.deviceType).filter(Boolean));
-    return Array.from(types) as string[];
-  }, [items]);
+  // All possible device types
+  const deviceTypes = ['Phone', 'Laptop', 'Desktop', 'Other'];
 
   // Handle sorting
   const handleSort = (column: string) => {
@@ -471,38 +468,47 @@ export default function Inventory() {
       <Card className="bg-slate-800/50 border-cyan-500/20">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder={t("search_items", "Search items...")}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-slate-900/50 border-slate-700"
-                data-testid="input-search"
-              />
+            <div className="flex-1">
+              <Label className="text-slate-300 text-sm mb-2 block">{t("search", "Search")}</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder={t("search_items", "Search items...")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 bg-slate-900/50 border-slate-700"
+                  data-testid="input-search"
+                />
+              </div>
             </div>
-            <Select value={filterDeviceType} onValueChange={setFilterDeviceType}>
-              <SelectTrigger className="w-full md:w-[200px] bg-slate-900/50 border-slate-700" data-testid="select-filter-device-type">
-                <SelectValue placeholder={t("filter_by_device_type", "Filter by device type")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("all_items", "All Items")}</SelectItem>
-                {deviceTypes.map((type) => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full md:w-[200px] bg-slate-900/50 border-slate-700" data-testid="select-filter-status">
-                <SelectValue placeholder={t("filter_by_status", "Filter by status")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("all_items", "All Items")}</SelectItem>
-                <SelectItem value="in_stock">{t("in_stock", "In Stock")}</SelectItem>
-                <SelectItem value="low_stock">{t("low_stock", "Low Stock")}</SelectItem>
-                <SelectItem value="out_of_stock">{t("out_of_stock", "Out of Stock")}</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-full md:w-[200px]">
+              <Label className="text-slate-300 text-sm mb-2 block">{t("device_type", "Device Type")}</Label>
+              <Select value={filterDeviceType} onValueChange={setFilterDeviceType}>
+                <SelectTrigger className="bg-slate-900/50 border-slate-700" data-testid="select-filter-device-type">
+                  <SelectValue placeholder={t("all_items", "All Items")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all_items", "All Items")}</SelectItem>
+                  {deviceTypes.map((type) => (
+                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-[200px]">
+              <Label className="text-slate-300 text-sm mb-2 block">{t("stock_status", "Stock Status")}</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="bg-slate-900/50 border-slate-700" data-testid="select-filter-status">
+                  <SelectValue placeholder={t("all_items", "All Items")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all_items", "All Items")}</SelectItem>
+                  <SelectItem value="in_stock">{t("in_stock", "In Stock")}</SelectItem>
+                  <SelectItem value="low_stock">{t("low_stock", "Low Stock")}</SelectItem>
+                  <SelectItem value="out_of_stock">{t("out_of_stock", "Out of Stock")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
