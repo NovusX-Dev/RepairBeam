@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Package, 
@@ -367,10 +368,10 @@ export default function Inventory() {
                           </Badge>
                         )}
                         <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400">
-                          {item.quantity} {t("in_stock", "In Stock")}
+                          {item.quantity} {t("available", "Available")}
                         </Badge>
                         <span className="text-xs text-slate-400">
-                          {t("min_quantity", "Min")}: {item.minQuantity}
+                          {t("alert", "Alert")}: {item.minQuantity}
                         </span>
                       </div>
                     </div>
@@ -438,11 +439,12 @@ export default function Inventory() {
                 <TableHeader>
                   <TableRow className="border-slate-700">
                     <TableHead className="text-slate-300">{t("item", "Item")}</TableHead>
-                    <TableHead className="text-slate-300">{t("stock_level", "Stock Level")}</TableHead>
+                    <TableHead className="text-slate-300">{t("category", "Category")}</TableHead>
+                    <TableHead className="text-slate-300">{t("available", "Available")}</TableHead>
                     <TableHead className="text-slate-300">{t("status", "Status")}</TableHead>
                     <TableHead className="text-slate-300">{t("cost_price", "Cost")}</TableHead>
                     <TableHead className="text-slate-300">{t("selling_price", "Price")}</TableHead>
-                    <TableHead className="text-slate-300">{t("value", "Value")}</TableHead>
+                    <TableHead className="text-slate-300">{t("selling_value", "Selling Value")}</TableHead>
                     <TableHead className="text-slate-300">{t("actions", "Actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -459,22 +461,24 @@ export default function Inventory() {
                             {item.description && (
                               <div className="text-sm text-slate-400">{item.description}</div>
                             )}
-                            <div className="flex gap-2 mt-1">
-                              {item.deviceType && (
+                            {item.deviceType && (
+                              <div className="flex gap-2 mt-1">
                                 <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
                                   {item.deviceType}
                                 </Badge>
-                              )}
-                              {item.itemType && (
-                                <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
-                                  {item.itemType}
-                                </Badge>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         </TableCell>
+                        <TableCell>
+                          {item.itemType && (
+                            <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"}>
+                              {item.itemType}
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-slate-300">
-                          {item.quantity} / {item.minQuantity}
+                          {item.quantity}
                         </TableCell>
                         <TableCell>
                           <Badge variant={stockStatus.color}>
@@ -529,9 +533,21 @@ export default function Inventory() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-              <div className="space-y-2">
-                <Label className="text-slate-300">{t("item_name", "Item Name")}</Label>
-                <div className="text-white font-medium">{selectedItem?.name}</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-300">{t("item_name", "Item Name")}</Label>
+                  <div className="text-white font-medium">{selectedItem?.name}</div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-300">{t("category", "Category")}</Label>
+                  <div>
+                    {selectedItem?.itemType && (
+                      <Badge variant={selectedItem.itemType === 'Sales' ? "default" : "secondary"}>
+                        {selectedItem.itemType}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
               {selectedItem?.description && (
                 <div className="space-y-2 mt-3">
@@ -539,18 +555,16 @@ export default function Inventory() {
                   <div className="text-slate-400 text-sm">{selectedItem.description}</div>
                 </div>
               )}
-              <div className="flex gap-2 mt-3">
-                {selectedItem?.deviceType && (
-                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
-                    {selectedItem.deviceType}
-                  </Badge>
-                )}
-                {selectedItem?.itemType && (
-                  <Badge variant={selectedItem.itemType === 'Sales' ? "default" : "secondary"}>
-                    {selectedItem.itemType}
-                  </Badge>
-                )}
-              </div>
+              {selectedItem?.deviceType && (
+                <div className="space-y-2 mt-3">
+                  <Label className="text-slate-300">{t("device_type", "Device Type")}</Label>
+                  <div>
+                    <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
+                      {selectedItem.deviceType}
+                    </Badge>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -566,7 +580,18 @@ export default function Inventory() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-minQuantity" className="text-slate-300">{t("min_quantity", "Minimum Quantity")} *</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Label htmlFor="edit-minQuantity" className="text-slate-300 cursor-help">
+                        {t("alert_quantity", "Alert Quantity")} *
+                      </Label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t("alert_quantity_tooltip", "Triggers low stock alert when quantity reaches this level")}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Input
                   id="edit-minQuantity"
                   type="number"
