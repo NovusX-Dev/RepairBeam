@@ -121,6 +121,28 @@ export default function Suppliers() {
     },
   });
 
+  // Format CNPJ as user types
+  const formatCNPJ = (value: string) => {
+    // Remove all non-numeric characters
+    const numbers = value.replace(/\D/g, '');
+    
+    // Limit to 14 digits
+    const limitedNumbers = numbers.slice(0, 14);
+    
+    // Apply formatting: XX.XXX.XXX/XXXX-XX
+    if (limitedNumbers.length <= 2) {
+      return limitedNumbers;
+    } else if (limitedNumbers.length <= 5) {
+      return `${limitedNumbers.slice(0, 2)}.${limitedNumbers.slice(2)}`;
+    } else if (limitedNumbers.length <= 8) {
+      return `${limitedNumbers.slice(0, 2)}.${limitedNumbers.slice(2, 5)}.${limitedNumbers.slice(5)}`;
+    } else if (limitedNumbers.length <= 12) {
+      return `${limitedNumbers.slice(0, 2)}.${limitedNumbers.slice(2, 5)}.${limitedNumbers.slice(5, 8)}/${limitedNumbers.slice(8)}`;
+    } else {
+      return `${limitedNumbers.slice(0, 2)}.${limitedNumbers.slice(2, 5)}.${limitedNumbers.slice(5, 8)}/${limitedNumbers.slice(8, 12)}-${limitedNumbers.slice(12)}`;
+    }
+  };
+
   const handleOpenDialog = (supplier?: Supplier) => {
     if (supplier) {
       setEditingSupplier(supplier);
@@ -301,11 +323,12 @@ export default function Suppliers() {
               <div className="relative mt-1">
                 <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder={t("enter_cnpj", "Enter CNPJ")}
+                  placeholder={t("enter_cnpj", "Digite o CNPJ")}
                   value={formData.cnpj}
-                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })}
                   className="pl-10 bg-slate-800 border-slate-700 text-white"
                   data-testid="input-supplier-cnpj"
+                  maxLength={18}
                 />
               </div>
             </div>
