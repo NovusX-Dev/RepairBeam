@@ -91,6 +91,74 @@ Preferred communication style: Simple, everyday language.
 - **Event Handlers**: camelCase with `handle` prefix
 - **Critical Rule**: Never mix naming conventions within the same context; database schema and API responses use camelCase for TypeScript/frontend consistency.
 
+### Inventory Management Best Practices
+
+#### Core Principles for Repair Shop Inventory
+- **Workflow-Based Organization**: Arrange parts by device type, brand, or usage frequency to match repair flow
+- **Part-to-Ticket Tracking**: Every inventory item used must be tied to a specific repair ticket for accurate costing, warranties, and analytics
+- **Real-Time Updates**: Inventory levels update automatically as parts are used in repairs, eliminating manual tracking
+- **Predictive Alerts**: Low-stock notifications and reorder points based on historical usage patterns
+- **SKU/Barcode System**: Implement from day one for instant updates and error reduction
+
+#### Dashboard Design Patterns
+**Visual Hierarchy:**
+- **KPI Row** (top): Total inventory value, items in stock, low stock alerts, turnover ratio
+- **Critical Alerts Section**: Items running out in <31 days with prominent visual indicators
+- **Analytics Charts**: Stock levels over time (line chart), inventory by location (bar chart), category distribution (donut chart)
+- **Activity Table**: Recent transactions/updates for quick reference
+
+**Color-Coding Standards:**
+- Green: Healthy stock levels (>31 days supply)
+- Orange/Yellow: Low stock warning (8-31 days supply)
+- Red: Critical/Out of stock (<8 days supply)
+- Use consistent Aurora theme gradients for cards and headers
+
+**UI Components:**
+- Card-based responsive layout following Aurora design pattern
+- Searchable/filterable tables with sort capability
+- Quick action buttons (Add Stock, Reorder, Transfer, Use in Ticket)
+- Real-time sync indicators
+- Export functionality (CSV/Excel for reports)
+- Progressive disclosure for detailed part information
+
+#### Essential Metrics to Track
+- **Stock Metrics**: On-hand quantities by SKU, physical vs. allocated stock, days until run-out projections
+- **Financial Metrics**: Total inventory value, cost per repair, margin analysis, excess stock value
+- **Operational Metrics**: Inventory turnover rate, stock-out frequency, parts usage by device type, reorder accuracy
+- **Predictive Analytics**: Demand forecasting based on historical repair patterns, seasonal adjustments
+
+#### Integration Architecture
+- **Ticket System Integration**: Seamless part selection during repair ticket creation; automatic inventory deduction when parts are used
+- **Multi-Location Support**: Track inventory across multiple warehouses or repair locations with transfer capabilities
+- **Supplier Management**: Track suppliers, lead times, and purchase orders for automated reordering
+- **Cost Tracking**: Link part costs to repair tickets for accurate profit/loss analysis per repair
+
+#### Mobile-First Considerations
+- Barcode/QR scanning from mobile devices for receiving and using parts
+- Touch-friendly interfaces for technicians in repair area
+- Offline mode capability for warehouse operations
+- Push notifications for critical alerts
+- Responsive card layouts that stack on mobile
+
+#### Implementation Phases
+**Phase 1 - Core Functionality:**
+- Real-time inventory dashboard with essential KPIs
+- Part-to-ticket tracking (critical for repair cost accuracy)
+- CRUD operations with search/filter
+- Low stock alerts and basic reporting
+
+**Phase 2 - Enhanced Features:**
+- Barcode/QR scanning integration
+- Multi-location inventory management
+- Usage analytics and demand forecasting
+- Supplier management and purchase orders
+
+**Phase 3 - Advanced:**
+- Automated reordering based on predictive analytics
+- Advanced cost tracking and margin analysis
+- Mobile app for warehouse operations
+- Integration with accounting systems
+
 ## External Dependencies
 
 ### Database & Storage
