@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search, ShoppingCart, Package, DollarSign, X } from "lucide-react";
+import { Plus, Edit, Trash2, Search, ShoppingCart, Package, DollarSign, X, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import {
@@ -96,6 +96,10 @@ export default function PurchaseOrders() {
     expectedDate: "",
     notes: "",
   });
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Fetch purchase orders
   const { data: purchaseOrders = [], isLoading } = useQuery<PurchaseOrder[]>({
@@ -107,14 +111,76 @@ export default function PurchaseOrders() {
     queryKey: ["/api/suppliers"],
   });
 
-  // Filter purchase orders
+  // Handle sorting
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Filter and sort purchase orders
   const filteredPOs = useMemo(() => {
-    return purchaseOrders.filter(po => {
+    let filtered = purchaseOrders.filter(po => {
       const supplier = suppliers.find(s => s.id === po.supplierId);
       return supplier?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         po.status.toLowerCase().includes(searchTerm.toLowerCase());
     });
-  }, [purchaseOrders, suppliers, searchTerm]);
+
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortColumn) {
+          case 'po_number':
+            aValue = a.id.toLowerCase();
+            bValue = b.id.toLowerCase();
+            break;
+          case 'supplier':
+            const supplierA = suppliers.find(s => s.id === a.supplierId);
+            const supplierB = suppliers.find(s => s.id === b.supplierId);
+            aValue = supplierA?.name.toLowerCase() || '';
+            bValue = supplierB?.name.toLowerCase() || '';
+            break;
+          case 'status':
+            const statusOrder = { 'cancelled': 0, 'pending': 1, 'ordered': 2, 'received': 3 };
+            aValue = statusOrder[a.status as keyof typeof statusOrder] || 999;
+            bValue = statusOrder[b.status as keyof typeof statusOrder] || 999;
+            break;
+          case 'order_date':
+            aValue = new Date(a.orderDate).getTime();
+            bValue = new Date(b.orderDate).getTime();
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [purchaseOrders, suppliers, searchTerm, sortColumn, sortDirection]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredPOs.length / itemsPerPage);
+  const paginatedPOs = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredPOs.slice(startIndex, endIndex);
+  }, [filteredPOs, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Create PO mutation
   const createPOMutation = useMutation({
@@ -399,15 +465,65 @@ export default function PurchaseOrders() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-700">
-                    <TableHead className="text-slate-300">{t("po_number", "PO #")}</TableHead>
-                    <TableHead className="text-slate-300">{t("supplier", "Supplier")}</TableHead>
-                    <TableHead className="text-slate-300">{t("status", "Status")}</TableHead>
-                    <TableHead className="text-slate-300">{t("order_date", "Order Date")}</TableHead>
-                    <TableHead className="text-slate-300">{t("actions", "Actions")}</TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('po_number')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("po_number", "PO #")}
+                        {sortColumn === 'po_number' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('supplier')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("supplier", "Supplier")}
+                        {sortColumn === 'supplier' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("status", "Status")}
+                        {sortColumn === 'status' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-white font-bold text-base cursor-pointer hover:text-cyan-400 transition-colors"
+                      onClick={() => handleSort('order_date')}
+                    >
+                      <div className="flex items-center gap-2">
+                        {t("order_date", "Order Date")}
+                        {sortColumn === 'order_date' ? (
+                          sortDirection === 'asc' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ArrowUpDown className="w-4 h-4 opacity-40" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-white font-bold text-base">
+                      {t("actions", "Actions")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPOs.map((po) => {
+                  {paginatedPOs.map((po) => {
                     const supplier = suppliers.find(s => s.id === po.supplierId);
                     return (
                       <TableRow key={po.id} className="border-slate-700" data-testid={`row-po-${po.id}`}>
@@ -446,6 +562,75 @@ export default function PurchaseOrders() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {!isLoading && filteredPOs.length > 0 && (
+            <div className="flex items-center justify-between mt-6 px-2">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span>{t("page", "Page")} {currentPage} {t("of", "of")} {totalPages}</span>
+                <span className="text-slate-600">•</span>
+                <span>{filteredPOs.length} {t("items_per_page", "items total")}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="border-slate-700"
+                  data-testid="button-previous-page"
+                >
+                  {t("previous", "Previous")}
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first page, last page, current page, and pages around current
+                      return page === 1 || 
+                             page === totalPages || 
+                             Math.abs(page - currentPage) <= 1;
+                    })
+                    .map((page, index, array) => {
+                      // Add ellipsis if there's a gap
+                      const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                      
+                      return (
+                        <div key={page} className="flex items-center gap-1">
+                          {showEllipsisBefore && (
+                            <span className="px-2 text-slate-600">...</span>
+                          )}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className={currentPage === page 
+                              ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500" 
+                              : "border-slate-700"
+                            }
+                            data-testid={`button-page-${page}`}
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="border-slate-700"
+                  data-testid="button-next-page"
+                >
+                  {t("next", "Next")}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
