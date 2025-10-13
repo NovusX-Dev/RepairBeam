@@ -120,15 +120,17 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
           );
         })}
 
+        {/* Divider before Stock Management */}
+        <div className="border-t border-cyan-500/20 my-3"></div>
+
         {/* Stock Management Section */}
         {!isCollapsed && (
-          <div className="pt-4 pb-2">
+          <div className="pb-2">
             <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
               {t("stock_management", "Stock Management")}
             </h3>
           </div>
         )}
-        {isCollapsed && <div className="border-t border-cyan-500/20 my-2"></div>}
         
         {navigationItems.slice(4, 7).map((item) => {
           const Icon = item.icon;
@@ -153,6 +155,9 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
             </Link>
           );
         })}
+
+        {/* Divider after Stock Management */}
+        <div className="border-t border-cyan-500/20 my-3"></div>
 
         {/* Remaining items */}
         {navigationItems.slice(7).map((item) => {
