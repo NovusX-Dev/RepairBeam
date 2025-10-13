@@ -918,12 +918,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
 
-        // Update inventory item quantity
+        // Update inventory item quantity and metadata
         const inventoryItem = await storage.getInventoryItem(poItem.inventoryItemId, user.tenantId);
         if (inventoryItem) {
           await storage.updateInventoryItem(poItem.inventoryItemId, user.tenantId, {
             quantity: inventoryItem.quantity + receivedItem.receivedQuantity,
             cost: receivedItem.unitCost.toString(),
+            deviceType: poItem.deviceType || inventoryItem.deviceType || null,
+            itemType: poItem.itemType || inventoryItem.itemType || 'Service',
+            description: poItem.description || inventoryItem.description || null,
           });
         }
       }
