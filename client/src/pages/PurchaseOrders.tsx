@@ -686,7 +686,7 @@ export default function PurchaseOrders() {
                           <div className="mt-1 text-white font-medium">{item.orderedQuantity}</div>
                           {poItems?.[index]?.deviceType && (
                             <Badge variant="outline" className="mt-1 text-xs border-cyan-500/30 text-cyan-400">
-                              {poItems[index].deviceType}
+                              {t(poItems[index].deviceType?.toLowerCase() || "other", poItems[index].deviceType || "Other")}
                             </Badge>
                           )}
                         </div>
@@ -694,7 +694,7 @@ export default function PurchaseOrders() {
                           <Label className="text-xs text-slate-400">{t("item_type", "Item Type")}</Label>
                           <div className="mt-1">
                             <Badge variant={poItems?.[index]?.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
-                              {poItems?.[index]?.itemType || 'Service'}
+                              {t(poItems?.[index]?.itemType?.toLowerCase() || 'service', poItems?.[index]?.itemType || 'Service')}
                             </Badge>
                           </div>
                         </div>
