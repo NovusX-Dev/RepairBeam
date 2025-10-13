@@ -96,7 +96,66 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigationItems.map((item) => {
+        {navigationItems.slice(0, 4).map((item) => {
+          const Icon = item.icon;
+          const isActive = location === item.href;
+          
+          return (
+            <Link 
+              key={item.id} 
+              href={item.href}
+              className={cn(
+                "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+                "hover:bg-accent hover:border-l-primary",
+                isActive && "bg-accent border-l-primary text-primary"
+              )}
+              onClick={() => onPageChange(item.name)}
+              data-testid={`link-nav-${item.id}`}
+            >
+              <Icon className="w-5 h-5" />
+              {!isCollapsed && (
+                <span className="font-medium">{item.name}</span>
+              )}
+            </Link>
+          );
+        })}
+
+        {/* Stock Management Section */}
+        {!isCollapsed && (
+          <div className="pt-4 pb-2">
+            <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
+              {t("stock_management", "Stock Management")}
+            </h3>
+          </div>
+        )}
+        {isCollapsed && <div className="border-t border-cyan-500/20 my-2"></div>}
+        
+        {navigationItems.slice(4, 7).map((item) => {
+          const Icon = item.icon;
+          const isActive = location === item.href;
+          
+          return (
+            <Link 
+              key={item.id} 
+              href={item.href}
+              className={cn(
+                "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+                "hover:bg-accent hover:border-l-primary",
+                isActive && "bg-accent border-l-primary text-primary"
+              )}
+              onClick={() => onPageChange(item.name)}
+              data-testid={`link-nav-${item.id}`}
+            >
+              <Icon className="w-5 h-5" />
+              {!isCollapsed && (
+                <span className="font-medium">{item.name}</span>
+              )}
+            </Link>
+          );
+        })}
+
+        {/* Remaining items */}
+        {navigationItems.slice(7).map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
           
