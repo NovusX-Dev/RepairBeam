@@ -2905,7 +2905,7 @@ export default function KanbanTickets() {
                                   setFormData(prev => ({
                                     ...prev,
                                     deviceType: ticket.deviceType || '',
-                                    deviceBrand: '',
+                                    deviceBrand: ticket.deviceBrand || '',
                                     deviceModel: ticket.deviceModel || '',
                                     deviceColor: ticket.deviceColor || '',
                                     deviceMemory: ticket.deviceMemory || '',
