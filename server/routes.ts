@@ -681,6 +681,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Supplier routes
+  app.get("/api/suppliers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const suppliers = await storage.getSuppliers(user.tenantId);
+      res.json(suppliers);
+    } catch (error) {
+      console.error("Error fetching suppliers:", error);
+      res.status(500).json({ message: "Failed to fetch suppliers" });
+    }
+  });
+
+  app.post("/api/suppliers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const supplierData = { ...req.body, tenantId: user.tenantId };
+      const newSupplier = await storage.createSupplier(supplierData);
+      res.status(201).json(newSupplier);
+    } catch (error) {
+      console.error("Error creating supplier:", error);
+      res.status(500).json({ message: "Failed to create supplier" });
+    }
+  });
+
+  app.put("/api/suppliers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { id } = req.params;
+      const updatedSupplier = await storage.updateSupplier(id, user.tenantId, req.body);
+      
+      if (!updatedSupplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+
+      res.json(updatedSupplier);
+    } catch (error) {
+      console.error("Error updating supplier:", error);
+      res.status(500).json({ message: "Failed to update supplier" });
+    }
+  });
+
+  app.delete("/api/suppliers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { id } = req.params;
+      const deleted = await storage.deleteSupplier(id, user.tenantId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+
+      res.json({ message: "Supplier deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting supplier:", error);
+      res.status(500).json({ message: "Failed to delete supplier" });
+    }
+  });
+
   // Transaction routes
   app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
