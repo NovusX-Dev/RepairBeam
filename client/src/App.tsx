@@ -15,6 +15,7 @@ import Clients from "@/pages/Clients";
 import KanbanTickets from "@/pages/Kanban";
 import CompletedHistory from "@/pages/CompletedHistory";
 import Inventory from "@/pages/Inventory";
+import Suppliers from "@/pages/Suppliers";
 import POS from "@/pages/POS";
 import Support from "@/pages/Support";
 import Configs from "@/pages/Configs";
@@ -60,6 +61,7 @@ function Router() {
             <Route path="/kanban" component={() => <Layout><KanbanTickets /></Layout>} />
             <Route path="/completed-history" component={() => <Layout><CompletedHistory /></Layout>} />
             <Route path="/inventory" component={() => <Layout><Inventory /></Layout>} />
+            <Route path="/suppliers" component={() => <Layout><Suppliers /></Layout>} />
             <Route path="/pos" component={() => <Layout><POS /></Layout>} />
             <Route path="/support" component={() => <Layout><Support /></Layout>} />
             <Route path="/configs" component={() => <Layout><Configs /></Layout>} />

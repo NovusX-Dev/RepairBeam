@@ -21,6 +21,8 @@ const getPageTitleFromRoute = (pathname: string, t: (key: string, fallback?: str
       return t("completed_history", "Completed History");
     case "/inventory":
       return t("inventory", "Inventory");
+    case "/suppliers":
+      return t("suppliers", "Suppliers");
     case "/pos":
       return t("pos", "Point of Sale");
     case "/support":
