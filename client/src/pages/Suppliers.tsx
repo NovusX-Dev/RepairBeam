@@ -268,75 +268,105 @@ export default function Suppliers() {
         </CardContent>
       </Card>
 
-      {/* Suppliers Table */}
-      <Card className="bg-slate-800/50 border-cyan-500/20">
-        <CardHeader className="bg-gradient-to-r from-slate-900 to-slate-800 border-b border-cyan-500/20">
-          <CardTitle className="text-white flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-cyan-400" />
-            {t("supplier_list", "Supplier List")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="text-center py-8 text-slate-400">Loading...</div>
-          ) : filteredSuppliers.length === 0 ? (
-            <div className="text-center py-8">
-              <Building2 className="w-12 h-12 mx-auto text-slate-600 mb-3" />
-              <p className="text-slate-400">{t("no_suppliers_found", "No suppliers found")}</p>
+      {/* Suppliers Grid */}
+      {isLoading ? (
+        <div className="text-center py-12 text-slate-400">Loading...</div>
+      ) : filteredSuppliers.length === 0 ? (
+        <Card className="bg-slate-800/50 border-cyan-500/20">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <Building2 className="w-16 h-16 mx-auto text-slate-600 mb-4" />
+              <p className="text-slate-400 text-lg">{t("no_suppliers_found", "No suppliers found")}</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-700">
-                    <TableHead className="text-slate-300">{t("name", "Name")}</TableHead>
-                    <TableHead className="text-slate-300">{t("cnpj", "CNPJ")}</TableHead>
-                    <TableHead className="text-slate-300">{t("phone", "Phone")}</TableHead>
-                    <TableHead className="text-slate-300">{t("cellphone", "Cellphone")}</TableHead>
-                    <TableHead className="text-slate-300">{t("email", "Email")}</TableHead>
-                    <TableHead className="text-slate-300">{t("address", "Address")}</TableHead>
-                    <TableHead className="text-slate-300">{t("actions", "Actions")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSuppliers.map((supplier) => (
-                    <TableRow key={supplier.id} className="border-slate-700" data-testid={`row-supplier-${supplier.id}`}>
-                      <TableCell className="text-white font-medium">{supplier.name}</TableCell>
-                      <TableCell className="text-slate-300">{supplier.cnpj || "-"}</TableCell>
-                      <TableCell className="text-slate-300">{supplier.phone || "-"}</TableCell>
-                      <TableCell className="text-slate-300">{supplier.cellphone || "-"}</TableCell>
-                      <TableCell className="text-slate-300">{supplier.email || "-"}</TableCell>
-                      <TableCell className="text-slate-300">{supplier.address || "-"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenDialog(supplier)}
-                            className="hover:bg-blue-500/20 hover:text-blue-400"
-                            data-testid={`button-edit-${supplier.id}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(supplier)}
-                            className="hover:bg-red-500/20 hover:text-red-400"
-                            data-testid={`button-delete-${supplier.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredSuppliers.map((supplier) => (
+            <Card key={supplier.id} className="bg-slate-800/50 border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid={`card-supplier-${supplier.id}`}>
+              <CardHeader className="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 pb-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <Building2 className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                    <CardTitle className="text-lg text-white truncate">{supplier.name}</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleOpenDialog(supplier)}
+                      className="h-8 w-8 p-0 hover:bg-blue-500/20 hover:text-blue-400"
+                      data-testid={`button-edit-${supplier.id}`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(supplier)}
+                      className="h-8 w-8 p-0 hover:bg-red-500/20 hover:text-red-400"
+                      data-testid={`button-delete-${supplier.id}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 space-y-3">
+                {supplier.cnpj && (
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400">{t("cnpj", "CNPJ")}</p>
+                      <p className="text-sm text-slate-200 font-mono">{supplier.cnpj}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {supplier.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400">{t("phone", "Phone")}</p>
+                      <p className="text-sm text-slate-200">{supplier.phone}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {supplier.cellphone && (
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400">{t("cellphone", "Cellphone")}</p>
+                      <p className="text-sm text-slate-200">{supplier.cellphone}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {supplier.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400">{t("email", "Email")}</p>
+                      <p className="text-sm text-slate-200 truncate">{supplier.email}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {supplier.address && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs text-slate-400">{t("address", "Address")}</p>
+                      <p className="text-sm text-slate-200 line-clamp-2">{supplier.address}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
