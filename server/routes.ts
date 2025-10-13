@@ -906,6 +906,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             purchaseOrderItemId: poItem.id,
             uniqueTag,
             status: 'in_stock',
+            deviceType: poItem.deviceType || null,
+            itemType: poItem.itemType || 'Service',
+            description: poItem.description || null,
           });
         }
 
