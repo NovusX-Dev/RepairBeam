@@ -52,6 +52,8 @@ interface InventoryItem {
   cost?: string;
   price?: string;
   supplier?: string;
+  deviceType?: string | null;
+  itemType?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -451,6 +453,18 @@ export default function Inventory() {
                             {item.description && (
                               <div className="text-sm text-slate-400">{item.description}</div>
                             )}
+                            <div className="flex gap-2 mt-1">
+                              {item.deviceType && (
+                                <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
+                                  {item.deviceType}
+                                </Badge>
+                              )}
+                              {item.itemType && (
+                                <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
+                                  {item.itemType}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-slate-300">{item.sku || "-"}</TableCell>
