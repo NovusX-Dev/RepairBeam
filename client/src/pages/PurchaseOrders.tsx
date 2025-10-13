@@ -44,6 +44,9 @@ interface POItem {
   orderedQuantity: number;
   receivedQuantity?: number;
   unitCost?: number;
+  deviceType?: string | null;
+  itemType: string;
+  description?: string;
 }
 
 interface POItemWithDetails {
@@ -54,6 +57,9 @@ interface POItemWithDetails {
   orderedQuantity: number;
   receivedQuantity: number;
   unitCost: string;
+  deviceType?: string | null;
+  itemType: string;
+  description?: string | null;
 }
 
 interface ReceiveItemForm {
@@ -145,18 +151,18 @@ export default function PurchaseOrders() {
 
   const handleOpenCreateDialog = () => {
     setFormData({ supplierId: "", expectedDate: "", notes: "" });
-    setItems([{ itemName: "", orderedQuantity: 1 }]);
+    setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
     setIsCreateDialogOpen(true);
   };
 
   const handleCloseCreateDialog = () => {
     setIsCreateDialogOpen(false);
     setFormData({ supplierId: "", expectedDate: "", notes: "" });
-    setItems([{ itemName: "", orderedQuantity: 1 }]);
+    setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
   };
 
   const handleAddItem = () => {
-    setItems([...items, { itemName: "", orderedQuantity: 1 }]);
+    setItems([...items, { itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -448,26 +454,80 @@ export default function PurchaseOrders() {
                   <Card key={index} className="bg-slate-800/50 border-slate-700">
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex-1 grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs text-slate-400">{t("item_name", "Item Name")}</Label>
-                            <Input
-                              value={item.itemName}
-                              onChange={(e) => handleItemChange(index, "itemName", e.target.value)}
-                              className="bg-slate-900 border-slate-600 text-white mt-1"
-                              placeholder={t("enter_item_name", "Enter item name")}
-                              data-testid={`input-item-name-${index}`}
-                            />
+                        <div className="flex-1 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs text-slate-400">{t("item_name", "Item Name")}</Label>
+                              <Input
+                                value={item.itemName}
+                                onChange={(e) => handleItemChange(index, "itemName", e.target.value)}
+                                className="bg-slate-900 border-slate-600 text-white mt-1"
+                                placeholder={t("enter_item_name", "Enter item name")}
+                                data-testid={`input-item-name-${index}`}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-400">{t("quantity", "Quantity")}</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.orderedQuantity}
+                                onChange={(e) => handleItemChange(index, "orderedQuantity", parseInt(e.target.value) || 1)}
+                                className="bg-slate-900 border-slate-600 text-white mt-1"
+                                data-testid={`input-item-quantity-${index}`}
+                              />
+                            </div>
                           </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs text-slate-400">{t("device_type", "Device Type")}</Label>
+                              <Select 
+                                value={item.deviceType || "other"} 
+                                onValueChange={(value) => handleItemChange(index, "deviceType", value === "other" ? null : value)}
+                              >
+                                <SelectTrigger className="bg-slate-900 border-slate-600 text-white mt-1" data-testid={`select-device-type-${index}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Phone">{t("phone", "Phone")}</SelectItem>
+                                  <SelectItem value="Laptop">{t("laptop", "Laptop")}</SelectItem>
+                                  <SelectItem value="Desktop">{t("desktop", "Desktop")}</SelectItem>
+                                  <SelectItem value="other">{t("other", "Other")}</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-slate-400">{t("item_type", "Item Type")}</Label>
+                              <div className="flex items-center gap-2 mt-1 h-9 px-3 bg-slate-900 border border-slate-600 rounded-md">
+                                <span className={`text-sm ${item.itemType === 'Service' ? 'text-cyan-400' : 'text-slate-400'}`}>
+                                  {t("service", "Service")}
+                                </span>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={item.itemType === 'Sales'}
+                                    onChange={(e) => handleItemChange(index, "itemType", e.target.checked ? 'Sales' : 'Service')}
+                                    className="sr-only peer"
+                                    data-testid={`toggle-item-type-${index}`}
+                                  />
+                                  <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
+                                </label>
+                                <span className={`text-sm ${item.itemType === 'Sales' ? 'text-cyan-400' : 'text-slate-400'}`}>
+                                  {t("sales", "Sales")}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
                           <div>
-                            <Label className="text-xs text-slate-400">{t("quantity", "Quantity")}</Label>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.orderedQuantity}
-                              onChange={(e) => handleItemChange(index, "orderedQuantity", parseInt(e.target.value) || 1)}
-                              className="bg-slate-900 border-slate-600 text-white mt-1"
-                              data-testid={`input-item-quantity-${index}`}
+                            <Label className="text-xs text-slate-400">{t("description", "Description")}</Label>
+                            <Textarea
+                              value={item.description || ""}
+                              onChange={(e) => handleItemChange(index, "description", e.target.value)}
+                              className="bg-slate-900 border-slate-600 text-white mt-1 min-h-[60px]"
+                              placeholder={t("enter_description", "Enter item description...")}
+                              data-testid={`input-description-${index}`}
                             />
                           </div>
                         </div>
@@ -556,10 +616,26 @@ export default function PurchaseOrders() {
                         <div className="md:col-span-2">
                           <Label className="text-xs text-slate-400">{t("item_name", "Item Name")}</Label>
                           <div className="mt-1 text-white font-medium">{item.itemName}</div>
+                          {poItems?.[index]?.description && (
+                            <p className="text-xs text-slate-400 mt-1">{poItems[index].description}</p>
+                          )}
                         </div>
                         <div>
                           <Label className="text-xs text-slate-400">{t("ordered_qty", "Ordered Qty")}</Label>
                           <div className="mt-1 text-white font-medium">{item.orderedQuantity}</div>
+                          {poItems?.[index]?.deviceType && (
+                            <Badge variant="outline" className="mt-1 text-xs border-cyan-500/30 text-cyan-400">
+                              {poItems[index].deviceType}
+                            </Badge>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs text-slate-400">{t("item_type", "Item Type")}</Label>
+                          <div className="mt-1">
+                            <Badge variant={poItems?.[index]?.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
+                              {poItems?.[index]?.itemType || 'Service'}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                       

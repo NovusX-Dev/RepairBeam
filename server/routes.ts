@@ -813,6 +813,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           orderedQuantity: item.orderedQuantity,
           receivedQuantity: 0,
           unitCost: '0.00',
+          deviceType: item.deviceType || null,
+          itemType: item.itemType || 'Service',
+          description: item.description || null,
         });
       }
 
