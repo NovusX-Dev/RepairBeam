@@ -14,6 +14,7 @@ interface LocalizationContextType {
   translations: Record<string, string>;
   t: (key: string, fallback?: string) => string;
   formatDate: (date: Date | string | null | undefined) => string;
+  getCurrencySymbol: () => string;
   isLoading: boolean;
   isChangingLanguage: boolean;
 }
@@ -161,6 +162,15 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     }
   };
 
+  // Currency symbol function based on current language
+  const getCurrencySymbol = (): string => {
+    if (currentLanguage.code === 'pt-BR') {
+      return 'R$';
+    } else {
+      return '$';
+    }
+  };
+
   // Enhanced setCurrentLanguage that saves to tenant if authenticated
   const setLanguage = async (language: typeof LANGUAGES[0]) => {
     // Don't show overlay if it's the same language
@@ -188,6 +198,7 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     translations,
     t,
     formatDate,
+    getCurrencySymbol,
     isLoading,
     isChangingLanguage,
   };
