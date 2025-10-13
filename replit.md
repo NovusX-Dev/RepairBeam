@@ -7,15 +7,20 @@ Repair Beam is a multi-tenant SaaS platform designed for repair businesses. It p
 ## Recent Changes
 
 ### October 13, 2025 (Phase 2 Complete)
-- **Phase 2 Purchase Order System**: Implemented complete purchase order workflow with unique inventory unit tracking:
-  - Purchase Orders page with create PO dialog: supplier selection, add items with name and ordered quantity
-  - Receive Items workflow: enter actual received quantity and cost per unit for each item
-  - Finalize PO functionality: generates unique IDs (tags) for each physical inventory unit (e.g., SCR-001, SCR-002)
-  - Backend routes for PO CRUD operations and finalize endpoint that creates inventory units
+- **Phase 2 Enhanced Purchase Order System**: Implemented complete purchase order workflow with detailed item categorization:
+  - **Item Categorization**: Each PO item now includes:
+    - Device Type dropdown (Phone/Laptop/Desktop/Other) for inventory organization
+    - Item Type toggle (Service/Sales) defaulting to Service - determines if item can be used in repairs
+    - Description textarea for detailed item specifications
+  - Create PO dialog with comprehensive item details captured upfront
+  - Receive Items workflow displays all item properties (read-only) during receiving process
+  - Finalize PO functionality: generates unique IDs (tags) for each physical inventory unit AND inherits all properties (deviceType, itemType, description)
+  - Backend routes for PO CRUD operations with field inheritance logic in finalize endpoint
   - PO status tracking: pending, ordered, received, cancelled
   - Cost entry system: cost per unit (not total cost) for clarity with partial deliveries
   - Navigation integration with ShoppingCart icon in sidebar
-  - 52 new localization keys in English and Portuguese for all PO features
+  - 72 new localization keys in English and Portuguese for all PO features including categorization fields
+  - Business logic: Service items can be used in repairs OR sales; Sales items restricted to sales only (validation enforced when inventory-to-ticket linking implemented)
   
 - **Inventory System Update**: Refactored to reflect Phase 2 procurement flow:
   - Removed "Add Item" button and direct item creation
