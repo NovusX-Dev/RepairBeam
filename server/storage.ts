@@ -141,6 +141,8 @@ export interface IStorage {
   getInventoryItems(tenantId: string): Promise<InventoryItem[]>;
   getInventoryItem(id: string, tenantId: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
+  updateInventoryItem(id: string, tenantId: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
+  deleteInventoryItem(id: string, tenantId: string): Promise<boolean>;
   
   // Transaction operations
   getTransactions(tenantId: string): Promise<Transaction[]>;
@@ -582,6 +584,22 @@ export class DatabaseStorage implements IStorage {
   async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
     const [newItem] = await db.insert(inventoryItems).values(item).returning();
     return newItem;
+  }
+
+  async updateInventoryItem(id: string, tenantId: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    const [updatedItem] = await db
+      .update(inventoryItems)
+      .set({ ...item, updatedAt: new Date() })
+      .where(and(eq(inventoryItems.id, id), eq(inventoryItems.tenantId, tenantId)))
+      .returning();
+    return updatedItem;
+  }
+
+  async deleteInventoryItem(id: string, tenantId: string): Promise<boolean> {
+    const result = await db
+      .delete(inventoryItems)
+      .where(and(eq(inventoryItems.id, id), eq(inventoryItems.tenantId, tenantId)));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Transaction operations
