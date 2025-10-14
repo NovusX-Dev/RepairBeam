@@ -886,20 +886,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get or create inventory item
         let inventoryItemId = poItem.inventoryItemId;
         if (!inventoryItemId) {
-          // First, check if an inventory item with the same name already exists
+          // Check if an inventory item with the same name AND supplier already exists
           const allInventoryItems = await storage.getInventoryItems(user.tenantId);
           const itemName = poItem.itemName || receivedItem.itemName;
+          
+          // Find matching item: prioritize same supplier, fallback to legacy items without supplierId
           const existingItem = allInventoryItems.find(
-            (item: any) => item.name.toLowerCase() === itemName.toLowerCase()
+            (item: any) => 
+              item.name.toLowerCase() === itemName.toLowerCase() &&
+              (item.supplierId === po.supplierId || (!item.supplierId && !allInventoryItems.some((other: any) => 
+                other.name.toLowerCase() === itemName.toLowerCase() && other.supplierId === po.supplierId
+              )))
           );
 
           if (existingItem) {
-            // Use existing inventory item
+            // Use existing inventory item and update its supplierId if it's null
             inventoryItemId = existingItem.id;
+            if (!existingItem.supplierId) {
+              await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
+                supplierId: po.supplierId,
+              });
+            }
           } else {
-            // Create new inventory item
+            // Create new inventory item (new item or same item from different supplier)
             const newInventoryItem = await storage.createInventoryItem({
               tenantId: user.tenantId,
+              supplierId: po.supplierId,
               name: itemName,
               quantity: 0, // Will be updated below
               minQuantity: 0,

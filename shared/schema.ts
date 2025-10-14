@@ -228,6 +228,7 @@ export const suppliers = pgTable("suppliers", {
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").notNull(),
+  supplierId: varchar("supplier_id"), // Foreign key to suppliers table - items from different suppliers are tracked separately
   name: varchar("name").notNull(),
   description: text("description"),
   sku: varchar("sku"),
@@ -238,7 +239,7 @@ export const inventoryItems = pgTable("inventory_items", {
   minQuantity: integer("min_quantity").notNull().default(0),
   cost: decimal("cost", { precision: 10, scale: 2 }),
   price: decimal("price", { precision: 10, scale: 2 }),
-  supplier: varchar("supplier"),
+  supplier: varchar("supplier"), // Legacy field, will be removed after migration
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

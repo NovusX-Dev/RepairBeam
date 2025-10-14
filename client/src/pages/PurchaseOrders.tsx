@@ -376,9 +376,16 @@ export default function PurchaseOrders() {
       };
       
       setReceiveItems(poItems.map(item => {
-        // Find matching inventory item by name
+        // Find matching inventory item by name AND supplier (with backward compatibility for null supplierId)
+        // Prioritize items from same supplier, fallback to legacy items without supplierId
         const existingInventoryItem = inventoryItems.find(
-          inv => inv.name.toLowerCase() === item.itemName.toLowerCase()
+          inv => 
+            inv.name.toLowerCase() === item.itemName.toLowerCase() &&
+            (inv.supplierId === selectedPO?.supplierId || 
+             (!inv.supplierId && !inventoryItems.some(other => 
+               other.name.toLowerCase() === item.itemName.toLowerCase() && 
+               other.supplierId === selectedPO?.supplierId
+             )))
         );
         
         return {
