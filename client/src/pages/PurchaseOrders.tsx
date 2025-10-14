@@ -126,7 +126,10 @@ export default function PurchaseOrders() {
   const filteredPOs = useMemo(() => {
     let filtered = purchaseOrders.filter(po => {
       const supplier = suppliers.find(s => s.id === po.supplierId);
-      return supplier?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const poNumber = po.id.slice(0, 8).toUpperCase();
+      return po.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        poNumber.includes(searchTerm.toUpperCase()) ||
+        supplier?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         po.status.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
@@ -434,7 +437,7 @@ export default function PurchaseOrders() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <Input
-              placeholder={t("search_pos", "Search by supplier or status...")}
+              placeholder={t("search_pos", "Search by PO number, supplier, or status...")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 bg-slate-900/50 border-slate-700 text-white"
