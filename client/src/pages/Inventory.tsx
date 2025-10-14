@@ -91,6 +91,7 @@ export default function Inventory() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showConfirmUpdateDialog, setShowConfirmUpdateDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -320,6 +321,12 @@ export default function Inventory() {
 
   const handleUpdate = () => {
     if (!selectedItem) return;
+    // Show confirmation dialog instead of updating directly
+    setShowConfirmUpdateDialog(true);
+  };
+
+  const handleConfirmUpdate = () => {
+    if (!selectedItem) return;
     
     updateMutation.mutate({
       id: selectedItem.id,
@@ -331,6 +338,7 @@ export default function Inventory() {
         price: formData.price,
       },
     });
+    setShowConfirmUpdateDialog(false);
   };
 
   const handleDelete = () => {
@@ -964,6 +972,87 @@ export default function Inventory() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? t("deleting", "Deleting...") : t("delete", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Update Confirmation Dialog */}
+      <AlertDialog open={showConfirmUpdateDialog} onOpenChange={setShowConfirmUpdateDialog}>
+        <AlertDialogContent className="bg-slate-900 border-cyan-500/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl text-white">
+              {t("confirm_update", "Confirm Update")}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              {t("confirm_update_message", "Please review the changes before applying them:")}
+              {selectedItem && (
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 bg-slate-800 rounded border border-slate-700">
+                    <p className="text-xs text-slate-500 mb-1">{t("item", "Item")}</p>
+                    <p className="font-medium text-white">{selectedItem.name}</p>
+                    <p className="text-sm text-slate-400">{selectedItem.sku}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {formData.description !== (selectedItem.description || "") && (
+                      <div className="col-span-2 p-3 bg-slate-800/50 rounded border border-yellow-500/30">
+                        <p className="text-xs text-slate-500 mb-1">{t("description", "Description")}</p>
+                        <p className="text-sm text-slate-400 line-through">{selectedItem.description || "-"}</p>
+                        <p className="text-sm text-white font-medium">{formData.description || "-"}</p>
+                      </div>
+                    )}
+                    
+                    {parseInt(formData.quantity) !== selectedItem.quantity && (
+                      <div className="p-3 bg-slate-800/50 rounded border border-yellow-500/30">
+                        <p className="text-xs text-slate-500 mb-1">{t("quantity", "Quantity")}</p>
+                        <p className="text-sm text-slate-400 line-through">{selectedItem.quantity}</p>
+                        <p className="text-sm text-white font-medium">{formData.quantity}</p>
+                      </div>
+                    )}
+                    
+                    {parseInt(formData.minQuantity) !== selectedItem.minQuantity && (
+                      <div className="p-3 bg-slate-800/50 rounded border border-yellow-500/30">
+                        <p className="text-xs text-slate-500 mb-1">{t("min_quantity", "Min Quantity")}</p>
+                        <p className="text-sm text-slate-400 line-through">{selectedItem.minQuantity}</p>
+                        <p className="text-sm text-white font-medium">{formData.minQuantity}</p>
+                      </div>
+                    )}
+                    
+                    {formData.cost !== (selectedItem.cost || "0") && (
+                      <div className="p-3 bg-slate-800/50 rounded border border-yellow-500/30">
+                        <p className="text-xs text-slate-500 mb-1">{t("cost", "Cost")}</p>
+                        <p className="text-sm text-slate-400 line-through">{formatCurrency(parseFloat(selectedItem.cost || "0"))}</p>
+                        <p className="text-sm text-white font-medium">{formatCurrency(parseFloat(formData.cost))}</p>
+                      </div>
+                    )}
+                    
+                    {formData.price !== (selectedItem.price || "0") && (
+                      <div className="p-3 bg-slate-800/50 rounded border border-yellow-500/30">
+                        <p className="text-xs text-slate-500 mb-1">{t("price", "Price")}</p>
+                        <p className="text-sm text-slate-400 line-through">{formatCurrency(parseFloat(selectedItem.price || "0"))}</p>
+                        <p className="text-sm text-white font-medium">{formatCurrency(parseFloat(formData.price))}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="border-slate-700"
+              data-testid="button-cancel-confirm-update"
+            >
+              {t("cancel", "Cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmUpdate}
+              disabled={updateMutation.isPending}
+              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+              data-testid="button-apply-update"
+            >
+              {updateMutation.isPending ? t("updating", "Updating...") : t("apply_changes", "Apply Changes")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
