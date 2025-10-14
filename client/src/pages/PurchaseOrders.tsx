@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, Search, ShoppingCart, Package, DollarSign, X, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import type { InventoryItem } from "@shared/schema";
 
 interface Supplier {
   id: string;
@@ -78,6 +80,7 @@ interface ReceiveItemForm {
   orderedQuantity: number;
   receivedQuantity: number;
   unitCost: number;
+  sellingPrice: number;
 }
 
 export default function PurchaseOrders() {
@@ -100,6 +103,8 @@ export default function PurchaseOrders() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [showSuggestions, setShowSuggestions] = useState<number | null>(null); // Track which item input shows suggestions
+  const [activeItemIndex, setActiveItemIndex] = useState<number | null>(null);
 
   // Fetch purchase orders
   const { data: purchaseOrders = [], isLoading } = useQuery<PurchaseOrder[]>({
@@ -109,6 +114,11 @@ export default function PurchaseOrders() {
   // Fetch suppliers
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
+  });
+
+  // Fetch inventory items for autocomplete
+  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
   });
 
   // Handle sorting
@@ -209,7 +219,7 @@ export default function PurchaseOrders() {
 
   // Finalize PO mutation (receive items)
   const finalizePOMutation = useMutation({
-    mutationFn: async (data: { poId: string; items: { poItemId: string; itemName: string; receivedQuantity: number; unitCost: number }[] }) => {
+    mutationFn: async (data: { poId: string; items: { poItemId: string; itemName: string; receivedQuantity: number; unitCost: number; sellingPrice: number }[] }) => {
       return await apiRequest("POST", `/api/purchase-orders/${data.poId}/finalize`, { items: data.items });
     },
     onSuccess: () => {
@@ -277,6 +287,44 @@ export default function PurchaseOrders() {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
+
+    // Show suggestions when typing item name
+    if (field === "itemName" && typeof value === "string") {
+      if (value.length > 0) {
+        setShowSuggestions(index);
+        setActiveItemIndex(index);
+      } else {
+        setShowSuggestions(null);
+        setActiveItemIndex(null);
+      }
+    }
+  };
+
+  // Handle selecting an item from suggestions
+  const handleSelectSuggestion = (index: number, inventoryItem: InventoryItem) => {
+    const newItems = [...items];
+    newItems[index] = {
+      ...newItems[index],
+      itemName: inventoryItem.name,
+      deviceType: inventoryItem.deviceType,
+      itemType: inventoryItem.itemType || 'Service',
+      description: inventoryItem.description || ''
+    };
+    setItems(newItems);
+    setShowSuggestions(null);
+    setActiveItemIndex(null);
+  };
+
+  // Filter inventory items based on search
+  const getSuggestionsForItem = (index: number) => {
+    const item = items[index];
+    if (!item || !item.itemName) return [];
+    
+    return inventoryItems
+      .filter(invItem => 
+        invItem.name.toLowerCase().includes(item.itemName.toLowerCase())
+      )
+      .slice(0, 5); // Limit to 5 suggestions
   };
 
   const handleCreatePO = () => {
@@ -321,6 +369,7 @@ export default function PurchaseOrders() {
         orderedQuantity: item.orderedQuantity,
         receivedQuantity: item.orderedQuantity,
         unitCost: 0,
+        sellingPrice: 0,
       })));
     }
   }, [poItems]);
@@ -336,7 +385,7 @@ export default function PurchaseOrders() {
     setReceiveItems([]);
   };
 
-  const handleReceiveItemChange = (index: number, field: 'receivedQuantity' | 'unitCost', value: number) => {
+  const handleReceiveItemChange = (index: number, field: 'receivedQuantity' | 'unitCost' | 'sellingPrice', value: number) => {
     const newItems = [...receiveItems];
     newItems[index] = { ...newItems[index], [field]: value };
     setReceiveItems(newItems);
@@ -378,6 +427,14 @@ export default function PurchaseOrders() {
         });
         return;
       }
+      if (item.sellingPrice <= 0) {
+        toast({
+          title: t("error", "Error"),
+          description: t("selling_price_required", `Selling price must be greater than 0 for ${item.itemName}`),
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     finalizePOMutation.mutate({
@@ -387,6 +444,7 @@ export default function PurchaseOrders() {
         itemName: item.itemName,
         receivedQuantity: item.receivedQuantity,
         unitCost: item.unitCost,
+        sellingPrice: item.sellingPrice,
       })),
     });
   };
@@ -701,16 +759,41 @@ export default function PurchaseOrders() {
                       <div className="flex items-start gap-3">
                         <div className="flex-1 space-y-3">
                           <div className="grid grid-cols-2 gap-3">
-                            <div>
+                            <div className="relative">
                               <Label className="text-xs text-slate-400">{t("item_name", "Item Name")}</Label>
                               <Input
                                 value={item.itemName}
                                 onChange={(e) => handleItemChange(index, "itemName", e.target.value)}
+                                onBlur={() => setTimeout(() => setShowSuggestions(null), 200)} // Delay to allow click on suggestion
                                 className="bg-slate-900 border-slate-600 text-white mt-1"
                                 placeholder={t("enter_item_name", "Enter item name")}
                                 data-testid={`input-item-name-${index}`}
                                 disabled={createPOMutation.isPending}
                               />
+                              {/* Suggestions Dropdown */}
+                              {showSuggestions === index && getSuggestionsForItem(index).length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-cyan-500/30 rounded-md shadow-lg max-h-48 overflow-auto">
+                                  {getSuggestionsForItem(index).map((suggestion) => (
+                                    <button
+                                      key={suggestion.id}
+                                      type="button"
+                                      onClick={() => handleSelectSuggestion(index, suggestion)}
+                                      className="w-full text-left px-3 py-2 hover:bg-cyan-500/20 text-white text-sm flex items-center justify-between transition-colors"
+                                      data-testid={`suggestion-${suggestion.id}`}
+                                    >
+                                      <span>{suggestion.name}</span>
+                                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                                        {suggestion.deviceType && (
+                                          <span className="bg-slate-700 px-2 py-0.5 rounded">{suggestion.deviceType}</span>
+                                        )}
+                                        <span className={`px-2 py-0.5 rounded ${suggestion.itemType === 'Service' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                          {suggestion.itemType}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                             <div>
                               <Label className="text-xs text-slate-400">{t("quantity", "Quantity")}</Label>
@@ -898,41 +981,82 @@ export default function PurchaseOrders() {
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                        <div>
-                          <Label className="text-xs text-slate-400">{t("received_qty", "Received Quantity")} *</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max={item.orderedQuantity}
-                            value={item.receivedQuantity}
-                            onChange={(e) => handleReceiveItemChange(index, 'receivedQuantity', parseInt(e.target.value) || 0)}
-                            className="bg-slate-900 border-slate-600 text-white mt-1 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                            data-testid={`input-received-qty-${index}`}
-                          />
-                          {item.receivedQuantity > item.orderedQuantity && (
-                            <p className="text-xs text-red-400 mt-1">
-                              {t("exceeds_ordered", "Cannot exceed ordered quantity")}
-                            </p>
-                          )}
+                      <TooltipProvider>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Label className="text-xs text-slate-400">{t("received_qty", "Received Quantity")} *</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max={item.orderedQuantity}
+                                  value={item.receivedQuantity}
+                                  onChange={(e) => handleReceiveItemChange(index, 'receivedQuantity', parseInt(e.target.value) || 0)}
+                                  className="bg-slate-900 border-slate-600 text-white mt-1 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                  data-testid={`input-received-qty-${index}`}
+                                />
+                                {item.receivedQuantity > item.orderedQuantity && (
+                                  <p className="text-xs text-red-400 mt-1">
+                                    {t("exceeds_ordered", "Cannot exceed ordered quantity")}
+                                  </p>
+                                )}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t("received_qty_tooltip", "Number of units actually received from supplier")}</p>
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Label className="text-xs text-slate-400">{t("cost_per_unit", "Cost per Unit")} *</Label>
+                                <div className="relative mt-1">
+                                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">{getCurrencySymbol()}</span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.unitCost}
+                                    onChange={(e) => handleReceiveItemChange(index, 'unitCost', parseFloat(e.target.value) || 0)}
+                                    className="bg-slate-900 border-slate-600 text-white pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                    placeholder="0.00"
+                                    data-testid={`input-unit-cost-${index}`}
+                                  />
+                                </div>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t("cost_per_unit_tooltip", "Purchase cost per unit from supplier")}</p>
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Label className="text-xs text-slate-400">{t("selling_price", "Selling Price")} *</Label>
+                                <div className="relative mt-1">
+                                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">{getCurrencySymbol()}</span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.sellingPrice}
+                                    onChange={(e) => handleReceiveItemChange(index, 'sellingPrice', parseFloat(e.target.value) || 0)}
+                                    className="bg-slate-900 border-slate-600 text-white pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                                    placeholder="0.00"
+                                    data-testid={`input-selling-price-${index}`}
+                                  />
+                                </div>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t("selling_price_tooltip", "Price to charge customers for this item")}</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
-                        <div>
-                          <Label className="text-xs text-slate-400">{t("cost_per_unit", "Cost per Unit")} *</Label>
-                          <div className="relative mt-1">
-                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">{getCurrencySymbol()}</span>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.unitCost}
-                              onChange={(e) => handleReceiveItemChange(index, 'unitCost', parseFloat(e.target.value) || 0)}
-                              className="bg-slate-900 border-slate-600 text-white pl-12 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
-                              placeholder="0.00"
-                              data-testid={`input-unit-cost-${index}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      </TooltipProvider>
 
                       <div className="mt-3 pt-3 border-t border-slate-700">
                         <div className="flex justify-between items-center text-sm">

@@ -888,13 +888,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!inventoryItemId) {
           const newInventoryItem = await storage.createInventoryItem({
             tenantId: user.tenantId,
-            name: poItem.itemName,
+            name: poItem.itemName || receivedItem.itemName, // Fallback to receivedItem name
             quantity: 0, // Will be updated below
             minQuantity: 0,
             deviceType: poItem.deviceType || null,
             itemType: poItem.itemType || 'Service',
             description: poItem.description || null,
             cost: receivedItem.unitCost.toString(),
+            price: receivedItem.sellingPrice.toString(),
           });
           inventoryItemId = newInventoryItem.id;
 
@@ -926,6 +927,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
             quantity: inventoryItem.quantity + receivedItem.receivedQuantity,
             cost: receivedItem.unitCost.toString(),
+            price: receivedItem.sellingPrice.toString(),
             deviceType: poItem.deviceType || inventoryItem.deviceType || null,
             itemType: poItem.itemType || inventoryItem.itemType || 'Service',
             description: poItem.description || inventoryItem.description || null,
