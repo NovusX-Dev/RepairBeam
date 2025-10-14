@@ -73,7 +73,7 @@ interface POItemWithDetails {
 }
 
 interface ReceiveItemForm {
-  inventoryItemId: string;
+  poItemId: string; // PO item ID for matching during finalization
   itemName: string;
   orderedQuantity: number;
   receivedQuantity: number;
@@ -209,7 +209,7 @@ export default function PurchaseOrders() {
 
   // Finalize PO mutation (receive items)
   const finalizePOMutation = useMutation({
-    mutationFn: async (data: { poId: string; items: { inventoryItemId: string; itemName: string; receivedQuantity: number; unitCost: number }[] }) => {
+    mutationFn: async (data: { poId: string; items: { poItemId: string; itemName: string; receivedQuantity: number; unitCost: number }[] }) => {
       return await apiRequest("POST", `/api/purchase-orders/${data.poId}/finalize`, { items: data.items });
     },
     onSuccess: () => {
@@ -316,7 +316,7 @@ export default function PurchaseOrders() {
   useEffect(() => {
     if (poItems && poItems.length > 0) {
       setReceiveItems(poItems.map(item => ({
-        inventoryItemId: item.inventoryItemId,
+        poItemId: item.id, // Use PO item ID for matching during finalization
         itemName: item.itemName,
         orderedQuantity: item.orderedQuantity,
         receivedQuantity: item.orderedQuantity,
@@ -383,7 +383,7 @@ export default function PurchaseOrders() {
     finalizePOMutation.mutate({
       poId: selectedPO.id,
       items: receiveItems.map(item => ({
-        inventoryItemId: item.inventoryItemId,
+        poItemId: item.poItemId,
         itemName: item.itemName,
         receivedQuantity: item.receivedQuantity,
         unitCost: item.unitCost,

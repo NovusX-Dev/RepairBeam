@@ -262,7 +262,8 @@ export const purchaseOrders = pgTable("purchase_orders", {
 export const purchaseOrderItems = pgTable("purchase_order_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   purchaseOrderId: varchar("purchase_order_id").notNull(),
-  inventoryItemId: varchar("inventory_item_id").notNull(),
+  itemName: varchar("item_name"), // Item name stored directly in PO item - nullable during migration
+  inventoryItemId: varchar("inventory_item_id"), // Nullable - linked only when PO is finalized/received
   orderedQuantity: integer("ordered_quantity").notNull(),
   receivedQuantity: integer("received_quantity").notNull().default(0),
   unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),

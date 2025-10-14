@@ -797,22 +797,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const newPO = await storage.createPurchaseOrder(poData);
 
-      // Create PO items - for now just store item names, we'll create inventory items when receiving
+      // Create PO items - store item details without creating inventory items
+      // Inventory items will be created only when the PO is finalized/received
       for (const item of items) {
-        // Create a placeholder inventory item if it doesn't exist
-        const inventoryItem = await storage.createInventoryItem({
-          tenantId: user.tenantId,
-          name: item.itemName,
-          quantity: 0,
-          minQuantity: 0,
-          deviceType: item.deviceType || null,
-          itemType: item.itemType || 'Service',
-          description: item.description || null,
-        });
-
         await storage.createPurchaseOrderItem({
           purchaseOrderId: newPO.id,
-          inventoryItemId: inventoryItem.id,
+          itemName: item.itemName,
+          inventoryItemId: null, // No inventory item yet - will be created on finalization
           orderedQuantity: item.orderedQuantity,
           receivedQuantity: 0,
           unitCost: '0.00',
@@ -845,21 +836,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Purchase order not found" });
       }
 
-      // Get PO items with inventory item details
+      // Get PO items - itemName is now stored directly in the PO item
       const poItems = await storage.getPurchaseOrderItems(id);
       
-      // Fetch inventory item names
-      const itemsWithNames = await Promise.all(
-        poItems.map(async (poItem) => {
-          const inventoryItem = await storage.getInventoryItem(poItem.inventoryItemId, user.tenantId);
-          return {
-            ...poItem,
-            itemName: inventoryItem?.name || 'Unknown Item',
-          };
-        })
-      );
-
-      res.json(itemsWithNames);
+      res.json(poItems);
     } catch (error) {
       console.error("Error fetching purchase order items:", error);
       res.status(500).json({ message: "Failed to fetch purchase order items" });
@@ -890,7 +870,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Process each item
       for (const receivedItem of items) {
-        const poItem = poItems.find(item => item.inventoryItemId === receivedItem.inventoryItemId);
+        // Match by PO item ID instead of inventory item ID
+        const poItem = poItems.find(item => item.id === receivedItem.poItemId);
         if (!poItem) continue;
 
         // Update PO item with received quantity and unit cost
@@ -902,12 +883,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate total cost
         totalCost += receivedItem.receivedQuantity * receivedItem.unitCost;
 
-        // Generate unique IDs for each item and update inventory
+        // Create inventory item if it doesn't exist yet
+        let inventoryItemId = poItem.inventoryItemId;
+        if (!inventoryItemId) {
+          const newInventoryItem = await storage.createInventoryItem({
+            tenantId: user.tenantId,
+            name: poItem.itemName,
+            quantity: 0, // Will be updated below
+            minQuantity: 0,
+            deviceType: poItem.deviceType || null,
+            itemType: poItem.itemType || 'Service',
+            description: poItem.description || null,
+            cost: receivedItem.unitCost.toString(),
+          });
+          inventoryItemId = newInventoryItem.id;
+
+          // Link the inventory item to the PO item
+          await storage.updatePurchaseOrderItem(poItem.id, {
+            inventoryItemId: inventoryItemId,
+          });
+        }
+
+        // Generate unique IDs for each item and create inventory units
         for (let i = 0; i < receivedItem.receivedQuantity; i++) {
           const uniqueTag = `${receivedItem.itemName.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
           
           await storage.createInventoryUnit({
-            inventoryItemId: poItem.inventoryItemId,
+            inventoryItemId: inventoryItemId,
             supplierId: po.supplierId,
             purchaseOrderItemId: poItem.id,
             uniqueTag,
@@ -919,9 +921,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Update inventory item quantity and metadata
-        const inventoryItem = await storage.getInventoryItem(poItem.inventoryItemId, user.tenantId);
+        const inventoryItem = await storage.getInventoryItem(inventoryItemId, user.tenantId);
         if (inventoryItem) {
-          await storage.updateInventoryItem(poItem.inventoryItemId, user.tenantId, {
+          await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
             quantity: inventoryItem.quantity + receivedItem.receivedQuantity,
             cost: receivedItem.unitCost.toString(),
             deviceType: poItem.deviceType || inventoryItem.deviceType || null,
