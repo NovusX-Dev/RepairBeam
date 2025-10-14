@@ -362,7 +362,7 @@ export default function Inventory() {
               {t("total_inventory_value", "Total Inventory Value")}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-2xl font-bold text-green-400" data-testid="text-total-value">
               ${kpis.totalValue.toFixed(2)}
             </div>
@@ -376,7 +376,7 @@ export default function Inventory() {
               {t("items_in_stock", "Items in Stock")}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-2xl font-bold text-blue-400" data-testid="text-items-in-stock">
               {kpis.inStockItems} / {kpis.totalItems}
             </div>
@@ -390,7 +390,7 @@ export default function Inventory() {
               {t("low_stock_alerts", "Low Stock Alerts")}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-2xl font-bold text-orange-400" data-testid="text-low-stock-count">
               {kpis.lowStockCount}
             </div>
@@ -404,7 +404,7 @@ export default function Inventory() {
               {t("inventory_turnover", "Inventory Turnover")}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="text-center">
             <div className="text-2xl font-bold text-slate-400" data-testid="text-inventory-turnover">
               -
             </div>
