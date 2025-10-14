@@ -9,6 +9,7 @@ import {
   purchaseOrderItems,
   inventoryUnits,
   inventoryUsage,
+  ticketItems,
   transactions,
   supportTickets,
   ticketNotes,
@@ -48,6 +49,8 @@ import {
   type InsertInventoryUnit,
   type InventoryUsage,
   type InsertInventoryUsage,
+  type TicketItem,
+  type InsertTicketItem,
   type Transaction,
   type InsertTransaction,
   type SupportTicket,
@@ -182,6 +185,14 @@ export interface IStorage {
   createInventoryUnit(unit: InsertInventoryUnit): Promise<InventoryUnit>;
   getInventoryUnitByTag(uniqueTag: string): Promise<InventoryUnit | undefined>;
   updateInventoryUnit(id: string, unit: Partial<InsertInventoryUnit>): Promise<InventoryUnit | undefined>;
+  getAvailableInventoryUnits(inventoryItemId: string, quantity: number): Promise<InventoryUnit[]>;
+  
+  // Ticket items operations
+  getTicketItems(ticketId: string, tenantId: string): Promise<TicketItem[]>;
+  createTicketItem(item: InsertTicketItem): Promise<TicketItem>;
+  updateTicketItem(id: string, tenantId: string, item: Partial<InsertTicketItem>): Promise<TicketItem | undefined>;
+  deleteTicketItem(id: string, tenantId: string): Promise<boolean>;
+  deleteTicketItemsByTicketId(ticketId: string, tenantId: string): Promise<boolean>;
   
   // Transaction operations
   getTransactions(tenantId: string): Promise<Transaction[]>;
@@ -746,6 +757,55 @@ export class DatabaseStorage implements IStorage {
       .where(eq(inventoryUnits.id, id))
       .returning();
     return updatedUnit;
+  }
+
+  async getAvailableInventoryUnits(inventoryItemId: string, quantity: number): Promise<InventoryUnit[]> {
+    return db
+      .select()
+      .from(inventoryUnits)
+      .where(
+        and(
+          eq(inventoryUnits.inventoryItemId, inventoryItemId),
+          eq(inventoryUnits.status, 'in_stock')
+        )
+      )
+      .limit(quantity);
+  }
+
+  // Ticket items operations
+  async getTicketItems(ticketId: string, tenantId: string): Promise<TicketItem[]> {
+    return db
+      .select()
+      .from(ticketItems)
+      .where(and(eq(ticketItems.ticketId, ticketId), eq(ticketItems.tenantId, tenantId)));
+  }
+
+  async createTicketItem(item: InsertTicketItem): Promise<TicketItem> {
+    const [newItem] = await db.insert(ticketItems).values(item).returning();
+    return newItem;
+  }
+
+  async updateTicketItem(id: string, tenantId: string, item: Partial<InsertTicketItem>): Promise<TicketItem | undefined> {
+    const [updatedItem] = await db
+      .update(ticketItems)
+      .set({ ...item, updatedAt: new Date() })
+      .where(and(eq(ticketItems.id, id), eq(ticketItems.tenantId, tenantId)))
+      .returning();
+    return updatedItem;
+  }
+
+  async deleteTicketItem(id: string, tenantId: string): Promise<boolean> {
+    const result = await db
+      .delete(ticketItems)
+      .where(and(eq(ticketItems.id, id), eq(ticketItems.tenantId, tenantId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteTicketItemsByTicketId(ticketId: string, tenantId: string): Promise<boolean> {
+    const result = await db
+      .delete(ticketItems)
+      .where(and(eq(ticketItems.ticketId, ticketId), eq(ticketItems.tenantId, tenantId)));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Transaction operations

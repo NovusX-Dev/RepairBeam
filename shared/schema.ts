@@ -306,6 +306,21 @@ export const inventoryUsage = pgTable("inventory_usage", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Ticket Items - Links tickets to service items with unit tracking
+export const ticketItems = pgTable("ticket_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  ticketId: varchar("ticket_id").notNull(),
+  inventoryItemId: varchar("inventory_item_id").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(), // Override price or default price
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(), // quantity * unitPrice
+  inventoryUnitIds: jsonb("inventory_unit_ids").default('[]'), // Array of allocated unit IDs
+  confirmed: boolean("confirmed").notNull().default(false), // Confirmed as used during finalization
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Sales transactions for POS
 export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -609,6 +624,15 @@ export const insertInventoryUsageSchema = createInsertSchema(inventoryUsage).omi
   id: true,
   createdAt: true,
 });
+
+export const insertTicketItemSchema = createInsertSchema(ticketItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertTicketItem = z.infer<typeof insertTicketItemSchema>;
+export type TicketItem = typeof ticketItems.$inferSelect;
 
 // User progress tracking for gamification
 export const userProgress = pgTable("user_progress", {

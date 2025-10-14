@@ -403,7 +403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/tickets/:ticketId/finalize", isAuthenticated, async (req: any, res) => {
     try {
       const { ticketId } = req.params;
-      const { completionNotes, actualHours, finalActualCost } = req.body;
+      const { completionNotes, actualHours, finalActualCost, confirmedItemIds = [] } = req.body;
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       
@@ -413,6 +413,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (actualHours === undefined || finalActualCost === undefined) {
         return res.status(400).json({ message: "Actual hours and final cost are required" });
+      }
+
+      // Get all ticket items
+      const ticketItems = await storage.getTicketItems(ticketId, user.tenantId);
+      
+      // Process each ticket item based on confirmation
+      for (const ticketItem of ticketItems) {
+        if (confirmedItemIds.includes(ticketItem.id)) {
+          // Item was used - mark as confirmed
+          await storage.updateTicketItem(ticketItem.id, user.tenantId, {
+            confirmed: true,
+          });
+        } else {
+          // Item was NOT used - return to inventory
+          const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
+          if (inventoryItem) {
+            // Return units to inventory
+            const unitIds = ticketItem.inventoryUnitIds as string[];
+            for (const unitId of unitIds) {
+              await storage.updateInventoryUnit(unitId, {
+                status: 'in_stock',
+                ticketId: null,
+                usedAt: null,
+              });
+            }
+
+            // Add back to inventory quantity
+            await storage.updateInventoryItem(inventoryItem.id, user.tenantId, {
+              quantity: inventoryItem.quantity + ticketItem.quantity,
+            });
+          }
+
+          // Delete the unconfirmed ticket item
+          await storage.deleteTicketItem(ticketItem.id, user.tenantId);
+        }
       }
 
       const finalizedTicket = await storage.finalizeTicket(
@@ -481,6 +516,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Return ticket items to inventory before deleting
+      const ticketItems = await storage.getTicketItems(ticketId, user.tenantId);
+      for (const ticketItem of ticketItems) {
+        const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
+        if (inventoryItem) {
+          // Return units to inventory
+          const unitIds = ticketItem.inventoryUnitIds as string[];
+          for (const unitId of unitIds) {
+            await storage.updateInventoryUnit(unitId, {
+              status: 'in_stock',
+              ticketId: null,
+              usedAt: null,
+            });
+          }
+
+          // Add back to inventory quantity
+          await storage.updateInventoryItem(inventoryItem.id, user.tenantId, {
+            quantity: inventoryItem.quantity + ticketItem.quantity,
+          });
+        }
+      }
+
+      // Delete all ticket items
+      await storage.deleteTicketItemsByTicketId(ticketId, user.tenantId);
+
+      // Delete the ticket
       const deleted = await storage.deleteTicket(ticketId, user.tenantId);
       
       if (!deleted) {
@@ -678,6 +739,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting inventory item:", error);
       res.status(500).json({ message: "Failed to delete inventory item" });
+    }
+  });
+
+  // Ticket items routes
+  app.get("/api/tickets/:ticketId/items", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { ticketId } = req.params;
+      const items = await storage.getTicketItems(ticketId, user.tenantId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching ticket items:", error);
+      res.status(500).json({ message: "Failed to fetch ticket items" });
+    }
+  });
+
+  // Get available service items for ticket (filtered by device type)
+  app.get("/api/inventory/available-for-ticket", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { deviceType } = req.query;
+      
+      // Get all inventory items for the tenant
+      const allItems = await storage.getInventoryItems(user.tenantId);
+      
+      // Filter for service items only, with stock, matching device type or "Other"
+      const availableItems = allItems.filter(item => {
+        const isServiceItem = item.itemType === 'Service';
+        const hasStock = item.quantity && item.quantity > 0;
+        const matchesDeviceType = !deviceType || 
+                                  item.deviceType === deviceType || 
+                                  item.deviceType === null || 
+                                  item.deviceType === 'Other';
+        
+        return isServiceItem && hasStock && matchesDeviceType;
+      });
+
+      res.json(availableItems);
+    } catch (error) {
+      console.error("Error fetching available items:", error);
+      res.status(500).json({ message: "Failed to fetch available items" });
+    }
+  });
+
+  app.post("/api/tickets/:ticketId/items", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { ticketId } = req.params;
+      const { inventoryItemId, quantity, unitPrice } = req.body;
+
+      // Validate inventory item exists and has enough stock
+      const inventoryItem = await storage.getInventoryItem(inventoryItemId, user.tenantId);
+      if (!inventoryItem) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+
+      if (inventoryItem.quantity < quantity) {
+        return res.status(400).json({ message: "Insufficient inventory" });
+      }
+
+      // Get available inventory units to allocate
+      const availableUnits = await storage.getAvailableInventoryUnits(inventoryItemId, quantity);
+      if (availableUnits.length < quantity) {
+        return res.status(400).json({ message: "Insufficient inventory units available" });
+      }
+
+      const unitIds = availableUnits.map(unit => unit.id);
+      const totalPrice = (parseFloat(unitPrice) * quantity).toFixed(2);
+
+      // Create ticket item
+      const ticketItem = await storage.createTicketItem({
+        tenantId: user.tenantId,
+        ticketId,
+        inventoryItemId,
+        quantity,
+        unitPrice,
+        totalPrice,
+        inventoryUnitIds: unitIds,
+        confirmed: false,
+      });
+
+      // Update inventory units status and link to ticket
+      for (const unit of availableUnits) {
+        await storage.updateInventoryUnit(unit.id, {
+          status: 'used',
+          ticketId,
+          usedAt: new Date(),
+        });
+      }
+
+      // Deduct from inventory item quantity
+      await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
+        quantity: inventoryItem.quantity - quantity,
+      });
+
+      res.status(201).json(ticketItem);
+    } catch (error) {
+      console.error("Error adding item to ticket:", error);
+      res.status(500).json({ message: "Failed to add item to ticket" });
+    }
+  });
+
+  app.delete("/api/tickets/:ticketId/items/:itemId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { ticketId, itemId } = req.params;
+
+      // Get the ticket item to return inventory
+      const ticketItems = await storage.getTicketItems(ticketId, user.tenantId);
+      const ticketItem = ticketItems.find(item => item.id === itemId);
+      
+      if (!ticketItem) {
+        return res.status(404).json({ message: "Ticket item not found" });
+      }
+
+      // Get inventory item
+      const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
+      if (inventoryItem) {
+        // Return units to inventory
+        const unitIds = ticketItem.inventoryUnitIds as string[];
+        for (const unitId of unitIds) {
+          await storage.updateInventoryUnit(unitId, {
+            status: 'in_stock',
+            ticketId: null,
+            usedAt: null,
+          });
+        }
+
+        // Add back to inventory quantity
+        await storage.updateInventoryItem(inventoryItem.id, user.tenantId, {
+          quantity: inventoryItem.quantity + ticketItem.quantity,
+        });
+      }
+
+      // Delete ticket item
+      await storage.deleteTicketItem(itemId, user.tenantId);
+
+      res.json({ message: "Item removed from ticket and returned to inventory" });
+    } catch (error) {
+      console.error("Error removing item from ticket:", error);
+      res.status(500).json({ message: "Failed to remove item from ticket" });
     }
   });
 
