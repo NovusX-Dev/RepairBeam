@@ -887,10 +887,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let inventoryItemId = poItem.inventoryItemId;
         if (!inventoryItemId) {
           // First, check if an inventory item with the same name already exists
-          const allInventoryItems = await storage.getInventory(user.tenantId);
+          const allInventoryItems = await storage.getInventoryItems(user.tenantId);
           const itemName = poItem.itemName || receivedItem.itemName;
           const existingItem = allInventoryItems.find(
-            item => item.name.toLowerCase() === itemName.toLowerCase()
+            (item: any) => item.name.toLowerCase() === itemName.toLowerCase()
           );
 
           if (existingItem) {
@@ -920,11 +920,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Generate unique IDs for each item and create inventory units
         for (let i = 0; i < receivedItem.receivedQuantity; i++) {
-          const uniqueTag = `${receivedItem.itemName.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
+          const itemNameForTag = receivedItem.itemName || 'ITEM';
+          const uniqueTag = `${itemNameForTag.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
           
           await storage.createInventoryUnit({
             inventoryItemId: inventoryItemId,
-            supplierId: po.supplierId,
+            supplierId: po.supplierId || '',
             purchaseOrderItemId: poItem.id,
             uniqueTag,
             status: 'in_stock',
