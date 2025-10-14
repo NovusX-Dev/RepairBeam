@@ -72,6 +72,15 @@ Preferred communication style: Simple, everyday language.
 - **Dashboard Design**: Visual hierarchy (KPI row, critical alerts, analytics charts, activity table) with color-coding standards (Green: Healthy, Orange/Yellow: Low, Red: Critical).
 - **Integration**: Seamless integration with the ticket system for automatic inventory deduction, multi-location support, supplier management, and cost tracking.
 
+### Repair Ticket & Inventory Integration (Phase 3)
+- **Service Items on Tickets**: Technicians can add service items (parts/materials) to tickets during price estimation with device-type filtering and "Other" category support.
+- **Automatic Inventory Deduction**: Items are automatically deducted from inventory when tickets are created, with unique unit ID tracking for precise inventory management.
+- **Item Usage Confirmation**: During ticket finalization (Step 1 of completion wizard), technicians confirm which allocated items were actually used. Unchecked items are automatically returned to inventory.
+- **Price Override**: Service items can have their prices overridden per ticket, allowing flexibility for discounts or special pricing.
+- **Cost Calculation**: Ticket total cost includes: service charges + service items subtotal + extra costs, displayed in the price estimation step.
+- **Automatic Cleanup**: If a ticket is deleted, all allocated service items are automatically returned to inventory.
+- **UI Implementation**: Aurora design pattern with gradient headers, cyan accents, searchable item selection dialog, quantity selectors, and real-time stock display.
+
 ## External Dependencies
 
 ### Database & Storage
