@@ -89,6 +89,7 @@ export default function Inventory() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [alertsExpanded, setAlertsExpanded] = useState(false);
   
   const [formData, setFormData] = useState<InventoryFormData>({
     name: "",
@@ -417,50 +418,69 @@ export default function Inventory() {
       {/* Critical Alerts Section */}
       {lowStockItems.length > 0 && (
         <Card className="bg-orange-500/10 border-orange-500/30">
-          <CardHeader>
-            <CardTitle className="text-lg text-orange-400 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              {t("critical_stock_alerts", "Critical Stock Alerts")} - {lowStockItems.length} {t("items_running_low", "Items Running Low")}
+          <CardHeader 
+            className="cursor-pointer hover:bg-orange-500/5 transition-colors"
+            onClick={() => setAlertsExpanded(!alertsExpanded)}
+          >
+            <CardTitle className="text-lg text-orange-400 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                {t("critical_stock_alerts", "Critical Alerts")}
+              </div>
+              <div className="flex items-center gap-2">
+                {alertsExpanded && (
+                  <span className="text-sm font-normal">
+                    {lowStockItems.length} {t("items_running_low", "Items Running Low")}
+                  </span>
+                )}
+                {alertsExpanded ? (
+                  <ChevronUp className="w-5 h-5" />
+                ) : (
+                  <ChevronDown className="w-5 h-5" />
+                )}
+              </div>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lowStockItems.map((item) => (
-                <div 
-                  key={item.id}
-                  className="bg-slate-800/50 border border-orange-500/30 rounded-lg p-3"
-                  data-testid={`alert-item-${item.id}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-semibold text-white">{item.name}</p>
-                      {item.description && (
-                        <p className="text-sm text-slate-400">{item.description}</p>
-                      )}
-                      <div className="mt-2 flex items-center gap-2">
-                        {item.deviceType && (
-                          <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
-                            {item.deviceType}
-                          </Badge>
+          {alertsExpanded && (
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {lowStockItems.map((item) => (
+                  <div 
+                    key={item.id}
+                    className="bg-slate-800/50 border border-orange-500/30 rounded-lg p-3"
+                    data-testid={`alert-item-${item.id}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-white">{item.name}</p>
+                        {item.description && (
+                          <p className="text-sm text-slate-400">{item.description}</p>
                         )}
-                        {item.itemType && (
-                          <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
-                            {item.itemType}
+                        <div className="mt-2 flex items-center gap-2">
+                          {item.deviceType && (
+                            <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
+                              {item.deviceType}
+                            </Badge>
+                          )}
+                          {item.itemType && (
+                            <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
+                              {item.itemType}
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400">
+                            {item.quantity} {t("available", "Available")}
                           </Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400">
-                          {item.quantity} {t("available", "Available")}
-                        </Badge>
-                        <span className="text-xs text-slate-400">
-                          {t("alert", "Alert")}: {item.minQuantity}
-                        </span>
+                          <span className="text-xs text-slate-400">
+                            {t("alert", "Alert")}: {item.minQuantity}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
+                ))}
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 
