@@ -924,10 +924,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update inventory item quantity and metadata
         const inventoryItem = await storage.getInventoryItem(inventoryItemId, user.tenantId);
         if (inventoryItem) {
+          const oldQuantity = inventoryItem.quantity;
+          const newQuantity = oldQuantity + receivedItem.receivedQuantity;
+          
+          // Parse old cost safely, default to 0 if invalid
+          const oldCostStr = inventoryItem.cost || '0';
+          const oldCost = !isNaN(parseFloat(oldCostStr)) ? parseFloat(oldCostStr) : 0;
+          const newUnitCost = receivedItem.unitCost;
+          
+          // Calculate weighted average cost
+          const weightedAverageCost = oldQuantity > 0 
+            ? ((oldCost * oldQuantity) + (newUnitCost * receivedItem.receivedQuantity)) / newQuantity
+            : newUnitCost;
+          
+          // Parse existing price safely, only update if empty or invalid
+          const existingPriceStr = inventoryItem.price || '';
+          const existingPrice = !isNaN(parseFloat(existingPriceStr)) ? parseFloat(existingPriceStr) : 0;
+          const updatedPrice = existingPrice > 0
+            ? inventoryItem.price // Keep existing valid price
+            : receivedItem.sellingPrice.toString(); // Use new price for new/invalid items
+          
           await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
-            quantity: inventoryItem.quantity + receivedItem.receivedQuantity,
-            cost: receivedItem.unitCost.toString(),
-            price: receivedItem.sellingPrice.toString(),
+            quantity: newQuantity,
+            cost: weightedAverageCost.toFixed(2),
+            price: updatedPrice,
             deviceType: poItem.deviceType || inventoryItem.deviceType || null,
             itemType: poItem.itemType || inventoryItem.itemType || 'Service',
             description: poItem.description || inventoryItem.description || null,

@@ -81,6 +81,10 @@ interface ReceiveItemForm {
   receivedQuantity: number;
   unitCost: number;
   sellingPrice: number;
+  // Current inventory data
+  currentStock?: number;
+  currentCost?: number;
+  currentSellingPrice?: number;
 }
 
 export default function PurchaseOrders() {
@@ -117,7 +121,7 @@ export default function PurchaseOrders() {
   });
 
   // Fetch inventory items for autocomplete
-  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+  const { data: inventoryItems = [], isSuccess: isInventoryLoaded } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
   });
 
@@ -360,19 +364,37 @@ export default function PurchaseOrders() {
     enabled: !!selectedPO && isReceiveDialogOpen,
   });
 
-  // Initialize receive items when PO items are fetched
+  // Initialize receive items when PO items are fetched (only on first load with inventory data loaded)
   useEffect(() => {
-    if (poItems && poItems.length > 0) {
-      setReceiveItems(poItems.map(item => ({
-        poItemId: item.id, // Use PO item ID for matching during finalization
-        itemName: item.itemName,
-        orderedQuantity: item.orderedQuantity,
-        receivedQuantity: item.orderedQuantity,
-        unitCost: 0,
-        sellingPrice: 0,
-      })));
+    // Only initialize if we have PO items, inventory query succeeded, and receive items haven't been set yet
+    if (poItems && poItems.length > 0 && isInventoryLoaded && receiveItems.length === 0) {
+      // Safely parse numeric values with fallback
+      const safeParseFloat = (value: string | null | undefined, fallback: number = 0) => {
+        if (!value) return fallback;
+        const parsed = parseFloat(value);
+        return !isNaN(parsed) ? parsed : fallback;
+      };
+      
+      setReceiveItems(poItems.map(item => {
+        // Find matching inventory item by name
+        const existingInventoryItem = inventoryItems.find(
+          inv => inv.name.toLowerCase() === item.itemName.toLowerCase()
+        );
+        
+        return {
+          poItemId: item.id, // Use PO item ID for matching during finalization
+          itemName: item.itemName,
+          orderedQuantity: item.orderedQuantity,
+          receivedQuantity: item.orderedQuantity,
+          unitCost: existingInventoryItem ? safeParseFloat(existingInventoryItem.cost, 0) : 0,
+          sellingPrice: existingInventoryItem ? safeParseFloat(existingInventoryItem.price, 0) : 0,
+          currentStock: existingInventoryItem?.quantity,
+          currentCost: existingInventoryItem ? safeParseFloat(existingInventoryItem.cost) : undefined,
+          currentSellingPrice: existingInventoryItem ? safeParseFloat(existingInventoryItem.price) : undefined,
+        };
+      }));
     }
-  }, [poItems]);
+  }, [poItems, isInventoryLoaded, inventoryItems, receiveItems.length]);
 
   const handleOpenReceiveDialog = (po: PurchaseOrder) => {
     setSelectedPO(po);
@@ -1001,6 +1023,11 @@ export default function PurchaseOrders() {
                                     {t("exceeds_ordered", "Cannot exceed ordered quantity")}
                                   </p>
                                 )}
+                                {item.currentStock !== undefined && (
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {t("available_stock", "Available stock")}: {item.currentStock}
+                                  </p>
+                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1025,6 +1052,11 @@ export default function PurchaseOrders() {
                                     data-testid={`input-unit-cost-${index}`}
                                   />
                                 </div>
+                                {item.currentCost !== undefined && item.currentCost > 0 && (
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {t("current_cost", "Current cost")}: {getCurrencySymbol()} {item.currentCost.toFixed(2)}
+                                  </p>
+                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -1049,6 +1081,11 @@ export default function PurchaseOrders() {
                                     data-testid={`input-selling-price-${index}`}
                                   />
                                 </div>
+                                {item.currentSellingPrice !== undefined && item.currentSellingPrice > 0 && (
+                                  <p className="text-xs text-slate-500 mt-1">
+                                    {t("current_selling_price", "Current selling price")}: {getCurrencySymbol()} {item.currentSellingPrice.toFixed(2)}
+                                  </p>
+                                )}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
