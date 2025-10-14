@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLocalization } from "@/contexts/LocalizationContext";
@@ -31,6 +31,8 @@ export default function Suppliers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(15);
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -45,16 +47,32 @@ export default function Suppliers() {
     queryKey: ["/api/suppliers"],
   });
 
-  // Filter suppliers
+  // Filter and sort suppliers alphabetically
   const filteredSuppliers = useMemo(() => {
-    return suppliers.filter(supplier => 
+    const filtered = suppliers.filter(supplier => 
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (supplier.cnpj && supplier.cnpj.includes(searchTerm)) ||
       (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (supplier.cellphone && supplier.cellphone.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    // Sort alphabetically by name
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
   }, [suppliers, searchTerm]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
+  const paginatedSuppliers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredSuppliers.slice(startIndex, endIndex);
+  }, [filteredSuppliers, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   // Create mutation
   const createMutation = useMutation({
@@ -281,9 +299,10 @@ export default function Suppliers() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSuppliers.map((supplier) => (
-            <Card key={supplier.id} className="bg-slate-800/50 border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid={`card-supplier-${supplier.id}`}>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedSuppliers.map((supplier) => (
+              <Card key={supplier.id} className="bg-slate-800/50 border-cyan-500/20 hover:border-cyan-500/40 transition-all" data-testid={`card-supplier-${supplier.id}`}>
               <CardHeader className="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -366,6 +385,76 @@ export default function Suppliers() {
             </Card>
           ))}
         </div>
+
+        {/* Pagination Controls */}
+        {filteredSuppliers.length > 0 && (
+          <div className="flex items-center justify-between mt-6 px-2">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <span>{t("page", "Page")} {currentPage} {t("of", "of")} {totalPages}</span>
+              <span className="text-slate-600">•</span>
+              <span>{filteredSuppliers.length} {t("items_per_page", "items total")}</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="border-slate-700"
+                data-testid="button-previous-page"
+              >
+                {t("previous", "Previous")}
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => {
+                    // Show first page, last page, current page, and pages around current
+                    return page === 1 || 
+                           page === totalPages || 
+                           Math.abs(page - currentPage) <= 1;
+                  })
+                  .map((page, index, array) => {
+                    // Add ellipsis if there's a gap
+                    const showEllipsisBefore = index > 0 && page - array[index - 1] > 1;
+                    
+                    return (
+                      <div key={page} className="flex items-center gap-1">
+                        {showEllipsisBefore && (
+                          <span className="px-2 text-slate-600">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={currentPage === page 
+                            ? "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500" 
+                            : "border-slate-700"
+                          }
+                          data-testid={`button-page-${page}`}
+                        >
+                          {page}
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="border-slate-700"
+                data-testid="button-next-page"
+              >
+                {t("next", "Next")}
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {/* Add/Edit Dialog */}
