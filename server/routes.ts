@@ -974,6 +974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             quantity: newQuantity,
             cost: weightedAverageCost.toFixed(2),
             price: updatedPrice,
+            supplierId: inventoryItem.supplierId || po.supplierId, // Ensure supplierId is set
             deviceType: poItem.deviceType || inventoryItem.deviceType || null,
             itemType: poItem.itemType || inventoryItem.itemType || 'Service',
             description: poItem.description || inventoryItem.description || null,
