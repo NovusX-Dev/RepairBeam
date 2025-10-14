@@ -87,7 +87,7 @@ export default function Inventory() {
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterDeviceType, setFilterDeviceType] = useState<string>("all");
+  const [filterSupplier, setFilterSupplier] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -139,9 +139,6 @@ export default function Inventory() {
     };
   }, [items]);
 
-  // All possible device types
-  const deviceTypes = ['Phone', 'Laptop', 'Desktop', 'Other'];
-
   // Handle sorting
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -161,7 +158,7 @@ export default function Inventory() {
                           item.deviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.itemType?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesDeviceType = filterDeviceType === "all" || item.deviceType === filterDeviceType;
+      const matchesSupplier = filterSupplier === "all" || item.supplierId === filterSupplier;
       
       let matchesStatus = true;
       if (filterStatus === "in_stock") {
@@ -172,7 +169,7 @@ export default function Inventory() {
         matchesStatus = item.quantity === 0;
       }
 
-      return matchesSearch && matchesDeviceType && matchesStatus;
+      return matchesSearch && matchesSupplier && matchesStatus;
     });
 
     // Apply sorting
@@ -227,7 +224,7 @@ export default function Inventory() {
     }
 
     return filtered;
-  }, [items, searchTerm, filterDeviceType, filterStatus, sortColumn, sortDirection]);
+  }, [items, searchTerm, filterSupplier, filterStatus, sortColumn, sortDirection]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -240,7 +237,7 @@ export default function Inventory() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterDeviceType, filterStatus]);
+  }, [searchTerm, filterSupplier, filterStatus]);
 
   // Low stock items for alerts (includes out of stock items)
   const lowStockItems = useMemo(() => {
@@ -507,15 +504,15 @@ export default function Inventory() {
               </div>
             </div>
             <div className="w-full md:w-[200px]">
-              <Label className="text-slate-300 text-sm mb-2 block">{t("device_type", "Device Type")}</Label>
-              <Select value={filterDeviceType} onValueChange={setFilterDeviceType}>
-                <SelectTrigger className="bg-slate-900/50 border-slate-700" data-testid="select-filter-device-type">
-                  <SelectValue placeholder={t("all_items", "All Items")} />
+              <Label className="text-slate-300 text-sm mb-2 block">{t("supplier", "Supplier")}</Label>
+              <Select value={filterSupplier} onValueChange={setFilterSupplier}>
+                <SelectTrigger className="bg-slate-900/50 border-slate-700" data-testid="select-filter-supplier">
+                  <SelectValue placeholder={t("all_suppliers", "All Suppliers")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">{t("all_items", "All Items")}</SelectItem>
-                  {deviceTypes.map((type) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
+                  <SelectItem value="all">{t("all_suppliers", "All Suppliers")}</SelectItem>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
