@@ -82,7 +82,7 @@ interface InventoryFormData {
 }
 
 export default function Inventory() {
-  const { t } = useLocalization();
+  const { t, formatCurrency } = useLocalization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -377,7 +377,7 @@ export default function Inventory() {
           </CardHeader>
           <CardContent className="text-center">
             <div className="text-2xl font-bold text-green-400" data-testid="text-total-value">
-              ${kpis.totalValue.toFixed(2)}
+              {formatCurrency(kpis.totalValue)}
             </div>
           </CardContent>
         </Card>
@@ -691,9 +691,9 @@ export default function Inventory() {
                             {t(stockStatus.status, stockStatus.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-slate-300">${parseFloat(item.cost || "0").toFixed(2)}</TableCell>
-                        <TableCell className="text-slate-300">${parseFloat(item.price || "0").toFixed(2)}</TableCell>
-                        <TableCell className="text-green-400 font-medium">${itemValue.toFixed(2)}</TableCell>
+                        <TableCell className="text-slate-300">{formatCurrency(item.cost || "0")}</TableCell>
+                        <TableCell className="text-slate-300">{formatCurrency(item.price || "0")}</TableCell>
+                        <TableCell className="text-green-400 font-medium">{formatCurrency(itemValue)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button
