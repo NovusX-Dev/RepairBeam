@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocalization } from "@/contexts/LocalizationContext";
@@ -686,6 +686,214 @@ function RepairServiceCards({ deviceType, selectedServices, onServiceToggle, war
     </div>
   );
 }
+
+// Item Selection Dialog Component (extracted for performance)
+interface ItemSelectionDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  availableItems: any[];
+  isLoadingItems: boolean;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  onAddItem: (item: { inventoryItemId: number; quantity: number; unitPrice: string }) => void;
+  currentLanguage: any;
+  t: (key: string, fallback: string) => string;
+}
+
+const ItemSelectionDialog = memo(({
+  open,
+  onOpenChange,
+  availableItems,
+  isLoadingItems,
+  searchQuery,
+  onSearchQueryChange,
+  onAddItem,
+  currentLanguage,
+  t,
+}: ItemSelectionDialogProps) => {
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [unitPrice, setUnitPrice] = useState('');
+
+  // Filter items client-side using useMemo to prevent unnecessary recalculations
+  const filteredItems = useMemo(() =>
+    (availableItems || []).filter((item: any) =>
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()))
+    ),
+    [availableItems, searchQuery]
+  );
+
+  const handleAddItem = () => {
+    if (!selectedItem || !unitPrice || quantity < 1) return;
+
+    onAddItem({
+      inventoryItemId: selectedItem.id,
+      quantity,
+      unitPrice,
+    });
+
+    // Reset state
+    setSelectedItem(null);
+    setQuantity(1);
+    setUnitPrice('');
+    onSearchQueryChange('');
+    onOpenChange(false);
+  };
+
+  const handleCancel = () => {
+    setSelectedItem(null);
+    setQuantity(1);
+    setUnitPrice('');
+    onSearchQueryChange('');
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[80vh]" data-testid="dialog-item-selection">
+        <DialogHeader>
+          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] -mx-6 -mt-6 px-6 py-4 mb-4">
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              {t("select_service_item", "Select Service Item")}
+            </DialogTitle>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder={t("search_items", "Search items by name or SKU...")}
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-items"
+            />
+          </div>
+
+          {/* Items List */}
+          <div className="border rounded-lg max-h-60 overflow-y-auto">
+            {isLoadingItems ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {t("loading", "Loading...")}
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                {t("no_items_available", "No service items available for this device type")}
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filteredItems.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors ${
+                      selectedItem?.id === item.id ? 'bg-primary/10 border-l-4 border-primary' : ''
+                    }`}
+                    onClick={() => {
+                      setSelectedItem(item);
+                      setUnitPrice(item.price || '0');
+                    }}
+                    data-testid={`item-option-${item.id}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium">{item.name}</div>
+                        {item.sku && (
+                          <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-primary">
+                          {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {item.price}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {t("stock", "Stock")}: {item.quantity}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quantity and Price */}
+          {selectedItem && (
+            <div className="bg-muted/30 p-4 rounded-lg space-y-4">
+              <div className="font-medium text-lg">{selectedItem.name}</div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    {t("quantity", "Quantity")}
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={selectedItem.quantity}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, Math.min(selectedItem.quantity, parseInt(e.target.value) || 1)))}
+                    data-testid="input-item-quantity"
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    {t("selling_price", "Selling Price")}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
+                    </span>
+                    <Input
+                      type="text"
+                      value={unitPrice}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/[^0-9.,]/g, '');
+                        setUnitPrice(value);
+                      }}
+                      placeholder={currentLanguage.code === 'pt-BR' ? '10,00' : '10.00'}
+                      data-testid="input-item-unit-price"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t">
+                <span className="font-medium">{t("total", "Total")}:</span>
+                <span className="text-lg font-bold text-primary">
+                  {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {(parseFloat(unitPrice || '0') * quantity).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            data-testid="button-cancel-item-selection"
+          >
+            {t("cancel", "Cancel")}
+          </Button>
+          <Button
+            onClick={handleAddItem}
+            disabled={!selectedItem || !unitPrice || quantity < 1}
+            data-testid="button-confirm-add-item"
+          >
+            {t("add_item", "Add Item")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+});
+
+ItemSelectionDialog.displayName = 'ItemSelectionDialog';
 
 export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
@@ -2494,188 +2702,19 @@ export default function KanbanTickets() {
     );
   }
 
-  // Item Selection Dialog Component
-  const ItemSelectionDialog = () => {
-    const [selectedItem, setSelectedItem] = useState<any>(null);
-    const [quantity, setQuantity] = useState(1);
-    const [unitPrice, setUnitPrice] = useState('');
-
-    const filteredItems = availableItems.filter((item: any) =>
-      item.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
-      (item.sku && item.sku.toLowerCase().includes(itemSearchQuery.toLowerCase()))
-    );
-
-    const handleAddItem = () => {
-      if (!selectedItem || !unitPrice || quantity < 1) return;
-
-      setFormData(prev => ({
-        ...prev,
-        selectedItems: [
-          ...prev.selectedItems,
-          {
-            inventoryItemId: selectedItem.id,
-            quantity,
-            unitPrice,
-          }
-        ]
-      }));
-
-      // Reset and close
-      setSelectedItem(null);
-      setQuantity(1);
-      setUnitPrice('');
-      setItemSearchQuery('');
-      setShowItemSelectionDialog(false);
-    };
-
-    return (
-      <Dialog open={showItemSelectionDialog} onOpenChange={setShowItemSelectionDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh]" data-testid="dialog-item-selection">
-          <DialogHeader>
-            <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] -mx-6 -mt-6 px-6 py-4 mb-4">
-              <DialogTitle className="text-white flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                {t("select_service_item", "Select Service Item")}
-              </DialogTitle>
-            </div>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder={t("search_items", "Search items by name or SKU...")}
-                value={itemSearchQuery}
-                onChange={(e) => setItemSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-items"
-              />
-            </div>
-
-            {/* Items List */}
-            <div className="border rounded-lg max-h-60 overflow-y-auto">
-              {isLoadingItems ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  {t("loading", "Loading...")}
-                </div>
-              ) : filteredItems.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  {t("no_items_available", "No service items available for this device type")}
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {filteredItems.map((item: any) => (
-                    <div
-                      key={item.id}
-                      className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors ${
-                        selectedItem?.id === item.id ? 'bg-primary/10 border-l-4 border-primary' : ''
-                      }`}
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setUnitPrice(item.price || '0');
-                      }}
-                      data-testid={`item-option-${item.id}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium">{item.name}</div>
-                          {item.sku && (
-                            <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium text-primary">
-                            {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {item.price}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {t("stock", "Stock")}: {item.quantity}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Quantity and Price */}
-            {selectedItem && (
-              <div className="bg-muted/30 p-4 rounded-lg space-y-4">
-                <div className="font-medium text-lg">{selectedItem.name}</div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      {t("quantity", "Quantity")}
-                    </label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max={selectedItem.quantity}
-                      value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, Math.min(selectedItem.quantity, parseInt(e.target.value) || 1)))}
-                      data-testid="input-item-quantity"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      {t("selling_price", "Selling Price")}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
-                      </span>
-                      <Input
-                        type="text"
-                        value={unitPrice}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/[^0-9.,]/g, '');
-                          setUnitPrice(value);
-                        }}
-                        placeholder={currentLanguage.code === 'pt-BR' ? '10,00' : '10.00'}
-                        data-testid="input-item-unit-price"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t">
-                  <span className="font-medium">{t("total", "Total")}:</span>
-                  <span className="text-lg font-bold text-primary">
-                    {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {(parseFloat(unitPrice || '0') * quantity).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedItem(null);
-                setQuantity(1);
-                setUnitPrice('');
-                setItemSearchQuery('');
-                setShowItemSelectionDialog(false);
-              }}
-              data-testid="button-cancel-item-selection"
-            >
-              {t("cancel", "Cancel")}
-            </Button>
-            <Button
-              onClick={handleAddItem}
-              disabled={!selectedItem || !unitPrice || quantity < 1}
-              data-testid="button-confirm-add-item"
-            >
-              {t("add_item", "Add Item")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
+  // Callback to add item to form data
+  const handleAddItemToTicket = (item: { inventoryItemId: number; quantity: number; unitPrice: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      selectedItems: [
+        ...prev.selectedItems,
+        {
+          inventoryItemId: String(item.inventoryItemId),
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        }
+      ]
+    }));
   };
 
   return (
@@ -6753,7 +6792,17 @@ export default function KanbanTickets() {
       </Dialog>
 
       {/* Item Selection Dialog */}
-      <ItemSelectionDialog />
+      <ItemSelectionDialog
+        open={showItemSelectionDialog}
+        onOpenChange={setShowItemSelectionDialog}
+        availableItems={availableItems}
+        isLoadingItems={isLoadingItems}
+        searchQuery={itemSearchQuery}
+        onSearchQueryChange={setItemSearchQuery}
+        onAddItem={handleAddItemToTicket}
+        currentLanguage={currentLanguage}
+        t={t}
+      />
     </TooltipProvider>
   );
 }
