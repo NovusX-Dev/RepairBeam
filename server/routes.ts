@@ -883,21 +883,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate total cost
         totalCost += receivedItem.receivedQuantity * receivedItem.unitCost;
 
-        // Create inventory item if it doesn't exist yet
+        // Get or create inventory item
         let inventoryItemId = poItem.inventoryItemId;
         if (!inventoryItemId) {
-          const newInventoryItem = await storage.createInventoryItem({
-            tenantId: user.tenantId,
-            name: poItem.itemName || receivedItem.itemName, // Fallback to receivedItem name
-            quantity: 0, // Will be updated below
-            minQuantity: 0,
-            deviceType: poItem.deviceType || null,
-            itemType: poItem.itemType || 'Service',
-            description: poItem.description || null,
-            cost: receivedItem.unitCost.toString(),
-            price: receivedItem.sellingPrice.toString(),
-          });
-          inventoryItemId = newInventoryItem.id;
+          // First, check if an inventory item with the same name already exists
+          const allInventoryItems = await storage.getInventory(user.tenantId);
+          const itemName = poItem.itemName || receivedItem.itemName;
+          const existingItem = allInventoryItems.find(
+            item => item.name.toLowerCase() === itemName.toLowerCase()
+          );
+
+          if (existingItem) {
+            // Use existing inventory item
+            inventoryItemId = existingItem.id;
+          } else {
+            // Create new inventory item
+            const newInventoryItem = await storage.createInventoryItem({
+              tenantId: user.tenantId,
+              name: itemName,
+              quantity: 0, // Will be updated below
+              minQuantity: 0,
+              deviceType: poItem.deviceType || null,
+              itemType: poItem.itemType || 'Service',
+              description: poItem.description || null,
+              cost: receivedItem.unitCost.toString(),
+              price: receivedItem.sellingPrice.toString(),
+            });
+            inventoryItemId = newInventoryItem.id;
+          }
 
           // Link the inventory item to the PO item
           await storage.updatePurchaseOrderItem(poItem.id, {
