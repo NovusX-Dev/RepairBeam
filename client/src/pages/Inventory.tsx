@@ -452,16 +452,8 @@ export default function Inventory() {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="font-semibold text-white">{item.name}</p>
-                        {item.description && (
-                          <p className="text-sm text-slate-400">{item.description}</p>
-                        )}
-                        <div className="mt-2 flex items-center gap-2">
-                          {item.deviceType && (
-                            <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
-                              {item.deviceType}
-                            </Badge>
-                          )}
+                        <p className="font-semibold text-white mb-2">{item.name}</p>
+                        <div className="flex items-center gap-2">
                           {item.itemType && (
                             <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
                               {item.itemType}
@@ -470,9 +462,6 @@ export default function Inventory() {
                           <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400">
                             {item.quantity} {t("available", "Available")}
                           </Badge>
-                          <span className="text-xs text-slate-400">
-                            {t("alert", "Alert")}: {item.minQuantity}
-                          </span>
                         </div>
                       </div>
                     </div>
