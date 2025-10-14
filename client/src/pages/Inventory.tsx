@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ import {
 interface InventoryItem {
   id: string;
   tenantId: string;
+  supplierId?: string;
   name: string;
   description?: string;
   sku?: string;
@@ -60,6 +62,11 @@ interface InventoryItem {
   itemType?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
 }
 
 interface InventoryFormData {
@@ -106,6 +113,11 @@ export default function Inventory() {
   // Fetch inventory items
   const { data: items = [], isLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
+  });
+
+  // Fetch suppliers for display
+  const { data: suppliers = [] } = useQuery<Supplier[]>({
+    queryKey: ["/api/suppliers"],
   });
 
   // Calculate KPIs
@@ -315,6 +327,7 @@ export default function Inventory() {
     updateMutation.mutate({
       id: selectedItem.id,
       data: {
+        description: formData.description,
         quantity: parseInt(formData.quantity) || 0,
         minQuantity: parseInt(formData.minQuantity) || 0,
         cost: formData.cost,
@@ -646,8 +659,10 @@ export default function Inventory() {
                         <TableCell>
                           <div>
                             <div className="font-medium text-white">{item.name}</div>
-                            {item.description && (
-                              <div className="text-sm text-slate-400">{item.description}</div>
+                            {item.supplierId && suppliers.find(s => s.id === item.supplierId) && (
+                              <div className="text-sm text-slate-400">
+                                {suppliers.find(s => s.id === item.supplierId)?.name}
+                              </div>
                             )}
                             {item.deviceType && (
                               <div className="flex gap-2 mt-1">
@@ -812,12 +827,17 @@ export default function Inventory() {
                   </div>
                 </div>
               </div>
-              {selectedItem?.description && (
-                <div className="space-y-2 mt-3">
-                  <Label className="text-slate-300">{t("item_description", "Description")}</Label>
-                  <div className="text-slate-400 text-sm">{selectedItem.description}</div>
-                </div>
-              )}
+              <div className="space-y-2 mt-3">
+                <Label htmlFor="edit-description" className="text-slate-300">{t("item_description", "Description")}</Label>
+                <Textarea
+                  id="edit-description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="bg-slate-800 border-slate-700 min-h-[80px]"
+                  placeholder={t("description_placeholder", "Enter item description...")}
+                  data-testid="input-edit-description"
+                />
+              </div>
               {selectedItem?.deviceType && (
                 <div className="space-y-2 mt-3">
                   <Label className="text-slate-300">{t("device_type", "Device Type")}</Label>

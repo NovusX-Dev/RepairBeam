@@ -15,6 +15,8 @@ interface LocalizationContextType {
   t: (key: string, fallback?: string) => string;
   formatDate: (date: Date | string | null | undefined) => string;
   getCurrencySymbol: () => string;
+  formatCurrency: (amount: number | string) => string;
+  formatNumber: (value: number | string, decimals?: number) => string;
   isLoading: boolean;
   isChangingLanguage: boolean;
 }
@@ -171,6 +173,46 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     }
   };
 
+  // Format number based on current language
+  const formatNumber = (value: number | string, decimals: number = 2): string => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(num)) return '0';
+    
+    if (currentLanguage.code === 'pt-BR') {
+      // Brazilian format: 1.234,56
+      return num.toLocaleString('pt-BR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+    } else {
+      // US format: 1,234.56
+      return num.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+    }
+  };
+
+  // Format currency based on current language
+  const formatCurrency = (amount: number | string): string => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(num)) return getCurrencySymbol() + '0,00';
+    
+    if (currentLanguage.code === 'pt-BR') {
+      // Brazilian format: R$ 1.234,56
+      return 'R$ ' + num.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    } else {
+      // US format: $1,234.56
+      return '$' + num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+  };
+
   // Enhanced setCurrentLanguage that saves to tenant if authenticated
   const setLanguage = async (language: typeof LANGUAGES[0]) => {
     // Don't show overlay if it's the same language
@@ -199,6 +241,8 @@ export function LocalizationProvider({ children }: LocalizationProviderProps) {
     t,
     formatDate,
     getCurrencySymbol,
+    formatCurrency,
+    formatNumber,
     isLoading,
     isChangingLanguage,
   };
