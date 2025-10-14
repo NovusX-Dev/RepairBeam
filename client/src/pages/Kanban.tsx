@@ -1096,7 +1096,7 @@ export default function KanbanTickets() {
   // Query for available inventory items (service items with stock for device type)
   const { data: availableItems = [], isLoading: isLoadingItems } = useQuery({
     queryKey: [`/api/inventory/available-for-ticket/${formData.deviceType}`],
-    enabled: !!formData.deviceType && showItemSelectionDialog,
+    enabled: !!formData.deviceType,
     staleTime: 30 * 1000, // 30 seconds - inventory changes frequently
   });
 
@@ -2621,7 +2621,7 @@ export default function KanbanTickets() {
                   
                   <div>
                     <label className="text-sm font-medium mb-2 block">
-                      {t("unit_price", "Unit Price")}
+                      {t("selling_price", "Selling Price")}
                     </label>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
