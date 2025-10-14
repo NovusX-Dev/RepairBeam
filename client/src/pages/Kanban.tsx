@@ -1341,36 +1341,52 @@ export default function KanbanTickets() {
 
   // Auto-populate final cost with estimated total cost when finalization wizard opens
   useEffect(() => {
-    if (showCompletionDialog && ticketToFinalize && finalizationRepairServices.length > 0 && completionData.finalActualCost === '') {
+    if (showCompletionDialog && ticketToFinalize && completionData.finalActualCost === '') {
+      // Check if ticket has selected services
+      const hasSelectedServices = ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0;
+      
+      // If ticket has selected services, wait for finalizationRepairServices to load
+      if (hasSelectedServices && finalizationRepairServices.length === 0) {
+        return; // Exit early - services data not loaded yet
+      }
+      
       const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
       
-      // Calculate total estimated cost (services + extra costs)
-      if (ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0) {
-        // Calculate services cost
+      // Calculate total estimated cost (services + items + extra costs)
+      let totalServicesCents = 0;
+      
+      // Calculate services cost if services are selected
+      if (hasSelectedServices) {
         const serviceCostsCents = (ticketToFinalize.selectedServices as string[]).map(serviceId => {
           const service = finalizationRepairServices.find(s => s.id === serviceId);
           return service ? toCents(service.estimatedLaborCost, locale) : 0;
         });
-        const totalServicesCents = addCents(...serviceCostsCents);
-        
-        // Add extra costs
-        const extraCostsCents = ticketToFinalize.costEstimation ? toCents(ticketToFinalize.costEstimation, locale) : 0;
-        const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
-        
-        // Convert back to decimal string for input field
-        const totalCostDecimal = (grandTotalCents / 100).toFixed(2);
-        
-        setCompletionData(prev => ({
-          ...prev,
-          finalActualCost: totalCostDecimal
-        }));
-      } else if (ticketToFinalize.costEstimation) {
-        // If no services, just use extra costs
-        setCompletionData(prev => ({
-          ...prev,
-          finalActualCost: parseFloat(ticketToFinalize.costEstimation || '0').toFixed(2)
-        }));
+        totalServicesCents = addCents(...serviceCostsCents);
       }
+      
+      // Calculate service items cost
+      let totalItemsCents = 0;
+      if (ticketToFinalize.selectedItems && Array.isArray(ticketToFinalize.selectedItems) && ticketToFinalize.selectedItems.length > 0) {
+        const itemsCostsCents = ticketToFinalize.selectedItems.map((item: any) => {
+          const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
+          return toCents(String(itemTotal), locale);
+        });
+        totalItemsCents = addCents(...itemsCostsCents);
+      }
+      
+      // Add extra costs
+      const extraCostsCents = ticketToFinalize.costEstimation ? toCents(ticketToFinalize.costEstimation, locale) : 0;
+      
+      // Calculate grand total (always calculate, even if some components are 0)
+      const grandTotalCents = addCents(totalServicesCents, totalItemsCents, extraCostsCents);
+      
+      // Convert back to decimal string for input field
+      const totalCostDecimal = (grandTotalCents / 100).toFixed(2);
+      
+      setCompletionData(prev => ({
+        ...prev,
+        finalActualCost: totalCostDecimal
+      }));
     }
   }, [showCompletionDialog, ticketToFinalize, finalizationRepairServices, completionData.finalActualCost, currentLanguage.code]);
 
@@ -4660,8 +4676,15 @@ export default function KanbanTickets() {
                                   });
                                   const totalServicesCents = addCents(...serviceCostsCents);
                                   
+                                  // Calculate service items cost
+                                  const itemsCostsCents = formData.selectedItems.map(item => {
+                                    const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
+                                    return toCents(String(itemTotal), locale);
+                                  });
+                                  const totalItemsCents = itemsCostsCents.length > 0 ? addCents(...itemsCostsCents) : 0;
+                                  
                                   const extraCostsCents = toCents(formData.costEstimation || '0', locale);
-                                  const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+                                  const grandTotalCents = addCents(totalServicesCents, totalItemsCents, extraCostsCents);
                                   
                                   return formatCurrencyFromUtility(grandTotalCents, locale);
                                 })()}
@@ -5518,8 +5541,19 @@ export default function KanbanTickets() {
                                 });
                                 totalServicesCents = addCents(...serviceCostsCents);
                               }
+                              
+                              // Calculate service items cost
+                              let totalItemsCents = 0;
+                              if (selectedTicketSummary.selectedItems && Array.isArray(selectedTicketSummary.selectedItems) && selectedTicketSummary.selectedItems.length > 0) {
+                                const itemsCostsCents = selectedTicketSummary.selectedItems.map((item: any) => {
+                                  const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
+                                  return toCents(String(itemTotal), locale);
+                                });
+                                totalItemsCents = addCents(...itemsCostsCents);
+                              }
+                              
                               const extraCostsCents = toCents(selectedTicketSummary.costEstimation || '0', locale);
-                              const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+                              const grandTotalCents = addCents(totalServicesCents, totalItemsCents, extraCostsCents);
                               return formatCurrency(grandTotalCents, locale);
                             })()}
                           </div>
@@ -6078,7 +6112,7 @@ export default function KanbanTickets() {
                             />
                             <p className="text-xs text-cyan-300">
                               {t("estimated", "Estimated")}: {(() => {
-                                // Calculate total estimated cost (services + extra costs)
+                                // Calculate total estimated cost (services + items + extra costs)
                                 if (ticketToFinalize.selectedServices && Array.isArray(ticketToFinalize.selectedServices) && ticketToFinalize.selectedServices.length > 0) {
                                   const locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
                                   
@@ -6089,9 +6123,19 @@ export default function KanbanTickets() {
                                   });
                                   const totalServicesCents = addCents(...serviceCostsCents);
                                   
+                                  // Calculate service items cost
+                                  let totalItemsCents = 0;
+                                  if (ticketToFinalize.selectedItems && Array.isArray(ticketToFinalize.selectedItems) && ticketToFinalize.selectedItems.length > 0) {
+                                    const itemsCostsCents = ticketToFinalize.selectedItems.map((item: any) => {
+                                      const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
+                                      return toCents(String(itemTotal), locale);
+                                    });
+                                    totalItemsCents = addCents(...itemsCostsCents);
+                                  }
+                                  
                                   // Add extra costs
                                   const extraCostsCents = ticketToFinalize.costEstimation ? toCents(ticketToFinalize.costEstimation, locale) : 0;
-                                  const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+                                  const grandTotalCents = addCents(totalServicesCents, totalItemsCents, extraCostsCents);
                                   
                                   return formatCurrencyFromUtility(grandTotalCents, locale);
                                 } else if (ticketToFinalize.costEstimation) {
