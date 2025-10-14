@@ -337,6 +337,8 @@ interface TicketFormData {
   costEstimation: string;
   totalCost: string;
   costExplanation: string;
+  // Service Items (Inventory)
+  selectedItems: Array<{ inventoryItemId: string; quantity: number; unitPrice: string }>;
   // Service Checklist
   selectedChecklists: string[]; // Array of selected checklist IDs
   additionalNotes: string;
@@ -725,6 +727,8 @@ export default function KanbanTickets() {
     costEstimation: '',
     totalCost: '',
     costExplanation: '',
+    // Service Items
+    selectedItems: [],
     // Service Checklist
     selectedChecklists: [],
     additionalNotes: '',
@@ -773,12 +777,17 @@ export default function KanbanTickets() {
     finalActualCost: '',
   });
 
+  // Item selection dialog state
+  const [showItemSelectionDialog, setShowItemSelectionDialog] = useState(false);
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
+
   // Finalization wizard state
   const [wizardStep, setWizardStep] = useState(1);
   const [wizardData, setWizardData] = useState({
     finalChecklist: {} as Record<string, boolean>,
     clientAuthorized: false,
     selectedWarrantyTier: 'standard' as string, // Default to standard warranty
+    confirmedItemIds: [] as string[], // Track which items were actually used
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   
@@ -810,6 +819,7 @@ export default function KanbanTickets() {
       finalChecklist: {},
       clientAuthorized: false,
       selectedWarrantyTier: 'standard', // Reset to default warranty
+      confirmedItemIds: [],
     });
     setValidationErrors([]);
   };
@@ -1082,6 +1092,13 @@ export default function KanbanTickets() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Query for available inventory items (service items with stock for device type)
+  const { data: availableItems = [], isLoading: isLoadingItems } = useQuery({
+    queryKey: ['/api/inventory/available-for-ticket', formData.deviceType],
+    enabled: !!formData.deviceType && showItemSelectionDialog,
+    staleTime: 30 * 1000, // 30 seconds - inventory changes frequently
+  });
+
   // Load repair services for ticket summary (when viewing existing tickets)
   const { data: ticketRepairServices = [] } = useQuery<RepairService[]>({
     queryKey: [`/api/repair-services/device/${selectedTicketSummary?.deviceType}`],
@@ -1096,6 +1113,13 @@ export default function KanbanTickets() {
     enabled: !!ticketToFinalize?.deviceType && showCompletionDialog,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  // Query ticket items for finalization confirmation
+  const { data: ticketItems = [] } = useQuery({
+    queryKey: [`/api/tickets/${ticketToFinalize?.id}/items`],
+    enabled: !!ticketToFinalize?.id && showCompletionDialog,
+    staleTime: 30 * 1000, // 30 seconds
   });
 
   // Load warranty tiers for finalization wizard (when finalizing tickets)
@@ -1326,17 +1350,20 @@ export default function KanbanTickets() {
       ticketId, 
       completionNotes, 
       actualHours, 
-      finalActualCost 
+      finalActualCost,
+      confirmedItemIds = []
     }: { 
       ticketId: string; 
       completionNotes: string; 
       actualHours: number; 
       finalActualCost: number; 
+      confirmedItemIds?: string[];
     }) => {
       return await apiRequest("PUT", `/api/tickets/${ticketId}/finalize`, { 
         completionNotes, 
         actualHours, 
-        finalActualCost 
+        finalActualCost,
+        confirmedItemIds
       });
     },
     onMutate: async ({ ticketId }) => {
@@ -1564,7 +1591,29 @@ export default function KanbanTickets() {
       const response = await apiRequest("POST", "/api/tickets", ticketData);
       return await response.json();
     },
-    onSuccess: (newTicket: Ticket) => {
+    onSuccess: async (newTicket: Ticket) => {
+      // Allocate selected items to the ticket
+      if (formData.selectedItems && formData.selectedItems.length > 0) {
+        try {
+          for (const item of formData.selectedItems) {
+            await apiRequest("POST", `/api/tickets/${newTicket.id}/items`, {
+              inventoryItemId: item.inventoryItemId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+            });
+          }
+          // Invalidate inventory queries to reflect stock changes
+          queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+        } catch (error) {
+          console.error('Failed to allocate items:', error);
+          toast({
+            title: t("warning", "Warning"),
+            description: t("items_allocation_failed", "Ticket created but some items could not be allocated"),
+            variant: "default",
+          });
+        }
+      }
+      
       // Refresh tickets query to show the new ticket
       queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
       
@@ -2361,6 +2410,7 @@ export default function KanbanTickets() {
         totalCost: '',
         costExplanation: '',
         selectedServices: [],
+        selectedItems: [],
         // Service Checklist defaults
         selectedChecklists: [],
         additionalNotes: '',
@@ -2442,6 +2492,190 @@ export default function KanbanTickets() {
       </TooltipProvider>
     );
   }
+
+  // Item Selection Dialog Component
+  const ItemSelectionDialog = () => {
+    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const [quantity, setQuantity] = useState(1);
+    const [unitPrice, setUnitPrice] = useState('');
+
+    const filteredItems = availableItems.filter((item: any) =>
+      item.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
+      (item.sku && item.sku.toLowerCase().includes(itemSearchQuery.toLowerCase()))
+    );
+
+    const handleAddItem = () => {
+      if (!selectedItem || !unitPrice || quantity < 1) return;
+
+      setFormData(prev => ({
+        ...prev,
+        selectedItems: [
+          ...prev.selectedItems,
+          {
+            inventoryItemId: selectedItem.id,
+            quantity,
+            unitPrice,
+          }
+        ]
+      }));
+
+      // Reset and close
+      setSelectedItem(null);
+      setQuantity(1);
+      setUnitPrice('');
+      setItemSearchQuery('');
+      setShowItemSelectionDialog(false);
+    };
+
+    return (
+      <Dialog open={showItemSelectionDialog} onOpenChange={setShowItemSelectionDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh]" data-testid="dialog-item-selection">
+          <DialogHeader>
+            <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] -mx-6 -mt-6 px-6 py-4 mb-4">
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                {t("select_service_item", "Select Service Item")}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder={t("search_items", "Search items by name or SKU...")}
+                value={itemSearchQuery}
+                onChange={(e) => setItemSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-items"
+              />
+            </div>
+
+            {/* Items List */}
+            <div className="border rounded-lg max-h-60 overflow-y-auto">
+              {isLoadingItems ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  {t("loading", "Loading...")}
+                </div>
+              ) : filteredItems.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  {t("no_items_available", "No service items available for this device type")}
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {filteredItems.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className={`p-3 hover:bg-muted/50 cursor-pointer transition-colors ${
+                        selectedItem?.id === item.id ? 'bg-primary/10 border-l-4 border-primary' : ''
+                      }`}
+                      onClick={() => {
+                        setSelectedItem(item);
+                        setUnitPrice(item.unitPrice || '0');
+                      }}
+                      data-testid={`item-option-${item.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium">{item.name}</div>
+                          {item.sku && (
+                            <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-primary">
+                            {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {item.unitPrice}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {t("stock", "Stock")}: {item.quantity}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Quantity and Price */}
+            {selectedItem && (
+              <div className="bg-muted/30 p-4 rounded-lg space-y-4">
+                <div className="font-medium text-lg">{selectedItem.name}</div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      {t("quantity", "Quantity")}
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max={selectedItem.quantity}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(1, Math.min(selectedItem.quantity, parseInt(e.target.value) || 1)))}
+                      data-testid="input-item-quantity"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      {t("unit_price", "Unit Price")}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}
+                      </span>
+                      <Input
+                        type="text"
+                        value={unitPrice}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^0-9.,]/g, '');
+                          setUnitPrice(value);
+                        }}
+                        placeholder={currentLanguage.code === 'pt-BR' ? '10,00' : '10.00'}
+                        data-testid="input-item-unit-price"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="font-medium">{t("total", "Total")}:</span>
+                  <span className="text-lg font-bold text-primary">
+                    {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {(parseFloat(unitPrice || '0') * quantity).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedItem(null);
+                setQuantity(1);
+                setUnitPrice('');
+                setItemSearchQuery('');
+                setShowItemSelectionDialog(false);
+              }}
+              data-testid="button-cancel-item-selection"
+            >
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button
+              onClick={handleAddItem}
+              disabled={!selectedItem || !unitPrice || quantity < 1}
+              data-testid="button-confirm-add-item"
+            >
+              {t("add_item", "Add Item")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <TooltipProvider>
@@ -3850,6 +4084,74 @@ export default function KanbanTickets() {
                       </FormFieldWithTooltip>
                     )}
 
+                    {/* Service Items Section */}
+                    <FormFieldWithTooltip
+                      label={t("service_items", "Service Items")}
+                      tooltip={t("service_items_tooltip", "Parts and materials from inventory used for this repair")}
+                    >
+                      <div className="space-y-3">
+                        {/* Selected Items List */}
+                        {formData.selectedItems.length > 0 && (
+                          <div className="space-y-2 p-3 bg-muted/30 rounded-md border">
+                            {formData.selectedItems.map((item, index) => {
+                              const inventoryItem = availableItems.find((inv: any) => inv.id === item.inventoryItemId);
+                              const totalPrice = (parseFloat(item.unitPrice) * item.quantity).toFixed(2);
+                              
+                              return (
+                                <div key={index} className="flex items-center justify-between text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-foreground">{inventoryItem?.name || 'Unknown Item'}</span>
+                                    <span className="text-muted-foreground">× {item.quantity}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-primary" data-testid={`item-cost-${index}`}>
+                                      {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {totalPrice}
+                                    </span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          selectedItems: prev.selectedItems.filter((_, i) => i !== index)
+                                        }));
+                                      }}
+                                      data-testid={`button-remove-item-${index}`}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <div className="border-t border-muted pt-2 mt-2">
+                              <div className="flex items-center justify-between text-sm font-medium">
+                                <span className="text-foreground">{t("items_subtotal", "Items Subtotal")}</span>
+                                <span className="text-primary" data-testid="items-subtotal">
+                                  {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {formData.selectedItems.reduce((sum, item) => 
+                                    sum + (parseFloat(item.unitPrice) * item.quantity), 0
+                                  ).toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Add Item Button */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowItemSelectionDialog(true)}
+                          data-testid="button-add-service-item"
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {t("add_service_item", "Add Service Item")}
+                        </Button>
+                      </div>
+                    </FormFieldWithTooltip>
+
                     <FormFieldWithTooltip
                       label={t("extra_costs", "Extra Costs")}
                       tooltip={t("extra_costs_tooltip", "Additional costs not included in services (parts, materials, etc.)")}
@@ -3907,9 +4209,16 @@ export default function KanbanTickets() {
                               });
                               const totalServicesCents = addCents(...serviceCostsCents);
                               
+                              // Add service items costs
+                              const itemsCostsCents = formData.selectedItems.map(item => {
+                                const totalPrice = parseFloat(item.unitPrice) * item.quantity;
+                                return toCents(totalPrice.toFixed(2), locale);
+                              });
+                              const totalItemsCents = itemsCostsCents.length > 0 ? addCents(...itemsCostsCents) : 0;
+                              
                               // Add extra costs
                               const extraCostsCents = toCents(formData.costEstimation || '0', locale);
-                              const grandTotalCents = addCents(totalServicesCents, extraCostsCents);
+                              const grandTotalCents = addCents(totalServicesCents, totalItemsCents, extraCostsCents);
                               
                               return fromCents(grandTotalCents, locale);
                             })()}
@@ -5755,6 +6064,65 @@ export default function KanbanTickets() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Service Items Confirmation */}
+                      {ticketItems && ticketItems.length > 0 && (
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              {t("service_items_used", "Service Items Used")}
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-xs text-cyan-300 mb-3">
+                              {t("confirm_items_used", "Check the items that were actually used during this repair")}
+                            </p>
+                            <div className="space-y-2">
+                              {ticketItems.map((item: any) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between p-3 rounded-lg border border-slate-600/50 bg-slate-700/40 hover:bg-slate-700/60 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3 flex-1">
+                                    <Checkbox
+                                      id={`item-${item.id}`}
+                                      checked={wizardData.confirmedItemIds.includes(item.id)}
+                                      onCheckedChange={(checked) => {
+                                        setWizardData(prev => ({
+                                          ...prev,
+                                          confirmedItemIds: checked
+                                            ? [...prev.confirmedItemIds, item.id]
+                                            : prev.confirmedItemIds.filter(id => id !== item.id)
+                                        }));
+                                      }}
+                                      className="border-cyan-400 data-[state=checked]:bg-cyan-500"
+                                      data-testid={`checkbox-item-${item.id}`}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-white">
+                                        {item.inventoryItem?.name || 'Unknown Item'}
+                                      </div>
+                                      <div className="text-xs text-cyan-300">
+                                        {t("quantity", "Quantity")}: {item.quantity} × {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.unitPrice}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-medium text-primary">
+                                        {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.totalPrice}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-yellow-400 mt-3 flex items-start gap-2">
+                              <AlertTriangle className="w-4 h-4 mt-0.5" />
+                              {t("unchecked_items_returned", "Unchecked items will be returned to inventory")}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -6231,7 +6599,8 @@ export default function KanbanTickets() {
                         ticketId: ticketToFinalize.id,
                         completionNotes: completionData.completionNotes || '', // Optional notes
                         actualHours: parseInt(completionData.actualHours),
-                        finalActualCost: parseFloat(completionData.finalActualCost)
+                        finalActualCost: parseFloat(completionData.finalActualCost),
+                        confirmedItemIds: wizardData.confirmedItemIds
                       });
                     }
                   } else {
@@ -6381,6 +6750,9 @@ export default function KanbanTickets() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Item Selection Dialog */}
+      <ItemSelectionDialog />
     </TooltipProvider>
   );
 }
