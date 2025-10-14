@@ -1095,7 +1095,7 @@ export default function KanbanTickets() {
 
   // Query for available inventory items (service items with stock for device type)
   const { data: availableItems = [], isLoading: isLoadingItems } = useQuery({
-    queryKey: ['/api/inventory/available-for-ticket', formData.deviceType],
+    queryKey: [`/api/inventory/available-for-ticket/${formData.deviceType}`],
     enabled: !!formData.deviceType && showItemSelectionDialog,
     staleTime: 30 * 1000, // 30 seconds - inventory changes frequently
   });
@@ -2573,7 +2573,7 @@ export default function KanbanTickets() {
                       }`}
                       onClick={() => {
                         setSelectedItem(item);
-                        setUnitPrice(item.unitPrice || '0');
+                        setUnitPrice(item.price || '0');
                       }}
                       data-testid={`item-option-${item.id}`}
                     >
@@ -2586,7 +2586,7 @@ export default function KanbanTickets() {
                         </div>
                         <div className="text-right">
                           <div className="font-medium text-primary">
-                            {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {item.unitPrice}
+                            {currentLanguage.code === 'pt-BR' ? 'R$' : '$'} {item.price}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {t("stock", "Stock")}: {item.quantity}

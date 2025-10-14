@@ -761,7 +761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get available service items for ticket (filtered by device type)
-  app.get("/api/inventory/available-for-ticket", isAuthenticated, async (req: any, res) => {
+  app.get("/api/inventory/available-for-ticket/:deviceType", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -769,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const { deviceType } = req.query;
+      const { deviceType } = req.params;
       
       // Get all inventory items for the tenant
       const allItems = await storage.getInventoryItems(user.tenantId);
@@ -781,6 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const matchesDeviceType = !deviceType || 
                                   item.deviceType === deviceType || 
                                   item.deviceType === null || 
+                                  item.deviceType === '' ||
                                   item.deviceType === 'Other';
         
         return isServiceItem && hasStock && matchesDeviceType;
