@@ -43,7 +43,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
