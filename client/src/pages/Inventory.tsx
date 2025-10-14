@@ -455,7 +455,10 @@ export default function Inventory() {
                         <p className="font-semibold text-white mb-2">{item.name}</p>
                         <div className="flex items-center gap-2">
                           {item.itemType && (
-                            <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"} className="text-xs">
+                            <Badge 
+                              variant={item.itemType === 'Sales' ? "default" : "outline"} 
+                              className={item.itemType === 'Sales' ? "text-xs" : "text-xs border-purple-500/40 text-purple-400 bg-purple-500/10"}
+                            >
                               {item.itemType}
                             </Badge>
                           )}
@@ -657,7 +660,10 @@ export default function Inventory() {
                         </TableCell>
                         <TableCell>
                           {item.itemType && (
-                            <Badge variant={item.itemType === 'Sales' ? "default" : "secondary"}>
+                            <Badge 
+                              variant={item.itemType === 'Sales' ? "default" : "outline"}
+                              className={item.itemType === 'Sales' ? "" : "border-purple-500/40 text-purple-400 bg-purple-500/10"}
+                            >
                               {item.itemType}
                             </Badge>
                           )}
@@ -796,7 +802,10 @@ export default function Inventory() {
                   <Label className="text-slate-300">{t("category", "Category")}</Label>
                   <div>
                     {selectedItem?.itemType && (
-                      <Badge variant={selectedItem.itemType === 'Sales' ? "default" : "secondary"}>
+                      <Badge 
+                        variant={selectedItem.itemType === 'Sales' ? "default" : "outline"}
+                        className={selectedItem.itemType === 'Sales' ? "" : "border-purple-500/40 text-purple-400 bg-purple-500/10"}
+                      >
                         {selectedItem.itemType}
                       </Badge>
                     )}
