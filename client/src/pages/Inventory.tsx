@@ -664,13 +664,6 @@ export default function Inventory() {
                                 {suppliers.find(s => s.id === item.supplierId)?.name}
                               </div>
                             )}
-                            {item.deviceType && (
-                              <div className="flex gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs border-cyan-500/30 text-cyan-400">
-                                  {item.deviceType}
-                                </Badge>
-                              </div>
-                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -827,6 +820,14 @@ export default function Inventory() {
                   </div>
                 </div>
               </div>
+              {selectedItem?.supplierId && suppliers.find(s => s.id === selectedItem.supplierId) && (
+                <div className="space-y-2 mt-3">
+                  <Label className="text-slate-300">{t("supplier", "Supplier")}</Label>
+                  <div className="text-white font-medium">
+                    {suppliers.find(s => s.id === selectedItem.supplierId)?.name}
+                  </div>
+                </div>
+              )}
               <div className="space-y-2 mt-3">
                 <Label htmlFor="edit-description" className="text-slate-300">{t("item_description", "Description")}</Label>
                 <Textarea
