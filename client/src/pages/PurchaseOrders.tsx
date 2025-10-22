@@ -71,7 +71,7 @@ function ItemBrandModelFields({ item, index, handleItemChange, isPending }: Item
     <div className="grid grid-cols-2 gap-3">
       <div>
         <Label className="text-xs text-slate-400">{t("brand", "Brand")}</Label>
-        <Popover open={brandOpen} onOpenChange={setBrandOpen}>
+        <Popover open={brandOpen} onOpenChange={setBrandOpen} modal={false}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -141,7 +141,7 @@ function ItemBrandModelFields({ item, index, handleItemChange, isPending }: Item
       </div>
       <div>
         <Label className="text-xs text-slate-400">{t("model", "Model")}</Label>
-        <Popover open={modelOpen} onOpenChange={setModelOpen}>
+        <Popover open={modelOpen} onOpenChange={setModelOpen} modal={false}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
