@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, Search, ShoppingCart, Package, DollarSign, X, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Edit, Trash2, Search, ShoppingCart, Package, DollarSign, X, ArrowUpDown, ChevronUp, ChevronDown, Check, ChevronsUpDown } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
@@ -25,6 +25,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import type { InventoryItem } from "@shared/schema";
 
 interface AutoGenList {
@@ -44,6 +47,8 @@ interface ItemBrandModelFieldsProps {
 
 function ItemBrandModelFields({ item, index, handleItemChange, isPending }: ItemBrandModelFieldsProps) {
   const { t } = useLocalization();
+  const [brandOpen, setBrandOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
   
   // Fetch brands for the selected device type
   const { data: brandsList } = useQuery<AutoGenList>({
@@ -66,43 +71,141 @@ function ItemBrandModelFields({ item, index, handleItemChange, isPending }: Item
     <div className="grid grid-cols-2 gap-3">
       <div>
         <Label className="text-xs text-slate-400">{t("brand", "Brand")}</Label>
-        <Select 
-          value={item.brand || "Other"} 
-          onValueChange={(value) => {
-            handleItemChange(index, "brand", value === "Other" ? null : value);
-            // Reset model when brand changes
-            handleItemChange(index, "model", null);
-          }}
-          disabled={isPending || !item.deviceType || item.deviceType === "other"}
-        >
-          <SelectTrigger className="bg-slate-900 border-slate-600 text-white mt-1" data-testid={`select-brand-${index}`}>
-            <SelectValue placeholder={t("select_brand", "Select brand")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Other">{t("other", "Other")}</SelectItem>
-            {brands.map((brand) => (
-              <SelectItem key={brand} value={brand}>{brand}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={brandOpen} onOpenChange={setBrandOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={brandOpen}
+              className="w-full justify-between bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white mt-1"
+              disabled={isPending || !item.deviceType || item.deviceType === "other"}
+              data-testid={`select-brand-${index}`}
+            >
+              {item.brand || t("other", "Other")}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
+            <Command className="bg-slate-900">
+              <CommandInput 
+                placeholder={t("search_brand", "Search brand...")} 
+                className="text-white"
+              />
+              <CommandList>
+                <CommandEmpty className="text-slate-400 py-6 text-center text-sm">
+                  {t("other", "Other")}
+                </CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="Other"
+                    onSelect={() => {
+                      handleItemChange(index, "brand", null);
+                      handleItemChange(index, "model", null);
+                      setBrandOpen(false);
+                    }}
+                    className="text-white hover:bg-slate-800"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        !item.brand ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {t("other", "Other")}
+                  </CommandItem>
+                  {brands.map((brand) => (
+                    <CommandItem
+                      key={brand}
+                      value={brand}
+                      onSelect={() => {
+                        handleItemChange(index, "brand", brand);
+                        handleItemChange(index, "model", null);
+                        setBrandOpen(false);
+                      }}
+                      className="text-white hover:bg-slate-800"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          item.brand === brand ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {brand}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
       <div>
         <Label className="text-xs text-slate-400">{t("model", "Model")}</Label>
-        <Select 
-          value={item.model || "Other"} 
-          onValueChange={(value) => handleItemChange(index, "model", value === "Other" ? null : value)}
-          disabled={isPending || !item.brand || item.brand === "Other"}
-        >
-          <SelectTrigger className="bg-slate-900 border-slate-600 text-white mt-1" data-testid={`select-model-${index}`}>
-            <SelectValue placeholder={t("select_model", "Select model")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Other">{t("other", "Other")}</SelectItem>
-            {models.map((model) => (
-              <SelectItem key={model} value={model}>{model}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={modelOpen} onOpenChange={setModelOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={modelOpen}
+              className="w-full justify-between bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white mt-1"
+              disabled={isPending || !item.brand || item.brand === "Other"}
+              data-testid={`select-model-${index}`}
+            >
+              {item.model || t("other", "Other")}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
+            <Command className="bg-slate-900">
+              <CommandInput 
+                placeholder={t("search_model", "Search model...")} 
+                className="text-white"
+              />
+              <CommandList>
+                <CommandEmpty className="text-slate-400 py-6 text-center text-sm">
+                  {t("other", "Other")}
+                </CommandEmpty>
+                <CommandGroup>
+                  <CommandItem
+                    value="Other"
+                    onSelect={() => {
+                      handleItemChange(index, "model", null);
+                      setModelOpen(false);
+                    }}
+                    className="text-white hover:bg-slate-800"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        !item.model ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {t("other", "Other")}
+                  </CommandItem>
+                  {models.map((model) => (
+                    <CommandItem
+                      key={model}
+                      value={model}
+                      onSelect={() => {
+                        handleItemChange(index, "model", model);
+                        setModelOpen(false);
+                      }}
+                      className="text-white hover:bg-slate-800"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          item.model === model ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {model}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );
