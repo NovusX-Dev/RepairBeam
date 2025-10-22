@@ -842,13 +842,13 @@ export default function Inventory() {
               <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide">
                 {t("item_information", "Item Information")}
               </h3>
-              <div className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border border-slate-700/50 rounded-lg p-4 space-y-4">
+              <div className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border border-slate-700/50 rounded-lg p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label className="text-slate-400 text-xs font-medium">{t("item_name", "Item Name")}</Label>
                     <div className="text-white font-semibold text-lg">{selectedItem?.name}</div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label className="text-slate-400 text-xs font-medium">{t("category", "Category")}</Label>
                     <div>
                       {selectedItem?.itemType && (
@@ -867,7 +867,7 @@ export default function Inventory() {
                 </div>
                 
                 {selectedItem?.supplierId && suppliers.find(s => s.id === selectedItem.supplierId) && (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label className="text-slate-400 text-xs font-medium">{t("supplier", "Supplier")}</Label>
                     <div className="text-white font-medium">
                       {suppliers.find(s => s.id === selectedItem.supplierId)?.name}
@@ -875,22 +875,8 @@ export default function Inventory() {
                   </div>
                 )}
                 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-description" className="text-slate-400 text-xs font-medium">
-                    {t("item_description", "Description")}
-                  </Label>
-                  <Textarea
-                    id="edit-description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white min-h-[80px]"
-                    placeholder={t("description_placeholder", "Enter item description...")}
-                    data-testid="input-edit-description"
-                  />
-                </div>
-                
                 {selectedItem?.deviceType && (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <Label className="text-slate-400 text-xs font-medium">{t("device_type", "Device Type")}</Label>
                     <div>
                       <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 bg-cyan-500/5">
@@ -903,19 +889,33 @@ export default function Inventory() {
                 {(selectedItem?.brand || selectedItem?.model) && (
                   <div className="grid grid-cols-2 gap-4">
                     {selectedItem?.brand && (
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <Label className="text-slate-400 text-xs font-medium">{t("brand", "Brand")}</Label>
                         <div className="text-white font-medium">{selectedItem.brand}</div>
                       </div>
                     )}
                     {selectedItem?.model && (
-                      <div className="space-y-2">
+                      <div className="space-y-1">
                         <Label className="text-slate-400 text-xs font-medium">{t("model", "Model")}</Label>
                         <div className="text-white font-medium">{selectedItem.model}</div>
                       </div>
                     )}
                   </div>
                 )}
+                
+                <div className="space-y-2 pt-1">
+                  <Label htmlFor="edit-description" className="text-slate-400 text-xs font-medium">
+                    {t("item_description", "Description")}
+                  </Label>
+                  <Textarea
+                    id="edit-description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white min-h-[80px]"
+                    placeholder={t("description_placeholder", "Enter item description...")}
+                    data-testid="input-edit-description"
+                  />
+                </div>
               </div>
             </div>
 
