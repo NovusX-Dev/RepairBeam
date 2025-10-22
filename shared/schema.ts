@@ -235,6 +235,8 @@ export const inventoryItems = pgTable("inventory_items", {
   sku: varchar("sku"),
   category: varchar("category"),
   deviceType: varchar("device_type"), // 'Phone', 'Laptop', 'Desktop', or null for 'Other'
+  brand: varchar("brand"), // Device brand from auto-gen lists, or null for 'Other'
+  model: varchar("model"), // Device model from auto-gen lists, or null for 'Other'
   itemType: varchar("item_type"), // 'Service' or 'Sales'
   quantity: integer("quantity").notNull().default(0),
   minQuantity: integer("min_quantity").notNull().default(0),
@@ -270,6 +272,8 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
   receivedQuantity: integer("received_quantity").notNull().default(0),
   unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
   deviceType: varchar("device_type"), // 'Phone', 'Laptop', 'Desktop', or null for 'Other'
+  brand: varchar("brand"), // Device brand from auto-gen lists, or null for 'Other'
+  model: varchar("model"), // Device model from auto-gen lists, or null for 'Other'
   itemType: varchar("item_type").notNull().default('Service'), // 'Service' or 'Sales'
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
