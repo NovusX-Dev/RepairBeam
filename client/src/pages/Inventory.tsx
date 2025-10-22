@@ -826,144 +826,185 @@ export default function Inventory() {
 
       {/* Edit Item Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="bg-slate-900 border-cyan-500/30 max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+        <DialogContent className="bg-slate-900 border-cyan-500/20 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="bg-gradient-to-r from-slate-800 via-blue-900/40 to-cyan-900/40 -m-6 p-6 mb-4 border-b border-cyan-500/20">
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
               {t("edit_item", "Edit Item")}
             </DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-slate-400 mt-1">
               {t("edit_item_description", "Update the item details below")}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-slate-300">{t("item_name", "Item Name")}</Label>
-                  <div className="text-white font-medium">{selectedItem?.name}</div>
+          
+          <div className="space-y-6">
+            {/* Item Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide">
+                {t("item_information", "Item Information")}
+              </h3>
+              <div className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border border-slate-700/50 rounded-lg p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-400 text-xs font-medium">{t("item_name", "Item Name")}</Label>
+                    <div className="text-white font-semibold text-lg">{selectedItem?.name}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-400 text-xs font-medium">{t("category", "Category")}</Label>
+                    <div>
+                      {selectedItem?.itemType && (
+                        <Badge 
+                          variant={selectedItem.itemType === 'Sales' ? "default" : "outline"}
+                          className={selectedItem.itemType === 'Sales' 
+                            ? "bg-gradient-to-r from-cyan-600 to-blue-600" 
+                            : "border-purple-500/40 text-purple-400 bg-purple-500/10"
+                          }
+                        >
+                          {selectedItem.itemType}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
                 </div>
+                
+                {selectedItem?.supplierId && suppliers.find(s => s.id === selectedItem.supplierId) && (
+                  <div className="space-y-2">
+                    <Label className="text-slate-400 text-xs font-medium">{t("supplier", "Supplier")}</Label>
+                    <div className="text-white font-medium">
+                      {suppliers.find(s => s.id === selectedItem.supplierId)?.name}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-2">
-                  <Label className="text-slate-300">{t("category", "Category")}</Label>
-                  <div>
-                    {selectedItem?.itemType && (
-                      <Badge 
-                        variant={selectedItem.itemType === 'Sales' ? "default" : "outline"}
-                        className={selectedItem.itemType === 'Sales' ? "" : "border-purple-500/40 text-purple-400 bg-purple-500/10"}
-                      >
-                        {selectedItem.itemType}
+                  <Label htmlFor="edit-description" className="text-slate-400 text-xs font-medium">
+                    {t("item_description", "Description")}
+                  </Label>
+                  <Textarea
+                    id="edit-description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white min-h-[80px]"
+                    placeholder={t("description_placeholder", "Enter item description...")}
+                    data-testid="input-edit-description"
+                  />
+                </div>
+                
+                {selectedItem?.deviceType && (
+                  <div className="space-y-2">
+                    <Label className="text-slate-400 text-xs font-medium">{t("device_type", "Device Type")}</Label>
+                    <div>
+                      <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 bg-cyan-500/5">
+                        {selectedItem.deviceType}
                       </Badge>
+                    </div>
+                  </div>
+                )}
+                
+                {(selectedItem?.brand || selectedItem?.model) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedItem?.brand && (
+                      <div className="space-y-2">
+                        <Label className="text-slate-400 text-xs font-medium">{t("brand", "Brand")}</Label>
+                        <div className="text-white font-medium">{selectedItem.brand}</div>
+                      </div>
+                    )}
+                    {selectedItem?.model && (
+                      <div className="space-y-2">
+                        <Label className="text-slate-400 text-xs font-medium">{t("model", "Model")}</Label>
+                        <div className="text-white font-medium">{selectedItem.model}</div>
+                      </div>
                     )}
                   </div>
-                </div>
+                )}
               </div>
-              {selectedItem?.supplierId && suppliers.find(s => s.id === selectedItem.supplierId) && (
-                <div className="space-y-2 mt-3">
-                  <Label className="text-slate-300">{t("supplier", "Supplier")}</Label>
-                  <div className="text-white font-medium">
-                    {suppliers.find(s => s.id === selectedItem.supplierId)?.name}
-                  </div>
-                </div>
-              )}
-              <div className="space-y-2 mt-3">
-                <Label htmlFor="edit-description" className="text-slate-300">{t("item_description", "Description")}</Label>
-                <Textarea
-                  id="edit-description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-slate-800 border-slate-700 min-h-[80px]"
-                  placeholder={t("description_placeholder", "Enter item description...")}
-                  data-testid="input-edit-description"
-                />
-              </div>
-              {selectedItem?.deviceType && (
-                <div className="space-y-2 mt-3">
-                  <Label className="text-slate-300">{t("device_type", "Device Type")}</Label>
-                  <div>
-                    <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
-                      {selectedItem.deviceType}
-                    </Badge>
-                  </div>
-                </div>
-              )}
-              {(selectedItem?.brand || selectedItem?.model) && (
-                <div className="grid grid-cols-2 gap-4 mt-3">
-                  {selectedItem?.brand && (
-                    <div className="space-y-2">
-                      <Label className="text-slate-300">{t("brand", "Brand")}</Label>
-                      <div className="text-white font-medium">{selectedItem.brand}</div>
-                    </div>
-                  )}
-                  {selectedItem?.model && (
-                    <div className="space-y-2">
-                      <Label className="text-slate-300">{t("model", "Model")}</Label>
-                      <div className="text-white font-medium">{selectedItem.model}</div>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-quantity" className="text-slate-300">{t("quantity", "Quantity")} *</Label>
-                <Input
-                  id="edit-quantity"
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  className="bg-slate-800 border-slate-700"
-                  data-testid="input-edit-quantity"
-                />
-              </div>
-              <div className="space-y-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Label htmlFor="edit-minQuantity" className="text-slate-300 cursor-help">
-                        {t("alert_quantity", "Alert Quantity")} *
-                      </Label>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{t("alert_quantity_tooltip", "Triggers low stock alert when quantity reaches this level")}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <Input
-                  id="edit-minQuantity"
-                  type="number"
-                  value={formData.minQuantity}
-                  onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
-                  className="bg-slate-800 border-slate-700"
-                  data-testid="input-edit-min-quantity"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-cost" className="text-slate-300">{t("cost_price", "Cost Price")}</Label>
-                <Input
-                  id="edit-cost"
-                  type="number"
-                  step="0.01"
-                  value={formData.cost}
-                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                  className="bg-slate-800 border-slate-700"
-                  data-testid="input-edit-cost"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-price" className="text-slate-300">{t("selling_price", "Selling Price")}</Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="bg-slate-800 border-slate-700"
-                  data-testid="input-edit-price"
-                />
+
+            {/* Stock & Pricing Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wide">
+                {t("stock_pricing", "Stock & Pricing")}
+              </h3>
+              <div className="bg-gradient-to-br from-slate-800/50 to-slate-800/30 border border-slate-700/50 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-quantity" className="text-slate-400 text-xs font-medium">
+                      {t("quantity", "Quantity")} *
+                    </Label>
+                    <Input
+                      id="edit-quantity"
+                      type="number"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                      className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white"
+                      data-testid="input-edit-quantity"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Label htmlFor="edit-minQuantity" className="text-slate-400 text-xs font-medium cursor-help">
+                            {t("alert_quantity", "Alert Quantity")} *
+                          </Label>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{t("alert_quantity_tooltip", "Triggers low stock alert when quantity reaches this level")}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Input
+                      id="edit-minQuantity"
+                      type="number"
+                      value={formData.minQuantity}
+                      onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
+                      className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white"
+                      data-testid="input-edit-min-quantity"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-cost" className="text-slate-400 text-xs font-medium">
+                      {t("cost_price", "Cost Price")}
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                        {formatCurrency(0).replace(/[\d.,]/g, '')}
+                      </span>
+                      <Input
+                        id="edit-cost"
+                        type="number"
+                        step="0.01"
+                        value={formData.cost}
+                        onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                        className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white pl-8"
+                        data-testid="input-edit-cost"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-price" className="text-slate-400 text-xs font-medium">
+                      {t("selling_price", "Selling Price")}
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                        {formatCurrency(0).replace(/[\d.,]/g, '')}
+                      </span>
+                      <Input
+                        id="edit-price"
+                        type="number"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        className="bg-slate-800/70 border-cyan-500/20 focus:border-cyan-500/40 text-white pl-8"
+                        data-testid="input-edit-price"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter>
+          
+          <DialogFooter className="mt-6 gap-2">
             <Button 
               variant="outline" 
               onClick={() => {
@@ -971,7 +1012,7 @@ export default function Inventory() {
                 setSelectedItem(null);
                 resetForm();
               }}
-              className="border-slate-700"
+              className="border-slate-700 hover:bg-slate-800"
               data-testid="button-cancel-edit"
             >
               {t("cancel", "Cancel")}
