@@ -59,6 +59,8 @@ interface InventoryItem {
   price?: string;
   supplier?: string;
   deviceType?: string | null;
+  brand?: string | null;
+  model?: string | null;
   itemType?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -88,6 +90,7 @@ export default function Inventory() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSupplier, setFilterSupplier] = useState<string>("all");
+  const [filterBrand, setFilterBrand] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -157,9 +160,12 @@ export default function Inventory() {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.deviceType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          item.model?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           item.itemType?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesSupplier = filterSupplier === "all" || item.supplierId === filterSupplier;
+      const matchesBrand = filterBrand === "all" || item.brand === filterBrand;
       
       let matchesStatus = true;
       if (filterStatus === "in_stock") {
@@ -170,7 +176,7 @@ export default function Inventory() {
         matchesStatus = item.quantity === 0;
       }
 
-      return matchesSearch && matchesSupplier && matchesStatus;
+      return matchesSearch && matchesSupplier && matchesBrand && matchesStatus;
     });
 
     // Apply sorting
@@ -225,7 +231,7 @@ export default function Inventory() {
     }
 
     return filtered;
-  }, [items, searchTerm, filterSupplier, filterStatus, sortColumn, sortDirection]);
+  }, [items, searchTerm, filterSupplier, filterBrand, filterStatus, sortColumn, sortDirection]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -238,11 +244,19 @@ export default function Inventory() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterSupplier, filterStatus]);
+  }, [searchTerm, filterSupplier, filterBrand, filterStatus]);
 
   // Low stock items for alerts (includes out of stock items)
   const lowStockItems = useMemo(() => {
     return items.filter(item => item.quantity <= item.minQuantity);
+  }, [items]);
+
+  // Get unique brands for filter dropdown
+  const uniqueBrands = useMemo(() => {
+    const brands = items
+      .map(item => item.brand)
+      .filter((brand): brand is string => brand !== null && brand !== undefined);
+    return Array.from(new Set(brands)).sort();
   }, [items]);
 
   // Items now come from finalized purchase orders only
@@ -521,6 +535,20 @@ export default function Inventory() {
                   <SelectItem value="all">{t("all_suppliers", "All Suppliers")}</SelectItem>
                   {suppliers.map((supplier) => (
                     <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-[200px]">
+              <Label className="text-slate-300 text-sm mb-2 block">{t("brand", "Brand")}</Label>
+              <Select value={filterBrand} onValueChange={setFilterBrand}>
+                <SelectTrigger className="bg-slate-900/50 border-slate-700" data-testid="select-filter-brand">
+                  <SelectValue placeholder={t("all_brands", "All Brands")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all_brands", "All Brands")}</SelectItem>
+                  {uniqueBrands.map((brand) => (
+                    <SelectItem key={brand} value={brand}>{brand}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -855,6 +883,22 @@ export default function Inventory() {
                       {selectedItem.deviceType}
                     </Badge>
                   </div>
+                </div>
+              )}
+              {(selectedItem?.brand || selectedItem?.model) && (
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  {selectedItem?.brand && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-300">{t("brand", "Brand")}</Label>
+                      <div className="text-white font-medium">{selectedItem.brand}</div>
+                    </div>
+                  )}
+                  {selectedItem?.model && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-300">{t("model", "Model")}</Label>
+                      <div className="text-white font-medium">{selectedItem.model}</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

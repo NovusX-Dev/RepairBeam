@@ -354,7 +354,7 @@ export default function PurchaseOrders() {
 
   const handleOpenCreateDialog = () => {
     setFormData({ supplierId: "", expectedDate: "", notes: "" });
-    setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
+    setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, brand: null, model: null, description: "" }]);
     setIsCreateDialogOpen(true);
   };
 
