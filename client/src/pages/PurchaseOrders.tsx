@@ -27,6 +27,87 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { InventoryItem } from "@shared/schema";
 
+interface AutoGenList {
+  id: string;
+  listType: string;
+  category: string;
+  brand: string | null;
+  items: string[];
+}
+
+interface ItemBrandModelFieldsProps {
+  item: POItem;
+  index: number;
+  handleItemChange: (index: number, field: keyof POItem, value: string | number | null) => void;
+  isPending: boolean;
+}
+
+function ItemBrandModelFields({ item, index, handleItemChange, isPending }: ItemBrandModelFieldsProps) {
+  const { t } = useLocalization();
+  
+  // Fetch brands for the selected device type
+  const { data: brandsList } = useQuery<AutoGenList>({
+    queryKey: [`/api/auto-gen-lists/${item.deviceType}`],
+    enabled: !!item.deviceType && item.deviceType !== "other",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch models for the selected brand and device type
+  const { data: modelsList } = useQuery<AutoGenList>({
+    queryKey: [`/api/auto-gen-lists/${item.deviceType}/${item.brand}/models`],
+    enabled: !!item.deviceType && !!item.brand && item.deviceType !== "other" && item.brand !== "Other",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const brands = brandsList?.items || [];
+  const models = modelsList?.items || [];
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <Label className="text-xs text-slate-400">{t("brand", "Brand")}</Label>
+        <Select 
+          value={item.brand || "Other"} 
+          onValueChange={(value) => {
+            handleItemChange(index, "brand", value === "Other" ? null : value);
+            // Reset model when brand changes
+            handleItemChange(index, "model", null);
+          }}
+          disabled={isPending || !item.deviceType || item.deviceType === "other"}
+        >
+          <SelectTrigger className="bg-slate-900 border-slate-600 text-white mt-1" data-testid={`select-brand-${index}`}>
+            <SelectValue placeholder={t("select_brand", "Select brand")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Other">{t("other", "Other")}</SelectItem>
+            {brands.map((brand) => (
+              <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-xs text-slate-400">{t("model", "Model")}</Label>
+        <Select 
+          value={item.model || "Other"} 
+          onValueChange={(value) => handleItemChange(index, "model", value === "Other" ? null : value)}
+          disabled={isPending || !item.brand || item.brand === "Other"}
+        >
+          <SelectTrigger className="bg-slate-900 border-slate-600 text-white mt-1" data-testid={`select-model-${index}`}>
+            <SelectValue placeholder={t("select_model", "Select model")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Other">{t("other", "Other")}</SelectItem>
+            {models.map((model) => (
+              <SelectItem key={model} value={model}>{model}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 interface Supplier {
   id: string;
   name: string;
@@ -57,6 +138,8 @@ interface POItem {
   receivedQuantity?: number;
   unitCost?: number;
   deviceType?: string | null;
+  brand?: string | null;
+  model?: string | null;
   itemType: string;
   description?: string;
 }
@@ -70,6 +153,8 @@ interface POItemWithDetails {
   receivedQuantity: number;
   unitCost: string;
   deviceType?: string | null;
+  brand?: string | null;
+  model?: string | null;
   itemType: string;
   description?: string | null;
 }
@@ -96,7 +181,7 @@ export default function PurchaseOrders() {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [poToCancel, setPoToCancel] = useState<PurchaseOrder | null>(null);
-  const [items, setItems] = useState<POItem[]>([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
+  const [items, setItems] = useState<POItem[]>([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, brand: null, model: null, description: "" }]);
   const [receiveItems, setReceiveItems] = useState<ReceiveItemForm[]>([]);
   const [formData, setFormData] = useState({
     supplierId: "",
@@ -276,11 +361,11 @@ export default function PurchaseOrders() {
   const handleCloseCreateDialog = () => {
     setIsCreateDialogOpen(false);
     setFormData({ supplierId: "", expectedDate: "", notes: "" });
-    setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
+    setItems([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, brand: null, model: null, description: "" }]);
   };
 
   const handleAddItem = () => {
-    setItems([...items, { itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, description: "" }]);
+    setItems([...items, { itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, brand: null, model: null, description: "" }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -290,6 +375,13 @@ export default function PurchaseOrders() {
   const handleItemChange = (index: number, field: keyof POItem, value: string | number | null) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Reset brand and model when deviceType changes
+    if (field === "deviceType") {
+      newItems[index].brand = null;
+      newItems[index].model = null;
+    }
+    
     setItems(newItems);
 
     // Show suggestions when typing item name
@@ -311,6 +403,8 @@ export default function PurchaseOrders() {
       ...newItems[index],
       itemName: inventoryItem.name,
       deviceType: inventoryItem.deviceType,
+      brand: inventoryItem.brand || null,
+      model: inventoryItem.model || null,
       itemType: inventoryItem.itemType || 'Service',
       description: inventoryItem.description || ''
     };
@@ -880,6 +974,13 @@ export default function PurchaseOrders() {
                               </div>
                             </div>
                           </div>
+
+                          <ItemBrandModelFields 
+                            item={item}
+                            index={index}
+                            handleItemChange={handleItemChange}
+                            isPending={createPOMutation.isPending}
+                          />
 
                           <div>
                             <Label className="text-xs text-slate-400">{t("description", "Description")}</Label>
