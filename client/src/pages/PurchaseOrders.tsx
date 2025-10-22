@@ -67,145 +67,174 @@ function ItemBrandModelFields({ item, index, handleItemChange, isPending }: Item
   const brands = brandsList?.items || [];
   const models = modelsList?.items || [];
 
+  const isBrandDisabled = isPending || !item.deviceType || item.deviceType === "other";
+  const isModelDisabled = isPending || !item.brand || item.brand === "Other";
+
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
         <Label className="text-xs text-slate-400">{t("brand", "Brand")}</Label>
-        <Popover open={brandOpen} onOpenChange={setBrandOpen} modal={false}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={brandOpen}
-              className="w-full justify-between bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white mt-1"
-              disabled={isPending || !item.deviceType || item.deviceType === "other"}
-              data-testid={`select-brand-${index}`}
-            >
-              {item.brand || t("other", "Other")}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
-            <Command className="bg-slate-900">
-              <CommandInput 
-                placeholder={t("search_brand", "Search brand...")} 
-                className="text-white"
-              />
-              <CommandList>
-                <CommandEmpty className="text-slate-400 py-6 text-center text-sm">
-                  {t("other", "Other")}
-                </CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="Other"
-                    onSelect={() => {
-                      handleItemChange(index, "brand", null);
-                      handleItemChange(index, "model", null);
-                      setBrandOpen(false);
-                    }}
-                    className="text-white hover:bg-slate-800"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        !item.brand ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {t("other", "Other")}
-                  </CommandItem>
-                  {brands.map((brand) => (
-                    <CommandItem
-                      key={brand}
-                      value={brand}
-                      onSelect={() => {
-                        handleItemChange(index, "brand", brand);
-                        handleItemChange(index, "model", null);
-                        setBrandOpen(false);
-                      }}
-                      className="text-white hover:bg-slate-800"
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <Popover open={brandOpen} onOpenChange={setBrandOpen} modal={false}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={brandOpen}
+                      className="w-full justify-between bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white mt-1"
+                      disabled={isBrandDisabled}
+                      data-testid={`select-brand-${index}`}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          item.brand === brand ? "opacity-100" : "opacity-0"
-                        )}
+                      {item.brand || t("other", "Other")}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
+                    <Command className="bg-slate-900">
+                      <CommandInput 
+                        placeholder={t("search_brand", "Search brand...")} 
+                        className="text-white"
                       />
-                      {brand}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                      <CommandList>
+                        <CommandEmpty className="text-slate-400 py-6 text-center text-sm">
+                          {t("other", "Other")}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="Other"
+                            onSelect={() => {
+                              handleItemChange(index, "brand", null);
+                              handleItemChange(index, "model", null);
+                              setBrandOpen(false);
+                            }}
+                            className="text-white hover:bg-slate-800"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                !item.brand ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {t("other", "Other")}
+                          </CommandItem>
+                          {brands.map((brand) => (
+                            <CommandItem
+                              key={brand}
+                              value={brand}
+                              onSelect={() => {
+                                handleItemChange(index, "brand", brand);
+                                handleItemChange(index, "model", null);
+                                setBrandOpen(false);
+                              }}
+                              className="text-white hover:bg-slate-800"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  item.brand === brand ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {brand}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </TooltipTrigger>
+            {isBrandDisabled && (
+              <TooltipContent>
+                <p>{t("select_device_type_first", "Select a device type first")}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <div>
         <Label className="text-xs text-slate-400">{t("model", "Model")}</Label>
-        <Popover open={modelOpen} onOpenChange={setModelOpen} modal={false}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              aria-expanded={modelOpen}
-              className="w-full justify-between bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white mt-1"
-              disabled={isPending || !item.brand || item.brand === "Other"}
-              data-testid={`select-model-${index}`}
-            >
-              {item.model || t("other", "Other")}
-              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
-            <Command className="bg-slate-900">
-              <CommandInput 
-                placeholder={t("search_model", "Search model...")} 
-                className="text-white"
-              />
-              <CommandList>
-                <CommandEmpty className="text-slate-400 py-6 text-center text-sm">
-                  {t("other", "Other")}
-                </CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="Other"
-                    onSelect={() => {
-                      handleItemChange(index, "model", null);
-                      setModelOpen(false);
-                    }}
-                    className="text-white hover:bg-slate-800"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        !item.model ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {t("other", "Other")}
-                  </CommandItem>
-                  {models.map((model) => (
-                    <CommandItem
-                      key={model}
-                      value={model}
-                      onSelect={() => {
-                        handleItemChange(index, "model", model);
-                        setModelOpen(false);
-                      }}
-                      className="text-white hover:bg-slate-800"
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div>
+                <Popover open={modelOpen} onOpenChange={setModelOpen} modal={false}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={modelOpen}
+                      className="w-full justify-between bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white mt-1"
+                      disabled={isModelDisabled}
+                      data-testid={`select-model-${index}`}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          item.model === model ? "opacity-100" : "opacity-0"
-                        )}
+                      {item.model || t("other", "Other")}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
+                    <Command className="bg-slate-900">
+                      <CommandInput 
+                        placeholder={t("search_model", "Search model...")} 
+                        className="text-white"
                       />
-                      {model}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                      <CommandList>
+                        <CommandEmpty className="text-slate-400 py-6 text-center text-sm">
+                          {t("other", "Other")}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="Other"
+                            onSelect={() => {
+                              handleItemChange(index, "model", null);
+                              setModelOpen(false);
+                            }}
+                            className="text-white hover:bg-slate-800"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                !item.model ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {t("other", "Other")}
+                          </CommandItem>
+                          {models.map((model) => (
+                            <CommandItem
+                              key={model}
+                              value={model}
+                              onSelect={() => {
+                                handleItemChange(index, "model", model);
+                                setModelOpen(false);
+                              }}
+                              className="text-white hover:bg-slate-800"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  item.model === model ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {model}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </TooltipTrigger>
+            {isModelDisabled && (
+              <TooltipContent>
+                <p>{t("select_brand_first", "Select a brand first")}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );
