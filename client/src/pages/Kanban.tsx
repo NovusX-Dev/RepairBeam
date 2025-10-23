@@ -1114,6 +1114,7 @@ export default function KanbanTickets() {
     confirmedItemIds: [] as string[], // Track which items were actually used
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const itemsInitializedRef = useRef(false); // Track if service items have been initialized
   
   // Quality check detection
   const getQualityCheckStatus = () => {
@@ -1146,6 +1147,7 @@ export default function KanbanTickets() {
       confirmedItemIds: [],
     });
     setValidationErrors([]);
+    itemsInitializedRef.current = false; // Reset initialization flag
   };
 
   const canAdvanceWizard = () => {
@@ -1514,8 +1516,11 @@ export default function KanbanTickets() {
 
   // Initialize service items as checked by default and calculate final cost with items
   useEffect(() => {
-    if (showCompletionDialog && ticketItems && ticketItems.length > 0 && wizardData.confirmedItemIds.length === 0) {
+    if (showCompletionDialog && ticketItems && ticketItems.length > 0 && !itemsInitializedRef.current) {
       const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+      
+      // Mark as initialized to prevent re-running
+      itemsInitializedRef.current = true;
       
       // Check all items by default
       const allItemIds = ticketItems.map((item: any) => item.id);
@@ -1540,7 +1545,7 @@ export default function KanbanTickets() {
         };
       });
     }
-  }, [showCompletionDialog, ticketItems, wizardData.confirmedItemIds.length, currentLanguage.code]);
+  }, [showCompletionDialog, ticketItems]);
 
   // Derive estimated time using useMemo to prevent infinite loops
   const servicesIndex = useMemo(() => {
