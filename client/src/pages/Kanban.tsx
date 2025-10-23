@@ -6393,7 +6393,10 @@ export default function KanbanTickets() {
                                       <div className="text-sm font-medium text-white">
                                         {item.inventoryItem?.name || 'Unknown Item'}
                                       </div>
-                                      <div className="text-xs text-cyan-300">
+                                      <div className="text-xs text-slate-400 mt-0.5">
+                                        ID: {item.inventoryItemId?.slice(-8) || item.id?.slice(-8)}
+                                      </div>
+                                      <div className="text-xs text-cyan-300 mt-1">
                                         {t("quantity", "Quantity")}: {item.quantity} × {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.unitPrice}
                                       </div>
                                     </div>
