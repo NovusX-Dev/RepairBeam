@@ -4764,6 +4764,8 @@ export default function KanbanTickets() {
                                 const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
                                 const unitPriceCents = toCents(item.unitPrice || '0', locale);
                                 const itemTotalCents = unitPriceCents * item.quantity;
+                                const inventoryItem = availableItems.find((inv: any) => inv.id === item.inventoryItemId);
+                                const itemName = inventoryItem?.name ?? t("unnamed_item", "Unnamed Item");
                                 return (
                                   <div
                                     key={index}
@@ -4773,7 +4775,7 @@ export default function KanbanTickets() {
                                       <div className="flex items-center gap-2">
                                         <Package className="w-4 h-4 text-cyan-400" />
                                         <span className="text-sm font-medium text-white">
-                                          {item.name || t("unnamed_item", "Unnamed Item")}
+                                          {itemName}
                                         </span>
                                       </div>
                                       <div className="text-xs text-cyan-200/80 mt-1">
