@@ -716,8 +716,8 @@ const ItemSelectionDialog = memo(({
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState('');
-  const [selectedBrand, setSelectedBrand] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedModel, setSelectedModel] = useState<string>('all');
 
   // Fetch brands for the device type
   const { data: brandsData } = useDeviceBrands(deviceType || null);
@@ -734,7 +734,7 @@ const ItemSelectionDialog = memo(({
 
   // Reset model when brand changes
   useEffect(() => {
-    setSelectedModel('');
+    setSelectedModel('all');
   }, [selectedBrand]);
 
   // Filter items client-side using useMemo to prevent unnecessary recalculations
@@ -746,12 +746,12 @@ const ItemSelectionDialog = memo(({
         (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()));
       
       // Brand filter
-      const matchesBrand = !selectedBrand || 
+      const matchesBrand = selectedBrand === 'all' || 
         item.brand === selectedBrand ||
         (selectedBrand === 'Other' && !item.brand);
       
       // Model filter
-      const matchesModel = !selectedModel || 
+      const matchesModel = selectedModel === 'all' || 
         item.model === selectedModel ||
         (selectedModel === 'Other' && !item.model);
       
@@ -780,8 +780,8 @@ const ItemSelectionDialog = memo(({
     setSelectedItem(null);
     setQuantity(1);
     setUnitPrice('');
-    setSelectedBrand('');
-    setSelectedModel('');
+    setSelectedBrand('all');
+    setSelectedModel('all');
     onSearchQueryChange('');
     onOpenChange(false);
   };
@@ -790,8 +790,8 @@ const ItemSelectionDialog = memo(({
     setSelectedItem(null);
     setQuantity(1);
     setUnitPrice('');
-    setSelectedBrand('');
-    setSelectedModel('');
+    setSelectedBrand('all');
+    setSelectedModel('all');
     onSearchQueryChange('');
     onOpenChange(false);
   };
@@ -824,7 +824,7 @@ const ItemSelectionDialog = memo(({
                   <SelectValue placeholder={t("all_brands", "All Brands")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
+                  <SelectItem value="all">
                     {t("all_brands", "All Brands")}
                   </SelectItem>
                   {brands.map((brand) => (
@@ -847,13 +847,13 @@ const ItemSelectionDialog = memo(({
               <Select
                 value={selectedModel}
                 onValueChange={setSelectedModel}
-                disabled={!selectedBrand}
+                disabled={selectedBrand === 'all'}
               >
                 <SelectTrigger data-testid="select-model-filter">
                   <SelectValue placeholder={t("all_models", "All Models")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
+                  <SelectItem value="all">
                     {t("all_models", "All Models")}
                   </SelectItem>
                   {models.map((model) => (
