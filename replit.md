@@ -76,10 +76,25 @@ Preferred communication style: Simple, everyday language.
 - **Service Items on Tickets**: Technicians can add service items (parts/materials) to tickets during price estimation with device-type filtering and "Other" category support.
 - **Automatic Inventory Deduction**: Items are automatically deducted from inventory when tickets are created, with unique unit ID tracking for precise inventory management.
 - **Item Usage Confirmation**: During ticket finalization (Step 1 of completion wizard), technicians confirm which allocated items were actually used. Unchecked items are automatically returned to inventory.
+- **Usage Timestamp Tracking**: When service items are confirmed during finalization, the system records the `usedAt` timestamp and maintains the ticket link, creating a permanent audit trail from purchase through finalization.
 - **Price Override**: Service items can have their prices overridden per ticket, allowing flexibility for discounts or special pricing.
 - **Cost Calculation**: Ticket total cost includes: service charges + service items subtotal + extra costs, displayed in the price estimation step.
 - **Automatic Cleanup**: If a ticket is deleted, all allocated service items are automatically returned to inventory.
 - **UI Implementation**: Aurora design pattern with gradient headers, cyan accents, searchable item selection dialog, quantity selectors, and real-time stock display.
+
+### Inventory Analytics (Phase 4)
+- **Complete Audit Trail**: Track every inventory unit from purchase order through ticket finalization with timestamps, supplier attribution, and client details.
+- **Usage History API**: Two dedicated endpoints for usage tracking:
+  - `GET /api/inventory-units/:unitId/history` - Complete history for a single unit with supplier, ticket, and client context
+  - `GET /api/inventory/:itemId/usage-stats` - Aggregated usage statistics for an inventory item with full usage timeline
+- **Analytics Dashboard**: Full-featured page (`/inventory-analytics`) with:
+  - KPI Cards: Total Items Tracked, Total Inventory Value, Low Stock Items
+  - Advanced Filters: Search by name/SKU, filter by supplier, filter by category
+  - Interactive Item Table: Click "View Usage" to see detailed history
+  - Usage Timeline Modal: Complete audit trail showing unit tag → supplier → ticket → client → device → finalization date
+- **Tenant Isolation**: All queries enforce tenant boundaries to prevent cross-tenant data leakage
+- **Multi-Language Support**: Complete localization for en and pt-BR with 77 translation entries
+- **Aurora Design Implementation**: Navy gradients, cyan accents, consistent card styling, and status color coding throughout
 
 ## External Dependencies
 
