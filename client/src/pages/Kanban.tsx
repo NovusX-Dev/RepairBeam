@@ -1275,6 +1275,13 @@ export default function KanbanTickets() {
     enabled: !!selectedTicketSummary?.deviceType,
   });
 
+  // Query ticket items for summary view
+  const { data: summaryTicketItems = [] } = useQuery({
+    queryKey: [`/api/tickets/${selectedTicketSummary?.id}/items`],
+    enabled: !!selectedTicketSummary?.id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
   // Query for tickets currently being serviced (same device type) - for queue information
   const { data: servicingTickets = [] } = useQuery<TicketWithClient[]>({
     queryKey: ['/api/tickets', 'servicing', formData.deviceType],
@@ -5660,16 +5667,16 @@ export default function KanbanTickets() {
                       )}
                       
                       {/* Service Items List */}
-                      {selectedTicketSummary.selectedItems && Array.isArray(selectedTicketSummary.selectedItems) && selectedTicketSummary.selectedItems.length > 0 && (
+                      {summaryTicketItems && summaryTicketItems.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-muted/20">
                           <div className="font-medium text-cyan-400 text-xs mb-2">{t("service_items", "Service Items")}</div>
                           <div className="space-y-2">
-                            {selectedTicketSummary.selectedItems.map((item: any, index: number) => (
-                              <div key={index} className="flex items-start justify-between gap-2 text-xs bg-slate-700/30 rounded p-2">
+                            {summaryTicketItems.map((item: any) => (
+                              <div key={item.id} className="flex items-start justify-between gap-2 text-xs bg-slate-700/30 rounded p-2">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
                                     <Package className="w-3 h-3 text-cyan-400 flex-shrink-0" />
-                                    <span className="text-slate-200 font-medium">{item.name || t("unnamed_item", "Unnamed Item")}</span>
+                                    <span className="text-slate-200 font-medium">{item.inventoryItem?.name || t("unnamed_item", "Unnamed Item")}</span>
                                   </div>
                                   {item.inventoryItemId && (
                                     <div className="text-xs text-muted-foreground mt-1 ml-5">
@@ -5686,8 +5693,9 @@ export default function KanbanTickets() {
                                 <div className="text-right text-cyan-400 font-bold">
                                   {(() => {
                                     const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
-                                    const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
-                                    return formatCurrency(toCents(String(itemTotal), locale), locale);
+                                    const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                                    const itemTotalCents = unitPriceCents * item.quantity;
+                                    return formatCurrency(itemTotalCents, locale);
                                   })()}
                                 </div>
                               </div>
@@ -5703,7 +5711,7 @@ export default function KanbanTickets() {
                         <DollarSign className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                         {t("cost_summary", "Cost Summary")}
                       </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400">{t("services_cost", "Services Cost")}</div>
                           <div className="font-bold text-blue-400">
@@ -5737,6 +5745,23 @@ export default function KanbanTickets() {
                           </div>
                         </div>
                         <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
+                          <div className="font-medium text-cyan-400">{t("items_cost", "Items Cost")}</div>
+                          <div className="font-bold text-purple-400">
+                            {(() => {
+                              const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                              let totalItemsCents = 0;
+                              if (summaryTicketItems && summaryTicketItems.length > 0) {
+                                const itemsCostsCents = summaryTicketItems.map((item: any) => {
+                                  const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                                  return unitPriceCents * item.quantity;
+                                });
+                                totalItemsCents = addCents(...itemsCostsCents);
+                              }
+                              return formatCurrency(totalItemsCents, locale);
+                            })()}
+                          </div>
+                        </div>
+                        <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                           <div className="font-medium text-cyan-400">{t("extra_costs", "Extra Costs")}</div>
                           <div className="font-bold text-white">
                             {(() => {
@@ -5765,10 +5790,10 @@ export default function KanbanTickets() {
                               
                               // Calculate service items cost
                               let totalItemsCents = 0;
-                              if (selectedTicketSummary.selectedItems && Array.isArray(selectedTicketSummary.selectedItems) && selectedTicketSummary.selectedItems.length > 0) {
-                                const itemsCostsCents = selectedTicketSummary.selectedItems.map((item: any) => {
-                                  const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
-                                  return toCents(String(itemTotal), locale);
+                              if (summaryTicketItems && summaryTicketItems.length > 0) {
+                                const itemsCostsCents = summaryTicketItems.map((item: any) => {
+                                  const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                                  return unitPriceCents * item.quantity;
                                 });
                                 totalItemsCents = addCents(...itemsCostsCents);
                               }

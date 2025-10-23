@@ -803,11 +803,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Ticket items operations
-  async getTicketItems(ticketId: string, tenantId: string): Promise<TicketItem[]> {
-    return db
-      .select()
+  async getTicketItems(ticketId: string, tenantId: string): Promise<any[]> {
+    const items = await db
+      .select({
+        id: ticketItems.id,
+        tenantId: ticketItems.tenantId,
+        ticketId: ticketItems.ticketId,
+        inventoryItemId: ticketItems.inventoryItemId,
+        quantity: ticketItems.quantity,
+        unitPrice: ticketItems.unitPrice,
+        totalPrice: ticketItems.totalPrice,
+        inventoryUnitIds: ticketItems.inventoryUnitIds,
+        confirmed: ticketItems.confirmed,
+        createdAt: ticketItems.createdAt,
+        updatedAt: ticketItems.updatedAt,
+        inventoryItem: {
+          id: inventoryItems.id,
+          name: inventoryItems.name,
+          sku: inventoryItems.sku,
+        },
+      })
       .from(ticketItems)
+      .leftJoin(inventoryItems, eq(ticketItems.inventoryItemId, inventoryItems.id))
       .where(and(eq(ticketItems.ticketId, ticketId), eq(ticketItems.tenantId, tenantId)));
+    
+    return items;
   }
 
   async createTicketItem(item: InsertTicketItem): Promise<TicketItem> {
