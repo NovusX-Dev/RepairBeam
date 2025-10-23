@@ -1512,6 +1512,36 @@ export default function KanbanTickets() {
     }
   }, [showCompletionDialog, ticketToFinalize, finalizationRepairServices, completionData.finalActualCost, currentLanguage.code]);
 
+  // Initialize service items as checked by default and calculate final cost with items
+  useEffect(() => {
+    if (showCompletionDialog && ticketItems && ticketItems.length > 0 && wizardData.confirmedItemIds.length === 0) {
+      const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+      
+      // Check all items by default
+      const allItemIds = ticketItems.map((item: any) => item.id);
+      setWizardData(prev => ({
+        ...prev,
+        confirmedItemIds: allItemIds
+      }));
+      
+      // Calculate total items cost
+      const totalItemsCents = ticketItems.reduce((sum: number, item: any) => {
+        const itemTotalCents = toCents(item.totalPrice || '0', locale);
+        return sum + itemTotalCents;
+      }, 0);
+      
+      // Add items cost to the existing final cost (treat empty as 0)
+      setCompletionData(prev => {
+        const currentCostCents = prev.finalActualCost ? toCents(prev.finalActualCost, locale) : 0;
+        const newCostCents = currentCostCents + totalItemsCents;
+        return {
+          ...prev,
+          finalActualCost: formatCurrencyFromUtility(newCostCents, locale).replace(/[^\d.,]/g, '')
+        };
+      });
+    }
+  }, [showCompletionDialog, ticketItems, wizardData.confirmedItemIds.length, currentLanguage.code]);
+
   // Derive estimated time using useMemo to prevent infinite loops
   const servicesIndex = useMemo(() => {
     return new Map((repairServices || []).map(s => [s.id, s]));
@@ -6302,22 +6332,85 @@ export default function KanbanTickets() {
                         </div>
                       )}
 
+                      {/* Service Items Confirmation - Moved to Top */}
+                      {ticketItems && ticketItems.length > 0 && (
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              {t("service_items_used", "Service Items Used")}
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-xs text-cyan-300 mb-3">
+                              {t("confirm_items_used", "Check the items that were actually used during this repair")}
+                            </p>
+                            <div className="space-y-2">
+                              {ticketItems.map((item: any) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between p-3 rounded-lg border border-slate-600/50 bg-slate-700/40 hover:bg-slate-700/60 transition-colors"
+                                >
+                                  <div className="flex items-center gap-3 flex-1">
+                                    <Checkbox
+                                      id={`item-${item.id}`}
+                                      checked={wizardData.confirmedItemIds.includes(item.id)}
+                                      onCheckedChange={(checked) => {
+                                        const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                        const itemTotalCents = toCents(item.totalPrice || '0', locale);
+                                        
+                                        setWizardData(prev => {
+                                          const newConfirmedIds = checked
+                                            ? [...prev.confirmedItemIds, item.id]
+                                            : prev.confirmedItemIds.filter(id => id !== item.id);
+                                          return {
+                                            ...prev,
+                                            confirmedItemIds: newConfirmedIds
+                                          };
+                                        });
+                                        
+                                        // Update final cost automatically
+                                        setCompletionData(prev => {
+                                          const currentCostCents = toCents(prev.finalActualCost || '0', locale);
+                                          const newCostCents = checked 
+                                            ? currentCostCents + itemTotalCents 
+                                            : currentCostCents - itemTotalCents;
+                                          return {
+                                            ...prev,
+                                            finalActualCost: formatCurrencyFromUtility(newCostCents, locale).replace(/[^\d.,]/g, '')
+                                          };
+                                        });
+                                      }}
+                                      className="border-cyan-400 data-[state=checked]:bg-cyan-500"
+                                      data-testid={`checkbox-item-${item.id}`}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-white">
+                                        {item.inventoryItem?.name || 'Unknown Item'}
+                                      </div>
+                                      <div className="text-xs text-cyan-300">
+                                        {t("quantity", "Quantity")}: {item.quantity} × {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.unitPrice}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-medium text-primary">
+                                        {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.totalPrice}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-yellow-400 mt-3 flex items-start gap-2">
+                              <AlertTriangle className="w-4 h-4 mt-0.5" />
+                              {t("unchecked_items_returned", "Unchecked items will be returned to inventory")}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Completion Form */}
                       <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="completion-notes" className="text-cyan-400">
-                            {t("completion_notes", "Completion Notes")}
-                          </Label>
-                          <Textarea
-                            id="completion-notes"
-                            placeholder={t("completion_notes_placeholder", "Describe the work completed, any issues found, and resolution...")}
-                            value={completionData.completionNotes}
-                            onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
-                            className="min-h-[100px] bg-slate-800/50 border-[#00FFFF]/20 text-white"
-                            data-testid="textarea-completion-notes"
-                          />
-                        </div>
-
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="actual-hours" className="text-cyan-400 flex items-center gap-1">
@@ -6393,66 +6486,22 @@ export default function KanbanTickets() {
                             </p>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Service Items Confirmation */}
-                      {ticketItems && ticketItems.length > 0 && (
-                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
-                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
-                            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                              <Package className="w-4 h-4" />
-                              {t("service_items_used", "Service Items Used")}
-                            </h4>
-                          </div>
-                          <div className="p-4">
-                            <p className="text-xs text-cyan-300 mb-3">
-                              {t("confirm_items_used", "Check the items that were actually used during this repair")}
-                            </p>
-                            <div className="space-y-2">
-                              {ticketItems.map((item: any) => (
-                                <div
-                                  key={item.id}
-                                  className="flex items-center justify-between p-3 rounded-lg border border-slate-600/50 bg-slate-700/40 hover:bg-slate-700/60 transition-colors"
-                                >
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <Checkbox
-                                      id={`item-${item.id}`}
-                                      checked={wizardData.confirmedItemIds.includes(item.id)}
-                                      onCheckedChange={(checked) => {
-                                        setWizardData(prev => ({
-                                          ...prev,
-                                          confirmedItemIds: checked
-                                            ? [...prev.confirmedItemIds, item.id]
-                                            : prev.confirmedItemIds.filter(id => id !== item.id)
-                                        }));
-                                      }}
-                                      className="border-cyan-400 data-[state=checked]:bg-cyan-500"
-                                      data-testid={`checkbox-item-${item.id}`}
-                                    />
-                                    <div className="flex-1">
-                                      <div className="text-sm font-medium text-white">
-                                        {item.inventoryItem?.name || 'Unknown Item'}
-                                      </div>
-                                      <div className="text-xs text-cyan-300">
-                                        {t("quantity", "Quantity")}: {item.quantity} × {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.unitPrice}
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="text-sm font-medium text-primary">
-                                        {currentLanguage.code === 'pt-BR' ? 'R$' : '$'}{item.totalPrice}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            <p className="text-xs text-yellow-400 mt-3 flex items-start gap-2">
-                              <AlertTriangle className="w-4 h-4 mt-0.5" />
-                              {t("unchecked_items_returned", "Unchecked items will be returned to inventory")}
-                            </p>
-                          </div>
+                        {/* Completion Notes - Moved to Bottom */}
+                        <div className="space-y-2">
+                          <Label htmlFor="completion-notes" className="text-cyan-400">
+                            {t("completion_notes", "Completion Notes")}
+                          </Label>
+                          <Textarea
+                            id="completion-notes"
+                            placeholder={t("completion_notes_placeholder", "Describe the work completed, any issues found, and resolution...")}
+                            value={completionData.completionNotes}
+                            onChange={(e) => setCompletionData(prev => ({ ...prev, completionNotes: e.target.value }))}
+                            className="min-h-[100px] bg-slate-800/50 border-[#00FFFF]/20 text-white"
+                            data-testid="textarea-completion-notes"
+                          />
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
