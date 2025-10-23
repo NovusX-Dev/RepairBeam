@@ -187,6 +187,8 @@ export interface IStorage {
   getInventoryUnitByTag(uniqueTag: string): Promise<InventoryUnit | undefined>;
   updateInventoryUnit(id: string, unit: Partial<InsertInventoryUnit>): Promise<InventoryUnit | undefined>;
   getAvailableInventoryUnits(inventoryItemId: string, quantity: number): Promise<InventoryUnit[]>;
+  getInventoryUnitHistory(unitId: string, tenantId: string): Promise<any>;
+  getInventoryItemUsageStats(inventoryItemId: string, tenantId: string): Promise<any>;
   
   // Ticket items operations
   getTicketItems(ticketId: string, tenantId: string): Promise<TicketItem[]>;
@@ -800,6 +802,103 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(quantity);
+  }
+
+  async getInventoryUnitHistory(unitId: string, tenantId: string): Promise<any> {
+    const result = await db
+      .select({
+        unit: inventoryUnits,
+        inventoryItem: {
+          id: inventoryItems.id,
+          name: inventoryItems.name,
+          sku: inventoryItems.sku,
+          category: inventoryItems.category,
+          tenantId: inventoryItems.tenantId,
+        },
+        supplier: {
+          id: suppliers.id,
+          name: suppliers.name,
+          contactPerson: suppliers.contactPerson,
+          tenantId: suppliers.tenantId,
+        },
+        ticket: {
+          id: tickets.id,
+          deviceType: tickets.deviceType,
+          deviceModel: tickets.deviceModel,
+          status: tickets.status,
+          finalizedAt: tickets.finalizedAt,
+          tenantId: tickets.tenantId,
+        },
+        client: {
+          id: clients.id,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+          tenantId: clients.tenantId,
+        },
+      })
+      .from(inventoryUnits)
+      .leftJoin(inventoryItems, eq(inventoryUnits.inventoryItemId, inventoryItems.id))
+      .leftJoin(suppliers, eq(inventoryUnits.supplierId, suppliers.id))
+      .leftJoin(tickets, eq(inventoryUnits.ticketId, tickets.id))
+      .leftJoin(clients, eq(tickets.clientId, clients.id))
+      .where(
+        and(
+          eq(inventoryUnits.id, unitId),
+          eq(inventoryItems.tenantId, tenantId)
+        )
+      )
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  async getInventoryItemUsageStats(inventoryItemId: string, tenantId: string): Promise<any> {
+    // Get inventory item details first to verify tenant ownership
+    const inventoryItem = await this.getInventoryItem(inventoryItemId, tenantId);
+    
+    if (!inventoryItem) {
+      return null;
+    }
+
+    // Get all units for this inventory item that have been used
+    const usedUnits = await db
+      .select({
+        unit: inventoryUnits,
+        ticket: {
+          id: tickets.id,
+          deviceType: tickets.deviceType,
+          deviceModel: tickets.deviceModel,
+          status: tickets.status,
+          finalizedAt: tickets.finalizedAt,
+        },
+        client: {
+          id: clients.id,
+          firstName: clients.firstName,
+          lastName: clients.lastName,
+        },
+        supplier: {
+          id: suppliers.id,
+          name: suppliers.name,
+        },
+      })
+      .from(inventoryUnits)
+      .leftJoin(tickets, eq(inventoryUnits.ticketId, tickets.id))
+      .leftJoin(clients, eq(tickets.clientId, clients.id))
+      .leftJoin(suppliers, eq(inventoryUnits.supplierId, suppliers.id))
+      .where(
+        and(
+          eq(inventoryUnits.inventoryItemId, inventoryItemId),
+          eq(inventoryUnits.status, 'used'),
+          eq(tickets.tenantId, tenantId) // Ensure tenant isolation
+        )
+      )
+      .orderBy(desc(inventoryUnits.usedAt));
+
+    return {
+      inventoryItem,
+      usageHistory: usedUnits,
+      totalUsed: usedUnits.length,
+    };
   }
 
   // Ticket items operations

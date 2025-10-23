@@ -425,6 +425,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateTicketItem(ticketItem.id, user.tenantId, {
             confirmed: true,
           });
+          
+          // Update inventory units to record final usage timestamp
+          const unitIds = ticketItem.inventoryUnitIds as string[];
+          for (const unitId of unitIds) {
+            await storage.updateInventoryUnit(unitId, {
+              usedAt: new Date(), // Record when item was actually confirmed as used
+              status: 'used', // Ensure status is 'used'
+            });
+          }
         } else {
           // Item was NOT used - return to inventory
           const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
@@ -901,6 +910,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error removing item from ticket:", error);
       res.status(500).json({ message: "Failed to remove item from ticket" });
+    }
+  });
+
+  // Inventory unit tracking routes
+  app.get("/api/inventory-units/:unitId/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { unitId } = req.params;
+      const history = await storage.getInventoryUnitHistory(unitId, user.tenantId);
+      
+      if (!history) {
+        return res.status(404).json({ message: "Inventory unit not found" });
+      }
+
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching inventory unit history:", error);
+      res.status(500).json({ message: "Failed to fetch inventory unit history" });
+    }
+  });
+
+  app.get("/api/inventory/:itemId/usage-stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { itemId } = req.params;
+      const stats = await storage.getInventoryItemUsageStats(itemId, user.tenantId);
+      
+      if (!stats || !stats.inventoryItem) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching inventory usage stats:", error);
+      res.status(500).json({ message: "Failed to fetch inventory usage stats" });
     }
   });
 
