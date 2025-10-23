@@ -698,6 +698,7 @@ interface ItemSelectionDialogProps {
   onAddItem: (item: { inventoryItemId: number; quantity: number; unitPrice: string }) => void;
   currentLanguage: any;
   t: (key: string, fallback: string) => string;
+  deviceType: string;
 }
 
 const ItemSelectionDialog = memo(({
@@ -710,19 +711,61 @@ const ItemSelectionDialog = memo(({
   onAddItem,
   currentLanguage,
   t,
+  deviceType,
 }: ItemSelectionDialogProps) => {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>('');
+
+  // Fetch brands for the device type
+  const { data: brandsData } = useDeviceBrands(deviceType || null);
+  
+  // Fetch models for the selected brand
+  const { data: modelsData } = useDeviceModels(
+    deviceType || '',
+    selectedBrand || ''
+  );
+
+  // Extract brand and model lists
+  const brands = brandsData?.items || [];
+  const models = modelsData?.items || [];
+
+  // Reset model when brand changes
+  useEffect(() => {
+    setSelectedModel('');
+  }, [selectedBrand]);
 
   // Filter items client-side using useMemo to prevent unnecessary recalculations
-  const filteredItems = useMemo(() =>
-    (availableItems || []).filter((item: any) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()))
-    ),
-    [availableItems, searchQuery]
-  );
+  const filteredItems = useMemo(() => {
+    return (availableItems || []).filter((item: any) => {
+      // Text search filter (name or SKU)
+      const matchesSearch = !searchQuery || 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // Brand filter
+      const matchesBrand = !selectedBrand || 
+        item.brand === selectedBrand ||
+        (selectedBrand === 'Other' && !item.brand);
+      
+      // Model filter
+      const matchesModel = !selectedModel || 
+        item.model === selectedModel ||
+        (selectedModel === 'Other' && !item.model);
+      
+      return matchesSearch && matchesBrand && matchesModel;
+    });
+  }, [availableItems, searchQuery, selectedBrand, selectedModel]);
+
+  // Clear selected item when filters change and the item is no longer in filtered results
+  useEffect(() => {
+    if (selectedItem && !filteredItems.find((item: any) => item.id === selectedItem.id)) {
+      setSelectedItem(null);
+      setUnitPrice('');
+    }
+  }, [filteredItems, selectedItem]);
 
   const handleAddItem = () => {
     if (!selectedItem || !unitPrice || quantity < 1) return;
@@ -737,6 +780,8 @@ const ItemSelectionDialog = memo(({
     setSelectedItem(null);
     setQuantity(1);
     setUnitPrice('');
+    setSelectedBrand('');
+    setSelectedModel('');
     onSearchQueryChange('');
     onOpenChange(false);
   };
@@ -745,6 +790,8 @@ const ItemSelectionDialog = memo(({
     setSelectedItem(null);
     setQuantity(1);
     setUnitPrice('');
+    setSelectedBrand('');
+    setSelectedModel('');
     onSearchQueryChange('');
     onOpenChange(false);
   };
@@ -762,16 +809,81 @@ const ItemSelectionDialog = memo(({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder={t("search_items", "Search items by name or SKU...")}
-              value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-items"
-            />
+          {/* Filters Row */}
+          <div className="grid grid-cols-3 gap-3">
+            {/* Brand Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                {t("brand", "Brand")}
+              </Label>
+              <Select
+                value={selectedBrand}
+                onValueChange={setSelectedBrand}
+              >
+                <SelectTrigger data-testid="select-brand-filter">
+                  <SelectValue placeholder={t("all_brands", "All Brands")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">
+                    {t("all_brands", "All Brands")}
+                  </SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand} value={brand}>
+                      {brand}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Other">
+                    {t("other", "Other")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Model Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                {t("model", "Model")}
+              </Label>
+              <Select
+                value={selectedModel}
+                onValueChange={setSelectedModel}
+                disabled={!selectedBrand}
+              >
+                <SelectTrigger data-testid="select-model-filter">
+                  <SelectValue placeholder={t("all_models", "All Models")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">
+                    {t("all_models", "All Models")}
+                  </SelectItem>
+                  {models.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Other">
+                    {t("other", "Other")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Search */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                {t("search", "Search")}
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder={t("search_items", "Search by name or SKU...")}
+                  value={searchQuery}
+                  onChange={(e) => onSearchQueryChange(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-items"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Items List */}
@@ -6846,6 +6958,7 @@ export default function KanbanTickets() {
         onAddItem={handleAddItemToTicket}
         currentLanguage={currentLanguage}
         t={t}
+        deviceType={formData.deviceType}
       />
     </TooltipProvider>
   );
