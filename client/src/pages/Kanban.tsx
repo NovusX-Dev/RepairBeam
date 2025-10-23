@@ -913,6 +913,9 @@ const ItemSelectionDialog = memo(({
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="font-medium">{item.name}</div>
+                        {item.supplierName && (
+                          <div className="text-xs text-muted-foreground">{item.supplierName}</div>
+                        )}
                         {item.sku && (
                           <div className="text-sm text-muted-foreground">SKU: {item.sku}</div>
                         )}

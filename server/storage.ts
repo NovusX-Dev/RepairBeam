@@ -164,6 +164,7 @@ export interface IStorage {
   
   // Inventory operations
   getInventoryItems(tenantId: string): Promise<InventoryItem[]>;
+  getInventoryItemsWithSuppliers(tenantId: string): Promise<any[]>;
   getInventoryItem(id: string, tenantId: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
   updateInventoryItem(id: string, tenantId: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
@@ -655,6 +656,35 @@ export class DatabaseStorage implements IStorage {
   // Inventory operations
   async getInventoryItems(tenantId: string): Promise<InventoryItem[]> {
     return db.select().from(inventoryItems).where(eq(inventoryItems.tenantId, tenantId));
+  }
+
+  async getInventoryItemsWithSuppliers(tenantId: string): Promise<any[]> {
+    const items = await db
+      .select({
+        id: inventoryItems.id,
+        tenantId: inventoryItems.tenantId,
+        supplierId: inventoryItems.supplierId,
+        name: inventoryItems.name,
+        description: inventoryItems.description,
+        sku: inventoryItems.sku,
+        brand: inventoryItems.brand,
+        model: inventoryItems.model,
+        itemType: inventoryItems.itemType,
+        deviceType: inventoryItems.deviceType,
+        quantity: inventoryItems.quantity,
+        minQuantity: inventoryItems.minQuantity,
+        cost: inventoryItems.cost,
+        price: inventoryItems.price,
+        supplier: inventoryItems.supplier,
+        createdAt: inventoryItems.createdAt,
+        updatedAt: inventoryItems.updatedAt,
+        supplierName: suppliers.name,
+      })
+      .from(inventoryItems)
+      .leftJoin(suppliers, eq(inventoryItems.supplierId, suppliers.id))
+      .where(eq(inventoryItems.tenantId, tenantId));
+    
+    return items;
   }
 
   async getInventoryItem(id: string, tenantId: string): Promise<InventoryItem | undefined> {

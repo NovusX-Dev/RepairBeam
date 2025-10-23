@@ -771,11 +771,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { deviceType } = req.params;
       
-      // Get all inventory items for the tenant
-      const allItems = await storage.getInventoryItems(user.tenantId);
+      // Get all inventory items with supplier info for the tenant
+      const allItemsWithSuppliers = await storage.getInventoryItemsWithSuppliers(user.tenantId);
       
       // Filter for service items only, with stock, matching device type or "Other"
-      const availableItems = allItems.filter(item => {
+      const availableItems = allItemsWithSuppliers.filter(item => {
         const isServiceItem = item.itemType === 'Service';
         const hasStock = item.quantity && item.quantity > 0;
         const matchesDeviceType = !deviceType || 
