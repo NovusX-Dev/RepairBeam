@@ -4743,6 +4743,73 @@ export default function KanbanTickets() {
                         </div>
                       </div>
 
+                      {/* Aurora Card - Service Items */}
+                      {formData.selectedItems && formData.selectedItems.length > 0 && (
+                        <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                            <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              {t("service_items", "Service Items")}
+                              <Badge variant="secondary" className="ml-2 bg-cyan-500/20 text-cyan-300 border-cyan-500/30">
+                                {formData.selectedItems.length}
+                              </Badge>
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-sm text-muted-foreground mb-3">
+                              {t("parts_materials_ticket", "Parts and materials to be used in this repair")}
+                            </p>
+                            <div className="space-y-2">
+                              {formData.selectedItems.map((item, index) => {
+                                const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                                const itemTotalCents = unitPriceCents * item.quantity;
+                                return (
+                                  <div
+                                    key={index}
+                                    className="flex items-center justify-between p-3 rounded-lg border border-slate-600/50 bg-gradient-to-br from-slate-700/40 via-slate-700/40 to-slate-600/40"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <Package className="w-4 h-4 text-cyan-400" />
+                                        <span className="text-sm font-medium text-white">
+                                          {item.name || t("unnamed_item", "Unnamed Item")}
+                                        </span>
+                                      </div>
+                                      <div className="text-xs text-cyan-200/80 mt-1">
+                                        {t("quantity", "Quantity")}: {item.quantity} × {formatCurrencyFromUtility(unitPriceCents, locale)}
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-sm font-bold text-cyan-400">
+                                        {formatCurrencyFromUtility(itemTotalCents, locale)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            {/* Service Items Subtotal */}
+                            <div className="mt-4 pt-3 border-t border-slate-600/50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">{t("items_subtotal", "Items Subtotal")}</span>
+                                <span className="text-lg font-bold text-cyan-400">
+                                  {(() => {
+                                    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                    const itemsCostsCents = formData.selectedItems.map(item => {
+                                      const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                                      return unitPriceCents * item.quantity;
+                                    });
+                                    const totalItemsCents = itemsCostsCents.length > 0 ? addCents(...itemsCostsCents) : 0;
+                                    return formatCurrencyFromUtility(totalItemsCents, locale);
+                                  })()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Aurora Card - Cost Summary */}
                       <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
@@ -4790,8 +4857,8 @@ export default function KanbanTickets() {
                                   
                                   // Calculate service items cost
                                   const itemsCostsCents = formData.selectedItems.map(item => {
-                                    const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
-                                    return toCents(String(itemTotal), locale);
+                                    const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                                    return unitPriceCents * item.quantity;
                                   });
                                   const totalItemsCents = itemsCostsCents.length > 0 ? addCents(...itemsCostsCents) : 0;
                                   
@@ -5583,6 +5650,43 @@ export default function KanbanTickets() {
                                   <span className="text-slate-200 truncate">{service.name}</span>
                                 </div>
                               ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Service Items List */}
+                      {selectedTicketSummary.selectedItems && Array.isArray(selectedTicketSummary.selectedItems) && selectedTicketSummary.selectedItems.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-muted/20">
+                          <div className="font-medium text-cyan-400 text-xs mb-2">{t("service_items", "Service Items")}</div>
+                          <div className="space-y-2">
+                            {selectedTicketSummary.selectedItems.map((item: any, index: number) => (
+                              <div key={index} className="flex items-start justify-between gap-2 text-xs bg-slate-700/30 rounded p-2">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <Package className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                                    <span className="text-slate-200 font-medium">{item.name || t("unnamed_item", "Unnamed Item")}</span>
+                                  </div>
+                                  {item.inventoryItemId && (
+                                    <div className="text-xs text-muted-foreground mt-1 ml-5">
+                                      ID: {item.inventoryItemId.slice(-8)}
+                                    </div>
+                                  )}
+                                  <div className="text-xs text-cyan-200/70 mt-1 ml-5">
+                                    {t("quantity", "Quantity")}: {item.quantity} × {(() => {
+                                      const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                      return formatCurrency(toCents(item.unitPrice || '0', locale), locale);
+                                    })()}
+                                  </div>
+                                </div>
+                                <div className="text-right text-cyan-400 font-bold">
+                                  {(() => {
+                                    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                    const itemTotal = parseFloat(item.unitPrice || '0') * item.quantity;
+                                    return formatCurrency(toCents(String(itemTotal), locale), locale);
+                                  })()}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
