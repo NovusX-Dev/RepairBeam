@@ -134,7 +134,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
           </div>
         )}
         
-        {navigationItems.slice(4, 7).map((item) => {
+        {navigationItems.slice(4, 8).map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
           
@@ -162,7 +162,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         <div className="border-t border-cyan-500/20 my-3"></div>
 
         {/* Remaining items */}
-        {navigationItems.slice(7).map((item) => {
+        {navigationItems.slice(8).map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
           
