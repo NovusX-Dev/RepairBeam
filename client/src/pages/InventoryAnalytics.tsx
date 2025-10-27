@@ -57,9 +57,9 @@ export default function InventoryAnalytics() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch inventory items
+  // Fetch inventory items with search
   const { data: inventoryItems = [], isLoading: itemsLoading } = useQuery<any[]>({
-    queryKey: ["/api/inventory"],
+    queryKey: ["/api/inventory", { search: searchQuery || undefined }],
   });
 
   // Fetch suppliers
@@ -73,14 +73,11 @@ export default function InventoryAnalytics() {
     enabled: !!selectedItemId,
   });
 
-  // Filter inventory items - search by name or item ID
+  // Filter inventory items by supplier and category (search is handled by backend)
   const filteredItems = inventoryItems.filter((item) => {
-    const matchesSearch = 
-      item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSupplier = selectedSupplier === "all" || item.supplierId === selectedSupplier;
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
-    return matchesSearch && matchesSupplier && matchesCategory;
+    return matchesSupplier && matchesCategory;
   });
 
   // Get unique categories
@@ -126,7 +123,7 @@ export default function InventoryAnalytics() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder={t("search_by_name_id", "Search by name or item ID...")}
+                placeholder={t("search_by_name_unit_ticket", "Search by name, unit tag, or ticket ID...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"

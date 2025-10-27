@@ -165,6 +165,7 @@ export interface IStorage {
   // Inventory operations
   getInventoryItems(tenantId: string): Promise<InventoryItem[]>;
   getInventoryItemsWithSuppliers(tenantId: string): Promise<any[]>;
+  searchInventoryItems(tenantId: string, searchQuery: string): Promise<InventoryItem[]>;
   getInventoryItem(id: string, tenantId: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
   updateInventoryItem(id: string, tenantId: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
@@ -687,6 +688,102 @@ export class DatabaseStorage implements IStorage {
       .where(eq(inventoryItems.tenantId, tenantId));
     
     return items;
+  }
+
+  async searchInventoryItems(tenantId: string, searchQuery: string): Promise<InventoryItem[]> {
+    const lowerQuery = searchQuery.toLowerCase();
+    
+    // Extract ticket ID if the query looks like "TK-XXXXXX" format
+    const ticketIdMatch = lowerQuery.match(/^(?:tk-)?([a-f0-9]+)$/i);
+    const ticketId = ticketIdMatch ? ticketIdMatch[1] : null;
+    
+    // Search for items matching name or ID
+    const directMatches = await db
+      .select()
+      .from(inventoryItems)
+      .where(
+        and(
+          eq(inventoryItems.tenantId, tenantId),
+          or(
+            sql`LOWER(${inventoryItems.name}) LIKE ${`%${lowerQuery}%`}`,
+            sql`LOWER(${inventoryItems.id}) LIKE ${`%${lowerQuery}%`}`
+          )
+        )
+      );
+    
+    // Search for items by unit tag
+    const unitTagMatches = await db
+      .selectDistinct({ 
+        id: inventoryItems.id,
+        tenantId: inventoryItems.tenantId,
+        supplierId: inventoryItems.supplierId,
+        name: inventoryItems.name,
+        description: inventoryItems.description,
+        sku: inventoryItems.sku,
+        category: inventoryItems.category,
+        brand: inventoryItems.brand,
+        model: inventoryItems.model,
+        itemType: inventoryItems.itemType,
+        deviceType: inventoryItems.deviceType,
+        quantity: inventoryItems.quantity,
+        minQuantity: inventoryItems.minQuantity,
+        cost: inventoryItems.cost,
+        price: inventoryItems.price,
+        supplier: inventoryItems.supplier,
+        createdAt: inventoryItems.createdAt,
+        updatedAt: inventoryItems.updatedAt,
+      })
+      .from(inventoryItems)
+      .innerJoin(inventoryUnits, eq(inventoryUnits.inventoryItemId, inventoryItems.id))
+      .where(
+        and(
+          eq(inventoryItems.tenantId, tenantId),
+          sql`LOWER(${inventoryUnits.uniqueTag}) LIKE ${`%${lowerQuery}%`}`
+        )
+      );
+    
+    // Search for items by ticket ID (if query looks like a ticket ID)
+    let ticketMatches: InventoryItem[] = [];
+    if (ticketId) {
+      ticketMatches = await db
+        .selectDistinct({
+          id: inventoryItems.id,
+          tenantId: inventoryItems.tenantId,
+          supplierId: inventoryItems.supplierId,
+          name: inventoryItems.name,
+          description: inventoryItems.description,
+          sku: inventoryItems.sku,
+          category: inventoryItems.category,
+          brand: inventoryItems.brand,
+          model: inventoryItems.model,
+          itemType: inventoryItems.itemType,
+          deviceType: inventoryItems.deviceType,
+          quantity: inventoryItems.quantity,
+          minQuantity: inventoryItems.minQuantity,
+          cost: inventoryItems.cost,
+          price: inventoryItems.price,
+          supplier: inventoryItems.supplier,
+          createdAt: inventoryItems.createdAt,
+          updatedAt: inventoryItems.updatedAt,
+        })
+        .from(inventoryItems)
+        .innerJoin(inventoryUnits, eq(inventoryUnits.inventoryItemId, inventoryItems.id))
+        .innerJoin(tickets, eq(inventoryUnits.ticketId, tickets.id))
+        .where(
+          and(
+            eq(inventoryItems.tenantId, tenantId),
+            sql`LOWER(${tickets.id}) LIKE ${`%${ticketId}%`}`
+          )
+        );
+    }
+    
+    // Merge and deduplicate results
+    const allMatches = [...directMatches, ...unitTagMatches, ...ticketMatches];
+    const uniqueItems = Array.from(
+      new Map(allMatches.map(item => [item.id, item])).values()
+    );
+    
+    return uniqueItems;
   }
 
   async getInventoryItem(id: string, tenantId: string): Promise<InventoryItem | undefined> {

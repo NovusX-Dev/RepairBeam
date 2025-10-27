@@ -682,7 +682,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const items = await storage.getInventoryItems(user.tenantId);
+      const searchQuery = req.query.search as string | undefined;
+      
+      let items;
+      if (searchQuery && searchQuery.trim()) {
+        items = await storage.searchInventoryItems(user.tenantId, searchQuery.trim());
+      } else {
+        items = await storage.getInventoryItems(user.tenantId);
+      }
+      
       res.json(items);
     } catch (error) {
       console.error("Error fetching inventory:", error);
