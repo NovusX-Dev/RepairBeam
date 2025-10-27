@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,6 +54,8 @@ export default function InventoryAnalytics() {
   const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch inventory items
   const { data: inventoryItems = [], isLoading: itemsLoading } = useQuery<any[]>({
@@ -83,6 +85,11 @@ export default function InventoryAnalytics() {
 
   // Get unique categories
   const categories = Array.from(new Set(inventoryItems.map(item => item.category).filter(Boolean)));
+
+  // Reset pagination when modal opens/closes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedItemId]);
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -233,8 +240,13 @@ export default function InventoryAnalytics() {
       <Dialog open={!!selectedItemId} onOpenChange={(open) => !open && setSelectedItemId(null)}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-cyan-400">
+            <DialogTitle className="text-xl font-bold text-cyan-400 flex items-center gap-2">
               {t("item_usage_history", "Item Usage History")}
+              {usageStats && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({usageStats.totalUsed} {t("units_used", "units used")})
+                </span>
+              )}
             </DialogTitle>
             <DialogDescription>
               {t("detailed_usage_for", "Detailed usage history for")} {usageStats?.inventoryItem?.name}
@@ -244,31 +256,7 @@ export default function InventoryAnalytics() {
           {statsLoading ? (
             <div className="text-center py-8 text-muted-foreground">{t("loading_usage_history", "Loading usage history...")}</div>
           ) : usageStats && usageStats.usageHistory ? (
-            <div className="space-y-6">
-              {/* Summary Stats */}
-              <div className="grid grid-cols-2 gap-4">
-                <Card className="bg-accent border-border">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm text-muted-foreground">{t("total_units_used", "Total Units Used")}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-cyan-400">{usageStats.totalUsed}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-accent border-border">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm text-muted-foreground">{t("item_details", "Item Details")}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-1 text-sm">
-                      <div><span className="text-muted-foreground">{t("sku", "SKU")}:</span> <span className="text-white">{usageStats.inventoryItem.sku || "—"}</span></div>
-                      <div><span className="text-muted-foreground">{t("category", "Category")}:</span> <span className="text-white">{usageStats.inventoryItem.category || "—"}</span></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
+            <div className="space-y-4">
               {/* Usage History Table */}
               {usageStats.usageHistory.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -294,52 +282,90 @@ export default function InventoryAnalytics() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {usageStats.usageHistory.map((usage: any, index: number) => (
-                          <TableRow key={usage.unit.id || index} data-testid={`row-usage-history-${index}`}>
-                            <TableCell className="font-mono text-xs text-cyan-400">
-                              {usage.unit.uniqueTag || "—"}
-                            </TableCell>
-                            <TableCell>
-                              {usage.ticket ? (
-                                <div className="flex items-center gap-1">
-                                  <Wrench className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-sm">{formatTicketId(usage.ticket.id)}</span>
-                                </div>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell>
-                              {usage.client ? (
-                                <div className="flex items-center gap-1">
-                                  <User className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-sm">{usage.client.firstName} {usage.client.lastName}</span>
-                                </div>
-                              ) : "—"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {usage.ticket ? `${usage.ticket.deviceType} - ${usage.ticket.deviceModel}` : "—"}
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {usage.supplier?.name || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {usage.unit.usedAt ? format(new Date(usage.unit.usedAt), "MMM dd, yyyy") : "—"}
-                            </TableCell>
-                            <TableCell>
-                              {usage.ticket?.status === "completed" ? (
-                                <Badge variant="outline" className="text-green-400 border-green-400/30">
-                                  {t("completed", "Completed")}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-yellow-400 border-yellow-400/30">
-                                  {usage.ticket?.status || t("used", "Used")}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {(() => {
+                          const startIndex = (currentPage - 1) * itemsPerPage;
+                          const endIndex = startIndex + itemsPerPage;
+                          const paginatedHistory = usageStats.usageHistory.slice(startIndex, endIndex);
+                          
+                          return paginatedHistory.map((usage: any, index: number) => (
+                            <TableRow key={usage.unit.id || index} data-testid={`row-usage-history-${index}`}>
+                              <TableCell className="font-mono text-xs text-cyan-400">
+                                {usage.unit.uniqueTag || "—"}
+                              </TableCell>
+                              <TableCell>
+                                {usage.ticket ? (
+                                  <div className="flex items-center gap-1">
+                                    <Wrench className="w-3 h-3 text-muted-foreground" />
+                                    <span className="text-sm">{formatTicketId(usage.ticket.id)}</span>
+                                  </div>
+                                ) : "—"}
+                              </TableCell>
+                              <TableCell>
+                                {usage.client ? (
+                                  <div className="flex items-center gap-1">
+                                    <User className="w-3 h-3 text-muted-foreground" />
+                                    <span className="text-sm">{usage.client.firstName} {usage.client.lastName}</span>
+                                  </div>
+                                ) : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {usage.ticket ? `${usage.ticket.deviceType} - ${usage.ticket.deviceModel}` : "—"}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {usage.supplier?.name || "—"}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {usage.unit.usedAt ? format(new Date(usage.unit.usedAt), "MMM dd, yyyy") : "—"}
+                              </TableCell>
+                              <TableCell>
+                                {usage.ticket?.completedAt ? (
+                                  <Badge variant="outline" className="text-green-400 border-green-400/30">
+                                    {t("finalized", "Finalized")}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-green-400 border-green-400/30">
+                                    {usage.ticket?.status || t("used", "Used")}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ));
+                        })()}
                       </TableBody>
                     </Table>
                   </div>
+                  
+                  {/* Pagination Controls */}
+                  {usageStats.usageHistory.length > itemsPerPage && (
+                    <div className="flex items-center justify-between border-t border-border pt-4">
+                      <div className="text-sm text-muted-foreground">
+                        {t("showing", "Showing")} {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, usageStats.usageHistory.length)} {t("of", "of")} {usageStats.usageHistory.length}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          data-testid="button-prev-page"
+                        >
+                          {t("previous", "Previous")}
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          {t("page", "Page")} {currentPage} {t("of", "of")} {Math.ceil(usageStats.usageHistory.length / itemsPerPage)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(prev => Math.min(Math.ceil(usageStats.usageHistory.length / itemsPerPage), prev + 1))}
+                          disabled={currentPage >= Math.ceil(usageStats.usageHistory.length / itemsPerPage)}
+                          data-testid="button-next-page"
+                        >
+                          {t("next", "Next")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
