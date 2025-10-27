@@ -269,38 +269,64 @@ export default function InventoryAnalytics() {
           {statsLoading ? (
             <div className="text-center py-8 text-muted-foreground">{t("loading_usage_history", "Loading usage history...")}</div>
           ) : usageStats && usageStats.usageHistory ? (
-            <div className="space-y-4">
-              {/* Usage History Table */}
-              {usageStats.usageHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  {t("no_usage_history", "No usage history available for this item")}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-white flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-cyan-400" />
-                    {t("usage_timeline", "Usage Timeline")}
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("unit_tag", "Unit Tag")}</TableHead>
-                          <TableHead>{t("ticket", "Ticket")}</TableHead>
-                          <TableHead>{t("client", "Client")}</TableHead>
-                          <TableHead>{t("device", "Device")}</TableHead>
-                          <TableHead>{t("supplier", "Supplier")}</TableHead>
-                          <TableHead>{t("used_date", "Used Date")}</TableHead>
-                          <TableHead>{t("status", "Status")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(() => {
-                          const startIndex = (currentPage - 1) * itemsPerPage;
-                          const endIndex = startIndex + itemsPerPage;
-                          const paginatedHistory = usageStats.usageHistory.slice(startIndex, endIndex);
-                          
-                          return paginatedHistory.map((usage: any, index: number) => (
+            (() => {
+              // Filter usage history based on active search
+              let filteredHistory = usageStats.usageHistory;
+              
+              if (activeSearchFilter && activeSearchFilter.trim()) {
+                const lowerFilter = activeSearchFilter.toLowerCase().trim();
+                
+                // Check if it's a ticket ID format (TK-XXXXXX or just XXXXXX)
+                const ticketIdMatch = lowerFilter.match(/^(?:tk-)?([a-f0-9]+)$/i);
+                const ticketId = ticketIdMatch ? ticketIdMatch[1] : null;
+                
+                filteredHistory = usageStats.usageHistory.filter((usage: any) => {
+                  // Filter by unit tag
+                  if (usage.unit?.uniqueTag?.toLowerCase().includes(lowerFilter)) {
+                    return true;
+                  }
+                  
+                  // Filter by ticket ID
+                  if (ticketId && usage.ticket?.id?.toLowerCase().includes(ticketId)) {
+                    return true;
+                  }
+                  
+                  return false;
+                });
+              }
+              
+              const startIndex = (currentPage - 1) * itemsPerPage;
+              const endIndex = startIndex + itemsPerPage;
+              const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
+              
+              return (
+                <div className="space-y-4">
+                  {/* Usage History Table */}
+                  {filteredHistory.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {t("no_usage_history", "No usage history available for this item")}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-cyan-400" />
+                        {t("usage_timeline", "Usage Timeline")}
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{t("unit_tag", "Unit Tag")}</TableHead>
+                              <TableHead>{t("ticket", "Ticket")}</TableHead>
+                              <TableHead>{t("client", "Client")}</TableHead>
+                              <TableHead>{t("device", "Device")}</TableHead>
+                              <TableHead>{t("supplier", "Supplier")}</TableHead>
+                              <TableHead>{t("used_date", "Used Date")}</TableHead>
+                              <TableHead>{t("status", "Status")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedHistory.map((usage: any, index: number) => (
                             <TableRow key={usage.unit.id || index} data-testid={`row-usage-history-${index}`}>
                               <TableCell className="font-mono text-xs text-cyan-400">
                                 {usage.unit.uniqueTag || "—"}
@@ -342,17 +368,16 @@ export default function InventoryAnalytics() {
                                 )}
                               </TableCell>
                             </TableRow>
-                          ));
-                        })()}
+                          ))}
                       </TableBody>
                     </Table>
                   </div>
                   
                   {/* Pagination Controls */}
-                  {usageStats.usageHistory.length > itemsPerPage && (
+                  {filteredHistory.length > itemsPerPage && (
                     <div className="flex items-center justify-between border-t border-border pt-4">
                       <div className="text-sm text-muted-foreground">
-                        {t("showing", "Showing")} {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, usageStats.usageHistory.length)} {t("of", "of")} {usageStats.usageHistory.length}
+                        {t("showing", "Showing")} {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredHistory.length)} {t("of", "of")} {filteredHistory.length}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -365,13 +390,13 @@ export default function InventoryAnalytics() {
                           {t("previous", "Previous")}
                         </Button>
                         <span className="text-sm text-muted-foreground">
-                          {t("page", "Page")} {currentPage} {t("of", "of")} {Math.ceil(usageStats.usageHistory.length / itemsPerPage)}
+                          {t("page", "Page")} {currentPage} {t("of", "of")} {Math.ceil(filteredHistory.length / itemsPerPage)}
                         </span>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCurrentPage(prev => Math.min(Math.ceil(usageStats.usageHistory.length / itemsPerPage), prev + 1))}
-                          disabled={currentPage >= Math.ceil(usageStats.usageHistory.length / itemsPerPage)}
+                          onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredHistory.length / itemsPerPage), prev + 1))}
+                          disabled={currentPage >= Math.ceil(filteredHistory.length / itemsPerPage)}
                           data-testid="button-next-page"
                         >
                           {t("next", "Next")}
@@ -382,6 +407,8 @@ export default function InventoryAnalytics() {
                 </div>
               )}
             </div>
+          );
+        })()
           ) : (
             <div className="text-center py-8 text-muted-foreground">{t("no_data_available", "No data available")}</div>
           )}
