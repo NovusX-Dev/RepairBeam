@@ -23,7 +23,7 @@ interface UsageHistoryItem {
     deviceType: string;
     deviceModel: string;
     status: string;
-    finalizedAt: string | null;
+    completedAt: string | null;
   } | null;
   client: {
     id: string;

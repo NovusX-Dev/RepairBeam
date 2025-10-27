@@ -818,7 +818,6 @@ export class DatabaseStorage implements IStorage {
         supplier: {
           id: suppliers.id,
           name: suppliers.name,
-          contactPerson: suppliers.contactPerson,
           tenantId: suppliers.tenantId,
         },
         ticket: {
@@ -826,7 +825,7 @@ export class DatabaseStorage implements IStorage {
           deviceType: tickets.deviceType,
           deviceModel: tickets.deviceModel,
           status: tickets.status,
-          finalizedAt: tickets.finalizedAt,
+          completedAt: tickets.completedAt,
           tenantId: tickets.tenantId,
         },
         client: {
@@ -869,7 +868,7 @@ export class DatabaseStorage implements IStorage {
           deviceType: tickets.deviceType,
           deviceModel: tickets.deviceModel,
           status: tickets.status,
-          finalizedAt: tickets.finalizedAt,
+          completedAt: tickets.completedAt,
         },
         client: {
           id: clients.id,
@@ -888,8 +887,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(inventoryUnits.inventoryItemId, inventoryItemId),
-          eq(inventoryUnits.status, 'used'),
-          eq(tickets.tenantId, tenantId) // Ensure tenant isolation
+          eq(inventoryUnits.status, 'used')
         )
       )
       .orderBy(desc(inventoryUnits.usedAt));
