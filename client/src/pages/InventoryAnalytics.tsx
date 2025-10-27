@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Filter, Package, TrendingUp, Calendar, User, Wrench } from "lucide-react";
+import { Search, Filter, Package, TrendingUp, Calendar, User, Wrench, Smartphone, Clock, DollarSign, AlertTriangle, CheckCircle } from "lucide-react";
 import { fromCents } from "@shared/money";
 import { format } from "date-fns";
 import { useLocalization } from "@/contexts/LocalizationContext";
@@ -54,6 +54,7 @@ export default function InventoryAnalytics() {
   const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [activeSearchFilter, setActiveSearchFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -84,6 +85,12 @@ export default function InventoryAnalytics() {
   const { data: usageStats, isLoading: statsLoading } = useQuery<UsageStats>({
     queryKey: [`/api/inventory/${selectedItemId}/usage-stats`],
     enabled: !!selectedItemId,
+  });
+
+  // Fetch ticket details for selected ticket
+  const { data: ticketDetails, isLoading: ticketLoading } = useQuery<any>({
+    queryKey: [`/api/tickets/${selectedTicketId}`],
+    enabled: !!selectedTicketId,
   });
 
   // Filter inventory items by supplier and category (search is handled by backend)
@@ -333,10 +340,14 @@ export default function InventoryAnalytics() {
                               </TableCell>
                               <TableCell>
                                 {usage.ticket ? (
-                                  <div className="flex items-center gap-1">
-                                    <Wrench className="w-3 h-3 text-muted-foreground" />
-                                    <span className="text-sm">{formatTicketId(usage.ticket.id)}</span>
-                                  </div>
+                                  <button
+                                    onClick={() => setSelectedTicketId(usage.ticket.id)}
+                                    className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer group"
+                                    data-testid={`button-view-ticket-${usage.ticket.id}`}
+                                  >
+                                    <Wrench className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                                    <span className="text-sm underline decoration-dotted">{formatTicketId(usage.ticket.id)}</span>
+                                  </button>
                                 ) : "—"}
                               </TableCell>
                               <TableCell>
@@ -411,6 +422,181 @@ export default function InventoryAnalytics() {
         })()
           ) : (
             <div className="text-center py-8 text-muted-foreground">{t("no_data_available", "No data available")}</div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Ticket Details Dialog */}
+      <Dialog open={!!selectedTicketId} onOpenChange={(open) => !open && setSelectedTicketId(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-cyan-400 flex items-center gap-2">
+              <Wrench className="w-5 h-5" />
+              {t("ticket_details", "Ticket Details")} - {selectedTicketId && formatTicketId(selectedTicketId)}
+            </DialogTitle>
+            <DialogDescription>
+              {t("complete_ticket_information", "Complete ticket information and service details")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {ticketLoading ? (
+            <div className="text-center py-8 text-muted-foreground">{t("loading_ticket_details", "Loading ticket details...")}</div>
+          ) : ticketDetails ? (
+            <div className="space-y-6">
+              {/* Status and Priority Bar */}
+              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-muted-foreground">{t("status", "Status")}:</span>
+                  <Badge variant="outline" className="text-cyan-400 border-cyan-400/30 px-3 py-1">
+                    {ticketDetails.status}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-muted-foreground">{t("priority", "Priority")}:</span>
+                  <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 px-3 py-1">
+                    {ticketDetails.priority}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Device Information */}
+              <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <Smartphone className="h-4 w-4 text-cyan-400" />
+                  {t("device_information", "Device Information")}
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("type", "Type")}</div>
+                    <div className="text-sm text-slate-200">{ticketDetails.deviceType}</div>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("model", "Model")}</div>
+                    <div className="text-sm text-slate-200">{ticketDetails.deviceModel}</div>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("color", "Color")}</div>
+                    <div className="text-sm text-slate-200">{ticketDetails.deviceColor || "N/A"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Client Information */}
+              {ticketDetails.client && (
+                <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <User className="h-4 w-4 text-cyan-400" />
+                    {t("client_information", "Client Information")}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                      <div className="text-xs font-medium text-cyan-400 mb-1">{t("name", "Name")}</div>
+                      <div className="text-sm text-slate-200">{ticketDetails.client.firstName} {ticketDetails.client.lastName}</div>
+                    </div>
+                    <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                      <div className="text-xs font-medium text-cyan-400 mb-1">{t("email", "Email")}</div>
+                      <div className="text-sm text-slate-200">{ticketDetails.client.email || "N/A"}</div>
+                    </div>
+                    <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                      <div className="text-xs font-medium text-cyan-400 mb-1">{t("phone", "Phone")}</div>
+                      <div className="text-sm text-slate-200">{ticketDetails.client.phone || "N/A"}</div>
+                    </div>
+                    {ticketDetails.client.cpf && (
+                      <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                        <div className="text-xs font-medium text-cyan-400 mb-1">{t("cpf", "CPF")}</div>
+                        <div className="text-sm text-slate-200">{ticketDetails.client.cpf}</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Service & Cost Information */}
+              <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-cyan-400" />
+                  {t("service_cost_info", "Service & Cost Information")}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("estimated_cost", "Estimated Cost")}</div>
+                    <div className="text-sm text-slate-200">
+                      {ticketDetails.estimatedCost ? fromCents(ticketDetails.estimatedCost) : "N/A"}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("final_cost", "Final Cost")}</div>
+                    <div className="text-sm text-slate-200">
+                      {ticketDetails.finalActualCost ? fromCents(ticketDetails.finalActualCost) : "N/A"}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("warranty_tier", "Warranty Tier")}</div>
+                    <div className="text-sm text-slate-200">{ticketDetails.warrantyTier || "N/A"}</div>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("estimated_hours", "Estimated Hours")}</div>
+                    <div className="text-sm text-slate-200">
+                      {ticketDetails.technicianEstimatedHours ? `${ticketDetails.technicianEstimatedHours}h` : "N/A"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline Information */}
+              <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-cyan-400" />
+                  {t("timeline", "Timeline")}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("created_at", "Created At")}</div>
+                    <div className="text-sm text-slate-200">
+                      {ticketDetails.createdAt ? format(new Date(ticketDetails.createdAt), "MMM dd, yyyy HH:mm") : "N/A"}
+                    </div>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20">
+                    <div className="text-xs font-medium text-cyan-400 mb-1">{t("client_deadline", "Client Deadline")}</div>
+                    <div className="text-sm text-slate-200">
+                      {ticketDetails.clientDeadline ? format(new Date(ticketDetails.clientDeadline), "MMM dd, yyyy") : "N/A"}
+                    </div>
+                  </div>
+                  {ticketDetails.completedAt && (
+                    <div className="bg-slate-800/50 p-3 rounded border border-cyan-500/20 sm:col-span-2">
+                      <div className="text-xs font-medium text-cyan-400 mb-1">{t("completed_at", "Completed At")}</div>
+                      <div className="text-sm text-slate-200">
+                        {format(new Date(ticketDetails.completedAt), "MMM dd, yyyy HH:mm")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Problem Description */}
+              {ticketDetails.problemDescription && (
+                <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-cyan-400" />
+                    {t("problem_description", "Problem Description")}
+                  </h3>
+                  <p className="text-sm text-slate-200 whitespace-pre-wrap">{ticketDetails.problemDescription}</p>
+                </div>
+              )}
+
+              {/* Completion Notes */}
+              {ticketDetails.completionNotes && (
+                <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+                  <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-400" />
+                    {t("completion_notes", "Completion Notes")}
+                  </h3>
+                  <p className="text-sm text-slate-200 whitespace-pre-wrap">{ticketDetails.completionNotes}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">{t("ticket_not_found", "Ticket not found")}</div>
           )}
         </DialogContent>
       </Dialog>
