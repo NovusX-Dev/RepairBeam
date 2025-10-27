@@ -71,11 +71,11 @@ export default function InventoryAnalytics() {
     enabled: !!selectedItemId,
   });
 
-  // Filter inventory items
+  // Filter inventory items - search by name or item ID
   const filteredItems = inventoryItems.filter((item) => {
     const matchesSearch = 
       item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+      item.id?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSupplier = selectedSupplier === "all" || item.supplierId === selectedSupplier;
     const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
     return matchesSearch && matchesSupplier && matchesCategory;
@@ -83,11 +83,6 @@ export default function InventoryAnalytics() {
 
   // Get unique categories
   const categories = Array.from(new Set(inventoryItems.map(item => item.category).filter(Boolean)));
-
-  // Calculate aggregate statistics
-  const totalItems = filteredItems.length;
-  const totalValue = filteredItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
-  const lowStockItems = filteredItems.filter(item => item.quantity <= item.minQuantity).length;
 
   return (
     <div className="min-h-screen p-6 space-y-6">
@@ -110,38 +105,6 @@ export default function InventoryAnalytics() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4" data-testid="kpi-cards">
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("total_items_tracked", "Total Items Tracked")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-cyan-400" data-testid="total-items-count">{totalItems}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("total_inventory_value", "Total Inventory Value")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-cyan-400" data-testid="total-inventory-value">
-              {fromCents(totalValue)}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t("low_stock_items", "Low Stock Items")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-400" data-testid="low-stock-count">{lowStockItems}</div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Filters */}
       <Card className="border-border bg-card">
         <CardHeader>
@@ -156,7 +119,7 @@ export default function InventoryAnalytics() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder={t("search_by_name_or_sku", "Search by name or SKU...")}
+                placeholder={t("search_by_name_id", "Search by name or item ID...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -215,11 +178,8 @@ export default function InventoryAnalytics() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("item_name", "Item Name")}</TableHead>
-                    <TableHead>{t("sku", "SKU")}</TableHead>
                     <TableHead>{t("category", "Category")}</TableHead>
                     <TableHead className="text-right">{t("stock", "Stock")}</TableHead>
-                    <TableHead className="text-right">{t("unit_cost", "Unit Cost")}</TableHead>
-                    <TableHead className="text-right">{t("total_value", "Total Value")}</TableHead>
                     <TableHead>{t("status", "Status")}</TableHead>
                     <TableHead>{t("actions", "Actions")}</TableHead>
                   </TableRow>
@@ -227,12 +187,10 @@ export default function InventoryAnalytics() {
                 <TableBody>
                   {filteredItems.map((item) => {
                     const isLowStock = item.quantity <= item.minQuantity;
-                    const totalValue = item.unitCost * item.quantity;
                     
                     return (
                       <TableRow key={item.id} data-testid={`row-inventory-item-${item.id}`}>
                         <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{item.sku || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">
                             {item.category || t("uncategorized", "Uncategorized")}
@@ -243,8 +201,6 @@ export default function InventoryAnalytics() {
                             {item.quantity}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">{fromCents(item.unitCost)}</TableCell>
-                        <TableCell className="text-right font-semibold">{fromCents(totalValue)}</TableCell>
                         <TableCell>
                           {isLowStock ? (
                             <Badge variant="destructive">{t("low_stock", "Low Stock")}</Badge>
