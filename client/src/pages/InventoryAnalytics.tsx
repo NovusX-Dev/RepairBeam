@@ -54,6 +54,7 @@ export default function InventoryAnalytics() {
   const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [activeSearchFilter, setActiveSearchFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -228,7 +229,10 @@ export default function InventoryAnalytics() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setSelectedItemId(item.id)}
+                            onClick={() => {
+                              setSelectedItemId(item.id);
+                              setActiveSearchFilter(searchQuery);
+                            }}
                             className="text-cyan-400 hover:text-cyan-300"
                             data-testid={`button-view-usage-${item.id}`}
                           >
