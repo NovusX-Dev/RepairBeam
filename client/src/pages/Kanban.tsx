@@ -5713,9 +5713,9 @@ export default function KanbanTickets() {
                                     <Package className="w-3 h-3 text-cyan-400 flex-shrink-0" />
                                     <span className="text-slate-200 font-medium">{item.inventoryItem?.name || t("unnamed_item", "Unnamed Item")}</span>
                                   </div>
-                                  {item.inventoryItemId && (
+                                  {item.units && item.units.length > 0 && (
                                     <div className="text-xs text-muted-foreground mt-1 ml-5">
-                                      ID: {item.inventoryItemId.slice(-8)}
+                                      {t("units", "Units")}: {item.units.map((unit: any) => unit.uniqueTag).join(", ")}
                                     </div>
                                   )}
                                   <div className="text-xs text-cyan-200/70 mt-1 ml-5">
