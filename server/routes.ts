@@ -261,6 +261,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single ticket by ID with client details (must be after specific routes)
+  app.get("/api/tickets/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tickets = await storage.getTicketsWithClients(user.tenantId);
+      const ticket = tickets.find(t => t.id === id);
+      
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error fetching ticket:", error);
+      res.status(500).json({ message: "Failed to fetch ticket" });
+    }
+  });
+
   // Create new ticket
   app.post("/api/tickets", isAuthenticated, async (req: any, res) => {
     try {
