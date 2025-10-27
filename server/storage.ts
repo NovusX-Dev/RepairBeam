@@ -924,7 +924,29 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(inventoryItems, eq(ticketItems.inventoryItemId, inventoryItems.id))
       .where(and(eq(ticketItems.ticketId, ticketId), eq(ticketItems.tenantId, tenantId)));
     
-    return items;
+    // For each item, fetch the unit tags
+    const itemsWithTags = await Promise.all(items.map(async (item) => {
+      if (item.inventoryUnitIds && item.inventoryUnitIds.length > 0) {
+        const units = await db
+          .select({
+            id: inventoryUnits.id,
+            uniqueTag: inventoryUnits.uniqueTag,
+          })
+          .from(inventoryUnits)
+          .where(sql`${inventoryUnits.id} = ANY(${item.inventoryUnitIds})`);
+        
+        return {
+          ...item,
+          units: units,
+        };
+      }
+      return {
+        ...item,
+        units: [],
+      };
+    }));
+    
+    return itemsWithTags;
   }
 
   async createTicketItem(item: InsertTicketItem): Promise<TicketItem> {
