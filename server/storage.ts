@@ -91,7 +91,7 @@ import {
   type InsertCompletionAnalytics,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, ilike, sql, asc } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql, asc, inArray } from "drizzle-orm";
 
 // Database retry utility with exponential backoff
 async function withRetry<T>(
@@ -926,14 +926,15 @@ export class DatabaseStorage implements IStorage {
     
     // For each item, fetch the unit tags
     const itemsWithTags = await Promise.all(items.map(async (item) => {
-      if (item.inventoryUnitIds && item.inventoryUnitIds.length > 0) {
+      const unitIds = item.inventoryUnitIds as string[] | null;
+      if (unitIds && unitIds.length > 0) {
         const units = await db
           .select({
             id: inventoryUnits.id,
             uniqueTag: inventoryUnits.uniqueTag,
           })
           .from(inventoryUnits)
-          .where(sql`${inventoryUnits.id} = ANY(${item.inventoryUnitIds})`);
+          .where(inArray(inventoryUnits.id, unitIds));
         
         return {
           ...item,
