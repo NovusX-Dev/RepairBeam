@@ -11,6 +11,7 @@ import { Search, Filter, Package, TrendingUp, Calendar, User, Wrench } from "luc
 import { fromCents } from "@shared/money";
 import { format } from "date-fns";
 import { useLocalization } from "@/contexts/LocalizationContext";
+import { formatTicketId } from "@/lib/utils";
 
 interface UsageHistoryItem {
   unit: {
@@ -346,7 +347,7 @@ export default function InventoryAnalytics() {
                               {usage.ticket ? (
                                 <div className="flex items-center gap-1">
                                   <Wrench className="w-3 h-3 text-muted-foreground" />
-                                  <span className="text-sm">{t("ticket_number", "Ticket #")}{usage.ticket.id?.slice(0, 8)}</span>
+                                  <span className="text-sm">{formatTicketId(usage.ticket.id)}</span>
                                 </div>
                               ) : "—"}
                             </TableCell>
