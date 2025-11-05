@@ -232,6 +232,12 @@ export default function QRCodePrintSheet({
               visibility: hidden !important;
             }
 
+            /* Show the dialog portal that contains our print content */
+            [data-radix-portal],
+            [data-radix-portal] * {
+              visibility: visible !important;
+            }
+
             /* Show only the print content and its children */
             .print-content,
             .print-content * {
@@ -253,7 +259,10 @@ export default function QRCodePrintSheet({
               background: white !important;
             }
 
-            .no-print {
+            /* Hide dialog chrome elements */
+            .no-print,
+            [data-radix-dialog-overlay],
+            button[aria-label="Close"] {
               display: none !important;
               visibility: hidden !important;
             }
