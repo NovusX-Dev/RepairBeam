@@ -946,6 +946,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Inventory unit tracking routes
+  // Verify QR code / unique tag - used for scanning
+  app.get("/api/inventory-units/verify/:uniqueTag", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { uniqueTag } = req.params;
+      
+      // Get inventory unit by unique tag
+      const unit = await storage.getInventoryUnitByTag(uniqueTag);
+      
+      if (!unit) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      // Get the inventory item to check tenant and get details
+      const inventoryItem = await storage.getInventoryItem(unit.inventoryItemId, user.tenantId);
+      
+      if (!inventoryItem) {
+        return res.status(404).json({ message: "Unit not found" });
+      }
+
+      // Return unit with item details
+      res.json({
+        ...unit,
+        inventoryItem: {
+          id: inventoryItem.id,
+          name: inventoryItem.name,
+          description: inventoryItem.description,
+          sku: inventoryItem.sku,
+          category: inventoryItem.category,
+          deviceType: inventoryItem.deviceType,
+          itemType: inventoryItem.itemType,
+        },
+      });
+    } catch (error) {
+      console.error("Error verifying inventory unit:", error);
+      res.status(500).json({ message: "Failed to verify inventory unit" });
+    }
+  });
+
   app.get("/api/inventory-units/:unitId/history", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
