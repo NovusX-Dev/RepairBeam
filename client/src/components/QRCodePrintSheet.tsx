@@ -165,6 +165,22 @@ export default function QRCodePrintSheet({
             </div>
           </div>
 
+          {/* Action Buttons */}
+          <div className="flex gap-2 mb-4">
+            <Button
+              onClick={handlePrint}
+              className="flex-1 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600"
+              data-testid="button-print-qr-codes"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              {t("print", "Print")}
+            </Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-close-print">
+              <X className="w-4 h-4 mr-2" />
+              {t("close", "Close")}
+            </Button>
+          </div>
+
           {/* Preview Grid (same layout as print) */}
           <div className="qr-grid">
             {units.map((unit) => (
@@ -186,22 +202,6 @@ export default function QRCodePrintSheet({
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 mt-4">
-            <Button
-              onClick={handlePrint}
-              className="flex-1 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600"
-              data-testid="button-print-qr-codes"
-            >
-              <Printer className="w-4 h-4 mr-2" />
-              {t("print", "Print")}
-            </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)} data-testid="button-close-print">
-              <X className="w-4 h-4 mr-2" />
-              {t("close", "Close")}
-            </Button>
           </div>
 
           {/* Print Styles */}
