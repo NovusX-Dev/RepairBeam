@@ -227,6 +227,17 @@ export default function QRCodePrintSheet({
               margin: 1cm;
             }
 
+            /* Cancel Radix Dialog animations that cause invisible content in print */
+            [data-radix-portal],
+            [data-radix-portal] *,
+            [data-radix-dialog-content],
+            [data-radix-dialog-content] * {
+              opacity: 1 !important;
+              transform: none !important;
+              animation: none !important;
+              transition: none !important;
+            }
+
             /* Hide EVERYTHING */
             body * {
               visibility: hidden !important;
