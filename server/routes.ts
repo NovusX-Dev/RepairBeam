@@ -952,10 +952,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { uniqueTag } = req.params;
+      
+      // Sanitize input
+      if (!uniqueTag || uniqueTag.trim().length === 0) {
+        return res.status(400).json({ message: "Invalid unit tag" });
+      }
       
       // Get inventory unit by unique tag
       const unit = await storage.getInventoryUnitByTag(uniqueTag);
@@ -967,7 +972,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the inventory item to check tenant and get details
       const inventoryItem = await storage.getInventoryItem(unit.inventoryItemId, user.tenantId);
       
-      // SECURITY: Enforce tenant isolation - reject if item doesn't belong to user's tenant
+      // SECURITY: Enforce tenant isolation
+      // Return generic 404 to prevent leaking unit existence across tenants
       if (!inventoryItem) {
         return res.status(404).json({ message: "Unit not found" });
       }
@@ -1355,7 +1361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         message: "Purchase order finalized successfully",
         units: createdUnits,
-        purchaseOrderId: po.orderNumber || id,
+        purchaseOrderId: po.id,
         receivedDate: new Date(),
       });
     } catch (error) {

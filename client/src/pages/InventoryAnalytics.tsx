@@ -92,6 +92,11 @@ export default function InventoryAnalytics() {
       });
     } catch (error) {
       console.error('QR scan error:', error);
+      
+      // Clear stale highlight state to allow immediate retry
+      setScannedUnitTag(null);
+      setScannedItemId(null);
+      
       toast({
         title: t("error", "Error"),
         description: t("unit_not_found", "Unit not found or invalid QR code"),

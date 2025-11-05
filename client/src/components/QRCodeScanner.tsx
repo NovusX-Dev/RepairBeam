@@ -32,18 +32,25 @@ export default function QRCodeScanner({
   const [success, setSuccess] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isMountedRef = useRef(false);
+  const processedRef = useRef(false); // Prevent duplicate scans from same session
 
-  const resetState = () => {
+  const resetState = async () => {
     setManualInput("");
     setError(null);
     setSuccess(false);
+    // Await stop() before resetting processedRef to prevent race conditions
+    await stopScanning();
+    processedRef.current = false; // Reset processed flag
   };
 
   const stopScanning = async () => {
-    if (scannerRef.current && isScanning) {
+    if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
+        if (isScanning) {
+          await scannerRef.current.stop();
+        }
         scannerRef.current.clear();
+        scannerRef.current = null;
       } catch (err) {
         console.error("Error stopping scanner:", err);
       }
@@ -54,8 +61,12 @@ export default function QRCodeScanner({
   const startScanning = async () => {
     if (!isMountedRef.current) return;
 
+    // Await previous stop() before starting to prevent NotAllowedError on rapid restarts
+    await stopScanning();
+    
     setError(null);
     setSuccess(false);
+    processedRef.current = false; // Reset on each scan session
 
     try {
       const scanner = new Html5Qrcode("qr-reader");
@@ -71,7 +82,10 @@ export default function QRCodeScanner({
         { facingMode: "environment" },
         config,
         (decodedText) => {
-          if (!isMountedRef.current) return;
+          // Guard against duplicate detections from html5-qrcode
+          if (!isMountedRef.current || processedRef.current) return;
+          
+          processedRef.current = true; // Mark as processed
           setSuccess(true);
           stopScanning();
           setTimeout(() => {
@@ -123,25 +137,27 @@ export default function QRCodeScanner({
     };
   }, [open, mode]);
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (manualInput.trim()) {
       onScan(manualInput.trim());
       onOpenChange(false);
-      resetState();
+      await resetState();
     }
   };
 
   const handleModeSwitch = async (newMode: ScanMode) => {
     if (newMode === mode) return;
-    await stopScanning();
     setMode(newMode);
-    resetState();
+    await resetState();
   };
 
-  const handleClose = () => {
-    onOpenChange(false);
-    resetState();
+  const handleClose = async (newOpen: boolean) => {
+    // Respect the boolean passed by Dialog (for accessibility/keyboard)
+    if (!newOpen) {
+      await resetState();
+    }
+    onOpenChange(newOpen);
   };
 
   return (
@@ -266,7 +282,7 @@ export default function QRCodeScanner({
           <Button
             type="button"
             variant="outline"
-            onClick={handleClose}
+            onClick={() => handleClose(false)}
             className="w-full"
             data-testid="button-cancel-scan"
           >
