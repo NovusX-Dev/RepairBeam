@@ -24,8 +24,10 @@ import {
   PackageCheck,
   ArrowUpDown,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  QrCode
 } from "lucide-react";
+import QRCodePrintSheet from "@/components/QRCodePrintSheet";
 import {
   Table,
   TableBody,
@@ -101,6 +103,8 @@ export default function Inventory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [alertsExpanded, setAlertsExpanded] = useState(false);
+  const [printQRItemId, setPrintQRItemId] = useState<string | null>(null);
+  const [showPrintSheet, setShowPrintSheet] = useState(false);
   
   const [formData, setFormData] = useState<InventoryFormData>({
     name: "",
@@ -122,6 +126,12 @@ export default function Inventory() {
   // Fetch suppliers for display
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
+  });
+
+  // Fetch inventory units for QR code printing
+  const { data: inventoryUnits = [] } = useQuery<any[]>({
+    queryKey: [`/api/inventory/${printQRItemId}/units`],
+    enabled: !!printQRItemId && showPrintSheet,
   });
 
   // Calculate KPIs
@@ -331,6 +341,18 @@ export default function Inventory() {
       supplier: item.supplier || "",
     });
     setShowEditDialog(true);
+  };
+
+  const handlePrintQR = (item: InventoryItem) => {
+    setPrintQRItemId(item.id);
+    setShowPrintSheet(true);
+  };
+
+  const handleClosePrintSheet = (open: boolean) => {
+    setShowPrintSheet(open);
+    if (!open) {
+      setPrintQRItemId(null);
+    }
   };
 
   const handleUpdate = () => {
@@ -722,6 +744,24 @@ export default function Inventory() {
                         <TableCell className="text-green-400 font-medium">{formatCurrency(itemValue)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handlePrintQR(item)}
+                                    className="hover:bg-cyan-500/20 hover:text-cyan-400"
+                                    data-testid={`button-print-qr-${item.id}`}
+                                  >
+                                    <QrCode className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{t("print_qr_codes", "Print QR Codes")}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1169,6 +1209,13 @@ export default function Inventory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR Code Print Sheet */}
+      <QRCodePrintSheet
+        open={showPrintSheet}
+        onOpenChange={handleClosePrintSheet}
+        units={inventoryUnits}
+      />
     </div>
   );
 }

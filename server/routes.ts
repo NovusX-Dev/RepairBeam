@@ -1041,6 +1041,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all inventory units for a specific item (for QR code printing)
+  app.get("/api/inventory/:itemId/units", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { itemId } = req.params;
+      
+      // Verify the item belongs to this tenant
+      const item = await storage.getInventoryItem(itemId, user.tenantId);
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+
+      // Get all units for this item
+      const units = await storage.getInventoryUnitsByItem(itemId, user.tenantId);
+      res.json(units);
+    } catch (error) {
+      console.error("Error fetching inventory units:", error);
+      res.status(500).json({ message: "Failed to fetch inventory units" });
+    }
+  });
+
   // Supplier routes
   app.get("/api/suppliers", isAuthenticated, async (req: any, res) => {
     try {

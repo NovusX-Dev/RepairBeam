@@ -184,6 +184,7 @@ export interface IStorage {
   
   // Inventory unit operations
   getInventoryUnits(inventoryItemId: string): Promise<InventoryUnit[]>;
+  getInventoryUnitsByItem(inventoryItemId: string, tenantId: string): Promise<InventoryUnit[]>;
   createInventoryUnit(unit: InsertInventoryUnit): Promise<InventoryUnit>;
   getInventoryUnitByTag(uniqueTag: string): Promise<InventoryUnit | undefined>;
   updateInventoryUnit(id: string, unit: Partial<InsertInventoryUnit>): Promise<InventoryUnit | undefined>;
@@ -864,6 +865,24 @@ export class DatabaseStorage implements IStorage {
   // Inventory unit operations
   async getInventoryUnits(inventoryItemId: string): Promise<InventoryUnit[]> {
     return db.select().from(inventoryUnits).where(eq(inventoryUnits.inventoryItemId, inventoryItemId));
+  }
+
+  async getInventoryUnitsByItem(inventoryItemId: string, tenantId: string): Promise<InventoryUnit[]> {
+    // Get units for this item, filtered by tenant
+    const units = await db
+      .select({
+        unit: inventoryUnits,
+      })
+      .from(inventoryUnits)
+      .innerJoin(inventoryItems, eq(inventoryUnits.inventoryItemId, inventoryItems.id))
+      .where(
+        and(
+          eq(inventoryUnits.inventoryItemId, inventoryItemId),
+          eq(inventoryItems.tenantId, tenantId)
+        )
+      );
+    
+    return units.map(u => u.unit);
   }
 
   async createInventoryUnit(unit: InsertInventoryUnit): Promise<InventoryUnit> {
