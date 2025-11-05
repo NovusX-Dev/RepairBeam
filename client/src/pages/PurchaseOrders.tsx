@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import type { InventoryItem } from "@shared/schema";
+import QRCodePrintSheet from "@/components/QRCodePrintSheet";
 
 interface AutoGenList {
   id: string;
@@ -311,6 +312,10 @@ export default function PurchaseOrders() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isReceiveDialogOpen, setIsReceiveDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isQRPrintDialogOpen, setIsQRPrintDialogOpen] = useState(false);
+  const [qrPrintUnits, setQrPrintUnits] = useState<any[]>([]);
+  const [qrPrintPOId, setQrPrintPOId] = useState<string>("");
+  const [qrPrintReceivedDate, setQrPrintReceivedDate] = useState<string>("");
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [poToCancel, setPoToCancel] = useState<PurchaseOrder | null>(null);
   const [items, setItems] = useState<POItem[]>([{ itemName: "", orderedQuantity: 1, itemType: "Service", deviceType: null, brand: null, model: null, description: "" }]);
@@ -443,7 +448,7 @@ export default function PurchaseOrders() {
     mutationFn: async (data: { poId: string; items: { poItemId: string; itemName: string; receivedQuantity: number; unitCost: number; sellingPrice: number }[] }) => {
       return await apiRequest("POST", `/api/purchase-orders/${data.poId}/finalize`, { items: data.items });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       toast({
@@ -451,6 +456,14 @@ export default function PurchaseOrders() {
         description: t("po_finalized", "Purchase order finalized and items added to inventory"),
       });
       handleCloseReceiveDialog();
+      
+      // Open QR code print dialog with the created units
+      if (data.units && data.units.length > 0) {
+        setQrPrintUnits(data.units);
+        setQrPrintPOId(data.purchaseOrderId || "");
+        setQrPrintReceivedDate(data.receivedDate || new Date().toISOString());
+        setIsQRPrintDialogOpen(true);
+      }
     },
     onError: () => {
       toast({
@@ -1427,6 +1440,15 @@ export default function PurchaseOrders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR Code Print Sheet Dialog */}
+      <QRCodePrintSheet
+        open={isQRPrintDialogOpen}
+        onOpenChange={setIsQRPrintDialogOpen}
+        units={qrPrintUnits}
+        purchaseOrderId={qrPrintPOId}
+        receivedDate={qrPrintReceivedDate}
+      />
     </div>
   );
 }

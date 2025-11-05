@@ -967,6 +967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the inventory item to check tenant and get details
       const inventoryItem = await storage.getInventoryItem(unit.inventoryItemId, user.tenantId);
       
+      // SECURITY: Enforce tenant isolation - reject if item doesn't belong to user's tenant
       if (!inventoryItem) {
         return res.status(404).json({ message: "Unit not found" });
       }
@@ -1220,6 +1221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const poItems = await storage.getPurchaseOrderItems(id);
 
       let totalCost = 0;
+      const createdUnits: any[] = []; // Track all created inventory units
 
       // Process each item
       for (const receivedItem of items) {
@@ -1288,7 +1290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const itemNameForTag = receivedItem.itemName || 'ITEM';
           const uniqueTag = `${itemNameForTag.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
           
-          await storage.createInventoryUnit({
+          const newUnit = await storage.createInventoryUnit({
             inventoryItemId: inventoryItemId,
             supplierId: po.supplierId || '',
             purchaseOrderItemId: poItem.id,
@@ -1297,6 +1299,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             deviceType: poItem.deviceType || null,
             itemType: poItem.itemType || 'Service',
             description: poItem.description || null,
+          });
+          
+          // Track created unit with item name for QR code printing
+          createdUnits.push({
+            ...newUnit,
+            inventoryItem: {
+              name: receivedItem.itemName || poItem.itemName || 'Unknown Item',
+            },
           });
         }
 
@@ -1342,7 +1352,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalCost: totalCost.toString(),
       });
 
-      res.json({ message: "Purchase order finalized successfully" });
+      res.json({ 
+        message: "Purchase order finalized successfully",
+        units: createdUnits,
+        purchaseOrderId: po.orderNumber || id,
+        receivedDate: new Date(),
+      });
     } catch (error) {
       console.error("Error finalizing purchase order:", error);
       res.status(500).json({ message: "Failed to finalize purchase order" });

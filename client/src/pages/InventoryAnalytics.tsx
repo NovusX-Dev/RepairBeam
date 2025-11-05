@@ -7,12 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Filter, Package, TrendingUp, Calendar, Wrench, User } from "lucide-react";
+import { Search, Filter, Package, TrendingUp, Calendar, Wrench, User, QrCode } from "lucide-react";
 import { fromCents } from "@shared/money";
 import { format } from "date-fns";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { formatTicketId } from "@/lib/utils";
 import TicketSummaryDialog from "@/components/TicketSummaryDialog";
+import QRCodeScanner from "@/components/QRCodeScanner";
+import { useToast } from "@/hooks/use-toast";
 
 interface UsageHistoryItem {
   unit: {
@@ -51,14 +53,52 @@ interface UsageStats {
 
 export default function InventoryAnalytics() {
   const { t, currentLanguage } = useLocalization();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [scannedUnitTag, setScannedUnitTag] = useState<string | null>(null);
+  const [scannedItemId, setScannedItemId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [activeSearchFilter, setActiveSearchFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Handle QR code scan
+  const handleQRScan = async (uniqueTag: string) => {
+    try {
+      // Verify the unit with backend
+      const response = await fetch(`/api/inventory-units/verify/${uniqueTag}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Unit not found');
+      }
+      
+      const scannedUnit = await response.json();
+      
+      // Set the scanned unit tag and item ID for highlighting
+      setScannedUnitTag(uniqueTag);
+      setScannedItemId(scannedUnit.inventoryItemId);
+      setSearchQuery(uniqueTag); // Also set as search query for backend filtering
+      setIsQRScannerOpen(false);
+      
+      toast({
+        title: t("success", "Success"),
+        description: t("unit_found", `Unit found: ${scannedUnit.inventoryItem.name}`),
+      });
+    } catch (error) {
+      console.error('QR scan error:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("unit_not_found", "Unit not found or invalid QR code"),
+        variant: "destructive",
+      });
+    }
+  };
 
   // Fetch inventory items with search
   const { data: inventoryItems = [], isLoading: itemsLoading } = useQuery<any[]>({
@@ -99,6 +139,14 @@ export default function InventoryAnalytics() {
     setCurrentPage(1);
   }, [selectedItemId]);
 
+  // Clear scanned item highlight when user manually changes search
+  useEffect(() => {
+    if (searchQuery !== scannedUnitTag && scannedItemId) {
+      setScannedItemId(null);
+      setScannedUnitTag(null);
+    }
+  }, [searchQuery, scannedUnitTag, scannedItemId]);
+
   return (
     <div className="min-h-screen p-6 space-y-6">
       {/* Header with Aurora gradient */}
@@ -130,13 +178,16 @@ export default function InventoryAnalytics() {
           <CardDescription>{t("search_and_filter_inventory", "Search and filter inventory items")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder={t("search_by_name_unit_ticket", "Search by name, unit tag, or ticket ID...")}
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setScannedUnitTag(null); // Clear scanned tag when manually searching
+                }}
                 className="pl-10"
                 data-testid="input-search-items"
               />
@@ -169,6 +220,15 @@ export default function InventoryAnalytics() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Button
+              onClick={() => setIsQRScannerOpen(true)}
+              className="bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600 text-white"
+              data-testid="button-scan-to-find"
+            >
+              <QrCode className="w-4 h-4 mr-2" />
+              {t("scan_to_find", "Scan to Find")}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -202,9 +262,15 @@ export default function InventoryAnalytics() {
                 <TableBody>
                   {filteredItems.map((item) => {
                     const isLowStock = item.quantity <= item.minQuantity;
+                    // Highlight the row if this specific item was found via QR scan
+                    const isScannedItem = scannedItemId === item.id;
                     
                     return (
-                      <TableRow key={item.id} data-testid={`row-inventory-item-${item.id}`}>
+                      <TableRow 
+                        key={item.id} 
+                        data-testid={`row-inventory-item-${item.id}`}
+                        className={isScannedItem ? "bg-cyan-500/10 border-l-4 border-l-cyan-400" : ""}
+                      >
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">
@@ -422,6 +488,15 @@ export default function InventoryAnalytics() {
         ticket={ticketDetails || null}
         isOpen={!!selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
+      />
+
+      {/* QR Code Scanner Dialog */}
+      <QRCodeScanner
+        open={isQRScannerOpen}
+        onOpenChange={setIsQRScannerOpen}
+        onScan={handleQRScan}
+        title={t("scan_to_find_unit", "Scan to Find Unit")}
+        description={t("scan_qr_to_find_desc", "Scan a QR code to find and filter inventory items")}
       />
     </div>
   );

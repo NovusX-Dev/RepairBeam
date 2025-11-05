@@ -45,7 +45,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
 import TicketSummaryDialog from "@/components/TicketSummaryDialog";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search } from "lucide-react";
+import QRCodeScanner from "@/components/QRCodeScanner";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -719,6 +720,9 @@ const ItemSelectionDialog = memo(({
   const [unitPrice, setUnitPrice] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('all');
   const [selectedModel, setSelectedModel] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>('browse');
+  const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const { toast } = useToast();
 
   // Fetch brands for the device type
   const { data: brandsData } = useDeviceBrands(deviceType || null);
@@ -737,6 +741,65 @@ const ItemSelectionDialog = memo(({
   useEffect(() => {
     setSelectedModel('all');
   }, [selectedBrand]);
+
+  // Handle QR code scan
+  const handleQRScan = async (uniqueTag: string) => {
+    try {
+      // Verify the unit with backend
+      const response = await fetch(`/api/inventory-units/verify/${uniqueTag}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Unit not found');
+      }
+      
+      const scannedUnit = await response.json();
+      
+      // Check if the unit is available (in_stock)
+      if (scannedUnit.status !== 'in_stock') {
+        toast({
+          title: t("error", "Error"),
+          description: t("unit_already_used", "This unit has already been used on another ticket"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Find the corresponding inventory item in available items
+      const inventoryItem = availableItems.find((item: any) => item.id === scannedUnit.inventoryItemId);
+      
+      if (!inventoryItem) {
+        toast({
+          title: t("error", "Error"),
+          description: t("item_not_available", "This item is not available for this device type"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Auto-populate the item
+      setSelectedItem(inventoryItem);
+      setQuantity(1); // QR codes are for individual units
+      setUnitPrice(inventoryItem.price || '0');
+      
+      // Close scanner and switch back to browse tab to show the selected item
+      setIsQRScannerOpen(false);
+      setActiveTab('browse');
+      
+      toast({
+        title: t("success", "Success"),
+        description: t("unit_scanned_successfully", "Unit scanned successfully"),
+      });
+    } catch (error) {
+      console.error('QR scan error:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("invalid_qr_code", "Invalid QR code or unit not found"),
+        variant: "destructive",
+      });
+    }
+  };
 
   // Filter items client-side using useMemo to prevent unnecessary recalculations
   const filteredItems = useMemo(() => {
@@ -798,6 +861,7 @@ const ItemSelectionDialog = memo(({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[80vh]" data-testid="dialog-item-selection">
         <DialogHeader>
@@ -809,7 +873,19 @@ const ItemSelectionDialog = memo(({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="browse" className="flex items-center gap-2" data-testid="tab-browse-items">
+              <Package className="w-4 h-4" />
+              {t("browse_items", "Browse Items")}
+            </TabsTrigger>
+            <TabsTrigger value="scan" className="flex items-center gap-2" data-testid="tab-scan-qr">
+              <QrCode className="w-4 h-4" />
+              {t("scan_qr_code", "Scan QR Code")}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="browse" className="space-y-4">
           {/* Filters Row */}
           <div className="grid grid-cols-3 gap-3">
             {/* Brand Filter */}
@@ -986,7 +1062,32 @@ const ItemSelectionDialog = memo(({
               </div>
             </div>
           )}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="scan" className="space-y-4">
+            <div className="py-4">
+              {/* Note: QRCodeScanner handles its own Dialog, but we want it embedded in the tab */}
+              {/* So we'll render it without the dialog wrapper */}
+              <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <h3 className="font-semibold text-lg mb-2">{t("scan_inventory_unit", "Scan Inventory Unit QR Code")}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {t("scan_unit_description", "Position the QR code in front of your camera or use manual entry for USB scanner")}
+                  </p>
+                </div>
+                
+                <Button
+                  onClick={() => setIsQRScannerOpen(true)}
+                  className="w-full bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600"
+                  data-testid="button-open-qr-scanner"
+                >
+                  <QrCode className="w-4 h-4 mr-2" />
+                  {t("open_scanner", "Open Scanner")}
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter>
           <Button
@@ -1006,6 +1107,16 @@ const ItemSelectionDialog = memo(({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* QR Code Scanner */}
+    <QRCodeScanner
+      open={isQRScannerOpen}
+      onOpenChange={setIsQRScannerOpen}
+      onScan={handleQRScan}
+      title={t("scan_inventory_unit", "Scan Inventory Unit QR Code")}
+      description={t("scan_unit_description", "Position the QR code in front of your camera or use manual entry for USB scanner")}
+    />
+    </>
   );
 });
 

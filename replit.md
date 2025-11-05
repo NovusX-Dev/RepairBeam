@@ -96,6 +96,23 @@ Preferred communication style: Simple, everyday language.
 - **Multi-Language Support**: Complete localization for en and pt-BR with 77 translation entries
 - **Aurora Design Implementation**: Navy gradients, cyan accents, consistent card styling, and status color coding throughout
 
+### QR Code Tracking System (Phase 5)
+- **QR Code Generation**: Inventory units are assigned unique tags encoded into QR codes (2.5cm × 2.5cm) for physical labeling
+- **Print Functionality**: Automated QR code sheet generation after purchase order finalization with enforced physical sizing via CSS print media rules
+- **Multi-Method Scanning**: Supports three scanning methods:
+  - Smartphone camera (primary method with responsive camera API)
+  - PC webcam (browser-based html5-qrcode integration)
+  - USB barcode scanner (keyboard wedge mode with manual entry fallback)
+- **Security**: QR verification endpoint (`GET /api/inventory-units/verify/:uniqueTag`) enforces tenant isolation through inventory item lookup
+- **Integration Points**:
+  - Purchase Orders: Print QR codes immediately after PO finalization for created inventory units
+  - Kanban Tickets: Scan-to-add functionality in item selection dialog with Browse/Scan tabs
+  - Inventory Analytics: "Scan to Find" feature with visual highlighting of matched items (cyan background + left border)
+- **Components**:
+  - `QRCodeScanner`: Reusable dialog component with camera/manual entry modes
+  - `QRCodePrintSheet`: Print-optimized component with exact 2.5cm × 2.5cm sizing
+- **UX Enhancements**: Auto-clear highlighting when manual search is performed, real-time feedback with toast notifications, Aurora design consistency
+
 ## External Dependencies
 
 ### Database & Storage

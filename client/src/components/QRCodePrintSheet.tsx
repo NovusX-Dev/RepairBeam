@@ -265,16 +265,23 @@ export default function QRCodePrintSheet({
             .qr-container {
               width: 2.5cm;
               height: 2.5cm;
+              max-width: 2.5cm;
+              max-height: 2.5cm;
+              min-width: 2.5cm;
+              min-height: 2.5cm;
               display: flex;
               align-items: center;
               justify-content: center;
               background: white;
-              padding: 0.1cm;
+              padding: 0;
+              overflow: hidden;
             }
 
             .qr-image {
-              width: 100%;
-              height: 100%;
+              width: 2.5cm !important;
+              height: 2.5cm !important;
+              max-width: 2.5cm !important;
+              max-height: 2.5cm !important;
               object-fit: contain;
             }
 
