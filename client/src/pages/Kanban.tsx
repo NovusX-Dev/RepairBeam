@@ -44,6 +44,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
+import TicketSummaryDialog from "@/components/TicketSummaryDialog";
 import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
@@ -5464,20 +5465,46 @@ export default function KanbanTickets() {
       </div>
 
       {/* Ticket Summary Modal */}
-      <Dialog open={!!selectedTicketSummary} onOpenChange={() => setSelectedTicketSummary(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          {selectedTicketSummary && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Smartphone className="w-5 h-5" />
-                  {t("ticket_summary", "Ticket Summary")} - #{selectedTicketSummary.id.slice(-6).toUpperCase()}
-                </DialogTitle>
-              </DialogHeader>
-              
-              {/* Priority and Status Header - Improved Design */}
-              <div className="flex items-center justify-between mb-6 p-4 bg-muted/30 rounded-lg border">
-                <div className="flex items-center gap-4">
+      <TicketSummaryDialog
+        ticket={selectedTicketSummary}
+        isOpen={!!selectedTicketSummary}
+        onClose={() => setSelectedTicketSummary(null)}
+        onDelete={(ticketId) => setShowDeleteConfirmation(true)}
+        getKanbanColumns={getKanbanColumns}
+        getPriorityColor={getPriorityColor}
+        getPriorityLabel={getPriorityLabel}
+        getStatusCardStyling={getStatusCardStyling}
+      />
+
+      {/* Ticket Creation Confirmation Dialog */}
+      <Dialog open={showCreateConfirmation} onOpenChange={setShowCreateConfirmation}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="w-5 h-5 text-green-500" />
+              {t("confirm_ticket_creation", "Create Repair Ticket?")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("confirmation_message", "Are you sure you want to create this repair ticket?")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="text-sm space-y-1">
+              <p className="font-medium text-foreground">{t("this_will", "This will:")}</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>{t("create_ticket_backlog", "Create a new ticket in the BackLog")}</li>
+                <li>{t("lock_service_details", "Lock in the agreed service details and cost")}</li>
+                <li>{t("begin_repair_process", "Begin the repair process")}</li>
+              </ul>
+            </div>
+
+            <div className="bg-muted/20 p-3 rounded-md space-y-1 text-sm">
+              <div><strong>{t("client", "Client")}:</strong> {selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : `${formData.firstName} ${formData.lastName}`}</div>
+              <div><strong>{t("device", "Device")}:</strong> {formData.deviceType} {formData.deviceBrand} {formData.deviceModel}</div>
+              <div><strong>{t("total_cost", "Total Cost")}:</strong> ${formData.totalCost}</div>
+            </div>
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2">
                   {/* Priority Selector - Prominent Position */}
                   <div className="flex items-center gap-3">
                     <label className="text-sm font-semibold text-foreground">{t("priority", "Priority")}</label>
