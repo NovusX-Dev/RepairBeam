@@ -66,7 +66,7 @@ export default function QRCodePrintSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto no-print">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto no-print" data-print-sheet>
         {/* Aurora Gradient Header */}
         <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4 -mx-6 -mt-6 mb-4 no-print">
           <DialogHeader>
@@ -227,21 +227,40 @@ export default function QRCodePrintSheet({
               margin: 1cm;
             }
 
+            /* Hide EVERYTHING */
+            body * {
+              visibility: hidden !important;
+            }
+
+            /* Show only the print content and its children */
+            .print-content,
+            .print-content * {
+              visibility: visible !important;
+            }
+
+            /* Position print content at top left of page */
+            .print-content {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              background: white !important;
+            }
+
             body {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
+              background: white !important;
             }
 
             .no-print {
               display: none !important;
+              visibility: hidden !important;
             }
 
             .print-only {
               display: block !important;
-            }
-
-            .print-content {
-              display: block !important;
+              visibility: visible !important;
             }
 
             .qr-grid {
