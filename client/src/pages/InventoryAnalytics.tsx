@@ -62,19 +62,9 @@ export default function InventoryAnalytics() {
 
   // Fetch inventory items with search
   const { data: inventoryItems = [], isLoading: itemsLoading } = useQuery<any[]>({
-    queryKey: ["/api/inventory", searchQuery],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (searchQuery && searchQuery.trim()) {
-        params.set('search', searchQuery.trim());
-      }
-      const url = `/api/inventory${params.toString() ? `?${params.toString()}` : ''}`;
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) {
-        throw new Error(`Failed to fetch inventory: ${res.statusText}`);
-      }
-      return res.json();
-    },
+    queryKey: searchQuery && searchQuery.trim() 
+      ? [`/api/inventory?search=${encodeURIComponent(searchQuery.trim())}`]
+      : ["/api/inventory"],
   });
 
   // Fetch suppliers
