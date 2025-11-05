@@ -1384,12 +1384,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalCost: totalCost.toString(),
       });
 
-      res.json({ 
+      const response = { 
         message: "Purchase order finalized successfully",
         units: createdUnits,
         purchaseOrderId: po.id,
         receivedDate: new Date(),
-      });
+      };
+      
+      console.log(`[PO Finalize] Returning ${createdUnits.length} units for QR code printing`);
+      res.json(response);
     } catch (error) {
       console.error("Error finalizing purchase order:", error);
       res.status(500).json({ message: "Failed to finalize purchase order" });

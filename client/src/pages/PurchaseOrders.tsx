@@ -457,12 +457,19 @@ export default function PurchaseOrders() {
       });
       handleCloseReceiveDialog();
       
+      // Debug logging
+      console.log("[PO Finalize] Response data:", data);
+      console.log("[PO Finalize] Units count:", data.units?.length || 0);
+      
       // Open QR code print dialog with the created units
       if (data.units && data.units.length > 0) {
+        console.log("[PO Finalize] Opening QR print dialog with units:", data.units);
         setQrPrintUnits(data.units);
         setQrPrintPOId(data.purchaseOrderId || "");
         setQrPrintReceivedDate(data.receivedDate || new Date().toISOString());
         setIsQRPrintDialogOpen(true);
+      } else {
+        console.warn("[PO Finalize] No units to print QR codes for:", data);
       }
     },
     onError: () => {
