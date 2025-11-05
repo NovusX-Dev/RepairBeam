@@ -66,7 +66,7 @@ export default function QRCodePrintSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto no-print" data-print-sheet>
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Aurora Gradient Header */}
         <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4 -mx-6 -mt-6 mb-4 no-print">
           <DialogHeader>
