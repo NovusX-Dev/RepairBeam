@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -140,13 +140,15 @@ export default function InventoryAnalytics() {
   });
 
   // Filter inventory items by supplier and category (search is handled by backend)
-  const filteredItems = inventoryItems.filter((item) => {
-    const matchesSupplier = selectedSupplier === "all" || item.supplierId === selectedSupplier;
-    const matchesCategory = selectedCategory === "all" || 
-                            (selectedCategory === "none" && !item.category) ||
-                            item.category === selectedCategory;
-    return matchesSupplier && matchesCategory;
-  });
+  const filteredItems = useMemo(() => {
+    return inventoryItems.filter((item) => {
+      const matchesSupplier = selectedSupplier === "all" || item.supplierId === selectedSupplier;
+      const matchesCategory = selectedCategory === "all" || 
+                              (selectedCategory === "none" && !item.category) ||
+                              item.category === selectedCategory;
+      return matchesSupplier && matchesCategory;
+    });
+  }, [inventoryItems, selectedSupplier, selectedCategory]);
 
   // Reset pagination when modal opens/closes
   useEffect(() => {

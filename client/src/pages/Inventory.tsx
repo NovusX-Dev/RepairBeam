@@ -255,7 +255,7 @@ export default function Inventory() {
     }
 
     return filtered;
-  }, [items, searchTerm, filterSupplier, filterBrand, filterStatus, sortColumn, sortDirection]);
+  }, [items, searchTerm, filterSupplier, filterBrand, filterStatus, filterCategory, sortColumn, sortDirection, categories]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
