@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench, ChevronDown, ChevronRight, CheckSquare } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { AlertCircle, Bot, RefreshCw, Clock, CheckCircle2, Loader2, Smartphone, RotateCcw, AlertTriangle, Store, Shield, Settings, Upload, Plus, Edit, Trash2, ImageIcon, Wrench, ChevronDown, ChevronRight, CheckSquare, Package } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +27,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
 import { FileUpload } from "@/components/FileUpload";
-import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect, Checklist } from "@shared/schema";
+import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect, Checklist, InventoryCategory } from "@shared/schema";
 
 export default function Configs() {
   const { t, currentLanguage, formatDate } = useLocalization();
@@ -81,6 +82,19 @@ export default function Configs() {
   });
   const CHECKLISTS_PER_PAGE = 10;
   
+  // Inventory categories state
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [newCategory, setNewCategory] = useState<Partial<InventoryCategory>>({});
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [categoriesSearchQuery, setCategoriesSearchQuery] = useState('');
+  const [categoriesCurrentPage, setCategoriesCurrentPage] = useState<Record<string, number>>({
+    Phone: 1,
+    Laptop: 1,
+    Desktop: 1,
+    Other: 1
+  });
+  const CATEGORIES_PER_PAGE = 10;
+  
   // Repair services pagination and search state
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -101,11 +115,13 @@ export default function Configs() {
 
   // Device types for warranty configuration
   const deviceTypes = ["Phone", "Laptop", "Desktop"];
+  const deviceTypesWithOther = ["Phone", "Laptop", "Desktop", "Other"];
   const getLocalizedDeviceType = (type: string) => {
     const deviceTranslations: Record<string, string> = {
       'Phone': t('phone', 'Phone'),
       'Laptop': t('laptop', 'Laptop'), 
-      'Desktop': t('desktop', 'Desktop')
+      'Desktop': t('desktop', 'Desktop'),
+      'Other': t('other', 'Other')
     };
     return deviceTranslations[type] || type;
   };
@@ -138,6 +154,11 @@ export default function Configs() {
   // Fetch checklists
   const { data: checklists = [] } = useQuery<Checklist[]>({
     queryKey: ['/api/checklists'],
+  });
+
+  // Fetch inventory categories
+  const { data: inventoryCategories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ['/api/inventory-categories'],
   });
 
   // Fetch auto-generated lists
@@ -444,6 +465,68 @@ export default function Configs() {
         description: t('checklist_deleted_desc', 'Checklist has been deleted successfully.'),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/checklists'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('delete_failed', 'Delete Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Inventory categories mutations
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: Partial<InventoryCategory>) => {
+      const response = await apiRequest('POST', '/api/inventory-categories', data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('category_created', 'Category Created'),
+        description: t('inventory_category_created', 'Inventory category has been created successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory-categories'] });
+      setShowAddCategory(false);
+      setNewCategory({});
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('create_failed', 'Create Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InventoryCategory> }) => {
+      const response = await apiRequest('PUT', `/api/inventory-categories/${id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory-categories'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: t('update_failed', 'Update Failed'),
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('DELETE', `/api/inventory-categories/${id}`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t('category_deleted', 'Category Deleted'),
+        description: t('inventory_category_deleted', 'Inventory category has been deleted successfully.'),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory-categories'] });
     },
     onError: (error: Error) => {
       toast({
@@ -806,6 +889,40 @@ export default function Configs() {
     }
   };
 
+  // Inventory categories handlers
+  const handleCategorySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (showAddCategory) {
+      // Convert "Other" to null for deviceType
+      const categoryData = {
+        ...newCategory,
+        deviceType: newCategory.deviceType === 'Other' ? null : newCategory.deviceType
+      };
+      createCategoryMutation.mutate(categoryData);
+    }
+  };
+
+  const handleEditCategory = (category: InventoryCategory) => {
+    setEditingCategory(category.id);
+  };
+
+  const handleUpdateCategory = (category: InventoryCategory, field: string, value: any) => {
+    let updatedData: any = { [field]: value };
+    
+    // Convert "Other" to null for deviceType
+    if (field === 'deviceType') {
+      updatedData = { deviceType: value === 'Other' ? null : value };
+    }
+    
+    updateCategoryMutation.mutate({ id: category.id, data: updatedData });
+  };
+
+  const handleDeleteCategory = (categoryId: string) => {
+    if (confirm(t('confirm_delete_category', 'Are you sure you want to delete this inventory category?'))) {
+      deleteCategoryMutation.mutate(categoryId);
+    }
+  };
+
   // Helper function for time formatting
   const formatCompletionTime = (hours: number, minutes: number): string => {
     const parts = [];
@@ -921,6 +1038,53 @@ export default function Configs() {
     currentPage: number;
   }>);
 
+  // Filter categories based on search query
+  const filteredCategories = inventoryCategories.filter(category => {
+    if (!categoriesSearchQuery.trim()) return true;
+    const query = categoriesSearchQuery.toLowerCase();
+    const deviceTypeLabel = category.deviceType || 'Other';
+    return (
+      category.name.toLowerCase().includes(query) ||
+      deviceTypeLabel.toLowerCase().includes(query)
+    );
+  });
+
+  // Group filtered categories by device type (null deviceType becomes "Other")
+  const categoriesByDeviceType = filteredCategories.reduce((acc, category) => {
+    const deviceType = category.deviceType || 'Other';
+    if (!acc[deviceType]) {
+      acc[deviceType] = [];
+    }
+    acc[deviceType].push(category);
+    return acc;
+  }, {} as Record<string, InventoryCategory[]>);
+
+  // Paginate categories for each device type
+  const paginatedCategoriesByDeviceType = deviceTypesWithOther.reduce((acc, deviceType) => {
+    const categories = categoriesByDeviceType[deviceType] || [];
+    const currentPageNum = categoriesCurrentPage[deviceType] || 1;
+    const startIndex = (currentPageNum - 1) * CATEGORIES_PER_PAGE;
+    const endIndex = startIndex + CATEGORIES_PER_PAGE;
+    
+    acc[deviceType] = {
+      categories: categories.slice(startIndex, endIndex),
+      totalCategories: categories.length,
+      totalPages: Math.ceil(categories.length / CATEGORIES_PER_PAGE),
+      currentPage: currentPageNum,
+      hasNextPage: endIndex < categories.length,
+      hasPrevPage: currentPageNum > 1,
+    };
+    
+    return acc;
+  }, {} as Record<string, {
+    categories: InventoryCategory[];
+    totalCategories: number;
+    totalPages: number;
+    currentPage: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  }>);
+
   // Initialize all sections as collapsed by default
   useEffect(() => {
     const initialCollapsedState: Record<string, boolean> = {};
@@ -928,7 +1092,10 @@ export default function Configs() {
       initialCollapsedState[deviceType] = true; // All sections start collapsed
       initialCollapsedState[`defects-${deviceType}`] = true; // Defects sections also start collapsed
       initialCollapsedState[`checklists-${deviceType}`] = true; // Checklists sections also start collapsed
+      initialCollapsedState[`categories-${deviceType}`] = true; // Categories sections also start collapsed
     });
+    // Also add Other for categories
+    initialCollapsedState[`categories-Other`] = true;
     setCollapsedSections(initialCollapsedState);
   }, []); // Only run once on mount
 
@@ -1182,7 +1349,7 @@ export default function Configs() {
 
       {/* Tabbed Configuration Sections */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+        <TabsList className="grid w-full grid-cols-7 max-w-3xl">
           <TabsTrigger value="general" className="flex items-center gap-2" data-testid="tab-general">
             <Store className="w-4 h-4" />
             {t('general', 'General')}
@@ -1202,6 +1369,10 @@ export default function Configs() {
           <TabsTrigger value="checklists" className="flex items-center gap-2" data-testid="tab-checklists">
             <CheckSquare className="w-4 h-4" />
             {t('checklists', 'Checklists')}
+          </TabsTrigger>
+          <TabsTrigger value="inventory-categories" className="flex items-center gap-2" data-testid="tab-inventory-categories">
+            <Package className="w-4 h-4" />
+            {t('categories', 'Categories')}
           </TabsTrigger>
           <TabsTrigger value="ai-lists" className="flex items-center gap-2" data-testid="tab-ai-lists">
             <Bot className="w-4 h-4" />
@@ -2859,6 +3030,379 @@ export default function Configs() {
                                       {t('next', 'Next')}
                                     </Button>
                                   </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Inventory Categories Management Tab */}
+        <TabsContent value="inventory-categories" className="space-y-6">
+          <Card className="bg-slate-800/70 border-slate-700">
+            <CardHeader>
+              <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 -mx-6 -mt-6 mb-4">
+                <div className="flex items-center gap-3 text-white">
+                  <Package className="w-6 h-6 text-cyan-100" />
+                  <div>
+                    <CardTitle className="text-lg">{t('inventory_categories_management', 'Inventory Categories Management')}</CardTitle>
+                    <CardDescription className="text-cyan-100 opacity-80">
+                      {t('inventory_categories_desc', 'Configure inventory categories for organizing parts and products by device type')}
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Add Category Button and Search */}
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-white">{t('inventory_categories', 'Inventory Categories')}</h3>
+                  <Button
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
+                    data-testid="button-add-category"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('add_category', 'Add Category')}
+                  </Button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Input
+                    value={categoriesSearchQuery}
+                    onChange={(e) => setCategoriesSearchQuery(e.target.value)}
+                    placeholder={t('search_categories', 'Search categories by name or device type...')}
+                    className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                    data-testid="input-search-categories"
+                  />
+                </div>
+              </div>
+
+              {/* Add New Category Form */}
+              {showAddCategory && (
+                <Card className="mb-6 bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 border border-slate-700">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg text-white font-semibold flex items-center gap-2">
+                      <Plus className="w-5 h-5 text-cyan-100" />
+                      {t('add_inventory_category', 'Add Inventory Category')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleCategorySubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="categoryDeviceType">{t('device_type', 'Device Type')}</Label>
+                          <Select
+                            value={newCategory.deviceType || ''}
+                            onValueChange={(value) => setNewCategory(prev => ({ ...prev, deviceType: value }))}
+                          >
+                            <SelectTrigger className="bg-slate-700 border-slate-600 text-white" data-testid="select-category-device-type">
+                              <SelectValue placeholder={t('select_device_type', 'Select device type')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {deviceTypesWithOther.map(type => (
+                                <SelectItem key={type} value={type}>
+                                  {getLocalizedDeviceType(type)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="categoryName">{t('category_name', 'Category Name')}</Label>
+                          <Input
+                            id="categoryName"
+                            value={newCategory.name || ''}
+                            onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder={t('enter_category_name', 'Enter category name')}
+                            className="bg-slate-700 border-slate-600 text-white"
+                            data-testid="input-category-name"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="categoryActive"
+                          checked={newCategory.isActive !== false}
+                          onCheckedChange={(checked) => setNewCategory(prev => ({ ...prev, isActive: checked }))}
+                          data-testid="switch-category-active"
+                        />
+                        <Label htmlFor="categoryActive" className="text-white cursor-pointer">
+                          {t('active', 'Active')}
+                        </Label>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setShowAddCategory(false);
+                            setNewCategory({});
+                          }}
+                          className="border-slate-600 text-white hover:bg-slate-700"
+                          data-testid="button-cancel-category"
+                        >
+                          {t('cancel', 'Cancel')}
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={createCategoryMutation.isPending}
+                          className="bg-cyan-600 hover:bg-cyan-700"
+                          data-testid="button-save-category"
+                        >
+                          {createCategoryMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {t('saving', 'Saving...')}
+                            </>
+                          ) : (
+                            t('save', 'Save')
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Categories by Device Type */}
+              <div className="space-y-4">
+                {deviceTypesWithOther.map(deviceType => {
+                  const deviceData = paginatedCategoriesByDeviceType[deviceType];
+                  const { categories, totalCategories, totalPages, currentPage, hasNextPage, hasPrevPage } = deviceData;
+                  const isCollapsed = collapsedSections[`categories-${deviceType}`];
+
+                  if (categoriesSearchQuery && categories.length === 0) {
+                    return null; // Hide empty sections when searching
+                  }
+
+                  return (
+                    <Card key={deviceType} className="bg-slate-800/60 border-slate-600" data-testid={`card-categories-${deviceType.toLowerCase()}`}>
+                      <CardHeader className="pb-3">
+                        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-600 rounded-lg p-4 mb-6 border border-slate-700">
+                          <div 
+                            className="flex items-center gap-2 cursor-pointer"
+                            onClick={() => setCollapsedSections(prev => ({
+                              ...prev,
+                              [`categories-${deviceType}`]: !isCollapsed
+                            }))}
+                            data-testid={`toggle-categories-section-${deviceType.toLowerCase()}`}
+                          >
+                            <CardTitle className="text-white flex items-center gap-2 text-lg flex-1">
+                              <Package className="w-5 h-5 text-cyan-100" />
+                              {getLocalizedDeviceType(deviceType)} {t('categories', 'Categories')}
+                              <Badge variant="secondary" className="ml-auto bg-cyan-600/30 text-cyan-100 border-cyan-400/50">
+                                {totalCategories} {t('categories_count', 'categories')}
+                              </Badge>
+                            </CardTitle>
+                            {isCollapsed ? (
+                              <ChevronRight className="w-5 h-5 text-cyan-100" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-cyan-100" />
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      {!isCollapsed && (
+                        <CardContent>
+                          {categories.length === 0 ? (
+                            <div className="text-center py-8">
+                              <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-400">
+                                {t('no_categories_found', 'No categories found for this device type')}
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                {categories.map((category) => (
+                                  <Card 
+                                    key={category.id}
+                                    className="bg-slate-700/50 border-slate-600 hover:bg-slate-700/70 transition-colors" 
+                                    data-testid={`card-category-${category.id}`}
+                                  >
+                                    {editingCategory === category.id ? (
+                                      /* Edit Mode */
+                                      <CardContent className="p-4 space-y-3">
+                                        <div className="space-y-2">
+                                          <Label className="text-white text-xs">{t('category_name', 'Category Name')}</Label>
+                                          <Input
+                                            value={category.name}
+                                            onChange={(e) => handleUpdateCategory(category, 'name', e.target.value)}
+                                            className="bg-slate-700 border-slate-600 text-white text-sm"
+                                            data-testid={`input-edit-category-name-${category.id}`}
+                                          />
+                                        </div>
+                                        <div className="space-y-2">
+                                          <Label className="text-white text-xs">{t('device_type', 'Device Type')}</Label>
+                                          <Select
+                                            value={category.deviceType || 'Other'}
+                                            onValueChange={(value) => handleUpdateCategory(category, 'deviceType', value)}
+                                          >
+                                            <SelectTrigger className="bg-slate-700 border-slate-600 text-white text-sm" data-testid={`select-edit-device-type-${category.id}`}>
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {deviceTypesWithOther.map(type => (
+                                                <SelectItem key={type} value={type}>
+                                                  {getLocalizedDeviceType(type)}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <Switch
+                                            checked={category.isActive}
+                                            onCheckedChange={(checked) => handleUpdateCategory(category, 'isActive', checked)}
+                                            data-testid={`switch-edit-active-${category.id}`}
+                                          />
+                                          <Label className="text-white text-xs cursor-pointer">
+                                            {t('active', 'Active')}
+                                          </Label>
+                                        </div>
+                                        <div className="flex justify-end gap-2 pt-2">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setEditingCategory(null)}
+                                            className="border-slate-600 text-white hover:bg-slate-600 text-xs"
+                                            data-testid={`button-done-editing-${category.id}`}
+                                          >
+                                            {t('done', 'Done')}
+                                          </Button>
+                                        </div>
+                                      </CardContent>
+                                    ) : (
+                                      /* View Mode */
+                                      <CardContent className="p-4 space-y-3">
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <div className="font-medium text-white text-sm mb-1">{category.name}</div>
+                                            <div className="text-xs text-slate-400">
+                                              {getLocalizedDeviceType(category.deviceType || 'Other')}
+                                            </div>
+                                          </div>
+                                          <div className="flex gap-1">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleEditCategory(category)}
+                                              className="h-8 w-8 p-0 hover:bg-slate-600"
+                                              aria-label={t('edit_category', 'Edit category')}
+                                              data-testid={`button-edit-category-${category.id}`}
+                                            >
+                                              <Edit className="w-4 h-4 text-slate-400" />
+                                            </Button>
+                                            <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="h-8 w-8 p-0 hover:bg-red-600/20"
+                                                  aria-label={t('delete_category', 'Delete category')}
+                                                  data-testid={`button-delete-category-${category.id}`}
+                                                >
+                                                  <Trash2 className="w-4 h-4 text-red-400" />
+                                                </Button>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                  <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
+                                                  <AlertDialogDescription>
+                                                    {t('confirm_delete_category_desc', 'Are you sure you want to delete this category? This action cannot be undone.')}
+                                                  </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                  <AlertDialogCancel className="border-slate-600 text-white hover:bg-slate-700">
+                                                    {t('cancel', 'Cancel')}
+                                                  </AlertDialogCancel>
+                                                  <AlertDialogAction
+                                                    onClick={() => handleDeleteCategory(category.id)}
+                                                    className="bg-red-600 hover:bg-red-700"
+                                                  >
+                                                    {t('delete', 'Delete')}
+                                                  </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                            </AlertDialog>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs">
+                                          <span className="text-slate-400">{t('status', 'Status')}:</span>
+                                          <Badge 
+                                            variant={category.isActive ? 'default' : 'secondary'}
+                                            className={category.isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'bg-slate-600/50 text-slate-300 border-slate-500'}
+                                            data-testid={`badge-status-${category.id}`}
+                                          >
+                                            {category.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                          </Badge>
+                                        </div>
+                                      </CardContent>
+                                    )}
+                                  </Card>
+                                ))}
+                              </div>
+
+                              {/* Pagination */}
+                              {totalPages > 1 && (
+                                <div className="mt-6 flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCategoriesCurrentPage(prev => ({
+                                      ...prev,
+                                      [deviceType]: currentPage - 1
+                                    }))}
+                                    disabled={!hasPrevPage}
+                                    className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                    data-testid={`button-categories-prev-${deviceType.toLowerCase()}`}
+                                  >
+                                    {t('previous', 'Previous')}
+                                  </Button>
+                                  <div className="flex gap-1">
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                      <Button
+                                        key={page}
+                                        variant={currentPage === page ? 'default' : 'outline'}
+                                        size="sm"
+                                        onClick={() => setCategoriesCurrentPage(prev => ({
+                                          ...prev,
+                                          [deviceType]: page
+                                        }))}
+                                        className={`w-10 ${currentPage === page ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-slate-600 text-white hover:bg-slate-700'}`}
+                                        data-testid={`button-categories-page-${page}-${deviceType.toLowerCase()}`}
+                                      >
+                                        {page}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCategoriesCurrentPage(prev => ({
+                                      ...prev,
+                                      [deviceType]: currentPage + 1
+                                    }))}
+                                    disabled={!hasNextPage}
+                                    className="border-slate-600 text-white hover:bg-slate-700 disabled:opacity-50"
+                                    data-testid={`button-categories-next-${deviceType.toLowerCase()}`}
+                                  >
+                                    {t('next', 'Next')}
+                                  </Button>
                                 </div>
                               )}
                             </>
