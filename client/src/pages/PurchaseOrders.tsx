@@ -571,15 +571,24 @@ export default function PurchaseOrders() {
     setActiveItemIndex(null);
   };
 
-  // Filter inventory items based on search
+  // Filter inventory items based on search and selected supplier
   const getSuggestionsForItem = (index: number) => {
     const item = items[index];
     if (!item || !item.itemName) return [];
     
     return inventoryItems
-      .filter(invItem => 
-        invItem.name.toLowerCase().includes(item.itemName.toLowerCase())
-      )
+      .filter(invItem => {
+        // Match item name
+        const matchesName = invItem.name.toLowerCase().includes(item.itemName.toLowerCase());
+        
+        // If no supplier is selected, show all items
+        if (!formData.supplierId) {
+          return matchesName;
+        }
+        
+        // If supplier is selected, show items from that supplier OR items without a supplier (legacy items)
+        return matchesName && (!invItem.supplierId || invItem.supplierId === formData.supplierId);
+      })
       .slice(0, 5); // Limit to 5 suggestions
   };
 
