@@ -1310,60 +1310,20 @@ export default function KanbanTickets() {
     }
   };
   
-  // Filter state management
+  // Old filter state for backwards compatibility (will be replaced gradually)
   const [filters, setFilters] = useState({
     priority: 'all',
     name: '',
     cpf: '',
     deviceType: 'all',
     ticketId: '',
-    showArchived: true, // Show finalized tickets by default
+    showArchived: true,
   });
   const [showFilters, setShowFilters] = useState(false);
   
   const queryClient = useQueryClient();
   const { t, currentLanguage, formatDate } = useLocalization();
   const { toast } = useToast();
-
-  // Comprehensive filter state management
-  const { filters: kanbanFilters, setFilter, clearFilters, activeFilterCount, debouncedFilters } = useFilterState<KanbanFilters>(
-    defaultKanbanFilters,
-    {
-      debounceMs: 500,
-      syncWithUrl: true,
-      serializers: {
-        dateFrom: {
-          encode: (value: Date) => value.toISOString(),
-          decode: (value: string) => {
-            const date = new Date(value);
-            return isNaN(date.getTime()) ? undefined : date;
-          },
-        },
-        dateTo: {
-          encode: (value: Date) => value.toISOString(),
-          decode: (value: string) => {
-            const date = new Date(value);
-            return isNaN(date.getTime()) ? undefined : date;
-          },
-        },
-      },
-    }
-  );
-
-  // Saved filter presets
-  const {
-    presets: filterPresets,
-    isLoading: isLoadingPresets,
-    savePreset,
-    updatePreset,
-    deletePreset,
-    setAsDefault,
-  } = useSavedFilters('kanban');
-
-  // Filter panel state
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [presetName, setPresetName] = useState('');
-  const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
 
   // Fetch notes and issue responses when ticket summary modal opens
   useEffect(() => {
@@ -1523,27 +1483,9 @@ export default function KanbanTickets() {
     retry: false,
   });
 
-  // Fetch tickets with client information and apply filters
+  // Fetch tickets with client information (filtering done client-side)
   const { data: tickets = [], isLoading } = useQuery<TicketWithClient[]>({
-    queryKey: ["/api/tickets", debouncedFilters],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      
-      if (debouncedFilters.search) params.set('search', debouncedFilters.search);
-      if (debouncedFilters.status) params.set('status', debouncedFilters.status);
-      if (debouncedFilters.priority) params.set('priority', debouncedFilters.priority);
-      if (debouncedFilters.assignedTo) params.set('assignedTo', debouncedFilters.assignedTo);
-      if (debouncedFilters.deviceType) params.set('deviceType', debouncedFilters.deviceType);
-      if (debouncedFilters.dateFrom) params.set('dateFrom', debouncedFilters.dateFrom.toISOString());
-      if (debouncedFilters.dateTo) params.set('dateTo', debouncedFilters.dateTo.toISOString());
-      
-      const queryString = params.toString();
-      const url = queryString ? `/api/tickets?${queryString}` : '/api/tickets';
-      
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch tickets');
-      return response.json();
-    },
+    queryKey: ["/api/tickets"],
     retry: false,
   });
 
