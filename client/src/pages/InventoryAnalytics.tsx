@@ -64,10 +64,12 @@ export default function InventoryAnalytics() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [activeSearchFilter, setActiveSearchFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [isVerifying, setIsVerifying] = useState(false);
   const itemsPerPage = 10;
 
   // Handle QR code scan
   const handleQRScan = async (uniqueTag: string) => {
+    setIsVerifying(true);
     try {
       // Verify the unit with backend
       const response = await fetch(`/api/inventory-units/verify/${uniqueTag}`, {
@@ -102,6 +104,8 @@ export default function InventoryAnalytics() {
         description: t("unit_not_found", "Unit not found or invalid QR code"),
         variant: "destructive",
       });
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -494,6 +498,26 @@ export default function InventoryAnalytics() {
         isOpen={!!selectedTicketId}
         onClose={() => setSelectedTicketId(null)}
       />
+
+      {/* Verifying QR Code Loading Dialog */}
+      <Dialog open={isVerifying} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4 -mx-6 -mt-6 mb-4">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-white flex items-center gap-3">
+                <QrCode className="w-5 h-5 animate-pulse" />
+                {t("verifying", "Verifying...")}
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="py-8 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-muted-foreground text-center">
+              {t("verifying_qr_code", "Searching for inventory unit...")}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* QR Code Scanner Dialog */}
       <QRCodeScanner
