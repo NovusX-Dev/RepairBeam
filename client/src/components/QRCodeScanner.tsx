@@ -74,7 +74,7 @@ export default function QRCodeScanner({
 
       const config = {
         fps: 10,
-        qrbox: { width: 250, height: 250 },
+        qrbox: { width: 200, height: 200 },
         aspectRatio: 1.0,
       };
 
@@ -162,7 +162,7 @@ export default function QRCodeScanner({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
         {/* Aurora Gradient Header */}
         <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-6 py-4 -mx-6 -mt-6 mb-4">
           <DialogHeader>
@@ -205,7 +205,7 @@ export default function QRCodeScanner({
           {mode === "camera" && (
             <div className="space-y-4">
               {/* Scanner Container */}
-              <div className="relative bg-slate-800/50 rounded-lg border-2 border-cyan-500/20 overflow-hidden">
+              <div className="relative bg-slate-800/50 rounded-lg border-2 border-cyan-500/20 overflow-hidden max-h-[400px]">
                 {!isScanning && !error && (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
                     <div className="text-center space-y-3">
@@ -222,7 +222,7 @@ export default function QRCodeScanner({
                     </div>
                   </div>
                 )}
-                <div id="qr-reader" className="w-full min-h-[300px]"></div>
+                <div id="qr-reader" className="w-full"></div>
               </div>
 
               {/* Instructions */}
