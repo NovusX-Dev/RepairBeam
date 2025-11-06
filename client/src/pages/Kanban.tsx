@@ -5547,7 +5547,7 @@ export default function KanbanTickets() {
                       data-testid={`ticket-${ticket.id}`}
                     >
                       <CardContent className={`${collapsed ? 'p-3' : 'p-4 pr-4'} ${getStatusTextColor(ticket.status)}`}>
-                        {/* Header row with priority, ticket ID, and expand/collapse button */}
+                        {/* Header row with priority, ticket ID, status dropdown, and expand/collapse button */}
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <div
@@ -5562,16 +5562,65 @@ export default function KanbanTickets() {
                             )}
                           </div>
                           
-                          {/* Individual card expand/collapse button */}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => toggleCardCollapse(ticket.id, e)}
-                            className={`h-6 w-6 p-0 hover:bg-[#00FFFF]/20 hover:text-[#00FFFF] transition-colors ${getStatusMutedColor(ticket.status)}`}
-                            data-testid={`button-toggle-card-${ticket.id}`}
-                          >
-                            {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {/* Status dropdown - only show if not finalized */}
+                            {ticket.status !== 'finalized' && (
+                              <Select
+                                value={ticket.status}
+                                onValueChange={(newStatus) => {
+                                  updateTicketStatus.mutate({ 
+                                    ticketId: ticket.id, 
+                                    status: newStatus as TicketStatus 
+                                  });
+                                }}
+                                disabled={updateTicketStatus.isPending}
+                              >
+                                <SelectTrigger 
+                                  className="h-6 w-[140px] text-xs border-[#00FFFF]/30 hover:border-[#00FFFF] hover:bg-[#00FFFF]/10 transition-colors"
+                                  onClick={(e) => e.stopPropagation()}
+                                  data-testid={`select-status-${ticket.id}`}
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {/* Current status */}
+                                  <SelectItem 
+                                    value={ticket.status}
+                                    className="text-xs font-medium"
+                                  >
+                                    {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' '))} {t("current", "(Current)")}
+                                  </SelectItem>
+                                  
+                                  {/* Divider */}
+                                  {getAllowedNextStatuses(ticket.status).length > 0 && (
+                                    <div className="h-px bg-border my-1" />
+                                  )}
+                                  
+                                  {/* Valid next statuses */}
+                                  {getAllowedNextStatuses(ticket.status).map((status) => (
+                                    <SelectItem 
+                                      key={status} 
+                                      value={status}
+                                      className="text-xs"
+                                    >
+                                      {t(`status_${status}`, status.replace(/_/g, ' '))}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            
+                            {/* Individual card expand/collapse button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => toggleCardCollapse(ticket.id, e)}
+                              className={`h-6 w-6 p-0 hover:bg-[#00FFFF]/20 hover:text-[#00FFFF] transition-colors ${getStatusMutedColor(ticket.status)}`}
+                              data-testid={`button-toggle-card-${ticket.id}`}
+                            >
+                              {collapsed ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Ticket title - always shown */}
