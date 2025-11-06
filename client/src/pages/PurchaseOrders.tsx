@@ -1056,25 +1056,36 @@ export default function PurchaseOrders() {
                               {/* Suggestions Dropdown */}
                               {showSuggestions === index && getSuggestionsForItem(index).length > 0 && (
                                 <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-cyan-500/30 rounded-md shadow-lg max-h-48 overflow-auto">
-                                  {getSuggestionsForItem(index).map((suggestion) => (
-                                    <button
-                                      key={suggestion.id}
-                                      type="button"
-                                      onClick={() => handleSelectSuggestion(index, suggestion)}
-                                      className="w-full text-left px-3 py-2 hover:bg-cyan-500/20 text-white text-sm flex items-center justify-between transition-colors"
-                                      data-testid={`suggestion-${suggestion.id}`}
-                                    >
-                                      <span>{suggestion.name}</span>
-                                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                                        {suggestion.deviceType && (
-                                          <span className="bg-slate-700 px-2 py-0.5 rounded">{suggestion.deviceType}</span>
-                                        )}
-                                        <span className={`px-2 py-0.5 rounded ${suggestion.itemType === 'Service' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                          {suggestion.itemType}
-                                        </span>
-                                      </div>
-                                    </button>
-                                  ))}
+                                  {getSuggestionsForItem(index).map((suggestion) => {
+                                    const supplierName = suggestion.supplierId 
+                                      ? suppliers.find(s => s.id === suggestion.supplierId)?.name 
+                                      : null;
+                                    
+                                    return (
+                                      <button
+                                        key={suggestion.id}
+                                        type="button"
+                                        onClick={() => handleSelectSuggestion(index, suggestion)}
+                                        className="w-full text-left px-3 py-2 hover:bg-cyan-500/20 text-white text-sm transition-colors"
+                                        data-testid={`suggestion-${suggestion.id}`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span>{suggestion.name}</span>
+                                          <div className="flex items-center gap-2 text-xs text-slate-400">
+                                            {supplierName && (
+                                              <span className="bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">{supplierName}</span>
+                                            )}
+                                            {suggestion.deviceType && (
+                                              <span className="bg-slate-700 px-2 py-0.5 rounded">{suggestion.deviceType}</span>
+                                            )}
+                                            <span className={`px-2 py-0.5 rounded ${suggestion.itemType === 'Service' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                              {suggestion.itemType}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
