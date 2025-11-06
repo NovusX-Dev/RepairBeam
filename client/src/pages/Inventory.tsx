@@ -95,6 +95,7 @@ export default function Inventory() {
   const [filterSupplier, setFilterSupplier] = useState<string>("all");
   const [filterBrand, setFilterBrand] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showConfirmUpdateDialog, setShowConfirmUpdateDialog] = useState(false);
@@ -192,7 +193,10 @@ export default function Inventory() {
         matchesStatus = item.quantity === 0;
       }
 
-      return matchesSearch && matchesSupplier && matchesBrand && matchesStatus;
+      const matchesCategory = filterCategory === "all" || 
+                             (filterCategory === "none" ? !item.category : item.category === filterCategory);
+
+      return matchesSearch && matchesSupplier && matchesBrand && matchesStatus && matchesCategory;
     });
 
     // Apply sorting
@@ -207,8 +211,12 @@ export default function Inventory() {
             bValue = b.name.toLowerCase();
             break;
           case 'category':
-            aValue = a.itemType || '';
-            bValue = b.itemType || '';
+            const getCategoryName = (categoryId: string | undefined) => {
+              if (!categoryId) return '';
+              return categories.find(c => c.id === categoryId)?.name || '';
+            };
+            aValue = getCategoryName(a.category);
+            bValue = getCategoryName(b.category);
             break;
           case 'available':
             aValue = a.quantity;
@@ -260,7 +268,7 @@ export default function Inventory() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterSupplier, filterBrand, filterStatus]);
+  }, [searchTerm, filterSupplier, filterBrand, filterStatus, filterCategory]);
 
   // Low stock items for alerts (includes out of stock items)
   const lowStockItems = useMemo(() => {
@@ -596,6 +604,21 @@ export default function Inventory() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="w-full md:w-[200px]">
+              <Label className="text-slate-300 text-sm mb-2 block">{t("filter_by_category", "Filter by Category")}</Label>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger className="bg-slate-900/50 border-slate-700" data-testid="select-filter-category">
+                  <SelectValue placeholder={t("all_categories", "All Categories")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("all_categories", "All Categories")}</SelectItem>
+                  {categories.filter(c => c.isActive).map((category) => (
+                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                  ))}
+                  <SelectItem value="none">{t("uncategorized", "Uncategorized")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -729,13 +752,12 @@ export default function Inventory() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {item.itemType && (
-                            <Badge 
-                              variant={item.itemType === 'Sales' ? "default" : "outline"}
-                              className={item.itemType === 'Sales' ? "" : "border-purple-500/40 text-purple-400 bg-purple-500/10"}
-                            >
-                              {item.itemType}
+                          {item.category && categories.find(c => c.id === item.category) ? (
+                            <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 bg-cyan-500/5">
+                              {categories.find(c => c.id === item.category)?.name}
                             </Badge>
+                          ) : (
+                            <span className="text-slate-500 text-sm">Uncategorized</span>
                           )}
                         </TableCell>
                         <TableCell className="text-slate-300">

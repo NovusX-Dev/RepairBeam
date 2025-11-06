@@ -15,6 +15,7 @@ import { formatTicketId } from "@/lib/utils";
 import TicketSummaryDialog from "@/components/TicketSummaryDialog";
 import QRCodeScanner from "@/components/QRCodeScanner";
 import { useToast } from "@/hooks/use-toast";
+import type { InventoryCategory } from "@shared/schema";
 
 interface UsageHistoryItem {
   unit: {
@@ -121,6 +122,11 @@ export default function InventoryAnalytics() {
     queryKey: ["/api/suppliers"],
   });
 
+  // Fetch inventory categories
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ['/api/inventory-categories'],
+  });
+
   // Fetch usage stats for selected item
   const { data: usageStats, isLoading: statsLoading } = useQuery<UsageStats>({
     queryKey: [`/api/inventory/${selectedItemId}/usage-stats`],
@@ -136,12 +142,11 @@ export default function InventoryAnalytics() {
   // Filter inventory items by supplier and category (search is handled by backend)
   const filteredItems = inventoryItems.filter((item) => {
     const matchesSupplier = selectedSupplier === "all" || item.supplierId === selectedSupplier;
-    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+    const matchesCategory = selectedCategory === "all" || 
+                            (selectedCategory === "none" && !item.category) ||
+                            item.category === selectedCategory;
     return matchesSupplier && matchesCategory;
   });
-
-  // Get unique categories
-  const categories = Array.from(new Set(inventoryItems.map(item => item.category).filter(Boolean)));
 
   // Reset pagination when modal opens/closes
   useEffect(() => {
@@ -222,9 +227,10 @@ export default function InventoryAnalytics() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t("all_categories", "All Categories")}</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                <SelectItem value="none">{t("uncategorized", "Uncategorized")}</SelectItem>
+                {categories.filter(c => c.isActive).map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -282,9 +288,15 @@ export default function InventoryAnalytics() {
                       >
                         <TableCell className="font-medium">{item.name}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">
-                            {item.category || t("uncategorized", "Uncategorized")}
-                          </Badge>
+                          {item.category && categories.find(c => c.id === item.category) ? (
+                            <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">
+                              {categories.find(c => c.id === item.category)?.name}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-slate-500 border-slate-500/30">
+                              {t("uncategorized", "Uncategorized")}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <span className={isLowStock ? "text-orange-400 font-semibold" : ""}>
