@@ -84,50 +84,73 @@ export default function QRCodePrintSheet({
     window.print();
   };
 
-  // Render print content for the QR code grid
-  const renderPrintContent = () => (
-    <div style={{ padding: '20px', background: 'white' }}>
-      {/* Print Header */}
-      <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #ccc' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#000' }}>
-          {t("qr_codes_for_units", "QR Codes for Inventory Units")}
-        </h1>
-        {purchaseOrderId && (
-          <p style={{ fontSize: '14px', color: '#000' }}>
-            <strong>{t("purchase_order", "Purchase Order")}:</strong> {purchaseOrderId}
-          </p>
-        )}
-        {receivedDate && (
-          <p style={{ fontSize: '14px', color: '#000' }}>
-            <strong>{t("received_on", "Received on")}:</strong> {formatDate(receivedDate)}
-          </p>
-        )}
-      </div>
+  // Split units into pages of 25 codes each
+  const paginateUnits = (unitsArray: InventoryUnit[]) => {
+    const pages: InventoryUnit[][] = [];
+    const CODES_PER_PAGE = 25;
+    
+    for (let i = 0; i < unitsArray.length; i += CODES_PER_PAGE) {
+      pages.push(unitsArray.slice(i, i + CODES_PER_PAGE));
+    }
+    
+    return pages;
+  };
 
-      {/* QR Code Grid */}
-      <div className="qr-print-grid">
-        {units.map((unit) => (
-          <div key={unit.id} className="qr-print-item">
-            <div className="qr-print-container">
-              {qrCodes[unit.id] && (
-                <img
-                  src={qrCodes[unit.id]}
-                  alt={`QR Code for ${unit.uniqueTag}`}
-                  className="qr-print-image"
-                />
+  // Render print content for the QR code grid
+  const renderPrintContent = () => {
+    const pages = paginateUnits(units);
+    
+    return (
+      <div style={{ background: 'white' }}>
+        {pages.map((pageUnits, pageIndex) => (
+          <div key={pageIndex} className="qr-print-page" style={{ padding: '20px' }}>
+            {/* Print Header */}
+            <div style={{ marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #ccc' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px', color: '#000' }}>
+                {t("qr_codes_for_units", "QR Codes for Inventory Units")}
+              </h1>
+              {purchaseOrderId && (
+                <p style={{ fontSize: '14px', color: '#000' }}>
+                  <strong>{t("purchase_order", "Purchase Order")}:</strong> {purchaseOrderId}
+                </p>
               )}
+              {receivedDate && (
+                <p style={{ fontSize: '14px', color: '#000' }}>
+                  <strong>{t("received_on", "Received on")}:</strong> {formatDate(receivedDate)}
+                </p>
+              )}
+              <p style={{ fontSize: '14px', color: '#000', marginTop: '4px' }}>
+                <strong>{t("page", "Page")}:</strong> {pageIndex + 1} {t("of", "of")} {pages.length}
+              </p>
             </div>
-            <div className="qr-print-info">
-              <div className="qr-print-tag">{unit.uniqueTag}</div>
-              {unit.inventoryItem && (
-                <div className="qr-print-name">{unit.inventoryItem.name}</div>
-              )}
+
+            {/* QR Code Grid */}
+            <div className="qr-print-grid">
+              {pageUnits.map((unit) => (
+                <div key={unit.id} className="qr-print-item">
+                  <div className="qr-print-container">
+                    {qrCodes[unit.id] && (
+                      <img
+                        src={qrCodes[unit.id]}
+                        alt={`QR Code for ${unit.uniqueTag}`}
+                        className="qr-print-image"
+                      />
+                    )}
+                  </div>
+                  <div className="qr-print-info">
+                    <div className="qr-print-tag">{unit.uniqueTag}</div>
+                    {unit.inventoryItem && (
+                      <div className="qr-print-name">{unit.inventoryItem.name}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
@@ -161,6 +184,9 @@ export default function QRCodePrintSheet({
               )}
               <p>
                 <strong>{t("total_units", "Total Units")}:</strong> {units.length}
+              </p>
+              <p>
+                <strong>{t("pages", "Pages")}:</strong> {Math.ceil(units.length / 25)}
               </p>
             </div>
           </div>
@@ -265,6 +291,14 @@ export default function QRCodePrintSheet({
             }
 
             /* Print-specific styles for dedicated print container */
+            .qr-print-page {
+              page-break-after: always;
+            }
+
+            .qr-print-page:last-child {
+              page-break-after: auto;
+            }
+
             .qr-print-grid {
               display: grid;
               grid-template-columns: repeat(3, 1fr);
