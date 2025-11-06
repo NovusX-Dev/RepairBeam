@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { apiRequest } from "@/lib/queryClient";
+import type { InventoryCategory } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -77,7 +78,7 @@ interface InventoryFormData {
   name: string;
   description: string;
   sku: string;
-  category: string;
+  category: string | null;
   quantity: string;
   minQuantity: string;
   cost: string;
@@ -110,7 +111,7 @@ export default function Inventory() {
     name: "",
     description: "",
     sku: "",
-    category: "",
+    category: null,
     quantity: "0",
     minQuantity: "0",
     cost: "0",
@@ -126,6 +127,11 @@ export default function Inventory() {
   // Fetch suppliers for display
   const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
+  });
+
+  // Fetch inventory categories
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ['/api/inventory-categories'],
   });
 
   // Fetch inventory units for QR code printing
@@ -317,7 +323,7 @@ export default function Inventory() {
       name: "",
       description: "",
       sku: "",
-      category: "",
+      category: null,
       quantity: "0",
       minQuantity: "0",
       cost: "0",
@@ -333,7 +339,7 @@ export default function Inventory() {
       name: item.name,
       description: item.description || "",
       sku: item.sku || "",
-      category: item.category || "",
+      category: item.category || null,
       quantity: item.quantity.toString(),
       minQuantity: item.minQuantity.toString(),
       cost: item.cost || "0",
@@ -368,6 +374,7 @@ export default function Inventory() {
       id: selectedItem.id,
       data: {
         description: formData.description,
+        category: formData.category || undefined,
         quantity: parseInt(formData.quantity) || 0,
         minQuantity: parseInt(formData.minQuantity) || 0,
         cost: formData.cost,
@@ -891,21 +898,33 @@ export default function Inventory() {
                 
                 {/* Category, Supplier, Device Type - 3 Columns */}
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-slate-400 text-xs font-medium">{t("category", "Category")}</Label>
-                    <div>
-                      {selectedItem?.itemType && (
-                        <Badge 
-                          variant={selectedItem.itemType === 'Sales' ? "default" : "outline"}
-                          className={selectedItem.itemType === 'Sales' 
-                            ? "bg-gradient-to-r from-cyan-600 to-blue-600" 
-                            : "border-purple-500/40 text-purple-400 bg-purple-500/10"
-                          }
-                        >
-                          {selectedItem.itemType}
-                        </Badge>
-                      )}
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-category" className="text-slate-400 text-xs font-medium">{t("category", "Category")}</Label>
+                    <Select
+                      value={formData.category || "uncategorized"}
+                      onValueChange={(value) => setFormData({ ...formData, category: value === "uncategorized" ? null : value })}
+                    >
+                      <SelectTrigger 
+                        id="edit-category"
+                        className="bg-slate-900 border-slate-600 text-white"
+                        data-testid="select-edit-category"
+                      >
+                        <SelectValue placeholder={t("select_category", "Select category")} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-600">
+                        <SelectItem value="uncategorized">
+                          {t("uncategorized", "Uncategorized")}
+                        </SelectItem>
+                        {categories
+                          .filter(cat => cat.deviceType === selectedItem?.deviceType && cat.isActive)
+                          .map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
                   </div>
                   
                   {selectedItem?.supplierId && suppliers.find(s => s.id === selectedItem.supplierId) ? (
