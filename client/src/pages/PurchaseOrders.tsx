@@ -452,7 +452,8 @@ export default function PurchaseOrders() {
   // Finalize PO mutation (receive items)
   const finalizePOMutation = useMutation({
     mutationFn: async (data: { poId: string; items: { poItemId: string; itemName: string; receivedQuantity: number; unitCost: number; sellingPrice: number }[] }) => {
-      return await apiRequest("POST", `/api/purchase-orders/${data.poId}/finalize`, { items: data.items });
+      const res = await apiRequest("POST", `/api/purchase-orders/${data.poId}/finalize`, { items: data.items });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
