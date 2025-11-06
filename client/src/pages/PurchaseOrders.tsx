@@ -28,7 +28,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import type { InventoryItem } from "@shared/schema";
+import type { InventoryItem, InventoryCategory } from "@shared/schema";
 import QRCodePrintSheet from "@/components/QRCodePrintSheet";
 
 interface AutoGenList {
@@ -299,6 +299,7 @@ interface ReceiveItemForm {
   receivedQuantity: number;
   unitCost: number;
   sellingPrice: number;
+  categoryId?: string | null;
   // Current inventory data
   currentStock?: number;
   currentCost?: number;
@@ -345,6 +346,11 @@ export default function PurchaseOrders() {
   // Fetch inventory items for autocomplete
   const { data: inventoryItems = [], isSuccess: isInventoryLoaded } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
+  });
+
+  // Fetch inventory categories
+  const { data: categories = [] } = useQuery<InventoryCategory[]>({
+    queryKey: ['/api/inventory-categories'],
   });
 
   // Handle sorting
@@ -641,6 +647,7 @@ export default function PurchaseOrders() {
           receivedQuantity: item.orderedQuantity,
           unitCost: existingInventoryItem ? safeParseFloat(existingInventoryItem.cost, 0) : 0,
           sellingPrice: existingInventoryItem ? safeParseFloat(existingInventoryItem.price, 0) : 0,
+          categoryId: null,
           currentStock: existingInventoryItem?.quantity,
           currentCost: existingInventoryItem ? safeParseFloat(existingInventoryItem.cost) : undefined,
           currentSellingPrice: existingInventoryItem ? safeParseFloat(existingInventoryItem.price) : undefined,
@@ -660,7 +667,7 @@ export default function PurchaseOrders() {
     setReceiveItems([]);
   };
 
-  const handleReceiveItemChange = (index: number, field: 'receivedQuantity' | 'unitCost' | 'sellingPrice', value: number) => {
+  const handleReceiveItemChange = (index: number, field: 'receivedQuantity' | 'unitCost' | 'sellingPrice' | 'categoryId', value: number | string | null) => {
     const newItems = [...receiveItems];
     newItems[index] = { ...newItems[index], [field]: value };
     setReceiveItems(newItems);
@@ -720,6 +727,7 @@ export default function PurchaseOrders() {
         receivedQuantity: item.receivedQuantity,
         unitCost: item.unitCost,
         sellingPrice: item.sellingPrice,
+        categoryId: item.categoryId,
       })),
     });
   };
@@ -1264,7 +1272,7 @@ export default function PurchaseOrders() {
                       </div>
                       
                       <TooltipProvider>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-3">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div>
@@ -1350,6 +1358,44 @@ export default function PurchaseOrders() {
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>{t("selling_price_tooltip", "Price to charge customers for this item")}</p>
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <Label className="text-xs text-slate-400">{t("category", "Category")}</Label>
+                                <Select
+                                  value={item.categoryId || "uncategorized"}
+                                  onValueChange={(value) => handleReceiveItemChange(index, 'categoryId', value === "uncategorized" ? null : value)}
+                                >
+                                  <SelectTrigger 
+                                    className="bg-slate-900 border-slate-600 text-white mt-1"
+                                    data-testid={`select-category-${index}`}
+                                  >
+                                    <SelectValue placeholder={t("select_category", "Select category")} />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-slate-900 border-slate-700">
+                                    <SelectItem value="uncategorized" className="text-white hover:bg-slate-800">
+                                      {t("uncategorized", "Uncategorized")}
+                                    </SelectItem>
+                                    {categories
+                                      .filter(cat => cat.deviceType === poItems?.[index]?.deviceType)
+                                      .map((category) => (
+                                        <SelectItem 
+                                          key={category.id} 
+                                          value={category.id}
+                                          className="text-white hover:bg-slate-800"
+                                        >
+                                          {category.name}
+                                        </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t("category_tooltip", "Organize this item into a category")}</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>

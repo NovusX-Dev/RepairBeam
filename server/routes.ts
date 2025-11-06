@@ -1380,6 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               name: itemName,
               quantity: 0, // Will be updated below
               minQuantity: 0,
+              category: receivedItem.categoryId || null,
               deviceType: poItem.deviceType || null,
               itemType: poItem.itemType || 'Service',
               description: poItem.description || null,
@@ -1447,6 +1448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             quantity: newQuantity,
             cost: weightedAverageCost.toFixed(2),
             price: updatedPrice,
+            category: receivedItem.categoryId !== undefined ? (receivedItem.categoryId || null) : inventoryItem.category,
             supplierId: inventoryItem.supplierId || po.supplierId, // Ensure supplierId is set
             deviceType: poItem.deviceType || inventoryItem.deviceType || null,
             itemType: poItem.itemType || inventoryItem.itemType || 'Service',
