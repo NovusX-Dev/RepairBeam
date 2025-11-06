@@ -123,6 +123,34 @@ Preferred communication style: Simple, everyday language.
   - Active/inactive status toggles for soft-delete functionality
   - Aurora card design pattern with gradient headers
 - **Integration Points**:
+
+### Kanban Status Transition Validation (Phase 7)
+- **Status Validation System**: Comprehensive workflow enforcement preventing invalid ticket status changes
+- **Transition Rules**: Defined state machine with allowed transitions for all 8 ticket statuses:
+  - backlog → waiting_diagnostics, waiting_client_approval
+  - waiting_diagnostics → waiting_client_approval, backlog
+  - waiting_client_approval → approved, backlog, waiting_diagnostics
+  - approved → servicing, waiting_client_approval
+  - servicing → quality_check, approved
+  - quality_check → final_customer_check, servicing
+  - final_customer_check → finalized, quality_check
+  - finalized → (terminal state - no further transitions)
+- **Backend Enforcement**: Server-side validation in status update API prevents unauthorized transitions with detailed error responses
+- **Enhanced Drag-and-Drop UX**: Visual feedback system for Kanban board:
+  - Valid drop zones: Cyan ring with glow effect and scale animation
+  - Invalid drop zones: Red pulsing ring with shake animation
+  - Real-time validation during drag operations
+  - Error toast with allowed transitions when invalid drop attempted
+- **Helper Functions**: Shared utilities in schema for validation logic (`isValidStatusTransition`, `getAllowedNextStatuses`, `getStandardNextStatus`)
+- **Multi-Language Support**: Status transition error messages localized for en and pt-BR
+- **Tenant Safety**: All validation enforces tenant isolation, preventing cross-tenant status manipulation
+
+## Recent Changes
+- **2025-11-06**: Implemented Kanban status transition validation system with visual drag-and-drop feedback and backend enforcement
+- **2025-11-06**: Fixed data integrity issues with atomic transactions and row-level locking for inventory allocation
+- **2025-11-06**: Added tenantId to inventoryUnits table and composite unique constraints for proper tenant isolation
+
+- **Integration Points**:
   - Purchase Orders: Category dropdown during PO finalization, filtered by item's device type
   - Inventory Page: Category column display, category filter dropdown with "Uncategorized" option
   - Inventory Edit Dialog: Editable category dropdown filtered by item's device type
