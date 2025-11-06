@@ -9,6 +9,8 @@ import {
   integer,
   decimal,
   boolean,
+  check,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -256,7 +258,11 @@ export const inventoryItems = pgTable("inventory_items", {
   supplier: varchar("supplier"), // Legacy field, will be removed after migration
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  check("quantity_non_negative", sql`${table.quantity} >= 0`),
+  check("min_quantity_non_negative", sql`${table.minQuantity} >= 0`),
+  unique("unique_sku_per_tenant").on(table.tenantId, table.sku),
+]);
 
 // Purchase orders table
 export const purchaseOrders = pgTable("purchase_orders", {
@@ -294,10 +300,11 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
 // Inventory units table - tracks individual items with unique IDs
 export const inventoryUnits = pgTable("inventory_units", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
   inventoryItemId: varchar("inventory_item_id").notNull(),
   supplierId: varchar("supplier_id"),
   purchaseOrderItemId: varchar("purchase_order_item_id"),
-  uniqueTag: varchar("unique_tag").notNull().unique(), // Generated unique ID for non-barcode items
+  uniqueTag: varchar("unique_tag").notNull(), // Generated unique ID for non-barcode items
   status: varchar("status").notNull().default('in_stock'), // 'in_stock', 'used', 'defective'
   deviceType: varchar("device_type"), // Inherited from PO item: 'Phone', 'Laptop', 'Desktop', or null for 'Other'
   itemType: varchar("item_type").notNull().default('Service'), // Inherited from PO item: 'Service' or 'Sales'
@@ -306,7 +313,9 @@ export const inventoryUnits = pgTable("inventory_units", {
   usedAt: timestamp("used_at"),
   ticketId: varchar("ticket_id"), // Associated ticket if used in repair
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  unique("unique_tag_per_tenant").on(table.tenantId, table.uniqueTag),
+]);
 
 // Inventory usage tracking table
 export const inventoryUsage = pgTable("inventory_usage", {

@@ -189,7 +189,7 @@ export interface IStorage {
   getInventoryUnits(inventoryItemId: string): Promise<InventoryUnit[]>;
   getInventoryUnitsByItem(inventoryItemId: string, tenantId: string): Promise<InventoryUnit[]>;
   createInventoryUnit(unit: InsertInventoryUnit): Promise<InventoryUnit>;
-  getInventoryUnitByTag(uniqueTag: string): Promise<InventoryUnit | undefined>;
+  getInventoryUnitByTag(uniqueTag: string, tenantId: string): Promise<InventoryUnit | undefined>;
   updateInventoryUnit(id: string, unit: Partial<InsertInventoryUnit>): Promise<InventoryUnit | undefined>;
   getAvailableInventoryUnits(inventoryItemId: string, quantity: number): Promise<InventoryUnit[]>;
   getInventoryUnitHistory(unitId: string, tenantId: string): Promise<any>;
@@ -201,6 +201,19 @@ export interface IStorage {
   updateTicketItem(id: string, tenantId: string, item: Partial<InsertTicketItem>): Promise<TicketItem | undefined>;
   deleteTicketItem(id: string, tenantId: string): Promise<boolean>;
   deleteTicketItemsByTicketId(ticketId: string, tenantId: string): Promise<boolean>;
+  
+  // Atomic transaction operations for inventory
+  addTicketItemWithInventoryDeduction(params: {
+    tenantId: string;
+    ticketId: string;
+    inventoryItemId: string;
+    quantity: number;
+    unitPrice: string;
+  }): Promise<TicketItem>;
+  removeTicketItemWithInventoryRestore(params: {
+    ticketItemId: string;
+    tenantId: string;
+  }): Promise<void>;
   
   // Transaction operations
   getTransactions(tenantId: string): Promise<Transaction[]>;
@@ -977,11 +990,16 @@ export class DatabaseStorage implements IStorage {
     return newUnit;
   }
 
-  async getInventoryUnitByTag(uniqueTag: string): Promise<InventoryUnit | undefined> {
+  async getInventoryUnitByTag(uniqueTag: string, tenantId: string): Promise<InventoryUnit | undefined> {
     const [unit] = await db
       .select()
       .from(inventoryUnits)
-      .where(eq(inventoryUnits.uniqueTag, uniqueTag));
+      .where(
+        and(
+          eq(inventoryUnits.uniqueTag, uniqueTag),
+          eq(inventoryUnits.tenantId, tenantId)
+        )
+      );
     return unit;
   }
 
@@ -1179,6 +1197,147 @@ export class DatabaseStorage implements IStorage {
       .delete(ticketItems)
       .where(and(eq(ticketItems.ticketId, ticketId), eq(ticketItems.tenantId, tenantId)));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Atomic transaction operations for inventory
+  async addTicketItemWithInventoryDeduction(params: {
+    tenantId: string;
+    ticketId: string;
+    inventoryItemId: string;
+    quantity: number;
+    unitPrice: string;
+  }): Promise<TicketItem> {
+    const { tenantId, ticketId, inventoryItemId, quantity, unitPrice } = params;
+
+    return await db.transaction(async (tx) => {
+      // Get and validate inventory item with row-level lock
+      const [inventoryItem] = await tx
+        .select()
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.id, inventoryItemId), eq(inventoryItems.tenantId, tenantId)))
+        .for('update');
+
+      if (!inventoryItem) {
+        throw new Error("Inventory item not found");
+      }
+
+      if (inventoryItem.quantity < quantity) {
+        throw new Error("Insufficient inventory");
+      }
+
+      // Get available inventory units with row-level lock
+      const availableUnits = await tx
+        .select()
+        .from(inventoryUnits)
+        .where(
+          and(
+            eq(inventoryUnits.inventoryItemId, inventoryItemId),
+            eq(inventoryUnits.status, 'in_stock'),
+            eq(inventoryUnits.tenantId, tenantId)
+          )
+        )
+        .limit(quantity)
+        .for('update');
+
+      if (availableUnits.length < quantity) {
+        throw new Error("Insufficient inventory units available");
+      }
+
+      const unitIds = availableUnits.map(unit => unit.id);
+      const totalPrice = (parseFloat(unitPrice) * quantity).toFixed(2);
+
+      // Create ticket item
+      const [ticketItem] = await tx
+        .insert(ticketItems)
+        .values({
+          tenantId,
+          ticketId,
+          inventoryItemId,
+          quantity,
+          unitPrice,
+          totalPrice,
+          inventoryUnitIds: unitIds,
+          confirmed: false,
+        })
+        .returning();
+
+      // Update inventory units status
+      for (const unit of availableUnits) {
+        await tx
+          .update(inventoryUnits)
+          .set({
+            status: 'used',
+            ticketId,
+            usedAt: new Date(),
+          })
+          .where(eq(inventoryUnits.id, unit.id));
+      }
+
+      // Deduct from inventory quantity
+      await tx
+        .update(inventoryItems)
+        .set({
+          quantity: inventoryItem.quantity - quantity,
+        })
+        .where(and(eq(inventoryItems.id, inventoryItemId), eq(inventoryItems.tenantId, tenantId)));
+
+      return ticketItem;
+    });
+  }
+
+  async removeTicketItemWithInventoryRestore(params: {
+    ticketItemId: string;
+    tenantId: string;
+  }): Promise<void> {
+    const { ticketItemId, tenantId } = params;
+
+    await db.transaction(async (tx) => {
+      // Get the ticket item with row-level lock
+      const [ticketItem] = await tx
+        .select()
+        .from(ticketItems)
+        .where(and(eq(ticketItems.id, ticketItemId), eq(ticketItems.tenantId, tenantId)))
+        .for('update');
+
+      if (!ticketItem) {
+        throw new Error("Ticket item not found");
+      }
+
+      // Get inventory item with row-level lock
+      const [inventoryItem] = await tx
+        .select()
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.id, ticketItem.inventoryItemId), eq(inventoryItems.tenantId, tenantId)))
+        .for('update');
+
+      if (inventoryItem) {
+        // Return units to inventory
+        const unitIds = ticketItem.inventoryUnitIds as string[];
+        for (const unitId of unitIds) {
+          await tx
+            .update(inventoryUnits)
+            .set({
+              status: 'in_stock',
+              ticketId: null,
+              usedAt: null,
+            })
+            .where(eq(inventoryUnits.id, unitId));
+        }
+
+        // Add back to inventory quantity
+        await tx
+          .update(inventoryItems)
+          .set({
+            quantity: inventoryItem.quantity + ticketItem.quantity,
+          })
+          .where(and(eq(inventoryItems.id, inventoryItem.id), eq(inventoryItems.tenantId, tenantId)));
+      }
+
+      // Delete ticket item
+      await tx
+        .delete(ticketItems)
+        .where(and(eq(ticketItems.id, ticketItemId), eq(ticketItems.tenantId, tenantId)));
+    });
   }
 
   // Transaction operations

@@ -846,55 +846,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ticketId } = req.params;
       const { inventoryItemId, quantity, unitPrice } = req.body;
 
-      // Validate inventory item exists and has enough stock
-      const inventoryItem = await storage.getInventoryItem(inventoryItemId, user.tenantId);
-      if (!inventoryItem) {
-        return res.status(404).json({ message: "Inventory item not found" });
-      }
-
-      if (inventoryItem.quantity < quantity) {
-        return res.status(400).json({ message: "Insufficient inventory" });
-      }
-
-      // Get available inventory units to allocate
-      const availableUnits = await storage.getAvailableInventoryUnits(inventoryItemId, quantity);
-      if (availableUnits.length < quantity) {
-        return res.status(400).json({ message: "Insufficient inventory units available" });
-      }
-
-      const unitIds = availableUnits.map(unit => unit.id);
-      const totalPrice = (parseFloat(unitPrice) * quantity).toFixed(2);
-
-      // Create ticket item
-      const ticketItem = await storage.createTicketItem({
+      // Use atomic transaction to add ticket item and deduct inventory
+      const ticketItem = await storage.addTicketItemWithInventoryDeduction({
         tenantId: user.tenantId,
         ticketId,
         inventoryItemId,
         quantity,
         unitPrice,
-        totalPrice,
-        inventoryUnitIds: unitIds,
-        confirmed: false,
-      });
-
-      // Update inventory units status and link to ticket
-      for (const unit of availableUnits) {
-        await storage.updateInventoryUnit(unit.id, {
-          status: 'used',
-          ticketId,
-          usedAt: new Date(),
-        });
-      }
-
-      // Deduct from inventory item quantity
-      await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
-        quantity: inventoryItem.quantity - quantity,
       });
 
       res.status(201).json(ticketItem);
     } catch (error) {
       console.error("Error adding item to ticket:", error);
-      res.status(500).json({ message: "Failed to add item to ticket" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to add item to ticket";
+      res.status(500).json({ message: errorMessage });
     }
   });
 
@@ -906,42 +871,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const { ticketId, itemId } = req.params;
+      const { itemId } = req.params;
 
-      // Get the ticket item to return inventory
-      const ticketItems = await storage.getTicketItems(ticketId, user.tenantId);
-      const ticketItem = ticketItems.find(item => item.id === itemId);
-      
-      if (!ticketItem) {
-        return res.status(404).json({ message: "Ticket item not found" });
-      }
-
-      // Get inventory item
-      const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
-      if (inventoryItem) {
-        // Return units to inventory
-        const unitIds = ticketItem.inventoryUnitIds as string[];
-        for (const unitId of unitIds) {
-          await storage.updateInventoryUnit(unitId, {
-            status: 'in_stock',
-            ticketId: null,
-            usedAt: null,
-          });
-        }
-
-        // Add back to inventory quantity
-        await storage.updateInventoryItem(inventoryItem.id, user.tenantId, {
-          quantity: inventoryItem.quantity + ticketItem.quantity,
-        });
-      }
-
-      // Delete ticket item
-      await storage.deleteTicketItem(itemId, user.tenantId);
+      // Use atomic transaction to remove ticket item and restore inventory
+      await storage.removeTicketItemWithInventoryRestore({
+        ticketItemId: itemId,
+        tenantId: user.tenantId,
+      });
 
       res.json({ message: "Item removed from ticket and returned to inventory" });
     } catch (error) {
       console.error("Error removing item from ticket:", error);
-      res.status(500).json({ message: "Failed to remove item from ticket" });
+      const errorMessage = error instanceof Error ? error.message : "Failed to remove item from ticket";
+      res.status(500).json({ message: errorMessage });
     }
   });
 
@@ -962,18 +904,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid unit tag" });
       }
       
-      // Get inventory unit by unique tag
-      const unit = await storage.getInventoryUnitByTag(uniqueTag);
+      // Get inventory unit by unique tag (with tenant isolation)
+      const unit = await storage.getInventoryUnitByTag(uniqueTag, user.tenantId);
       
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
 
-      // Get the inventory item to check tenant and get details
+      // Get the inventory item to get details
       const inventoryItem = await storage.getInventoryItem(unit.inventoryItemId, user.tenantId);
       
-      // SECURITY: Enforce tenant isolation
-      // Return generic 404 to prevent leaking unit existence across tenants
       if (!inventoryItem) {
         return res.status(404).json({ message: "Unit not found" });
       }
@@ -1384,8 +1324,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               deviceType: poItem.deviceType || null,
               itemType: poItem.itemType || 'Service',
               description: poItem.description || null,
-              cost: receivedItem.unitCost.toString(),
-              price: receivedItem.sellingPrice.toString(),
+              cost: receivedItem.unitCost,
+              price: receivedItem.sellingPrice,
             });
             inventoryItemId = newInventoryItem.id;
           }
@@ -1402,6 +1342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const uniqueTag = `${itemNameForTag.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
           
           const newUnit = await storage.createInventoryUnit({
+            tenantId: user.tenantId,
             inventoryItemId: inventoryItemId,
             supplierId: po.supplierId || '',
             purchaseOrderItemId: poItem.id,
@@ -1442,11 +1383,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const existingPrice = !isNaN(parseFloat(existingPriceStr)) ? parseFloat(existingPriceStr) : 0;
           const updatedPrice = existingPrice > 0
             ? inventoryItem.price // Keep existing valid price
-            : receivedItem.sellingPrice.toString(); // Use new price for new/invalid items
+            : receivedItem.sellingPrice; // Use new price for new/invalid items
           
           await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
             quantity: newQuantity,
-            cost: weightedAverageCost.toFixed(2),
+            cost: weightedAverageCost,
             price: updatedPrice,
             category: receivedItem.categoryId !== undefined ? (receivedItem.categoryId || null) : inventoryItem.category,
             supplierId: inventoryItem.supplierId || po.supplierId, // Ensure supplierId is set
@@ -1461,7 +1402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updatePurchaseOrder(id, user.tenantId, {
         status: 'received',
         receivedDate: new Date(),
-        totalCost: totalCost.toString(),
+        totalCost: totalCost.toFixed(2),
       });
 
       const response = { 
