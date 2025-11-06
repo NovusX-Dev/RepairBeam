@@ -15,6 +15,7 @@ import {
   supportTickets,
   ticketNotes,
   localizations,
+  filterPresets,
   autoGenLists,
   deviceColors,
   deviceChecklistTemplates,
@@ -62,6 +63,8 @@ import {
   type InsertTicketNote,
   type Localization,
   type InsertLocalization,
+  type FilterPreset,
+  type InsertFilterPreset,
   type AutoGenList,
   type InsertAutoGenList,
   type DeviceColor,
@@ -231,6 +234,12 @@ export interface IStorage {
   getLocalizationsByKey(key: string): Promise<Localization[]>;
   createLocalization(localization: InsertLocalization): Promise<Localization>;
   updateLocalization(id: string, localization: Partial<InsertLocalization>): Promise<Localization | undefined>;
+  
+  // Filter preset operations
+  getFilterPresets(tenantId: string, userId: string, pageType?: string): Promise<FilterPreset[]>;
+  createFilterPreset(preset: InsertFilterPreset): Promise<FilterPreset>;
+  updateFilterPreset(id: string, tenantId: string, userId: string, preset: Partial<InsertFilterPreset>): Promise<FilterPreset | undefined>;
+  deleteFilterPreset(id: string, tenantId: string, userId: string): Promise<void>;
   
   // Auto-generated list operations
   getAutoGenList(category: string): Promise<AutoGenList | undefined>;
@@ -1416,6 +1425,94 @@ export class DatabaseStorage implements IStorage {
 
   async getLocalizationsByKey(key: string): Promise<Localization[]> {
     return db.select().from(localizations).where(eq(localizations.key, key));
+  }
+  
+  // Filter preset operations
+  async getFilterPresets(tenantId: string, userId: string, pageType?: string): Promise<FilterPreset[]> {
+    const conditions = [
+      eq(filterPresets.tenantId, tenantId),
+      eq(filterPresets.userId, userId)
+    ];
+    
+    if (pageType) {
+      conditions.push(eq(filterPresets.pageType, pageType));
+    }
+    
+    return db.select()
+      .from(filterPresets)
+      .where(and(...conditions))
+      .orderBy(desc(filterPresets.isDefault), desc(filterPresets.createdAt));
+  }
+  
+  async createFilterPreset(preset: InsertFilterPreset): Promise<FilterPreset> {
+    // If this preset is being marked as default, unset any existing default for this page type
+    if (preset.isDefault) {
+      await db.update(filterPresets)
+        .set({ isDefault: false })
+        .where(
+          and(
+            eq(filterPresets.tenantId, preset.tenantId),
+            eq(filterPresets.userId, preset.userId),
+            eq(filterPresets.pageType, preset.pageType),
+            eq(filterPresets.isDefault, true)
+          )
+        );
+    }
+    
+    const [created] = await db.insert(filterPresets).values(preset).returning();
+    return created;
+  }
+  
+  async updateFilterPreset(id: string, tenantId: string, userId: string, preset: Partial<InsertFilterPreset>): Promise<FilterPreset | undefined> {
+    // If setting as default, unset other defaults for this page type
+    if (preset.isDefault) {
+      const [existing] = await db.select()
+        .from(filterPresets)
+        .where(
+          and(
+            eq(filterPresets.id, id),
+            eq(filterPresets.tenantId, tenantId),
+            eq(filterPresets.userId, userId)
+          )
+        );
+      
+      if (existing) {
+        await db.update(filterPresets)
+          .set({ isDefault: false })
+          .where(
+            and(
+              eq(filterPresets.tenantId, tenantId),
+              eq(filterPresets.userId, userId),
+              eq(filterPresets.pageType, existing.pageType),
+              eq(filterPresets.isDefault, true)
+            )
+          );
+      }
+    }
+    
+    const [updated] = await db.update(filterPresets)
+      .set(preset)
+      .where(
+        and(
+          eq(filterPresets.id, id),
+          eq(filterPresets.tenantId, tenantId),
+          eq(filterPresets.userId, userId)
+        )
+      )
+      .returning();
+    
+    return updated;
+  }
+  
+  async deleteFilterPreset(id: string, tenantId: string, userId: string): Promise<void> {
+    await db.delete(filterPresets)
+      .where(
+        and(
+          eq(filterPresets.id, id),
+          eq(filterPresets.tenantId, tenantId),
+          eq(filterPresets.userId, userId)
+        )
+      );
   }
 
   async createLocalization(localization: InsertLocalization): Promise<Localization> {

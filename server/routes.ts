@@ -1764,6 +1764,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Filter presets routes
+  app.get("/api/filter-presets", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { pageType } = req.query;
+      const presets = await storage.getFilterPresets(user.tenantId, userId, pageType as string);
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching filter presets:", error);
+      res.status(500).json({ message: "Failed to fetch filter presets" });
+    }
+  });
+
+  app.post("/api/filter-presets", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const presetData = {
+        ...req.body,
+        tenantId: user.tenantId,
+        userId: userId
+      };
+
+      const preset = await storage.createFilterPreset(presetData);
+      res.status(201).json(preset);
+    } catch (error) {
+      console.error("Error creating filter preset:", error);
+      res.status(500).json({ message: "Failed to create filter preset" });
+    }
+  });
+
+  app.put("/api/filter-presets/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const preset = await storage.updateFilterPreset(req.params.id, user.tenantId, userId, req.body);
+      if (!preset) {
+        return res.status(404).json({ message: "Filter preset not found" });
+      }
+
+      res.json(preset);
+    } catch (error) {
+      console.error("Error updating filter preset:", error);
+      res.status(500).json({ message: "Failed to update filter preset" });
+    }
+  });
+
+  app.delete("/api/filter-presets/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.deleteFilterPreset(req.params.id, user.tenantId, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting filter preset:", error);
+      res.status(500).json({ message: "Failed to delete filter preset" });
+    }
+  });
+
   // Client search endpoint
   app.get("/api/clients/search", isAuthenticated, async (req: any, res) => {
     try {

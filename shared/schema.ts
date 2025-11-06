@@ -432,6 +432,23 @@ export const localizations = pgTable("localizations", {
   index("idx_localization_key_language").on(table.key, table.language),
 ]);
 
+// Filter presets table - stores saved filter configurations for users
+export const filterPresets = pgTable("filter_presets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  name: varchar("name").notNull(),
+  pageType: varchar("page_type").notNull(), // 'kanban', 'inventory', 'clients', 'purchase_orders'
+  filterConfig: jsonb("filter_config").notNull(), // Stores all filter values as JSON
+  isDefault: boolean("is_default").notNull().default(false), // Auto-apply on page load
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_filter_presets_user").on(table.userId),
+  index("idx_filter_presets_page").on(table.pageType),
+  index("idx_filter_presets_tenant").on(table.tenantId),
+]);
+
 // Auto-generated lists table for AI-powered data (brands, models, etc.)
 export const autoGenLists = pgTable("auto_gen_lists", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -569,6 +586,8 @@ export type AuthorizationRequest = typeof authorizationRequests.$inferSelect;
 export type InsertAuthorizationRequest = z.infer<typeof insertAuthorizationRequestSchema>;
 export type CompletionAnalytics = typeof completionAnalytics.$inferSelect;
 export type InsertCompletionAnalytics = typeof completionAnalytics.$inferInsert;
+export type FilterPreset = typeof filterPresets.$inferSelect;
+export type InsertFilterPreset = typeof filterPresets.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -657,6 +676,12 @@ export const insertAuthorizationRequestSchema = createInsertSchema(authorization
 export const insertCompletionAnalyticsSchema = createInsertSchema(completionAnalytics).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertFilterPresetSchema = createInsertSchema(filterPresets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({
