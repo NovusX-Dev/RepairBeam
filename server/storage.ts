@@ -128,6 +128,7 @@ export interface IStorage {
   
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUsersByTenant(tenantId: string): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
   
   // Tenant operations
@@ -339,6 +340,12 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       const [user] = await db.select().from(users).where(eq(users.id, id));
       return user;
+    });
+  }
+
+  async getUsersByTenant(tenantId: string): Promise<User[]> {
+    return withRetry(async () => {
+      return db.select().from(users).where(eq(users.tenantId, tenantId));
     });
   }
 

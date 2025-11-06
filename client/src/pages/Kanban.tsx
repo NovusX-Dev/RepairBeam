@@ -46,7 +46,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
 import TicketSummaryDialog from "@/components/TicketSummaryDialog";
 import QRCodeScanner from "@/components/QRCodeScanner";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode } from "lucide-react";
+import { AdvancedSearch } from "@/components/search-filter/AdvancedSearch";
+import { FilterPanel } from "@/components/search-filter/FilterPanel";
+import { DateRangePicker } from "@/components/search-filter/DateRangePicker";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -74,6 +77,9 @@ import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/use
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
 import { useToast } from "@/hooks/use-toast";
+import { useFilterState } from "@/hooks/useFilterState";
+import { useSavedFilters } from "@/hooks/useSavedFilters";
+import { type KanbanFilters, defaultKanbanFilters } from "@shared/filter-types";
 
 // Problems Tab Component
 interface ProblemsTabContentProps {
@@ -1319,6 +1325,46 @@ export default function KanbanTickets() {
   const { t, currentLanguage, formatDate } = useLocalization();
   const { toast } = useToast();
 
+  // Comprehensive filter state management
+  const { filters: kanbanFilters, setFilter, clearFilters, activeFilterCount, debouncedFilters } = useFilterState<KanbanFilters>(
+    defaultKanbanFilters,
+    {
+      debounceMs: 500,
+      syncWithUrl: true,
+      serializers: {
+        dateFrom: {
+          encode: (value: Date) => value.toISOString(),
+          decode: (value: string) => {
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? undefined : date;
+          },
+        },
+        dateTo: {
+          encode: (value: Date) => value.toISOString(),
+          decode: (value: string) => {
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? undefined : date;
+          },
+        },
+      },
+    }
+  );
+
+  // Saved filter presets
+  const {
+    presets: filterPresets,
+    isLoading: isLoadingPresets,
+    savePreset,
+    updatePreset,
+    deletePreset,
+    setAsDefault,
+  } = useSavedFilters('kanban');
+
+  // Filter panel state
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
+
   // Fetch notes and issue responses when ticket summary modal opens
   useEffect(() => {
     if (selectedTicketSummary) {
@@ -1471,9 +1517,33 @@ export default function KanbanTickets() {
   const kanbanColumns = getKanbanColumns(t);
   const ticketSteps = getTicketSteps(t);
 
-  // Fetch tickets with client information
+  // Fetch users for the Assigned To filter
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+    retry: false,
+  });
+
+  // Fetch tickets with client information and apply filters
   const { data: tickets = [], isLoading } = useQuery<TicketWithClient[]>({
-    queryKey: ["/api/tickets"],
+    queryKey: ["/api/tickets", debouncedFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      
+      if (debouncedFilters.search) params.set('search', debouncedFilters.search);
+      if (debouncedFilters.status) params.set('status', debouncedFilters.status);
+      if (debouncedFilters.priority) params.set('priority', debouncedFilters.priority);
+      if (debouncedFilters.assignedTo) params.set('assignedTo', debouncedFilters.assignedTo);
+      if (debouncedFilters.deviceType) params.set('deviceType', debouncedFilters.deviceType);
+      if (debouncedFilters.dateFrom) params.set('dateFrom', debouncedFilters.dateFrom.toISOString());
+      if (debouncedFilters.dateTo) params.set('dateTo', debouncedFilters.dateTo.toISOString());
+      
+      const queryString = params.toString();
+      const url = queryString ? `/api/tickets?${queryString}` : '/api/tickets';
+      
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch tickets');
+      return response.json();
+    },
     retry: false,
   });
 

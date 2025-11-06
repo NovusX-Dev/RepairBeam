@@ -191,6 +191,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User routes
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const users = await storage.getUsersByTenant(user.tenantId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   // Client routes
   app.get("/api/clients", isAuthenticated, async (req: any, res) => {
     try {
@@ -217,7 +234,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const tickets = await storage.getTicketsWithClients(user.tenantId);
+      let tickets = await storage.getTicketsWithClients(user.tenantId);
+
+      // Apply filters if provided in query params
+      const { search, status, priority, assignedTo, deviceType, dateFrom, dateTo } = req.query;
+
+      if (search && typeof search === 'string') {
+        const searchLower = search.toLowerCase();
+        tickets = tickets.filter(ticket => 
+          ticket.title?.toLowerCase().includes(searchLower) ||
+          ticket.client?.name?.toLowerCase().includes(searchLower) ||
+          ticket.deviceModel?.toLowerCase().includes(searchLower) ||
+          ticket.deviceBrand?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      if (status && typeof status === 'string' && status !== '') {
+        tickets = tickets.filter(ticket => ticket.status === status);
+      }
+
+      if (priority && typeof priority === 'string' && priority !== '') {
+        tickets = tickets.filter(ticket => ticket.priority === priority);
+      }
+
+      if (assignedTo && typeof assignedTo === 'string' && assignedTo !== '') {
+        tickets = tickets.filter(ticket => ticket.assignedTo === assignedTo);
+      }
+
+      if (deviceType && typeof deviceType === 'string' && deviceType !== '') {
+        tickets = tickets.filter(ticket => ticket.deviceType === deviceType);
+      }
+
+      if (dateFrom && typeof dateFrom === 'string') {
+        const fromDate = new Date(dateFrom);
+        tickets = tickets.filter(ticket => {
+          const ticketDate = new Date(ticket.createdAt!);
+          return ticketDate >= fromDate;
+        });
+      }
+
+      if (dateTo && typeof dateTo === 'string') {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        tickets = tickets.filter(ticket => {
+          const ticketDate = new Date(ticket.createdAt!);
+          return ticketDate <= toDate;
+        });
+      }
+
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets:", error);
