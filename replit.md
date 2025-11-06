@@ -141,11 +141,20 @@ Preferred communication style: Simple, everyday language.
   - Invalid drop zones: Red pulsing ring with shake animation
   - Real-time validation during drag operations
   - Error toast with allowed transitions when invalid drop attempted
+- **Status Dropdown on Cards**: Inline status change dropdown directly on each ticket card:
+  - Displays current status with "(Current)" label
+  - Shows only valid next statuses based on transition rules
+  - Compact 140px dropdown with cyan Aurora styling
+  - Real-time status updates with optimistic UI
+  - Success/error toast notifications
+  - Hidden for finalized tickets
+  - Prevents card click-through when dropdown is used
 - **Helper Functions**: Shared utilities in schema for validation logic (`isValidStatusTransition`, `getAllowedNextStatuses`, `getStandardNextStatus`)
-- **Multi-Language Support**: Status transition error messages localized for en and pt-BR
+- **Multi-Language Support**: Status transition error messages and dropdown labels localized for en and pt-BR
 - **Tenant Safety**: All validation enforces tenant isolation, preventing cross-tenant status manipulation
 
 ## Recent Changes
+- **2025-11-06**: Added inline status dropdown to Kanban ticket cards for quick status changes with validation
 - **2025-11-06**: Implemented Kanban status transition validation system with visual drag-and-drop feedback and backend enforcement
 - **2025-11-06**: Fixed data integrity issues with atomic transactions and row-level locking for inventory allocation
 - **2025-11-06**: Added tenantId to inventoryUnits table and composite unique constraints for proper tenant isolation
