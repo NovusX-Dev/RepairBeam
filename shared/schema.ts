@@ -150,11 +150,11 @@ export const ticketStatusEnum = [
 export const statusTransitionMap: Record<TicketStatus, TicketStatus[]> = {
   'backlog': ['waiting_diagnostics', 'waiting_client_approval'],
   'waiting_diagnostics': ['waiting_client_approval', 'backlog'],
-  'waiting_client_approval': ['approved', 'backlog', 'waiting_diagnostics'],
-  'approved': ['servicing', 'waiting_client_approval'],
-  'servicing': ['quality_check', 'approved'],
-  'quality_check': ['final_customer_check', 'servicing'],
-  'final_customer_check': ['finalized', 'quality_check'],
+  'waiting_client_approval': ['approved', 'waiting_diagnostics', 'backlog'],
+  'approved': ['servicing', 'waiting_client_approval', 'waiting_diagnostics', 'backlog'],
+  'servicing': ['quality_check', 'approved', 'waiting_client_approval', 'waiting_diagnostics'],
+  'quality_check': ['final_customer_check', 'servicing', 'approved', 'waiting_client_approval'],
+  'final_customer_check': ['finalized', 'quality_check', 'servicing', 'approved'],
   'finalized': []
 };
 
