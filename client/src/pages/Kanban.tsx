@@ -68,6 +68,7 @@ const formatBrazilianPhone = (value: string): string => {
   }
 };
 import type { Ticket, Client, TicketStatus, TicketPriority, WarrantyTier } from "@shared/schema";
+import { isValidStatusTransition, getAllowedNextStatuses } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
@@ -1126,6 +1127,7 @@ export default function KanbanTickets() {
   const [draggedTicket, setDraggedTicket] = useState<string | null>(null);
   const [dragHoverColumn, setDragHoverColumn] = useState<string | null>(null);
   const [dragHoverTimeout, setDragHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isValidDrop, setIsValidDrop] = useState<boolean>(true);
   const [selectedTicketSummary, setSelectedTicketSummary] = useState<TicketWithClient | null>(null);
   const [newNote, setNewNote] = useState('');
   const [notes, setNotes] = useState<any[]>([]);
@@ -2265,6 +2267,17 @@ export default function KanbanTickets() {
   const handleDragOver = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
     
+    // Validate if this drop target is allowed
+    if (draggedTicket) {
+      const ticket = tickets.find(t => t.id === draggedTicket);
+      if (ticket) {
+        const currentStatus = ticket.status as TicketStatus;
+        const newStatus = columnId as TicketStatus;
+        const isValid = isValidStatusTransition(currentStatus, newStatus);
+        setIsValidDrop(isValid);
+      }
+    }
+    
     // Clear any existing timeout
     if (dragHoverTimeout) {
       clearTimeout(dragHoverTimeout);
@@ -2285,6 +2298,7 @@ export default function KanbanTickets() {
       setDragHoverTimeout(null);
     }
     setDragHoverColumn(null);
+    setIsValidDrop(true); // Reset validation state
   };
 
   const handleDrop = (e: React.DragEvent, newStatus: TicketStatus) => {
@@ -2292,6 +2306,32 @@ export default function KanbanTickets() {
     if (draggedTicket) {
       const ticket = tickets.find(t => t.id === draggedTicket);
       if (ticket && ticket.status !== newStatus) {
+        const currentStatus = ticket.status as TicketStatus;
+        
+        // Validate the transition
+        if (!isValidStatusTransition(currentStatus, newStatus)) {
+          const allowedStatuses = getAllowedNextStatuses(currentStatus);
+          const statusNames = kanbanColumns
+            .filter(col => allowedStatuses.includes(col.id as TicketStatus))
+            .map(col => col.title)
+            .join(', ');
+          
+          toast({
+            title: t("invalid_status_transition", "Invalid Status Transition"),
+            description: t("status_transition_error", `Cannot move from '${currentStatus}' to '${newStatus}'. Allowed: ${statusNames}`),
+            variant: "destructive",
+          });
+          
+          setDraggedTicket(null);
+          setDragHoverColumn(null);
+          setIsValidDrop(true);
+          if (dragHoverTimeout) {
+            clearTimeout(dragHoverTimeout);
+            setDragHoverTimeout(null);
+          }
+          return;
+        }
+        
         // Intercept finalization attempts to show completion dialog
         if (newStatus === 'finalized') {
           setTicketToFinalize(ticket);
@@ -2310,6 +2350,7 @@ export default function KanbanTickets() {
     }
     setDraggedTicket(null);
     setDragHoverColumn(null);
+    setIsValidDrop(true); // Reset validation state
     if (dragHoverTimeout) {
       clearTimeout(dragHoverTimeout);
       setDragHoverTimeout(null);
@@ -5473,7 +5514,9 @@ export default function KanbanTickets() {
               key={column.id}
               className={`w-84 ${column.color} rounded-lg p-3 flex flex-col flex-shrink-0 transition-all duration-200 ${
                 dragHoverColumn === column.id 
-                  ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg transform scale-[1.02]' 
+                  ? isValidDrop
+                    ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg shadow-[#00FFFF]/30 transform scale-[1.02]' 
+                    : 'ring-2 ring-red-500 ring-offset-2 bg-opacity-80 shadow-lg shadow-red-500/30 transform scale-[1.02] animate-pulse'
                   : ''
               }`}
               onDragOver={(e) => handleDragOver(e, column.id)}

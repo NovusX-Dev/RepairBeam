@@ -6,7 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
 import { deviceColorService } from "./deviceColorService";
 import { normalizeCurrency, toCents, fromCents } from "@shared/money";
-import { insertTicketSchema, insertChecklistSchema } from "@shared/schema";
+import { insertTicketSchema, insertChecklistSchema, isValidStatusTransition, getAllowedNextStatuses, type TicketStatus } from "@shared/schema";
 import { z } from "zod";
 
 // Enhanced validation schema for tickets with currency normalization
@@ -405,6 +405,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
+      }
+
+      // Get current ticket to validate status transition
+      const currentTicket = await storage.getTicket(ticketId, user.tenantId);
+      
+      if (!currentTicket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Validate status transition
+      const currentStatus = currentTicket.status as TicketStatus;
+      const newStatus = status as TicketStatus;
+      
+      if (!isValidStatusTransition(currentStatus, newStatus)) {
+        const allowedStatuses = getAllowedNextStatuses(currentStatus);
+        return res.status(400).json({ 
+          message: "Invalid status transition", 
+          currentStatus,
+          requestedStatus: newStatus,
+          allowedStatuses,
+          error: `Cannot transition from '${currentStatus}' to '${newStatus}'. Allowed transitions: ${allowedStatuses.join(', ')}`
+        });
       }
 
       const updatedTicket = await storage.updateTicketStatus(ticketId, status, user.tenantId);

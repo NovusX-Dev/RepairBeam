@@ -145,6 +145,41 @@ export const ticketStatusEnum = [
   'finalized'
 ] as const;
 
+// Status transition validation map
+// Each status maps to an array of statuses it can transition to
+export const statusTransitionMap: Record<TicketStatus, TicketStatus[]> = {
+  'backlog': ['waiting_diagnostics', 'waiting_client_approval'],
+  'waiting_diagnostics': ['waiting_client_approval', 'backlog'],
+  'waiting_client_approval': ['approved', 'backlog', 'waiting_diagnostics'],
+  'approved': ['servicing', 'waiting_client_approval'],
+  'servicing': ['quality_check', 'approved'],
+  'quality_check': ['final_customer_check', 'servicing'],
+  'final_customer_check': ['finalized', 'quality_check'],
+  'finalized': []
+};
+
+// Helper function to validate status transitions
+export function isValidStatusTransition(currentStatus: TicketStatus, newStatus: TicketStatus): boolean {
+  if (currentStatus === newStatus) {
+    return true; // Allow staying in the same status
+  }
+  return statusTransitionMap[currentStatus].includes(newStatus);
+}
+
+// Helper function to get allowed next statuses
+export function getAllowedNextStatuses(currentStatus: TicketStatus): TicketStatus[] {
+  return statusTransitionMap[currentStatus];
+}
+
+// Helper function to get the standard next status (forward progression)
+export function getStandardNextStatus(currentStatus: TicketStatus): TicketStatus | null {
+  const currentIndex = ticketStatusEnum.indexOf(currentStatus);
+  if (currentIndex === -1 || currentIndex === ticketStatusEnum.length - 1) {
+    return null; // Invalid status or already at final status
+  }
+  return ticketStatusEnum[currentIndex + 1];
+}
+
 export const ticketPriorityEnum = [
   'low',
   'medium', 
