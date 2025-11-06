@@ -2724,6 +2724,47 @@ export default function KanbanTickets() {
       return;
     }
 
+    // Calculate and save total cost before showing confirmation
+    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+    
+    // Calculate total from selected services, excluding warranty-covered services
+    const serviceCostsCents = formData.selectedServices.map(serviceId => {
+      const service = repairServices.find(s => s.id === serviceId);
+      if (!service) return 0;
+      
+      // Check if this service is warranty-covered
+      const isWarrantyCovered = (() => {
+        if (!checkWarrantyCoverage || !formData.selectedChecklists || formData.selectedChecklists.length === 0) return false;
+        
+        return formData.selectedChecklists.some(defectId => {
+          const coverageKey = `${defectId}:${serviceId}`;
+          return checkWarrantyCoverage.has(coverageKey);
+        });
+      })();
+      
+      // Return 0 cost for warranty-covered services
+      return isWarrantyCovered ? 0 : toCents(service.estimatedLaborCost, locale);
+    });
+    const totalServicesCents = addCents(...serviceCostsCents);
+    
+    // Add service items costs
+    const itemsCostsCents = formData.selectedItems.map(item => {
+      const totalPrice = parseFloat(item.unitPrice) * item.quantity;
+      return toCents(totalPrice.toFixed(2), locale);
+    });
+    const totalItemsCents = itemsCostsCents.length > 0 ? addCents(...itemsCostsCents) : 0;
+    
+    // Add extra costs
+    const extraCostsCents = toCents(formData.costEstimation || '0', locale);
+    const grandTotalCents = addCents(totalServicesCents, totalItemsCents, extraCostsCents);
+    
+    // Save the calculated total cost to formData
+    const totalCostFormatted = fromCents(grandTotalCents, locale);
+    setFormData(prev => ({
+      ...prev,
+      totalCost: totalCostFormatted
+    }));
+
     // Show confirmation dialog
     setShowCreateConfirmation(true);
   };
@@ -5619,13 +5660,16 @@ export default function KanbanTickets() {
             <Button
               variant="outline"
               onClick={() => setShowCreateConfirmation(false)}
+              data-testid="button-cancel-confirmation"
             >
               {t("cancel", "Cancel")}
             </Button>
             <Button
-              onClick={handleCreateTicket}
+              onClick={handleConfirmCreateTicket}
+              disabled={createTicketMutation.isPending}
+              data-testid="button-confirm-create-ticket"
             >
-              {t("create_ticket", "Create Ticket")}
+              {createTicketMutation.isPending ? t("creating", "Creating...") : t("create_ticket", "Create Ticket")}
             </Button>
           </div>
         </DialogContent>
