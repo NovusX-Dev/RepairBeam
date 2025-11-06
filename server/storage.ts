@@ -4,6 +4,7 @@ import {
   clients,
   tickets,
   suppliers,
+  inventoryCategories,
   inventoryItems,
   purchaseOrders,
   purchaseOrderItems,
@@ -39,6 +40,8 @@ import {
   type InsertTicket,
   type Supplier,
   type InsertSupplier,
+  type InventoryCategory,
+  type InsertInventoryCategory,
   type InventoryItem,
   type InsertInventoryItem,
   type PurchaseOrder,
@@ -654,6 +657,40 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(suppliers)
       .where(and(eq(suppliers.id, id), eq(suppliers.tenantId, tenantId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Inventory category operations
+  async getInventoryCategories(tenantId: string): Promise<InventoryCategory[]> {
+    return db.select().from(inventoryCategories).where(eq(inventoryCategories.tenantId, tenantId)).orderBy(desc(inventoryCategories.createdAt));
+  }
+
+  async getInventoryCategory(id: string, tenantId: string): Promise<InventoryCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(inventoryCategories)
+      .where(and(eq(inventoryCategories.id, id), eq(inventoryCategories.tenantId, tenantId)));
+    return category;
+  }
+
+  async createInventoryCategory(category: InsertInventoryCategory): Promise<InventoryCategory> {
+    const [newCategory] = await db.insert(inventoryCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateInventoryCategory(id: string, tenantId: string, category: Partial<InsertInventoryCategory>): Promise<InventoryCategory | undefined> {
+    const [updatedCategory] = await db
+      .update(inventoryCategories)
+      .set({ ...category, updatedAt: new Date() })
+      .where(and(eq(inventoryCategories.id, id), eq(inventoryCategories.tenantId, tenantId)))
+      .returning();
+    return updatedCategory;
+  }
+
+  async deleteInventoryCategory(id: string, tenantId: string): Promise<boolean> {
+    const result = await db
+      .delete(inventoryCategories)
+      .where(and(eq(inventoryCategories.id, id), eq(inventoryCategories.tenantId, tenantId)));
     return (result.rowCount ?? 0) > 0;
   }
 

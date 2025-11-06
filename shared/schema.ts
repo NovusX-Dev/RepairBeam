@@ -225,6 +225,17 @@ export const suppliers = pgTable("suppliers", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Inventory categories table
+export const inventoryCategories = pgTable("inventory_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  name: varchar("name").notNull(),
+  deviceType: varchar("device_type"), // 'Phone', 'Laptop', 'Desktop', or null for 'Other'
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Inventory items table
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -476,6 +487,8 @@ export type Ticket = typeof tickets.$inferSelect;
 export type InsertTicket = typeof tickets.$inferInsert;
 export type Supplier = typeof suppliers.$inferSelect;
 export type InsertSupplier = typeof suppliers.$inferInsert;
+export type InventoryCategory = typeof inventoryCategories.$inferSelect;
+export type InsertInventoryCategory = z.infer<typeof insertInventoryCategorySchema>;
 export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type InsertInventoryItem = typeof inventoryItems.$inferInsert;
 export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
@@ -603,6 +616,12 @@ export const insertCompletionAnalyticsSchema = createInsertSchema(completionAnal
 });
 
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInventoryCategorySchema = createInsertSchema(inventoryCategories).omit({
   id: true,
   createdAt: true,
   updatedAt: true,

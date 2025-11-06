@@ -1145,6 +1145,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Inventory category routes
+  app.get("/api/inventory-categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const categories = await storage.getInventoryCategories(user.tenantId);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching inventory categories:", error);
+      res.status(500).json({ message: "Failed to fetch inventory categories" });
+    }
+  });
+
+  app.post("/api/inventory-categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const categoryData = { ...req.body, tenantId: user.tenantId };
+      const newCategory = await storage.createInventoryCategory(categoryData);
+      res.status(201).json(newCategory);
+    } catch (error) {
+      console.error("Error creating inventory category:", error);
+      res.status(500).json({ message: "Failed to create inventory category" });
+    }
+  });
+
+  app.put("/api/inventory-categories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { id } = req.params;
+      const updatedCategory = await storage.updateInventoryCategory(id, user.tenantId, req.body);
+      
+      if (!updatedCategory) {
+        return res.status(404).json({ message: "Inventory category not found" });
+      }
+
+      res.json(updatedCategory);
+    } catch (error) {
+      console.error("Error updating inventory category:", error);
+      res.status(500).json({ message: "Failed to update inventory category" });
+    }
+  });
+
+  app.delete("/api/inventory-categories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { id } = req.params;
+      const deleted = await storage.deleteInventoryCategory(id, user.tenantId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Inventory category not found" });
+      }
+
+      res.json({ message: "Inventory category deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting inventory category:", error);
+      res.status(500).json({ message: "Failed to delete inventory category" });
+    }
+  });
+
   // Purchase order routes
   app.get("/api/purchase-orders", isAuthenticated, async (req: any, res) => {
     try {
