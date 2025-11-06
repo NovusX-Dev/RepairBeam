@@ -5576,7 +5576,7 @@ export default function KanbanTickets() {
                                 disabled={updateTicketStatus.isPending}
                               >
                                 <SelectTrigger 
-                                  className="h-6 w-[140px] text-xs border-[#00FFFF]/30 hover:border-[#00FFFF] hover:bg-[#00FFFF]/10 transition-colors"
+                                  className="h-6 w-[140px] text-xs bg-white/90 border-[#00FFFF]/30 hover:border-[#00FFFF] hover:bg-[#00FFFF]/10 transition-colors"
                                   onClick={(e) => e.stopPropagation()}
                                   data-testid={`select-status-${ticket.id}`}
                                 >
@@ -5586,9 +5586,9 @@ export default function KanbanTickets() {
                                   {/* Current status */}
                                   <SelectItem 
                                     value={ticket.status}
-                                    className="text-xs font-medium"
+                                    className="text-xs font-medium capitalize"
                                   >
-                                    {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' '))} {t("current", "(Current)")}
+                                    {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))} {t("current", "(Current)")}
                                   </SelectItem>
                                   
                                   {/* Divider */}
@@ -5601,9 +5601,9 @@ export default function KanbanTickets() {
                                     <SelectItem 
                                       key={status} 
                                       value={status}
-                                      className="text-xs"
+                                      className="text-xs capitalize"
                                     >
-                                      {t(`status_${status}`, status.replace(/_/g, ' '))}
+                                      {t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
