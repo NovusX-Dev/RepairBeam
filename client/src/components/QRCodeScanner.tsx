@@ -205,7 +205,7 @@ export default function QRCodeScanner({
           {mode === "camera" && (
             <div className="space-y-4">
               {/* Scanner Container */}
-              <div className="relative bg-slate-800/50 rounded-lg border-2 border-cyan-500/20 overflow-hidden max-h-[400px]">
+              <div className="relative bg-slate-800/50 rounded-lg border-2 border-cyan-500/20 overflow-hidden">
                 {!isScanning && !error && (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 z-10">
                     <div className="text-center space-y-3">
@@ -222,8 +222,27 @@ export default function QRCodeScanner({
                     </div>
                   </div>
                 )}
-                <div id="qr-reader" className="w-full"></div>
+                <div id="qr-reader" className="w-full qr-reader-container"></div>
               </div>
+              
+              {/* CSS to center the QR scanning box */}
+              <style>{`
+                #qr-reader {
+                  max-height: 350px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                }
+                #qr-reader video {
+                  max-height: 350px;
+                  object-fit: cover;
+                }
+                #qr-reader__dashboard_section_csr {
+                  display: flex !important;
+                  align-items: center !important;
+                  justify-content: center !important;
+                }
+              `}</style>
 
               {/* Instructions */}
               {!error && !success && (
