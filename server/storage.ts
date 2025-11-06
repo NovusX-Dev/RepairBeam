@@ -833,11 +833,61 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
+    // Validate category-device type match if category is provided
+    if (item.category) {
+      const [category] = await db
+        .select()
+        .from(inventoryCategories)
+        .where(and(
+          eq(inventoryCategories.id, item.category),
+          eq(inventoryCategories.tenantId, item.tenantId)
+        ));
+      
+      if (!category) {
+        throw new Error('Category not found');
+      }
+      
+      if (category.deviceType !== item.deviceType) {
+        throw new Error(`Category "${category.name}" is for ${category.deviceType || 'Other'} devices and cannot be assigned to ${item.deviceType || 'Other'} device items`);
+      }
+    }
+    
     const [newItem] = await db.insert(inventoryItems).values(item).returning();
     return newItem;
   }
 
   async updateInventoryItem(id: string, tenantId: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    // Validate category-device type match if category is being updated
+    if (item.category) {
+      const [existingItem] = await db
+        .select()
+        .from(inventoryItems)
+        .where(and(eq(inventoryItems.id, id), eq(inventoryItems.tenantId, tenantId)));
+      
+      if (!existingItem) {
+        throw new Error('Inventory item not found');
+      }
+      
+      const [category] = await db
+        .select()
+        .from(inventoryCategories)
+        .where(and(
+          eq(inventoryCategories.id, item.category),
+          eq(inventoryCategories.tenantId, tenantId)
+        ));
+      
+      if (!category) {
+        throw new Error('Category not found');
+      }
+      
+      // Get the device type to validate against (use new value if provided, otherwise existing)
+      const deviceTypeToCheck = item.deviceType !== undefined ? item.deviceType : existingItem.deviceType;
+      
+      if (category.deviceType !== deviceTypeToCheck) {
+        throw new Error(`Category "${category.name}" is for ${category.deviceType || 'Other'} devices and cannot be assigned to ${deviceTypeToCheck || 'Other'} device items`);
+      }
+    }
+    
     const [updatedItem] = await db
       .update(inventoryItems)
       .set({ ...item, updatedAt: new Date() })

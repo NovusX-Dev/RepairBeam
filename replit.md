@@ -113,6 +113,25 @@ Preferred communication style: Simple, everyday language.
   - `QRCodePrintSheet`: Print-optimized component with exact 2.5cm × 2.5cm sizing
 - **UX Enhancements**: Auto-clear highlighting when manual search is performed, real-time feedback with toast notifications, Aurora design consistency
 
+### Inventory Category Management (Phase 6)
+- **Device-Type-Based Organization**: Categories are specific to device types (Phone, Laptop, Desktop, Other), preventing cross-device misclassification
+- **Database Schema**: `inventoryCategories` table with fields: id, tenantId, name, deviceType, isActive, createdAt, updatedAt
+- **Backend Validation**: Server-side enforcement ensures categories can only be assigned to items with matching device types
+- **Configuration UI**: Dedicated "Inventory Categories" tab in Configurations page with:
+  - Device-type grouping (visual separation by Phone/Laptop/Desktop/Other)
+  - CRUD operations (Create, Edit, Delete with confirmation dialogs)
+  - Active/inactive status toggles for soft-delete functionality
+  - Aurora card design pattern with gradient headers
+- **Integration Points**:
+  - Purchase Orders: Category dropdown during PO finalization, filtered by item's device type
+  - Inventory Page: Category column display, category filter dropdown with "Uncategorized" option
+  - Inventory Edit Dialog: Editable category dropdown filtered by item's device type
+  - Analytics Page: Category display and filtering with device-type awareness
+- **API Endpoints**: Full CRUD via `/api/inventory-categories` with tenant isolation
+- **Multi-Language Support**: 17 translation keys added for en and pt-BR (category_name, add_category, edit_category, etc.)
+- **Data Integrity**: Both frontend filtering and backend validation prevent assigning categories to items with mismatched device types
+- **User Experience**: Seamless categorization workflow from purchase through analytics with consistent Aurora design
+
 ## External Dependencies
 
 ### Database & Storage
