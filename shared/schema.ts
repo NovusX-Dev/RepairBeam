@@ -35,7 +35,13 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   tenantId: varchar("tenant_id").notNull(),
-  role: varchar("role").notNull().default('user'),
+  role: varchar("role").notNull().default('user'), // Basic role: 'user', 'admin', 'master'
+  status: varchar("status").notNull().default('active'), // 'active', 'suspended', 'pending'
+  passwordHash: varchar("password_hash"), // For email/password auth (null for OIDC users)
+  mustChangePassword: boolean("must_change_password").default(false),
+  phone: varchar("phone"),
+  telegram: varchar("telegram"),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -48,6 +54,77 @@ export const tenants = pgTable("tenants", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Groups table for RBAC - permission groups scoped to tenants
+export const groups = pgTable("groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  permissions: jsonb("permissions").notNull().default('[]'), // Array of permission strings
+  isDefault: boolean("is_default").default(false), // Default group for new users
+  isSystemGroup: boolean("is_system_group").default(false), // Cannot be deleted (e.g., Admin group)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique('unique_group_name_per_tenant').on(table.tenantId, table.name),
+  index('idx_groups_tenant').on(table.tenantId),
+]);
+
+// User Groups junction table - many-to-many relationship
+export const userGroups = pgTable("user_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  groupId: varchar("group_id").notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique('unique_user_group').on(table.userId, table.groupId),
+  index('idx_user_groups_user').on(table.userId),
+  index('idx_user_groups_group').on(table.groupId),
+  index('idx_user_groups_tenant').on(table.tenantId),
+]);
+
+// User Invitations table for email-based user onboarding
+export const userInvitations = pgTable("user_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  email: varchar("email").notNull(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  phone: varchar("phone"),
+  telegram: varchar("telegram"),
+  invitedByUserId: varchar("invited_by_user_id").notNull().references(() => users.id),
+  groupIds: jsonb("group_ids").notNull().default('[]'), // Array of group IDs to assign on acceptance
+  token: varchar("token").notNull().unique(), // Unique invitation token
+  expiresAt: timestamp("expires_at").notNull(),
+  status: varchar("status").notNull().default('pending'), // 'pending', 'accepted', 'expired'
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index('idx_user_invitations_token').on(table.token),
+  index('idx_user_invitations_tenant').on(table.tenantId),
+  index('idx_user_invitations_email').on(table.email),
+]);
+
+// Audit Logs table for tracking permission-sensitive actions
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  action: varchar("action").notNull(), // 'create', 'update', 'delete', 'login', etc.
+  resource: varchar("resource").notNull(), // 'user', 'group', 'ticket', 'inventory', etc.
+  resourceId: varchar("resource_id"),
+  details: jsonb("details"), // Additional context about the action
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index('idx_audit_logs_tenant').on(table.tenantId),
+  index('idx_audit_logs_user').on(table.userId),
+  index('idx_audit_logs_resource').on(table.resource),
+  index('idx_audit_logs_created_at').on(table.createdAt),
+]);
 
 // General store settings table (now the single source of truth for tenant configs)
 export const storeSettings = pgTable("store_settings", {
@@ -588,6 +665,14 @@ export type CompletionAnalytics = typeof completionAnalytics.$inferSelect;
 export type InsertCompletionAnalytics = typeof completionAnalytics.$inferInsert;
 export type FilterPreset = typeof filterPresets.$inferSelect;
 export type InsertFilterPreset = typeof filterPresets.$inferInsert;
+export type Group = typeof groups.$inferSelect;
+export type InsertGroup = typeof groups.$inferInsert;
+export type UserGroup = typeof userGroups.$inferSelect;
+export type InsertUserGroup = typeof userGroups.$inferInsert;
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type InsertUserInvitation = typeof userInvitations.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
