@@ -4095,6 +4095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updatedUser = await storage.upsertUser({
         id: targetUserId,
+        tenantId: targetUser.tenantId,
         status,
       });
 
