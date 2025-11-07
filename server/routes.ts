@@ -3848,8 +3848,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const invitedName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || email;
         const invitedByName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'A team member';
         
-        await sendInvitationEmail(email, invitedName, invitedByName, token, expiresAt);
-        console.log(`Invitation email sent to ${email}`);
+        // Get tenant name and language preference from store settings
+        const storeSettings = await storage.getStoreSettings(user.tenantId);
+        const language = storeSettings?.preferredLanguage || 'en';
+        const tenantName = storeSettings?.shopName || 'Repair Beam';
+        
+        await sendInvitationEmail(email, invitedName, invitedByName, token, expiresAt, language, tenantName);
+        console.log(`Invitation email sent to ${email} in language: ${language}`);
       } catch (emailError) {
         console.error('Failed to send invitation email, but invitation was created:', emailError);
         // Don't fail the entire request if email fails - invitation is still created

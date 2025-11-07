@@ -1,4 +1,7 @@
 import { Resend } from 'resend';
+import { db } from './db';
+import { localizations } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
 
 let connectionSettings: any;
 
@@ -41,15 +44,64 @@ export async function getUncachableResendClient() {
   };
 }
 
+// Helper function to get localized strings
+async function getLocalizedStrings(language: string = 'en') {
+  const keys = [
+    'email_invitation_subject',
+    'email_invitation_greeting',
+    'email_invitation_body',
+    'email_invitation_cta',
+    'email_invitation_expires',
+    'email_invitation_footer',
+    'email_from_name',
+    'invitation_title'
+  ];
+  
+  const translations: Record<string, string> = {};
+  
+  for (const key of keys) {
+    const [result] = await db
+      .select({ value: localizations.value })
+      .from(localizations)
+      .where(and(
+        eq(localizations.key, key),
+        eq(localizations.language, language)
+      ))
+      .limit(1);
+    
+    if (result) {
+      translations[key] = result.value;
+    }
+  }
+  
+  // Fallbacks to English
+  return {
+    subject: translations['email_invitation_subject'] || "You've been invited to join {{tenantName}}",
+    greeting: translations['email_invitation_greeting'] || 'Hello!',
+    body: translations['email_invitation_body'] || "You've been invited to join {{tenantName}} on Repair Beam.",
+    cta: translations['email_invitation_cta'] || 'Accept Invitation',
+    expires: translations['email_invitation_expires'] || 'This invitation expires on',
+    footer: translations['email_invitation_footer'] || "If you didn't expect this invitation, you can safely ignore this email.",
+    fromName: translations['email_from_name'] || 'Repair Beam',
+    title: translations['invitation_title'] || "You've Been Invited!"
+  };
+}
+
 export async function sendInvitationEmail(
   email: string,
   invitedName: string,
   invitedByName: string,
   invitationToken: string,
-  expiresAt: Date
+  expiresAt: Date,
+  language: string = 'en',
+  tenantName?: string
 ) {
   try {
     const { client, fromEmail } = await getUncachableResendClient();
+    
+    // Get localized strings
+    const t = await getLocalizedStrings(language);
+    const organizationName = tenantName || 'Repair Beam';
     
     // Build the invitation URL
     const baseUrl = process.env.REPLIT_DOMAINS 
@@ -57,8 +109,9 @@ export async function sendInvitationEmail(
       : 'http://localhost:5000';
     const invitationUrl = `${baseUrl}/accept-invite/${invitationToken}`;
     
-    // Format expiry date
-    const expiryDate = new Date(expiresAt).toLocaleDateString('en-US', {
+    // Format expiry date based on language
+    const locale = language === 'pt-BR' ? 'pt-BR' : 'en-US';
+    const expiryDate = new Date(expiresAt).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -95,15 +148,15 @@ export async function sendInvitationEmail(
           <tr>
             <td style="padding: 40px 30px;">
               <h2 style="margin: 0 0 20px 0; color: #f1f5f9; font-size: 22px; font-weight: 600;">
-                You've been invited to join a team!
+                ${t.title}
               </h2>
               
               <p style="margin: 0 0 20px 0; color: #cbd5e1; font-size: 16px; line-height: 1.6;">
-                Hi ${invitedName || 'there'},
+                ${t.greeting}${invitedName ? ' ' + invitedName : ''},
               </p>
               
               <p style="margin: 0 0 20px 0; color: #cbd5e1; font-size: 16px; line-height: 1.6;">
-                <strong style="color: #06b6d4;">${invitedByName}</strong> has invited you to join their organization on <strong style="color: #06b6d4;">Repair Beam</strong>. Click the button below to accept the invitation and get started.
+                <strong style="color: #06b6d4;">${invitedByName}</strong> ${t.body.replace('{{tenantName}}', `<strong style="color: #06b6d4;">${organizationName}</strong>`)}
               </p>
               
               <!-- CTA Button -->
@@ -111,7 +164,7 @@ export async function sendInvitationEmail(
                 <tr>
                   <td align="center">
                     <a href="${invitationUrl}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(to right, #2563eb, #06b6d4); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);">
-                      Accept Invitation
+                      ${t.cta}
                     </a>
                   </td>
                 </tr>
@@ -125,7 +178,7 @@ export async function sendInvitationEmail(
                       ⏰ Important Information
                     </p>
                     <p style="margin: 0; color: #cbd5e1; font-size: 14px; line-height: 1.5;">
-                      This invitation will expire on <strong>${expiryDate}</strong>. Please accept it before then to join the team.
+                      ${t.expires} <strong>${expiryDate}</strong>.
                     </p>
                   </td>
                 </tr>
@@ -147,7 +200,7 @@ export async function sendInvitationEmail(
                 This invitation was sent by ${invitedByName}
               </p>
               <p style="margin: 0; color: #64748b; font-size: 12px;">
-                If you weren't expecting this invitation, you can safely ignore this email.
+                ${t.footer}
               </p>
               <p style="margin: 15px 0 0 0; color: #475569; font-size: 12px;">
                 © ${new Date().getFullYear()} Repair Beam. All rights reserved.
@@ -163,26 +216,26 @@ export async function sendInvitationEmail(
     `;
 
     const text = `
-Hi ${invitedName || 'there'},
+${t.greeting}${invitedName ? ' ' + invitedName : ''},
 
-You've been invited to join a team on Repair Beam!
+${t.title}
 
-${invitedByName} has invited you to join their organization. Click the link below to accept the invitation:
+${invitedByName} ${t.body.replace('{{tenantName}}', organizationName)}
 
 ${invitationUrl}
 
-This invitation will expire on ${expiryDate}.
+${t.expires} ${expiryDate}.
 
-If you weren't expecting this invitation, you can safely ignore this email.
+${t.footer}
 
 ---
-© ${new Date().getFullYear()} Repair Beam
+© ${new Date().getFullYear()} ${t.fromName}
     `;
 
     const result = await client.emails.send({
-      from: fromEmail || 'Repair Beam <onboarding@resend.dev>',
+      from: fromEmail || `${t.fromName} <onboarding@resend.dev>`,
       to: email,
-      subject: `You've been invited to join Repair Beam`,
+      subject: t.subject.replace('{{tenantName}}', organizationName),
       html,
       text,
     });
