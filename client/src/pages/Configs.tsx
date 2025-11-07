@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 import { GenerationProgressDialog } from "@/components/GenerationProgressDialog";
 import { FileUpload } from "@/components/FileUpload";
 import type { AutoGenList, StoreSettings, WarrantyTier, RepairService, PossibleDefect, Checklist, InventoryCategory } from "@shared/schema";
+import { PermissionGate } from "@/components/PermissionGate";
+import { PERMISSIONS } from "@shared/permissions";
 
 export default function Configs() {
   const { t, currentLanguage, formatDate } = useLocalization();
@@ -1281,28 +1283,30 @@ export default function Configs() {
                     <p className="text-slate-300 text-xs mt-1 line-clamp-2">{service.description}</p>
                   )}
                 </div>
-                <div className="flex gap-1 ml-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleEditService(service)}
-                    className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
-                    aria-label={t('edit_service', 'Edit service')}
-                    data-testid={`button-edit-service-${service.id}`}
-                  >
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDeleteService(service.id)}
-                    className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                    aria-label={t('delete_service', 'Delete service')}
-                    data-testid={`button-delete-service-${service.id}`}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
+                <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                  <div className="flex gap-1 ml-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEditService(service)}
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-600"
+                      aria-label={t('edit_service', 'Edit service')}
+                      data-testid={`button-edit-service-${service.id}`}
+                    >
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteService(service.id)}
+                      className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                      aria-label={t('delete_service', 'Delete service')}
+                      data-testid={`button-delete-service-${service.id}`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </PermissionGate>
               </div>
             </CardHeader>
             <CardContent className="pt-2 space-y-1.5">
@@ -1705,16 +1709,18 @@ export default function Configs() {
                       </CardDescription>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => setShowAddTier(!showAddTier)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                    data-testid="button-add-warranty-tier"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('add_tier', 'Add Tier')}
-                  </Button>
+                  <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                    <Button
+                      onClick={() => setShowAddTier(!showAddTier)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                      data-testid="button-add-warranty-tier"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('add_tier', 'Add Tier')}
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             </CardHeader>
@@ -1810,23 +1816,25 @@ export default function Configs() {
                         >
                           {t('cancel', 'Cancel')}
                         </Button>
-                        <Button
-                          type="submit"
-                          disabled={createTierMutation.isPending}
-                          data-testid="button-save-warranty-tier"
-                        >
-                          {createTierMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {t('creating', 'Creating...')}
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4 mr-2" />
-                              {t('create_tier', 'Create Tier')}
-                            </>
-                          )}
-                        </Button>
+                        <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                          <Button
+                            type="submit"
+                            disabled={createTierMutation.isPending}
+                            data-testid="button-save-warranty-tier"
+                          >
+                            {createTierMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t('creating', 'Creating...')}
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('create_tier', 'Create Tier')}
+                              </>
+                            )}
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </form>
                   </CardContent>
@@ -1857,25 +1865,27 @@ export default function Configs() {
                                 {t('standard', 'Standard')}
                               </Badge>
                               {standardTier && (
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleEditTier(standardTier)}
-                                    data-testid={`button-edit-standard-${deviceType.toLowerCase()}`}
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteTier(standardTier.id)}
-                                    className="text-red-400 hover:text-red-300"
-                                    data-testid={`button-delete-standard-${deviceType.toLowerCase()}`}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
+                                <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleEditTier(standardTier)}
+                                      data-testid={`button-edit-standard-${deviceType.toLowerCase()}`}
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteTier(standardTier.id)}
+                                      className="text-red-400 hover:text-red-300"
+                                      data-testid={`button-delete-standard-${deviceType.toLowerCase()}`}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </PermissionGate>
                               )}
                             </div>
                             {standardTier ? (
@@ -1902,25 +1912,27 @@ export default function Configs() {
                                 {t('extended', 'Extended')}
                               </Badge>
                               {extendedTier && (
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleEditTier(extendedTier)}
-                                    data-testid={`button-edit-extended-${deviceType.toLowerCase()}`}
-                                  >
-                                    <Edit className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteTier(extendedTier.id)}
-                                    className="text-red-400 hover:text-red-300"
-                                    data-testid={`button-delete-extended-${deviceType.toLowerCase()}`}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
+                                <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleEditTier(extendedTier)}
+                                      data-testid={`button-edit-extended-${deviceType.toLowerCase()}`}
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteTier(extendedTier.id)}
+                                      className="text-red-400 hover:text-red-300"
+                                      data-testid={`button-delete-extended-${deviceType.toLowerCase()}`}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </PermissionGate>
                               )}
                             </div>
                             {extendedTier ? (
@@ -1970,16 +1982,18 @@ export default function Configs() {
               <div className="flex flex-col gap-4 mb-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-white">{t('repair_services', 'Repair Services')}</h3>
-                  <Button
-                    onClick={() => setShowAddService(!showAddService)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-700"
-                    data-testid="button-add-repair-service"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('add_service', 'Add Service')}
-                  </Button>
+                  <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                    <Button
+                      onClick={() => setShowAddService(!showAddService)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-cyan-600 border-cyan-500 text-white hover:bg-cyan-700"
+                      data-testid="button-add-repair-service"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('add_service', 'Add Service')}
+                    </Button>
+                  </PermissionGate>
                 </div>
                 
                 {/* Search Bar */}
@@ -2127,30 +2141,32 @@ export default function Configs() {
 
                       {/* Form Actions */}
                       <div className="flex gap-2 pt-2">
-                        <Button
-                          type="submit"
-                          disabled={
-                            !newService.deviceType || 
-                            !newService.name || 
-                            ((newService.estimatedCompletionTimeHours || 0) === 0 && (newService.estimatedCompletionTimeMinutes || 0) === 0) ||
-                            createServiceMutation.isPending
-                          }
-                          className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
-                          size="sm"
-                          data-testid="button-create-service"
-                        >
-                          {createServiceMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {t('creating', 'Creating...')}
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4 mr-2" />
-                              {t('create_service', 'Create Service')}
-                            </>
-                          )}
-                        </Button>
+                        <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                          <Button
+                            type="submit"
+                            disabled={
+                              !newService.deviceType || 
+                              !newService.name || 
+                              ((newService.estimatedCompletionTimeHours || 0) === 0 && (newService.estimatedCompletionTimeMinutes || 0) === 0) ||
+                              createServiceMutation.isPending
+                            }
+                            className="bg-cyan-600 hover:bg-cyan-700 text-white border-cyan-500"
+                            size="sm"
+                            data-testid="button-create-service"
+                          >
+                            {createServiceMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t('creating', 'Creating...')}
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('create_service', 'Create Service')}
+                              </>
+                            )}
+                          </Button>
+                        </PermissionGate>
                         <Button
                           type="button"
                           variant="outline"
@@ -2312,16 +2328,18 @@ export default function Configs() {
               <div className="flex flex-col gap-4 mb-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-white">{t('possible_defects', 'Possible Defects')}</h3>
-                  <Button
-                    onClick={() => setShowAddDefect(!showAddDefect)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
-                    data-testid="button-add-defect"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('add_defect', 'Add Defect')}
-                  </Button>
+                  <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                    <Button
+                      onClick={() => setShowAddDefect(!showAddDefect)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
+                      data-testid="button-add-defect"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('add_defect', 'Add Defect')}
+                    </Button>
+                  </PermissionGate>
                 </div>
 
                 {/* Search Bar */}
@@ -2387,23 +2405,25 @@ export default function Configs() {
                         >
                           {t('cancel', 'Cancel')}
                         </Button>
-                        <Button
-                          type="submit"
-                          disabled={createDefectMutation.isPending}
-                          data-testid="button-save-defect"
-                        >
-                          {createDefectMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {t('creating', 'Creating...')}
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4 mr-2" />
-                              {t('create_defect', 'Create Defect')}
-                            </>
-                          )}
-                        </Button>
+                        <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                          <Button
+                            type="submit"
+                            disabled={createDefectMutation.isPending}
+                            data-testid="button-save-defect"
+                          >
+                            {createDefectMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t('creating', 'Creating...')}
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('create_defect', 'Create Defect')}
+                              </>
+                            )}
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </form>
                   </CardContent>
@@ -2548,48 +2568,50 @@ export default function Configs() {
                                         </div>
 
                                         {editingDefect !== defect.id && (
-                                          <div className="flex items-center gap-2 ml-4">
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={() => handleEditDefect(defect)}
-                                              className="h-8 w-8 p-0 hover:bg-slate-600"
-                                              aria-label={t('edit_defect', 'Edit defect')}
-                                              data-testid={`button-edit-defect-${defect.id}`}
-                                            >
-                                              <Edit className="w-4 h-4 text-slate-400" />
-                                            </Button>
-                                            <AlertDialog>
-                                              <AlertDialogTrigger asChild>
-                                                <Button
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
-                                                  aria-label={t('delete_defect', 'Delete defect')}
-                                                  data-testid={`button-delete-defect-${defect.id}`}
-                                                >
-                                                  <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                  <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
-                                                  <AlertDialogDescription>
-                                                    {t('confirm_delete_defect_desc', `Are you sure you want to delete the defect "${defect.name}"? This action cannot be undone.`)}
-                                                  </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                  <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
-                                                  <AlertDialogAction
-                                                    onClick={() => handleDeleteDefect(defect.id)}
-                                                    className="bg-red-600 hover:bg-red-700"
+                                          <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                                            <div className="flex items-center gap-2 ml-4">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleEditDefect(defect)}
+                                                className="h-8 w-8 p-0 hover:bg-slate-600"
+                                                aria-label={t('edit_defect', 'Edit defect')}
+                                                data-testid={`button-edit-defect-${defect.id}`}
+                                              >
+                                                <Edit className="w-4 h-4 text-slate-400" />
+                                              </Button>
+                                              <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                                    aria-label={t('delete_defect', 'Delete defect')}
+                                                    data-testid={`button-delete-defect-${defect.id}`}
                                                   >
-                                                    {t('delete', 'Delete')}
-                                                  </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                            </AlertDialog>
-                                          </div>
+                                                    <Trash2 className="w-4 h-4" />
+                                                  </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                  <AlertDialogHeader>
+                                                    <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                      {t('confirm_delete_defect_desc', `Are you sure you want to delete the defect "${defect.name}"? This action cannot be undone.`)}
+                                                    </AlertDialogDescription>
+                                                  </AlertDialogHeader>
+                                                  <AlertDialogFooter>
+                                                    <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                      onClick={() => handleDeleteDefect(defect.id)}
+                                                      className="bg-red-600 hover:bg-red-700"
+                                                    >
+                                                      {t('delete', 'Delete')}
+                                                    </AlertDialogAction>
+                                                  </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                              </AlertDialog>
+                                            </div>
+                                          </PermissionGate>
                                         )}
                                       </div>
                                     </CardContent>
@@ -2686,16 +2708,18 @@ export default function Configs() {
               <div className="flex flex-col gap-4 mb-6">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-white">{t('checklists', 'Checklists')}</h3>
-                  <Button
-                    onClick={() => setShowAddChecklist(!showAddChecklist)}
-                    variant="outline"
-                    size="sm"
-                    className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
-                    data-testid="button-add-checklist"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('add_checklist', 'Add Checklist')}
-                  </Button>
+                  <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                    <Button
+                      onClick={() => setShowAddChecklist(!showAddChecklist)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-cyan-600/20 border-cyan-500/50 text-cyan-100 hover:bg-cyan-600/30"
+                      data-testid="button-add-checklist"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {t('add_checklist', 'Add Checklist')}
+                    </Button>
+                  </PermissionGate>
                 </div>
 
                 {/* Search Bar */}
@@ -2765,21 +2789,23 @@ export default function Configs() {
                         >
                           {t('cancel', 'Cancel')}
                         </Button>
-                        <Button
-                          type="submit"
-                          disabled={!newChecklist.deviceType || !newChecklist.name || createChecklistMutation.isPending}
-                          className="bg-cyan-600 hover:bg-cyan-700"
-                          data-testid="button-submit-checklist"
-                        >
-                          {createChecklistMutation.isPending ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {t('creating', 'Creating...')}
-                            </>
-                          ) : (
-                            t('create_checklist', 'Create Checklist')
-                          )}
-                        </Button>
+                        <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                          <Button
+                            type="submit"
+                            disabled={!newChecklist.deviceType || !newChecklist.name || createChecklistMutation.isPending}
+                            className="bg-cyan-600 hover:bg-cyan-700"
+                            data-testid="button-submit-checklist"
+                          >
+                            {createChecklistMutation.isPending ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {t('creating', 'Creating...')}
+                              </>
+                            ) : (
+                              t('create_checklist', 'Create Checklist')
+                            )}
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </form>
                   </CardContent>
@@ -2926,48 +2952,50 @@ export default function Configs() {
                                                 {checklist.isActive ? t('active', 'Active') : t('inactive', 'Inactive')}
                                               </Badge>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleEditChecklist(checklist)}
-                                                className="h-8 w-8 p-0 hover:bg-slate-600"
-                                                aria-label={t('edit_checklist', 'Edit checklist')}
-                                                data-testid={`button-edit-checklist-${checklist.id}`}
-                                              >
-                                                <Edit className="w-4 h-4 text-slate-400" />
-                                              </Button>
-                                              <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                  <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
-                                                    aria-label={t('delete_checklist', 'Delete checklist')}
-                                                    data-testid={`button-delete-checklist-${checklist.id}`}
-                                                  >
-                                                    <Trash2 className="w-4 h-4" />
-                                                  </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                  <AlertDialogHeader>
-                                                    <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                      {t('confirm_delete_checklist_desc', `Are you sure you want to delete the checklist "${checklist.name}"? This action cannot be undone.`)}
-                                                    </AlertDialogDescription>
-                                                  </AlertDialogHeader>
-                                                  <AlertDialogFooter>
-                                                    <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                      onClick={() => handleDeleteChecklist(checklist.id)}
-                                                      className="bg-red-600 hover:bg-red-700"
+                                            <PermissionGate permission={PERMISSIONS.SETTINGS_UPDATE}>
+                                              <div className="flex items-center gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => handleEditChecklist(checklist)}
+                                                  className="h-8 w-8 p-0 hover:bg-slate-600"
+                                                  aria-label={t('edit_checklist', 'Edit checklist')}
+                                                  data-testid={`button-edit-checklist-${checklist.id}`}
+                                                >
+                                                  <Edit className="w-4 h-4 text-slate-400" />
+                                                </Button>
+                                                <AlertDialog>
+                                                  <AlertDialogTrigger asChild>
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      className="h-8 w-8 p-0 hover:bg-slate-600 text-red-400 hover:text-red-300"
+                                                      aria-label={t('delete_checklist', 'Delete checklist')}
+                                                      data-testid={`button-delete-checklist-${checklist.id}`}
                                                     >
-                                                      {t('delete', 'Delete')}
-                                                    </AlertDialogAction>
-                                                  </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                              </AlertDialog>
-                                            </div>
+                                                      <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                  </AlertDialogTrigger>
+                                                  <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                      <AlertDialogTitle>{t('confirm_delete', 'Confirm Delete')}</AlertDialogTitle>
+                                                      <AlertDialogDescription>
+                                                        {t('confirm_delete_checklist_desc', `Are you sure you want to delete the checklist "${checklist.name}"? This action cannot be undone.`)}
+                                                      </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                      <AlertDialogCancel>{t('cancel', 'Cancel')}</AlertDialogCancel>
+                                                      <AlertDialogAction
+                                                        onClick={() => handleDeleteChecklist(checklist.id)}
+                                                        className="bg-red-600 hover:bg-red-700"
+                                                      >
+                                                        {t('delete', 'Delete')}
+                                                      </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                  </AlertDialogContent>
+                                                </AlertDialog>
+                                              </div>
+                                            </PermissionGate>
                                           </div>
                                         </div>
                                       )}
