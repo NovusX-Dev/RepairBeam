@@ -3505,6 +3505,414 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==========================================================================
+  // RBAC Routes - Groups Management
+  // ==========================================================================
+
+  // Get all groups for a tenant
+  app.get("/api/groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const groups = await storage.getGroups(user.tenantId);
+      res.json(groups);
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+      res.status(500).json({ message: "Failed to fetch groups" });
+    }
+  });
+
+  // Get a specific group
+  app.get("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const group = await storage.getGroup(id, user.tenantId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      res.json(group);
+    } catch (error) {
+      console.error("Error fetching group:", error);
+      res.status(500).json({ message: "Failed to fetch group" });
+    }
+  });
+
+  // Create a new group
+  app.post("/api/groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const { name, description, permissions, isDefault } = req.body;
+      
+      // Validate required fields
+      if (!name || !permissions || !Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Name and permissions array are required" });
+      }
+
+      const newGroup = await storage.createGroup({
+        tenantId: user.tenantId,
+        name,
+        description: description || null,
+        permissions,
+        isDefault: isDefault || false,
+        isSystemGroup: false,
+      });
+
+      res.status(201).json(newGroup);
+    } catch (error) {
+      console.error("Error creating group:", error);
+      res.status(500).json({ message: "Failed to create group" });
+    }
+  });
+
+  // Update a group
+  app.put("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const { name, description, permissions, isDefault } = req.body;
+
+      const updatedGroup = await storage.updateGroup(id, user.tenantId, {
+        name,
+        description,
+        permissions,
+        isDefault,
+      });
+
+      if (!updatedGroup) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+
+      res.json(updatedGroup);
+    } catch (error) {
+      console.error("Error updating group:", error);
+      if (error instanceof Error && error.message.includes('does not belong to this tenant')) {
+        return res.status(403).json({ message: "Unauthorized to modify this group" });
+      }
+      res.status(500).json({ message: "Failed to update group" });
+    }
+  });
+
+  // Delete a group
+  app.delete("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const success = await storage.deleteGroup(id, user.tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+
+      res.json({ message: "Group deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      if (error instanceof Error && error.message.includes('does not belong to this tenant')) {
+        return res.status(403).json({ message: "Unauthorized to delete this group" });
+      }
+      res.status(500).json({ message: "Failed to delete group" });
+    }
+  });
+
+  // ==========================================================================
+  // RBAC Routes - User-Group Management
+  // ==========================================================================
+
+  // Get groups for a specific user
+  app.get("/api/users/:userId/groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId: targetUserId } = req.params;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+      if (!currentUser || !currentUser.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const userGroups = await storage.getUserGroups(targetUserId, currentUser.tenantId);
+      res.json(userGroups);
+    } catch (error) {
+      console.error("Error fetching user groups:", error);
+      res.status(500).json({ message: "Failed to fetch user groups" });
+    }
+  });
+
+  // Add user to a group
+  app.post("/api/users/:userId/groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId: targetUserId } = req.params;
+      const { groupId } = req.body;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+      if (!currentUser || !currentUser.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      if (!groupId) {
+        return res.status(400).json({ message: "groupId is required" });
+      }
+
+      const userGroup = await storage.addUserToGroup(targetUserId, groupId, currentUser.tenantId);
+      res.status(201).json(userGroup);
+    } catch (error) {
+      console.error("Error adding user to group:", error);
+      if (error instanceof Error && error.message.includes('does not belong to this tenant')) {
+        return res.status(403).json({ message: "Unauthorized: User or group does not belong to this tenant" });
+      }
+      res.status(500).json({ message: "Failed to add user to group" });
+    }
+  });
+
+  // Remove user from a group
+  app.delete("/api/users/:userId/groups/:groupId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId: targetUserId, groupId } = req.params;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+      if (!currentUser || !currentUser.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const success = await storage.removeUserFromGroup(targetUserId, groupId, currentUser.tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "User-group association not found" });
+      }
+
+      res.json({ message: "User removed from group successfully" });
+    } catch (error) {
+      console.error("Error removing user from group:", error);
+      if (error instanceof Error && error.message.includes('does not belong to this tenant')) {
+        return res.status(403).json({ message: "Unauthorized: User or group does not belong to this tenant" });
+      }
+      res.status(500).json({ message: "Failed to remove user from group" });
+    }
+  });
+
+  // Get user permissions (combined from all groups)
+  app.get("/api/users/:userId/permissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId: targetUserId } = req.params;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+      if (!currentUser || !currentUser.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const permissions = await storage.getUserPermissions(targetUserId, currentUser.tenantId);
+      res.json({ permissions });
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
+      res.status(500).json({ message: "Failed to fetch user permissions" });
+    }
+  });
+
+  // ==========================================================================
+  // RBAC Routes - User Invitations
+  // ==========================================================================
+
+  // Get all invitations for a tenant
+  app.get("/api/invitations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const invitations = await storage.getUserInvitations(user.tenantId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  // Create a new invitation
+  app.post("/api/invitations", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const { email, firstName, lastName, phone, telegram, groupIds } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Check if user with this email already exists in tenant
+      const existingInvitation = await storage.getUserInvitationByEmail(email, user.tenantId);
+      if (existingInvitation) {
+        return res.status(400).json({ message: "An invitation for this email already exists" });
+      }
+
+      // Generate unique token (simple version - in production use crypto.randomBytes)
+      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      // Set expiration to 7 days from now
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      const invitation = await storage.createUserInvitation({
+        tenantId: user.tenantId,
+        email,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        phone: phone || null,
+        telegram: telegram || null,
+        invitedByUserId: userId,
+        groupIds: groupIds || [],
+        token,
+        expiresAt,
+        status: 'pending',
+      });
+
+      res.status(201).json(invitation);
+    } catch (error) {
+      console.error("Error creating invitation:", error);
+      if (error instanceof Error && error.message.includes('does not belong to this tenant')) {
+        return res.status(403).json({ message: "Unauthorized to create invitation" });
+      }
+      res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+
+  // Get invitation by token (public endpoint for accepting invitations)
+  app.get("/api/invitations/token/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invitation = await storage.getUserInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      // Check if invitation has expired
+      if (new Date() > new Date(invitation.expiresAt)) {
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Check if invitation was already accepted
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ message: "Invitation has already been processed" });
+      }
+
+      res.json(invitation);
+    } catch (error) {
+      console.error("Error fetching invitation:", error);
+      res.status(500).json({ message: "Failed to fetch invitation" });
+    }
+  });
+
+  // Delete/Cancel an invitation
+  app.delete("/api/invitations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const success = await storage.deleteUserInvitation(id);
+      if (!success) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      res.json({ message: "Invitation deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting invitation:", error);
+      if (error instanceof Error && error.message.includes('not found')) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      res.status(500).json({ message: "Failed to delete invitation" });
+    }
+  });
+
+  // ==========================================================================
+  // RBAC Routes - User Management
+  // ==========================================================================
+
+  // Get all users for a tenant
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const users = await storage.getUsersByTenant(user.tenantId);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Update user status (activate/suspend)
+  app.patch("/api/users/:userId/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId: targetUserId } = req.params;
+      const { status } = req.body;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+      
+      if (!currentUser || !currentUser.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      if (!status || !['active', 'suspended'].includes(status)) {
+        return res.status(400).json({ message: "Valid status (active/suspended) is required" });
+      }
+
+      // Verify target user belongs to same tenant
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser || targetUser.tenantId !== currentUser.tenantId) {
+        return res.status(403).json({ message: "Unauthorized to modify this user" });
+      }
+
+      // Prevent users from suspending themselves
+      if (targetUserId === currentUserId) {
+        return res.status(400).json({ message: "Cannot change your own status" });
+      }
+
+      const updatedUser = await storage.upsertUser({
+        id: targetUserId,
+        status,
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

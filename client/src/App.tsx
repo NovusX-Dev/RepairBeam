@@ -21,7 +21,6 @@ import PurchaseOrders from "@/pages/PurchaseOrders";
 import POS from "@/pages/POS";
 import Support from "@/pages/Support";
 import Configs from "@/pages/Configs";
-import AnimationShowcase from "@/pages/AnimationShowcase";
 import Users from "@/pages/Users";
 import NotFound from "@/pages/not-found";
 
@@ -69,7 +68,6 @@ function Router() {
             <Route path="/pos" component={() => <Layout><POS /></Layout>} />
             <Route path="/support" component={() => <Layout><Support /></Layout>} />
             <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
-            <Route path="/animations" component={() => <Layout><AnimationShowcase /></Layout>} />
             <Route path="/users" component={() => <Layout><Users /></Layout>} />
           </>
         )}
