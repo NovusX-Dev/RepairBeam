@@ -24,6 +24,8 @@ import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, C
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { formatTicketId } from "@/lib/utils";
+import { PermissionGate } from "@/components/PermissionGate";
+import { PERMISSIONS } from "@shared/permissions";
 
 type TicketWithClient = Ticket & { client?: Client };
 
@@ -936,14 +938,16 @@ export default function TicketSummaryDialog({
         {/* Footer Actions */}
         <div className="flex justify-between items-center mt-6 pt-4 border-t">
           {onDelete && ticket.status !== 'finalized' ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => onDelete(ticket.id)}
-              data-testid="button-delete-ticket"
-            >
-              {t("delete_ticket", "Delete Ticket")}
-            </Button>
+            <PermissionGate permission={PERMISSIONS.TICKETS_DELETE}>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => onDelete(ticket.id)}
+                data-testid="button-delete-ticket"
+              >
+                {t("delete_ticket", "Delete Ticket")}
+              </Button>
+            </PermissionGate>
           ) : <div />}
           <Button variant="outline" onClick={onClose} data-testid="button-close-ticket-summary">
             {t("close", "Close")}
