@@ -108,7 +108,7 @@ import {
   type AuditLog,
   type InsertAuditLog,
 } from "@shared/schema";
-import { type Permission } from "@shared/permissions";
+import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc, inArray } from "drizzle-orm";
 
@@ -3026,6 +3026,46 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .orderBy(desc(auditLogs.createdAt));
+    });
+  }
+
+  // ========================================================================
+  // RBAC - Admin Group Initialization
+  // ========================================================================
+
+  async ensureAdminGroup(tenantId: string, firstUserId: string): Promise<Group> {
+    return withRetry(async () => {
+      // Check if an Admin group already exists for this tenant
+      const existingGroups = await this.getGroups(tenantId);
+      const adminGroup = existingGroups.find(g => g.name === 'Admin');
+      
+      if (adminGroup) {
+        // Admin group exists, ensure the first user is in it
+        const userGroups = await this.getUserGroups(firstUserId, tenantId);
+        const isInAdminGroup = userGroups.some(ug => ug.groupId === adminGroup.id);
+        
+        if (!isInAdminGroup) {
+          await this.addUserToGroup(firstUserId, adminGroup.id, tenantId);
+        }
+        
+        return adminGroup;
+      }
+
+      // Create Admin group with all permissions from shared/permissions
+      const allPermissions = Object.values(PERMISSIONS) as Permission[];
+
+      // Create the Admin group
+      const newAdminGroup = await this.createGroup({
+        name: 'Admin',
+        description: 'Full system access with all permissions',
+        permissions: allPermissions,
+        tenantId,
+      });
+
+      // Add the first user to the Admin group
+      await this.addUserToGroup(firstUserId, newAdminGroup.id, tenantId);
+
+      return newAdminGroup;
     });
   }
 }

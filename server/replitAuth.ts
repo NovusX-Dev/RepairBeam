@@ -84,6 +84,13 @@ async function upsertUser(
       tenantId: tenant.id,
       role: 'user'
     });
+
+    // Only create Admin group and assign to user if this is a brand new tenant (first user)
+    // Check if tenant was just created by checking if there are any other users
+    const tenantUsers = await storage.getUsersByTenant(tenant.id);
+    if (tenantUsers.length === 1) { // Only the newly created user exists
+      await storage.ensureAdminGroup(tenant.id, user.id);
+    }
   } else {
     // Update existing user info (without changing tenantId)
     user = await storage.upsertUser({
