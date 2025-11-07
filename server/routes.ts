@@ -3719,6 +3719,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found or not associated with a tenant" });
       }
 
+      // Self-demotion guard: prevent users from removing themselves from their last admin group
+      if (currentUserId === targetUserId) {
+        const userGroups = await storage.getUserGroups(targetUserId, currentUser.tenantId);
+        const allGroups = await storage.getGroups(currentUser.tenantId);
+        
+        // Check if user is removing themselves from an admin group
+        const groupBeingRemoved = allGroups.find(g => g.id === groupId);
+        if (groupBeingRemoved && Array.isArray(groupBeingRemoved.permissions)) {
+          const hasUsersManageGroups = groupBeingRemoved.permissions.includes(PERMISSIONS.USERS_MANAGE_GROUPS);
+          
+          if (hasUsersManageGroups) {
+            // Count how many admin groups the user is currently in
+            const adminGroupCount = userGroups.filter(ug => {
+              const group = allGroups.find(g => g.id === ug.groupId);
+              return group && Array.isArray(group.permissions) && group.permissions.includes(PERMISSIONS.USERS_MANAGE_GROUPS);
+            }).length;
+            
+            // Prevent removal if this is their last admin group
+            if (adminGroupCount <= 1) {
+              return res.status(403).json({ 
+                message: "Cannot remove yourself from your last admin group. Please assign another admin first." 
+              });
+            }
+          }
+        }
+      }
+
       const success = await storage.removeUserFromGroup(targetUserId, groupId, currentUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "User-group association not found" });

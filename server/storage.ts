@@ -3068,6 +3068,35 @@ export class DatabaseStorage implements IStorage {
       return newAdminGroup;
     });
   }
+
+  // ========================================================================
+  // RBAC - Permission Template Seeding
+  // ========================================================================
+
+  async seedPermissionTemplates(tenantId: string): Promise<void> {
+    return withRetry(async () => {
+      // Import ROLE_TEMPLATES from shared/permissions
+      const { ROLE_TEMPLATES } = await import('@shared/permissions');
+      
+      const existingGroups = await this.getGroups(tenantId);
+      
+      // Seed each template if it doesn't already exist
+      for (const [key, template] of Object.entries(ROLE_TEMPLATES)) {
+        const existingGroup = existingGroups.find(g => g.name === template.name);
+        
+        if (!existingGroup) {
+          await this.createGroup({
+            name: template.name,
+            description: template.description,
+            permissions: template.permissions as Permission[],
+            tenantId,
+            isSystemGroup: true, // Mark as system template
+            isDefault: key === 'VIEWER', // Make Viewer default for new users
+          });
+        }
+      }
+    });
+  }
 }
 
 export const storage = new DatabaseStorage();

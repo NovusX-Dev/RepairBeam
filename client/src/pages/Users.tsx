@@ -67,6 +67,14 @@ interface Invitation {
   createdAt: Date;
 }
 
+interface UserGroup {
+  id: string;
+  userId: string;
+  groupId: string;
+  tenantId: string;
+  createdAt: Date;
+}
+
 export default function Users() {
   const { t } = useLocalization();
   const { user: currentUser } = useAuth();
@@ -77,6 +85,8 @@ export default function Users() {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [isManageUserGroupsDialogOpen, setIsManageUserGroupsDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // Form states
   const [inviteForm, setInviteForm] = useState({
@@ -110,6 +120,12 @@ export default function Users() {
   const { data: invitations = [], isLoading: invitationsLoading } = useQuery<Invitation[]>({
     queryKey: ["/api/invitations"],
     enabled: activeTab === "users",
+  });
+
+  // Fetch user groups for selected user
+  const { data: selectedUserGroups = [], isLoading: userGroupsLoading } = useQuery<UserGroup[]>({
+    queryKey: ["/api/users", selectedUser?.id, "groups"],
+    enabled: !!selectedUser && isManageUserGroupsDialogOpen,
   });
 
   // Create invitation mutation
@@ -245,6 +261,50 @@ export default function Users() {
     },
   });
 
+  // Add user to group mutation
+  const addUserToGroupMutation = useMutation({
+    mutationFn: async ({ userId, groupId }: { userId: string; groupId: string }) => {
+      return apiRequest("POST", `/api/users/${userId}/groups`, { groupId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", selectedUser?.id, "groups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me/permissions"] });
+      toast({
+        title: t("user_group_added", "User Added to Group"),
+        description: t("user_group_added_desc", "User has been added to the group successfully."),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error", "Error"),
+        description: error.message || t("user_group_add_failed", "Failed to add user to group"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Remove user from group mutation
+  const removeUserFromGroupMutation = useMutation({
+    mutationFn: async ({ userId, groupId }: { userId: string; groupId: string }) => {
+      return apiRequest("DELETE", `/api/users/${userId}/groups/${groupId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users", selectedUser?.id, "groups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me/permissions"] });
+      toast({
+        title: t("user_group_removed", "User Removed from Group"),
+        description: t("user_group_removed_desc", "User has been removed from the group successfully."),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error", "Error"),
+        description: error.message || t("user_group_remove_failed", "Failed to remove user from group"),
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetInviteForm = () => {
     setInviteForm({
       email: "",
@@ -321,6 +381,27 @@ export default function Users() {
         ? prev.groupIds.filter(id => id !== groupId)
         : [...prev.groupIds, groupId]
     }));
+  };
+
+  const handleManageUserGroups = (user: User) => {
+    setSelectedUser(user);
+    setIsManageUserGroupsDialogOpen(true);
+  };
+
+  const handleToggleUserGroup = (groupId: string) => {
+    if (!selectedUser) return;
+    
+    const isInGroup = selectedUserGroups.some(ug => ug.groupId === groupId);
+    
+    if (isInGroup) {
+      removeUserFromGroupMutation.mutate({ userId: selectedUser.id, groupId });
+    } else {
+      addUserToGroupMutation.mutate({ userId: selectedUser.id, groupId });
+    }
+  };
+
+  const getUserGroupNames = (userId: string) => {
+    return [];
   };
 
   return (
@@ -511,16 +592,27 @@ export default function Users() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {user.id !== currentUser?.id && (
+                          <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleToggleUserStatus(user.id, user.status)}
-                              data-testid={`button-toggle-status-${user.id}`}
+                              onClick={() => handleManageUserGroups(user)}
+                              data-testid={`button-manage-groups-${user.id}`}
                             >
-                              {user.status === "active" ? t("suspend", "Suspend") : t("activate", "Activate")}
+                              <Shield className="w-3 h-3 mr-1" />
+                              {t("manage_groups", "Manage Groups")}
                             </Button>
-                          )}
+                            {user.id !== currentUser?.id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleToggleUserStatus(user.id, user.status)}
+                                data-testid={`button-toggle-status-${user.id}`}
+                              >
+                                {user.status === "active" ? t("suspend", "Suspend") : t("activate", "Activate")}
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -593,6 +685,99 @@ export default function Users() {
               )}
             </CardContent>
           </Card>
+
+          {/* Manage User Groups Dialog */}
+          <Dialog 
+            open={isManageUserGroupsDialogOpen} 
+            onOpenChange={(open) => {
+              setIsManageUserGroupsDialogOpen(open);
+              if (!open) setSelectedUser(null);
+            }}
+          >
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{t("manage_user_groups", "Manage User Groups")}</DialogTitle>
+                <DialogDescription>
+                  {selectedUser && (
+                    <>
+                      {t("manage_groups_for", "Manage group memberships for")}{" "}
+                      <strong>
+                        {selectedUser.firstName || selectedUser.lastName
+                          ? `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim()
+                          : selectedUser.email || t("unnamed_user", "Unnamed User")}
+                      </strong>
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {userGroupsLoading ? (
+                  <p className="text-center text-muted-foreground py-8">{t("loading", "Loading...")}</p>
+                ) : groups.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">{t("no_groups_available", "No groups available. Create a group first.")}</p>
+                ) : (
+                  <ScrollArea className="h-96">
+                    <div className="space-y-2 pr-4">
+                      {groups.map(group => {
+                        const isInGroup = selectedUserGroups.some(ug => ug.groupId === group.id);
+                        return (
+                          <div 
+                            key={group.id} 
+                            className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="flex items-start space-x-3 flex-1">
+                              <Checkbox
+                                id={`user-group-${group.id}`}
+                                checked={isInGroup}
+                                onCheckedChange={() => handleToggleUserGroup(group.id)}
+                                disabled={addUserToGroupMutation.isPending || removeUserFromGroupMutation.isPending}
+                                data-testid={`checkbox-user-group-${group.id}`}
+                              />
+                              <div className="flex-1">
+                                <label
+                                  htmlFor={`user-group-${group.id}`}
+                                  className="font-medium leading-none cursor-pointer"
+                                >
+                                  {group.name}
+                                  {group.isDefault && (
+                                    <Badge variant="secondary" className="ml-2">
+                                      {t("default", "Default")}
+                                    </Badge>
+                                  )}
+                                  {group.isSystemGroup && (
+                                    <Badge variant="outline" className="ml-2">
+                                      {t("system", "System")}
+                                    </Badge>
+                                  )}
+                                </label>
+                                {group.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    {group.description}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {group.permissions.length} {t("permissions", "permissions")}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsManageUserGroupsDialogOpen(false)}
+                  data-testid="button-close-manage-groups"
+                >
+                  {t("close", "Close")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Groups Tab */}

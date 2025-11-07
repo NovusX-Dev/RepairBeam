@@ -90,6 +90,7 @@ async function upsertUser(
     const tenantUsers = await storage.getUsersByTenant(tenant.id);
     if (tenantUsers.length === 1) { // Only the newly created user exists
       await storage.ensureAdminGroup(tenant.id, user.id);
+      await storage.seedPermissionTemplates(tenant.id);
     }
   } else {
     // Update existing user info (without changing tenantId)
