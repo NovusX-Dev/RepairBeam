@@ -30,6 +30,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import type { InventoryItem, InventoryCategory } from "@shared/schema";
 import QRCodePrintSheet from "@/components/QRCodePrintSheet";
+import { PermissionGate } from "@/components/PermissionGate";
+import { PERMISSIONS } from "@shared/permissions";
 
 interface AutoGenList {
   id: string;
@@ -772,14 +774,16 @@ export default function PurchaseOrders() {
           <h1 className="text-3xl font-bold text-white">{t("purchase_orders", "Purchase Orders")}</h1>
           <p className="text-slate-400 mt-1">{t("manage_purchase_orders", "Manage your purchase orders and inventory receiving")}</p>
         </div>
-        <Button
-          onClick={handleOpenCreateDialog}
-          className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
-          data-testid="button-create-po"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {t("create_po", "Create Purchase Order")}
-        </Button>
+        <PermissionGate permission={PERMISSIONS.PURCHASE_ORDERS_CREATE}>
+          <Button
+            onClick={handleOpenCreateDialog}
+            className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
+            data-testid="button-create-po"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {t("create_po", "Create Purchase Order")}
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Search */}
@@ -889,24 +893,28 @@ export default function PurchaseOrders() {
                           <div className="flex items-center gap-2">
                             {po.status === 'pending' && (
                               <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleOpenReceiveDialog(po)}
-                                  className="hover:bg-green-500/20 hover:text-green-400"
-                                  data-testid={`button-receive-${po.id}`}
-                                >
-                                  <Package className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleCancelPO(po)}
-                                  className="hover:bg-red-500/20 hover:text-red-400"
-                                  data-testid={`button-cancel-${po.id}`}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
+                                <PermissionGate permission={PERMISSIONS.PURCHASE_ORDERS_RECEIVE}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenReceiveDialog(po)}
+                                    className="hover:bg-green-500/20 hover:text-green-400"
+                                    data-testid={`button-receive-${po.id}`}
+                                  >
+                                    <Package className="w-4 h-4" />
+                                  </Button>
+                                </PermissionGate>
+                                <PermissionGate permission={PERMISSIONS.PURCHASE_ORDERS_UPDATE}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCancelPO(po)}
+                                    className="hover:bg-red-500/20 hover:text-red-400"
+                                    data-testid={`button-cancel-${po.id}`}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </PermissionGate>
                               </>
                             )}
                           </div>
