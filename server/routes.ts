@@ -3870,6 +3870,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Resend an invitation
+  app.post("/api/invitations/:id/resend", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = await storage.getUser(req.user.claims.sub);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get the existing invitation
+      const existingInvitation = await storage.getUserInvitation(id);
+      if (!existingInvitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      // Verify the invitation belongs to the same tenant
+      if (existingInvitation.tenantId !== user.tenantId) {
+        return res.status(403).json({ message: "Unauthorized to resend this invitation" });
+      }
+
+      // Only allow resending pending invitations
+      if (existingInvitation.status !== 'pending') {
+        return res.status(400).json({ message: "Can only resend pending invitations" });
+      }
+
+      // Generate new token and expiration
+      const { nanoid } = await import('nanoid');
+      const token = nanoid(32);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      // Update the invitation
+      const updatedInvitation = await storage.updateUserInvitation(id, {
+        token,
+        expiresAt,
+        status: 'pending',
+      });
+
+      if (!updatedInvitation) {
+        return res.status(500).json({ message: "Failed to update invitation" });
+      }
+
+      // Send invitation email
+      try {
+        const { sendInvitationEmail } = await import('./resend.js');
+        const invitedName = existingInvitation.firstName && existingInvitation.lastName 
+          ? `${existingInvitation.firstName} ${existingInvitation.lastName}` 
+          : existingInvitation.firstName || existingInvitation.lastName || existingInvitation.email;
+        const invitedByName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'A team member';
+        
+        // Get tenant name and language preference from store settings
+        const storeSettings = await storage.getStoreSettings(user.tenantId);
+        const language = storeSettings?.preferredLanguage || 'en';
+        const tenantName = storeSettings?.shopName || 'Repair Beam';
+        
+        await sendInvitationEmail(existingInvitation.email, invitedName, invitedByName, token, expiresAt, language, tenantName);
+        console.log(`Invitation email resent to ${existingInvitation.email} in language: ${language}`);
+      } catch (emailError) {
+        console.error('Failed to send invitation email:', emailError);
+        return res.status(500).json({ message: "Failed to send invitation email" });
+      }
+
+      res.json({ message: "Invitation resent successfully", invitation: updatedInvitation });
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      res.status(500).json({ message: "Failed to resend invitation" });
+    }
+  });
+
   // Get invitation by token (public endpoint for accepting invitations)
   app.get("/api/invitations/token/:token", async (req, res) => {
     try {

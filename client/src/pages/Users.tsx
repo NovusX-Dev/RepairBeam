@@ -28,7 +28,8 @@ import {
   UserCog,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { usePermissions } from "@/contexts/PermissionContext";
@@ -90,6 +91,7 @@ export default function Users() {
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [isManageUserGroupsDialogOpen, setIsManageUserGroupsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isBulkInviteDialogOpen, setIsBulkInviteDialogOpen] = useState(false);
 
   // Form states
   const [inviteForm, setInviteForm] = useState({
@@ -107,6 +109,18 @@ export default function Users() {
     permissions: [] as string[],
     isDefault: false,
   });
+
+  const [bulkInviteForm, setBulkInviteForm] = useState({
+    emailsText: "",
+    groupIds: [] as string[],
+  });
+
+  const [bulkInviteResults, setBulkInviteResults] = useState<{
+    email: string;
+    status: 'pending' | 'success' | 'error';
+    message?: string;
+  }[]>([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   // Fetch users
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
@@ -243,6 +257,27 @@ export default function Users() {
     },
   });
 
+  // Resend invitation mutation
+  const resendInvitationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("POST", `/api/invitations/${id}/resend`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      toast({
+        title: t("invitation_resent", "Invitation Resent"),
+        description: t("invitation_resent_desc", "Invitation has been resent successfully."),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error", "Error"),
+        description: error.message || t("invitation_resend_failed", "Failed to resend invitation"),
+        variant: "destructive",
+      });
+    },
+  });
+
   // Update user status mutation
   const updateUserStatusMutation = useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
@@ -363,6 +398,10 @@ export default function Users() {
     }
   };
 
+  const handleResendInvitation = (id: string) => {
+    resendInvitationMutation.mutate(id);
+  };
+
   const handleToggleUserStatus = (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "suspended" : "active";
     updateUserStatusMutation.mutate({ userId, status: newStatus });
@@ -407,6 +446,112 @@ export default function Users() {
     return [];
   };
 
+  const toggleGroupForBulkInvite = (groupId: string) => {
+    setBulkInviteForm(prev => ({
+      ...prev,
+      groupIds: prev.groupIds.includes(groupId)
+        ? prev.groupIds.filter(id => id !== groupId)
+        : [...prev.groupIds, groupId]
+    }));
+  };
+
+  const parseEmailsFromText = (text: string) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const results: { email: string; firstName?: string; lastName?: string }[] = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      // Try to parse email and name (formats: "email" or "email, name" or "email\tname")
+      const parts = trimmed.split(/[,\t]/).map(p => p.trim());
+      const email = parts[0];
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        continue; // Skip invalid emails
+      }
+      
+      let firstName = "";
+      let lastName = "";
+      
+      if (parts.length > 1) {
+        const nameParts = parts[1].split(' ').filter(p => p);
+        firstName = nameParts[0] || "";
+        lastName = nameParts.slice(1).join(' ') || "";
+      }
+      
+      results.push({ email, firstName, lastName });
+    }
+    
+    return results;
+  };
+
+  const handleBulkInvite = async () => {
+    const emails = parseEmailsFromText(bulkInviteForm.emailsText);
+    
+    if (emails.length === 0) {
+      toast({
+        title: t("error", "Error"),
+        description: t("no_valid_emails", "No valid email addresses found"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Initialize results
+    setBulkInviteResults(emails.map(e => ({ email: e.email, status: 'pending' as const })));
+    setIsBulkProcessing(true);
+
+    // Process each invitation
+    for (let i = 0; i < emails.length; i++) {
+      const { email, firstName, lastName } = emails[i];
+      
+      try {
+        await apiRequest("POST", "/api/invitations", {
+          email,
+          firstName: firstName || "",
+          lastName: lastName || "",
+          phone: "",
+          telegram: "",
+          groupIds: bulkInviteForm.groupIds,
+        });
+        
+        setBulkInviteResults(prev => 
+          prev.map((r, idx) => 
+            idx === i ? { ...r, status: 'success' as const, message: t("sent", "Sent") } : r
+          )
+        );
+      } catch (error: any) {
+        setBulkInviteResults(prev => 
+          prev.map((r, idx) => 
+            idx === i ? { ...r, status: 'error' as const, message: error.message || t("failed", "Failed") } : r
+          )
+        );
+      }
+    }
+
+    setIsBulkProcessing(false);
+    queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+    
+    const successCount = bulkInviteResults.filter(r => r.status === 'success').length;
+    const errorCount = bulkInviteResults.filter(r => r.status === 'error').length;
+    
+    toast({
+      title: t("bulk_invite_complete", "Bulk Invite Complete"),
+      description: t("bulk_invite_summary", `Sent: ${successCount}, Failed: ${errorCount}`),
+    });
+  };
+
+  const resetBulkInviteForm = () => {
+    setBulkInviteForm({
+      emailsText: "",
+      groupIds: [],
+    });
+    setBulkInviteResults([]);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -434,7 +579,17 @@ export default function Users() {
 
         {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
+              <Button 
+                variant="outline"
+                onClick={() => setIsBulkInviteDialogOpen(true)}
+                data-testid="button-bulk-invite"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {t("bulk_invite", "Bulk Invite")}
+              </Button>
+            </PermissionGate>
             <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
               <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
                 <DialogTrigger asChild>
@@ -679,17 +834,31 @@ export default function Users() {
                           {new Date(invitation.expiresAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCancelInvitation(invitation.id)}
-                              data-testid={`button-cancel-invitation-${invitation.id}`}
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              {t("cancel", "Cancel")}
-                            </Button>
-                          </PermissionGate>
+                          <div className="flex items-center justify-end gap-2">
+                            <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResendInvitation(invitation.id)}
+                                disabled={resendInvitationMutation.isPending}
+                                data-testid={`button-resend-invitation-${invitation.id}`}
+                              >
+                                <RefreshCw className="w-4 h-4 mr-1" />
+                                {t("resend", "Resend")}
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCancelInvitation(invitation.id)}
+                                data-testid={`button-cancel-invitation-${invitation.id}`}
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                {t("cancel", "Cancel")}
+                              </Button>
+                            </PermissionGate>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1013,6 +1182,141 @@ export default function Users() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Bulk Invite Dialog */}
+      <Dialog 
+        open={isBulkInviteDialogOpen} 
+        onOpenChange={(open) => {
+          setIsBulkInviteDialogOpen(open);
+          if (!open) resetBulkInviteForm();
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("bulk_invite", "Bulk Invite")}</DialogTitle>
+            <DialogDescription>
+              {t("bulk_invite_desc", "Invite multiple users at once. Enter one email per line, optionally with name separated by comma or tab.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-emails">
+                {t("email_addresses", "Email Addresses")}
+              </Label>
+              <Textarea
+                id="bulk-emails"
+                placeholder={`user1@example.com\nuser2@example.com, John Doe\nuser3@example.com\tJane Smith`}
+                value={bulkInviteForm.emailsText}
+                onChange={(e) => setBulkInviteForm(prev => ({ ...prev, emailsText: e.target.value }))}
+                rows={8}
+                className="font-mono text-sm"
+                disabled={isBulkProcessing}
+                data-testid="textarea-bulk-emails"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("bulk_invite_format", "Format: email or email, Full Name (one per line)")}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("assign_groups", "Assign to Groups")}</Label>
+              <ScrollArea className="h-32 border rounded-md p-3">
+                {groups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{t("no_groups_available", "No groups available. Create a group first.")}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {groups.map((group) => (
+                      <div key={group.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`bulk-group-${group.id}`}
+                          checked={bulkInviteForm.groupIds.includes(group.id)}
+                          onCheckedChange={() => toggleGroupForBulkInvite(group.id)}
+                          disabled={isBulkProcessing}
+                          data-testid={`checkbox-bulk-group-${group.id}`}
+                        />
+                        <Label
+                          htmlFor={`bulk-group-${group.id}`}
+                          className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                        >
+                          <Shield className="w-3 h-3 text-primary" />
+                          {group.name}
+                          {group.isDefault && (
+                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                          )}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+
+            {/* Processing Results */}
+            {bulkInviteResults.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("processing_status", "Processing Status")}</Label>
+                <ScrollArea className="h-48 border rounded-md p-3 bg-slate-50 dark:bg-slate-900">
+                  <div className="space-y-1">
+                    {bulkInviteResults.map((result, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-center justify-between text-sm p-2 rounded border"
+                        data-testid={`result-${index}`}
+                      >
+                        <span className="font-mono truncate flex-1">{result.email}</span>
+                        {result.status === 'pending' && (
+                          <Badge variant="secondary" className="ml-2">
+                            {t("pending", "Pending")}...
+                          </Badge>
+                        )}
+                        {result.status === 'success' && (
+                          <Badge className="ml-2 bg-green-500/10 text-green-500 border-green-500/20">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            {result.message || t("success", "Success")}
+                          </Badge>
+                        )}
+                        {result.status === 'error' && (
+                          <Badge variant="destructive" className="ml-2">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            {result.message || t("error", "Error")}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkInviteDialogOpen(false)}
+              disabled={isBulkProcessing}
+              data-testid="button-cancel-bulk-invite"
+            >
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button
+              onClick={handleBulkInvite}
+              disabled={isBulkProcessing || !bulkInviteForm.emailsText.trim()}
+              data-testid="button-send-bulk-invites"
+            >
+              {isBulkProcessing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  {t("processing", "Processing")}...
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-2" />
+                  {t("send_invitations", "Send Invitations")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
