@@ -74,6 +74,7 @@ export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 export const PERMISSION_CATEGORIES = {
   TICKETS: {
     label: 'Kanban Tickets',
+    description: 'Manage repair tickets, statuses, and assignments',
     permissions: [
       PERMISSIONS.TICKETS_READ,
       PERMISSIONS.TICKETS_CREATE,
@@ -87,6 +88,7 @@ export const PERMISSION_CATEGORIES = {
   },
   INVENTORY: {
     label: 'Inventory',
+    description: 'Manage inventory items, quantities, and analytics',
     permissions: [
       PERMISSIONS.INVENTORY_READ,
       PERMISSIONS.INVENTORY_CREATE,
@@ -100,6 +102,7 @@ export const PERMISSION_CATEGORIES = {
   },
   CLIENTS: {
     label: 'Clients',
+    description: 'Manage client information and history',
     permissions: [
       PERMISSIONS.CLIENTS_READ,
       PERMISSIONS.CLIENTS_CREATE,
@@ -110,6 +113,7 @@ export const PERMISSION_CATEGORIES = {
   },
   PURCHASE_ORDERS: {
     label: 'Purchase Orders',
+    description: 'Create and manage purchase orders',
     permissions: [
       PERMISSIONS.PURCHASE_ORDERS_READ,
       PERMISSIONS.PURCHASE_ORDERS_CREATE,
@@ -121,6 +125,7 @@ export const PERMISSION_CATEGORIES = {
   },
   POS: {
     label: 'Point of Sale',
+    description: 'Process sales and manage transactions',
     permissions: [
       PERMISSIONS.POS_ACCESS,
       PERMISSIONS.POS_PROCESS_SALE,
@@ -130,6 +135,7 @@ export const PERMISSION_CATEGORIES = {
   },
   USER_MANAGEMENT: {
     label: 'User Management',
+    description: 'Invite and manage team members',
     permissions: [
       PERMISSIONS.USERS_READ,
       PERMISSIONS.USERS_INVITE,
@@ -140,6 +146,7 @@ export const PERMISSION_CATEGORIES = {
   },
   GROUPS: {
     label: 'Groups',
+    description: 'Create and manage permission groups',
     permissions: [
       PERMISSIONS.GROUPS_READ,
       PERMISSIONS.GROUPS_CREATE,
@@ -149,6 +156,7 @@ export const PERMISSION_CATEGORIES = {
   },
   SETTINGS: {
     label: 'Settings',
+    description: 'Modify system settings and configuration',
     permissions: [
       PERMISSIONS.SETTINGS_READ,
       PERMISSIONS.SETTINGS_UPDATE,
@@ -156,6 +164,7 @@ export const PERMISSION_CATEGORIES = {
   },
   REPORTS: {
     label: 'Reports & Analytics',
+    description: 'View and export business reports',
     permissions: [
       PERMISSIONS.REPORTS_READ,
       PERMISSIONS.REPORTS_EXPORT,
@@ -163,6 +172,7 @@ export const PERMISSION_CATEGORIES = {
   },
   AUDIT: {
     label: 'Audit Logs',
+    description: 'View system audit logs and user activity',
     permissions: [
       PERMISSIONS.AUDIT_LOGS_READ,
     ],

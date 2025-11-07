@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { requirePermission } from "./permissionMiddleware";
+import { PERMISSIONS } from "@shared/permissions";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
 import { deviceColorService } from "./deviceColorService";
@@ -192,7 +194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get("/api/users", isAuthenticated, async (req: any, res) => {
+  app.get("/api/users", isAuthenticated, requirePermission(PERMISSIONS.USERS_READ), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3510,7 +3512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================================================
 
   // Get all groups for a tenant
-  app.get("/api/groups", isAuthenticated, async (req: any, res) => {
+  app.get("/api/groups", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_READ), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3527,7 +3529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific group
-  app.get("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/groups/:id", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_READ), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3548,7 +3550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new group
-  app.post("/api/groups", isAuthenticated, async (req: any, res) => {
+  app.post("/api/groups", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_CREATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3580,7 +3582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a group
-  app.put("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/groups/:id", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3613,7 +3615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a group
-  app.delete("/api/groups/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/groups/:id", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_DELETE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3642,7 +3644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================================================
 
   // Get groups for a specific user
-  app.get("/api/users/:userId/groups", isAuthenticated, async (req: any, res) => {
+  app.get("/api/users/:userId/groups", isAuthenticated, requirePermission(PERMISSIONS.USERS_MANAGE_GROUPS), async (req: any, res) => {
     try {
       const { userId: targetUserId } = req.params;
       const currentUserId = req.user.claims.sub;
@@ -3660,7 +3662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add user to a group
-  app.post("/api/users/:userId/groups", isAuthenticated, async (req: any, res) => {
+  app.post("/api/users/:userId/groups", isAuthenticated, requirePermission(PERMISSIONS.USERS_MANAGE_GROUPS), async (req: any, res) => {
     try {
       const { userId: targetUserId } = req.params;
       const { groupId } = req.body;
@@ -3686,7 +3688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Remove user from a group
-  app.delete("/api/users/:userId/groups/:groupId", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/users/:userId/groups/:groupId", isAuthenticated, requirePermission(PERMISSIONS.USERS_MANAGE_GROUPS), async (req: any, res) => {
     try {
       const { userId: targetUserId, groupId } = req.params;
       const currentUserId = req.user.claims.sub;
@@ -3711,7 +3713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user permissions (combined from all groups)
-  app.get("/api/users/:userId/permissions", isAuthenticated, async (req: any, res) => {
+  app.get("/api/users/:userId/permissions", isAuthenticated, requirePermission(PERMISSIONS.USERS_READ), async (req: any, res) => {
     try {
       const { userId: targetUserId } = req.params;
       const currentUserId = req.user.claims.sub;
@@ -3733,7 +3735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==========================================================================
 
   // Get all invitations for a tenant
-  app.get("/api/invitations", isAuthenticated, async (req: any, res) => {
+  app.get("/api/invitations", isAuthenticated, requirePermission(PERMISSIONS.USERS_READ), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3750,7 +3752,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new invitation
-  app.post("/api/invitations", isAuthenticated, async (req: any, res) => {
+  app.post("/api/invitations", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3829,7 +3831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete/Cancel an invitation
-  app.delete("/api/invitations/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/invitations/:id", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3857,25 +3859,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // RBAC Routes - User Management
   // ==========================================================================
 
-  // Get all users for a tenant
-  app.get("/api/users", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
-      }
-
-      const users = await storage.getUsersByTenant(user.tenantId);
-      res.json(users);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      res.status(500).json({ message: "Failed to fetch users" });
-    }
-  });
+  // Note: GET /api/users already exists earlier in this file at line ~195
 
   // Update user status (activate/suspend)
-  app.patch("/api/users/:userId/status", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/users/:userId/status", isAuthenticated, requirePermission(PERMISSIONS.USERS_UPDATE), async (req: any, res) => {
     try {
       const { userId: targetUserId } = req.params;
       const { status } = req.body;
