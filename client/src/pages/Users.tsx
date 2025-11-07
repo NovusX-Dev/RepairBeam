@@ -31,6 +31,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { PermissionGate } from "@/components/PermissionGate";
+import { usePermissions } from "@/contexts/PermissionContext";
 import { PERMISSIONS, PERMISSION_CATEGORIES } from "@shared/permissions";
 
 interface User {
@@ -79,6 +80,7 @@ interface UserGroup {
 export default function Users() {
   const { t } = useLocalization();
   const { user: currentUser } = useAuth();
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("users");
   
@@ -976,29 +978,30 @@ export default function Users() {
                           )}
                         </TableCell>
                         <TableCell className="text-right space-x-2">
+                          {/* Edit button - always shown, but disabled for users without permission */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditGroup(group)}
+                            disabled={!hasPermission(PERMISSIONS.GROUPS_UPDATE)}
+                            data-testid={`button-edit-group-${group.id}`}
+                            title={!hasPermission(PERMISSIONS.GROUPS_UPDATE) ? "You don't have permission to edit groups" : "Edit group"}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          
+                          {/* Delete button - only for non-system groups and only with permission */}
                           {!group.isSystemGroup && (
-                            <>
-                              <PermissionGate permission={PERMISSIONS.GROUPS_UPDATE}>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditGroup(group)}
-                                  data-testid={`button-edit-group-${group.id}`}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </PermissionGate>
-                              <PermissionGate permission={PERMISSIONS.GROUPS_DELETE}>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteGroup(group.id)}
-                                  data-testid={`button-delete-group-${group.id}`}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </PermissionGate>
-                            </>
+                            <PermissionGate permission={PERMISSIONS.GROUPS_DELETE}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteGroup(group.id)}
+                                data-testid={`button-delete-group-${group.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </PermissionGate>
                           )}
                         </TableCell>
                       </TableRow>
