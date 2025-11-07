@@ -96,6 +96,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user's permissions (no permission required - users can see their own permissions)
+  app.get("/api/auth/me/permissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!user.tenantId) {
+        return res.json({ permissions: [] });
+      }
+
+      const permissions = await storage.getUserPermissions(userId, user.tenantId);
+      res.json({ permissions });
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
   // Dashboard stats endpoint
   app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
     try {

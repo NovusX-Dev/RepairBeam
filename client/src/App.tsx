@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LocalizationProvider } from "@/contexts/LocalizationContext";
+import { PermissionProvider } from "@/contexts/PermissionContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
@@ -82,8 +83,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <LocalizationProvider>
-          <Toaster />
-          <Router />
+          <PermissionProvider>
+            <Toaster />
+            <Router />
+          </PermissionProvider>
         </LocalizationProvider>
       </TooltipProvider>
     </QueryClientProvider>
