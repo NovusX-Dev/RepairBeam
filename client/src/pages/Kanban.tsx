@@ -80,6 +80,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useFilterState } from "@/hooks/useFilterState";
 import { useSavedFilters } from "@/hooks/useSavedFilters";
 import { type KanbanFilters, defaultKanbanFilters } from "@shared/filter-types";
+import { PermissionGate } from "@/components/PermissionGate";
+import { PERMISSIONS } from "@shared/permissions";
 
 // Problems Tab Component
 interface ProblemsTabContentProps {
@@ -3130,13 +3132,14 @@ export default function KanbanTickets() {
           </Button>
         </div>
         
-        <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button className="btn-next-hover" data-testid="button-create-ticket">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("new_ticket", "New Ticket")}
-            </Button>
-          </DialogTrigger>
+        <PermissionGate permission={PERMISSIONS.TICKETS_CREATE}>
+          <Dialog open={isTicketDialogOpen} onOpenChange={handleDialogChange}>
+            <DialogTrigger asChild>
+              <Button className="btn-next-hover" data-testid="button-create-ticket">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("new_ticket", "New Ticket")}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-[#0A192F] to-slate-900 dark:from-[#0A192F] dark:to-slate-900">
             <DialogHeader className="border-b border-[#00FFFF]/20 pb-4 mb-0">
               <DialogTitle className="text-2xl font-bold text-[#00FFFF]">
@@ -5320,6 +5323,7 @@ export default function KanbanTickets() {
             </div>
           </DialogContent>
         </Dialog>
+        </PermissionGate>
 
         {/* CPF Conflict Dialog */}
         <Dialog open={showCPFConflict} onOpenChange={setShowCPFConflict}>

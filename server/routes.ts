@@ -999,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Inventory unit tracking routes
   // Verify QR code / unique tag - used for scanning
-  app.get("/api/inventory-units/verify/:uniqueTag", isAuthenticated, async (req: any, res) => {
+  app.get("/api/inventory-units/verify/:uniqueTag", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_SCAN_QR), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1047,7 +1047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inventory-units/:unitId/history", isAuthenticated, async (req: any, res) => {
+  app.get("/api/inventory-units/:unitId/history", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_VIEW_ANALYTICS), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1069,7 +1069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inventory/:itemId/usage-stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/inventory/:itemId/usage-stats", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_VIEW_ANALYTICS), async (req: any, res) =>{
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1334,7 +1334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/purchase-orders/:id/items", isAuthenticated, async (req: any, res) => {
+  app.get("/api/purchase-orders/:id/items", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_READ), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1360,7 +1360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/purchase-orders/:id/finalize", isAuthenticated, async (req: any, res) => {
+  app.post("/api/purchase-orders/:id/finalize", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_RECEIVE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -1531,7 +1531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Cancel PO route
-  app.patch("/api/purchase-orders/:id/cancel", isAuthenticated, async (req: any, res) => {
+  app.patch("/api/purchase-orders/:id/cancel", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_UPDATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3138,7 +3138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/warranty-tiers", isAuthenticated, async (req: any, res) => {
+  app.post("/api/warranty-tiers", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3157,7 +3157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/warranty-tiers/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/warranty-tiers/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3177,7 +3177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/warranty-tiers/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/warranty-tiers/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3231,7 +3231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/repair-services", isAuthenticated, async (req: any, res) => {
+  app.post("/api/repair-services", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3250,7 +3250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/repair-services/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/repair-services/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3270,7 +3270,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/repair-services/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/repair-services/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3334,7 +3334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/possible-defects", isAuthenticated, async (req: any, res) => {
+  app.post("/api/possible-defects", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3353,7 +3353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/possible-defects/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/possible-defects/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3373,7 +3373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/possible-defects/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/possible-defects/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3433,7 +3433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Initialize default checklists for current tenant (for existing tenants)
-  app.post("/api/checklists/initialize", isAuthenticated, async (req: any, res) => {
+  app.post("/api/checklists/initialize", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3451,7 +3451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/checklists", isAuthenticated, async (req: any, res) => {
+  app.post("/api/checklists", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
@@ -3480,7 +3480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/checklists/:id", isAuthenticated, async (req: any, res) => {
+  app.put("/api/checklists/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;
@@ -3509,7 +3509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/checklists/:id", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/checklists/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
       const { id } = req.params;
       const userId = req.user.claims.sub;

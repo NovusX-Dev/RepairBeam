@@ -2,8 +2,11 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
+import { usePermissions } from "@/contexts/PermissionContext";
 import { useQuery } from "@tanstack/react-query";
 import { useLocalization } from "@/contexts/LocalizationContext";
+import { PERMISSIONS } from "@shared/permissions";
+import type { Permission } from "@shared/permissions";
 import {
   LayoutDashboard,
   Users,
@@ -29,18 +32,18 @@ interface SidebarProps {
 }
 
 const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
-  { name: t("dashboard", "Dashboard"), href: "/", icon: LayoutDashboard, id: "dashboard", translationKey: "dashboard" },
-  { name: t("clients", "Clients"), href: "/clients", icon: Users, id: "clients", translationKey: "clients" },
-  { name: t("kanban", "Kanban Tickets"), href: "/kanban", icon: Kanban, id: "kanban", translationKey: "kanban" },
-  { name: t("completed_history", "Completed History"), href: "/completed-history", icon: CheckSquare, id: "completed-history", translationKey: "completed_history" },
-  { name: t("inventory", "Inventory"), href: "/inventory", icon: Package, id: "inventory", translationKey: "inventory" },
-  { name: t("inventory_analytics", "Inventory Analytics"), href: "/inventory-analytics", icon: TrendingUp, id: "inventory-analytics", translationKey: "inventory_analytics" },
-  { name: t("suppliers", "Suppliers"), href: "/suppliers", icon: Building2, id: "suppliers", translationKey: "suppliers" },
-  { name: t("purchase_orders", "Purchase Orders"), href: "/purchase-orders", icon: ShoppingCart, id: "purchase-orders", translationKey: "purchase_orders" },
-  { name: t("pos", "Point of Sale"), href: "/pos", icon: CreditCard, id: "pos", translationKey: "pos" },
-  { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support" },
-  { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs" },
-  { name: t("userManagement", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "userManagement" },
+  { name: t("dashboard", "Dashboard"), href: "/", icon: LayoutDashboard, id: "dashboard", translationKey: "dashboard", permission: null },
+  { name: t("clients", "Clients"), href: "/clients", icon: Users, id: "clients", translationKey: "clients", permission: PERMISSIONS.CLIENTS_READ },
+  { name: t("kanban", "Kanban Tickets"), href: "/kanban", icon: Kanban, id: "kanban", translationKey: "kanban", permission: PERMISSIONS.TICKETS_READ },
+  { name: t("completed_history", "Completed History"), href: "/completed-history", icon: CheckSquare, id: "completed-history", translationKey: "completed_history", permission: PERMISSIONS.TICKETS_READ },
+  { name: t("inventory", "Inventory"), href: "/inventory", icon: Package, id: "inventory", translationKey: "inventory", permission: PERMISSIONS.INVENTORY_READ },
+  { name: t("inventory_analytics", "Inventory Analytics"), href: "/inventory-analytics", icon: TrendingUp, id: "inventory-analytics", translationKey: "inventory_analytics", permission: PERMISSIONS.INVENTORY_VIEW_ANALYTICS },
+  { name: t("suppliers", "Suppliers"), href: "/suppliers", icon: Building2, id: "suppliers", translationKey: "suppliers", permission: PERMISSIONS.PURCHASE_ORDERS_READ },
+  { name: t("purchase_orders", "Purchase Orders"), href: "/purchase-orders", icon: ShoppingCart, id: "purchase-orders", translationKey: "purchase_orders", permission: PERMISSIONS.PURCHASE_ORDERS_READ },
+  { name: t("pos", "Point of Sale"), href: "/pos", icon: CreditCard, id: "pos", translationKey: "pos", permission: PERMISSIONS.POS_ACCESS },
+  { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support", permission: null },
+  { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs", permission: PERMISSIONS.SETTINGS_READ },
+  { name: t("userManagement", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "userManagement", permission: PERMISSIONS.USERS_READ },
 ];
 
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {
@@ -48,6 +51,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { t } = useLocalization();
+  const { hasPermission } = usePermissions();
   
   // Fetch store settings to get shop name and logo
   const { data: storeSettings } = useQuery<any>({
@@ -55,7 +59,12 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
     enabled: !!tenant,
   });
   
-  const navigationItems = getNavigationItems(t);
+  const allNavigationItems = getNavigationItems(t);
+  
+  // Filter navigation items based on permissions
+  const navigationItems = allNavigationItems.filter(item => 
+    !item.permission || hasPermission(item.permission as Permission)
+  );
 
   return (
     <div 
