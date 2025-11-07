@@ -47,6 +47,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { PermissionGate } from "@/components/PermissionGate";
+import { PERMISSIONS } from "@shared/permissions";
 
 interface InventoryItem {
   id: string;
@@ -773,45 +775,51 @@ export default function Inventory() {
                         <TableCell className="text-green-400 font-medium">{formatCurrency(itemValue)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handlePrintQR(item)}
-                                    className="hover:bg-cyan-500/20 hover:text-cyan-400"
-                                    data-testid={`button-print-qr-${item.id}`}
-                                  >
-                                    <QrCode className="w-4 h-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{t("print_qr_codes", "Print QR Codes")}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(item)}
-                              className="hover:bg-blue-500/20 hover:text-blue-400"
-                              data-testid={`button-edit-${item.id}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedItem(item);
-                                setShowDeleteDialog(true);
-                              }}
-                              className="hover:bg-red-500/20 hover:text-red-400"
-                              data-testid={`button-delete-${item.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            <PermissionGate permission={PERMISSIONS.INVENTORY_SCAN_QR}>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handlePrintQR(item)}
+                                      className="hover:bg-cyan-500/20 hover:text-cyan-400"
+                                      data-testid={`button-print-qr-${item.id}`}
+                                    >
+                                      <QrCode className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("print_qr_codes", "Print QR Codes")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </PermissionGate>
+                            <PermissionGate permission={PERMISSIONS.INVENTORY_UPDATE}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(item)}
+                                className="hover:bg-blue-500/20 hover:text-blue-400"
+                                data-testid={`button-edit-${item.id}`}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate permission={PERMISSIONS.INVENTORY_DELETE}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItem(item);
+                                  setShowDeleteDialog(true);
+                                }}
+                                className="hover:bg-red-500/20 hover:text-red-400"
+                                data-testid={`button-delete-${item.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </PermissionGate>
                           </div>
                         </TableCell>
                       </TableRow>
