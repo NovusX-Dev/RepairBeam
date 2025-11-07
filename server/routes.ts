@@ -3842,6 +3842,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending',
       });
 
+      // Send invitation email
+      try {
+        const { sendInvitationEmail } = await import('./resend.js');
+        const invitedName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || email;
+        const invitedByName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'A team member';
+        
+        await sendInvitationEmail(email, invitedName, invitedByName, token, expiresAt);
+        console.log(`Invitation email sent to ${email}`);
+      } catch (emailError) {
+        console.error('Failed to send invitation email, but invitation was created:', emailError);
+        // Don't fail the entire request if email fails - invitation is still created
+      }
+
       res.status(201).json(invitation);
     } catch (error) {
       console.error("Error creating invitation:", error);
@@ -3998,6 +4011,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invitation not found" });
       }
       res.status(500).json({ message: "Failed to delete invitation" });
+    }
+  });
+
+  // ==========================================================================
+  // RBAC Routes - Audit Logs
+  // ==========================================================================
+
+  // Get audit logs with filtering and pagination
+  app.get("/api/audit-logs", isAuthenticated, requirePermission(PERMISSIONS.AUDIT_LOGS_READ), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user || !user.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      const { 
+        limit = '50', 
+        userId: filterUserId,
+        action: filterAction,
+        resource: filterResource,
+      } = req.query;
+
+      const limitNum = parseInt(limit as string, 10);
+
+      // Use storage methods based on filters
+      let logs;
+      if (filterUserId) {
+        logs = await storage.getAuditLogsByUser(user.tenantId, filterUserId as string);
+      } else if (filterAction) {
+        logs = await storage.getAuditLogsByAction(user.tenantId, filterAction as string);
+      } else if (filterResource) {
+        logs = await storage.getAuditLogsByResource(user.tenantId, filterResource as string);
+      } else {
+        logs = await storage.getAuditLogs(user.tenantId, limitNum);
+      }
+
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

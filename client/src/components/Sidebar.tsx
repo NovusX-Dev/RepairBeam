@@ -20,6 +20,7 @@ import {
   HeadphonesIcon,
   Settings,
   UserCog,
+  ScrollText,
   ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
   { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support", permission: null },
   { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs", permission: PERMISSIONS.SETTINGS_READ },
   { name: t("userManagement", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "userManagement", permission: PERMISSIONS.USERS_READ },
+  { name: t("audit_logs", "Audit Logs"), href: "/audit-logs", icon: ScrollText, id: "audit-logs", translationKey: "audit_logs", permission: PERMISSIONS.AUDIT_LOGS_READ },
 ];
 
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {

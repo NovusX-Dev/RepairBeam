@@ -23,6 +23,7 @@ import POS from "@/pages/POS";
 import Support from "@/pages/Support";
 import Configs from "@/pages/Configs";
 import Users from "@/pages/Users";
+import AuditLogs from "@/pages/AuditLogs";
 import AcceptInvite from "@/pages/AcceptInvite";
 import NotFound from "@/pages/not-found";
 
@@ -74,6 +75,7 @@ function Router() {
             <Route path="/support" component={() => <Layout><Support /></Layout>} />
             <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
             <Route path="/users" component={() => <Layout><Users /></Layout>} />
+            <Route path="/audit-logs" component={() => <Layout><AuditLogs /></Layout>} />
           </>
         )}
         <Route component={NotFound} />
