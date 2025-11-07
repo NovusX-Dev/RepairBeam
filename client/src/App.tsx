@@ -23,6 +23,7 @@ import POS from "@/pages/POS";
 import Support from "@/pages/Support";
 import Configs from "@/pages/Configs";
 import Users from "@/pages/Users";
+import AcceptInvite from "@/pages/AcceptInvite";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -52,6 +53,9 @@ function Router() {
   return (
     <ErrorBoundary>
       <Switch>
+        {/* Public route for accepting invitations */}
+        <Route path="/accept-invite/:token" component={AcceptInvite} />
+        
         {!isAuthenticated ? (
           <Route path="/" component={Landing} />
         ) : needsTenantSetup ? (

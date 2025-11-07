@@ -3879,6 +3879,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Accept invitation (authenticated endpoint)
+  app.post("/api/invitations/accept/:token", isAuthenticated, async (req: any, res) => {
+    try {
+      const { token } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Get the invitation
+      const invitation = await storage.getUserInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+
+      // Check if invitation has expired
+      if (new Date() > new Date(invitation.expiresAt)) {
+        return res.status(400).json({ message: "Invitation has expired" });
+      }
+
+      // Check if invitation was already accepted
+      if (invitation.status !== 'pending') {
+        return res.status(400).json({ message: "Invitation has already been processed" });
+      }
+
+      // Get the user
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if user's email matches the invitation email
+      if (user.email !== invitation.email) {
+        return res.status(403).json({ 
+          message: "This invitation is for a different email address. Please log in with the invited email or contact your administrator." 
+        });
+      }
+
+      // Check if user is already associated with a tenant
+      if (user.tenantId && user.tenantId !== invitation.tenantId) {
+        return res.status(400).json({ 
+          message: "You are already associated with a different organization. Please contact support." 
+        });
+      }
+
+      // Associate user with tenant if not already associated
+      if (!user.tenantId) {
+        await storage.upsertUser({
+          id: userId,
+          tenantId: invitation.tenantId,
+          status: 'active',
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          telegram: user.telegram,
+        });
+      }
+
+      // Add user to specified groups
+      const groupIds = Array.isArray(invitation.groupIds) ? invitation.groupIds : [];
+      for (const groupId of groupIds) {
+        try {
+          await storage.addUserToGroup(userId, groupId, invitation.tenantId);
+        } catch (error) {
+          console.error(`Error adding user to group ${groupId}:`, error);
+          // Continue adding to other groups even if one fails
+        }
+      }
+
+      // Update invitation status
+      await storage.updateUserInvitation(invitation.id, {
+        status: 'accepted',
+        acceptedAt: new Date(),
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        tenantId: invitation.tenantId,
+        userId,
+        action: 'user.invitation.accepted',
+        resource: 'user_invitation',
+        resourceId: invitation.id,
+        details: {
+          email: invitation.email,
+          groups: groupIds,
+        },
+      });
+
+      res.json({ 
+        message: "Invitation accepted successfully",
+        tenantId: invitation.tenantId,
+      });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
+    }
+  });
+
   // Delete/Cancel an invitation
   app.delete("/api/invitations/:id", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
     try {

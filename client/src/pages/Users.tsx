@@ -30,7 +30,8 @@ import {
   XCircle,
   AlertCircle
 } from "lucide-react";
-import { PERMISSION_CATEGORIES } from "@shared/permissions";
+import { PermissionGate } from "@/components/PermissionGate";
+import { PERMISSIONS, PERMISSION_CATEGORIES } from "@shared/permissions";
 
 interface User {
   id: string;
@@ -432,21 +433,22 @@ export default function Users() {
         {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
           <div className="flex justify-end">
-            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-invite-user">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  {t("invite_user", "Invite User")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{t("invite_new_user", "Invite New User")}</DialogTitle>
-                  <DialogDescription>
-                    {t("invite_user_desc", "Send an invitation to a new team member")}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
+            <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
+              <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-invite-user">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    {t("invite_user", "Invite User")}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>{t("invite_new_user", "Invite New User")}</DialogTitle>
+                    <DialogDescription>
+                      {t("invite_user_desc", "Send an invitation to a new team member")}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">{t("email", "Email")} *</Label>
                     <Input
@@ -524,24 +526,27 @@ export default function Users() {
                     </ScrollArea>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsInviteDialogOpen(false)}
-                    data-testid="button-cancel-invite"
-                  >
-                    {t("cancel", "Cancel")}
-                  </Button>
-                  <Button
-                    onClick={handleInviteUser}
-                    disabled={!inviteForm.email || createInvitationMutation.isPending}
-                    data-testid="button-send-invite"
-                  >
-                    {createInvitationMutation.isPending ? t("sending", "Sending...") : t("send_invitation", "Send Invitation")}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsInviteDialogOpen(false)}
+                      data-testid="button-cancel-invite"
+                    >
+                      {t("cancel", "Cancel")}
+                    </Button>
+                    <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
+                      <Button
+                        onClick={handleInviteUser}
+                        disabled={!inviteForm.email || createInvitationMutation.isPending}
+                        data-testid="button-send-invite"
+                      >
+                        {createInvitationMutation.isPending ? t("sending", "Sending...") : t("send_invitation", "Send Invitation")}
+                      </Button>
+                    </PermissionGate>
+                  </DialogFooter>
+                </DialogContent>
             </Dialog>
+            </PermissionGate>
           </div>
 
           {/* Active Users Table */}
@@ -593,24 +598,28 @@ export default function Users() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleManageUserGroups(user)}
-                              data-testid={`button-manage-groups-${user.id}`}
-                            >
-                              <Shield className="w-3 h-3 mr-1" />
-                              {t("manage_groups", "Manage Groups")}
-                            </Button>
-                            {user.id !== currentUser?.id && (
+                            <PermissionGate permission={PERMISSIONS.USERS_MANAGE_GROUPS}>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleToggleUserStatus(user.id, user.status)}
-                                data-testid={`button-toggle-status-${user.id}`}
+                                onClick={() => handleManageUserGroups(user)}
+                                data-testid={`button-manage-groups-${user.id}`}
                               >
-                                {user.status === "active" ? t("suspend", "Suspend") : t("activate", "Activate")}
+                                <Shield className="w-3 h-3 mr-1" />
+                                {t("manage_groups", "Manage Groups")}
                               </Button>
+                            </PermissionGate>
+                            {user.id !== currentUser?.id && (
+                              <PermissionGate permission={PERMISSIONS.USERS_UPDATE}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleToggleUserStatus(user.id, user.status)}
+                                  data-testid={`button-toggle-status-${user.id}`}
+                                >
+                                  {user.status === "active" ? t("suspend", "Suspend") : t("activate", "Activate")}
+                                </Button>
+                              </PermissionGate>
                             )}
                           </div>
                         </TableCell>
@@ -668,15 +677,17 @@ export default function Users() {
                           {new Date(invitation.expiresAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCancelInvitation(invitation.id)}
-                            data-testid={`button-cancel-invitation-${invitation.id}`}
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            {t("cancel", "Cancel")}
-                          </Button>
+                          <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelInvitation(invitation.id)}
+                              data-testid={`button-cancel-invitation-${invitation.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              {t("cancel", "Cancel")}
+                            </Button>
+                          </PermissionGate>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -726,13 +737,15 @@ export default function Users() {
                             className="flex items-start justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                           >
                             <div className="flex items-start space-x-3 flex-1">
-                              <Checkbox
-                                id={`user-group-${group.id}`}
-                                checked={isInGroup}
-                                onCheckedChange={() => handleToggleUserGroup(group.id)}
-                                disabled={addUserToGroupMutation.isPending || removeUserFromGroupMutation.isPending}
-                                data-testid={`checkbox-user-group-${group.id}`}
-                              />
+                              <PermissionGate permission={PERMISSIONS.USERS_MANAGE_GROUPS}>
+                                <Checkbox
+                                  id={`user-group-${group.id}`}
+                                  checked={isInGroup}
+                                  onCheckedChange={() => handleToggleUserGroup(group.id)}
+                                  disabled={addUserToGroupMutation.isPending || removeUserFromGroupMutation.isPending}
+                                  data-testid={`checkbox-user-group-${group.id}`}
+                                />
+                              </PermissionGate>
                               <div className="flex-1">
                                 <label
                                   htmlFor={`user-group-${group.id}`}
@@ -783,32 +796,33 @@ export default function Users() {
         {/* Groups Tab */}
         <TabsContent value="groups" className="space-y-4">
           <div className="flex justify-end">
-            <Dialog 
-              open={isGroupDialogOpen} 
-              onOpenChange={(open) => {
-                setIsGroupDialogOpen(open);
-                if (!open) {
-                  setEditingGroup(null);
-                  resetGroupForm();
-                }
-              }}
-            >
-              <DialogTrigger asChild>
-                <Button data-testid="button-create-group">
-                  <Shield className="w-4 h-4 mr-2" />
-                  {t("create_group", "Create Group")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingGroup ? t("edit_group", "Edit Group") : t("create_new_group", "Create New Group")}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {t("group_desc", "Define a permission group to control access to features")}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
+            <PermissionGate permission={PERMISSIONS.GROUPS_CREATE}>
+              <Dialog 
+                open={isGroupDialogOpen} 
+                onOpenChange={(open) => {
+                  setIsGroupDialogOpen(open);
+                  if (!open) {
+                    setEditingGroup(null);
+                    resetGroupForm();
+                  }
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button data-testid="button-create-group">
+                    <Shield className="w-4 h-4 mr-2" />
+                    {t("create_group", "Create Group")}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingGroup ? t("edit_group", "Edit Group") : t("create_new_group", "Create New Group")}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t("group_desc", "Define a permission group to control access to features")}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="groupName">{t("group_name", "Group Name")} *</Label>
                     <Input
@@ -881,32 +895,35 @@ export default function Users() {
                     </ScrollArea>
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsGroupDialogOpen(false);
-                      setEditingGroup(null);
-                      resetGroupForm();
-                    }}
-                    data-testid="button-cancel-group"
-                  >
-                    {t("cancel", "Cancel")}
-                  </Button>
-                  <Button
-                    onClick={handleCreateGroup}
-                    disabled={!groupForm.name || groupForm.permissions.length === 0 || createGroupMutation.isPending || updateGroupMutation.isPending}
-                    data-testid="button-save-group"
-                  >
-                    {createGroupMutation.isPending || updateGroupMutation.isPending
-                      ? t("saving", "Saving...")
-                      : editingGroup
-                      ? t("update_group", "Update Group")
-                      : t("create_group", "Create Group")}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsGroupDialogOpen(false);
+                        setEditingGroup(null);
+                        resetGroupForm();
+                      }}
+                      data-testid="button-cancel-group"
+                    >
+                      {t("cancel", "Cancel")}
+                    </Button>
+                    <PermissionGate permission={editingGroup ? PERMISSIONS.GROUPS_UPDATE : PERMISSIONS.GROUPS_CREATE}>
+                      <Button
+                        onClick={handleCreateGroup}
+                        disabled={!groupForm.name || groupForm.permissions.length === 0 || createGroupMutation.isPending || updateGroupMutation.isPending}
+                        data-testid="button-save-group"
+                      >
+                        {createGroupMutation.isPending || updateGroupMutation.isPending
+                          ? t("saving", "Saving...")
+                          : editingGroup
+                          ? t("update_group", "Update Group")
+                          : t("create_group", "Create Group")}
+                      </Button>
+                    </PermissionGate>
+                  </DialogFooter>
+                </DialogContent>
             </Dialog>
+            </PermissionGate>
           </div>
 
           <Card>
@@ -961,22 +978,26 @@ export default function Users() {
                         <TableCell className="text-right space-x-2">
                           {!group.isSystemGroup && (
                             <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditGroup(group)}
-                                data-testid={`button-edit-group-${group.id}`}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteGroup(group.id)}
-                                data-testid={`button-delete-group-${group.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <PermissionGate permission={PERMISSIONS.GROUPS_UPDATE}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditGroup(group)}
+                                  data-testid={`button-edit-group-${group.id}`}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </PermissionGate>
+                              <PermissionGate permission={PERMISSIONS.GROUPS_DELETE}>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteGroup(group.id)}
+                                  data-testid={`button-delete-group-${group.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </PermissionGate>
                             </>
                           )}
                         </TableCell>
