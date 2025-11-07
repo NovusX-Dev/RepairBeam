@@ -31,6 +31,10 @@ import {
   possibleDefects,
   checklists,
   completionAnalytics,
+  groups,
+  userGroups,
+  userInvitations,
+  auditLogs,
   type User,
   type UpsertUser,
   type Tenant,
@@ -95,7 +99,16 @@ import {
   type InsertChecklist,
   type CompletionAnalytics,
   type InsertCompletionAnalytics,
+  type Group,
+  type InsertGroup,
+  type UserGroup,
+  type InsertUserGroup,
+  type UserInvitation,
+  type InsertUserInvitation,
+  type AuditLog,
+  type InsertAuditLog,
 } from "@shared/schema";
+import { type Permission } from "@shared/permissions";
 import { db } from "./db";
 import { eq, and, desc, or, ilike, sql, asc, inArray } from "drizzle-orm";
 
@@ -317,6 +330,35 @@ export interface IStorage {
   updateChecklist(id: string, tenantId: string, checklist: Partial<InsertChecklist>): Promise<Checklist | undefined>;
   deleteChecklist(id: string, tenantId: string): Promise<boolean>;
   initializeDefaultChecklists(tenantId: string): Promise<void>;
+  
+  // RBAC - Group operations
+  getGroups(tenantId: string): Promise<Group[]>;
+  getGroup(id: string, tenantId: string): Promise<Group | undefined>;
+  createGroup(group: InsertGroup): Promise<Group>;
+  updateGroup(id: string, tenantId: string, group: Partial<InsertGroup>): Promise<Group | undefined>;
+  deleteGroup(id: string, tenantId: string): Promise<boolean>;
+  
+  // RBAC - User-Group operations
+  getUserGroups(userId: string, tenantId: string): Promise<UserGroup[]>;
+  addUserToGroup(userId: string, groupId: string, tenantId: string): Promise<UserGroup>;
+  removeUserFromGroup(userId: string, groupId: string, tenantId: string): Promise<boolean>;
+  getUserPermissions(userId: string, tenantId: string): Promise<Permission[]>;
+  
+  // RBAC - User invitation operations
+  getUserInvitations(tenantId: string): Promise<UserInvitation[]>;
+  getUserInvitation(id: string): Promise<UserInvitation | undefined>;
+  getUserInvitationByToken(token: string): Promise<UserInvitation | undefined>;
+  getUserInvitationByEmail(email: string, tenantId: string): Promise<UserInvitation | undefined>;
+  createUserInvitation(invitation: InsertUserInvitation): Promise<UserInvitation>;
+  updateUserInvitation(id: string, invitation: Partial<InsertUserInvitation>): Promise<UserInvitation | undefined>;
+  deleteUserInvitation(id: string): Promise<boolean>;
+  
+  // RBAC - Audit log operations
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(tenantId: string, limit?: number): Promise<AuditLog[]>;
+  getAuditLogsByUser(tenantId: string, userId: string): Promise<AuditLog[]>;
+  getAuditLogsByAction(tenantId: string, action: string): Promise<AuditLog[]>;
+  getAuditLogsByResource(tenantId: string, resource: string): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2648,6 +2690,342 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .orderBy(desc(completionAnalytics.completedAt));
+    });
+  }
+
+  // ========================================================================
+  // RBAC - Group operations
+  // ========================================================================
+
+  async getGroups(tenantId: string): Promise<Group[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(groups)
+        .where(eq(groups.tenantId, tenantId))
+        .orderBy(asc(groups.name));
+    });
+  }
+
+  async getGroup(id: string, tenantId: string): Promise<Group | undefined> {
+    return withRetry(async () => {
+      const [group] = await db
+        .select()
+        .from(groups)
+        .where(and(eq(groups.id, id), eq(groups.tenantId, tenantId)));
+      return group;
+    });
+  }
+
+  async createGroup(group: InsertGroup): Promise<Group> {
+    return withRetry(async () => {
+      const [newGroup] = await db.insert(groups).values(group).returning();
+      return newGroup;
+    });
+  }
+
+  async updateGroup(id: string, tenantId: string, group: Partial<InsertGroup>): Promise<Group | undefined> {
+    return withRetry(async () => {
+      // First verify the group exists and belongs to the tenant
+      const existingGroup = await this.getGroup(id, tenantId);
+      if (!existingGroup) {
+        throw new Error('Group not found or does not belong to this tenant');
+      }
+      
+      const [updatedGroup] = await db
+        .update(groups)
+        .set({ ...group, updatedAt: new Date() })
+        .where(and(eq(groups.id, id), eq(groups.tenantId, tenantId)))
+        .returning();
+      return updatedGroup;
+    });
+  }
+
+  async deleteGroup(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      // First verify the group exists and belongs to the tenant
+      const existingGroup = await this.getGroup(id, tenantId);
+      if (!existingGroup) {
+        throw new Error('Group not found or does not belong to this tenant');
+      }
+      
+      const result = await db
+        .delete(groups)
+        .where(and(eq(groups.id, id), eq(groups.tenantId, tenantId)));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  // ========================================================================
+  // RBAC - User-Group operations
+  // ========================================================================
+
+  async getUserGroups(userId: string, tenantId: string): Promise<UserGroup[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(userGroups)
+        .where(and(eq(userGroups.userId, userId), eq(userGroups.tenantId, tenantId)));
+    });
+  }
+
+  async addUserToGroup(userId: string, groupId: string, tenantId: string): Promise<UserGroup> {
+    return withRetry(async () => {
+      // Verify the group belongs to the tenant
+      const group = await this.getGroup(groupId, tenantId);
+      if (!group) {
+        throw new Error('Group not found or does not belong to this tenant');
+      }
+      
+      // Verify the user belongs to the tenant
+      const user = await this.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        throw new Error('User not found or does not belong to this tenant');
+      }
+      
+      const [userGroup] = await db
+        .insert(userGroups)
+        .values({ userId, groupId, tenantId })
+        .returning();
+      return userGroup;
+    });
+  }
+
+  async removeUserFromGroup(userId: string, groupId: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      // Verify the group belongs to the tenant
+      const group = await this.getGroup(groupId, tenantId);
+      if (!group) {
+        throw new Error('Group not found or does not belong to this tenant');
+      }
+      
+      // Verify the user belongs to the tenant
+      const user = await this.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        throw new Error('User not found or does not belong to this tenant');
+      }
+      
+      const result = await db
+        .delete(userGroups)
+        .where(
+          and(
+            eq(userGroups.userId, userId),
+            eq(userGroups.groupId, groupId),
+            eq(userGroups.tenantId, tenantId)
+          )
+        );
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  async getUserPermissions(userId: string, tenantId: string): Promise<Permission[]> {
+    return withRetry(async () => {
+      // Single JOIN query to get all groups and their permissions for the user
+      // This avoids N+1 query pattern and is much more efficient
+      const userGroupsList = await db
+        .select({
+          permissions: groups.permissions,
+        })
+        .from(userGroups)
+        .innerJoin(groups, and(
+          eq(userGroups.groupId, groups.id),
+          eq(groups.tenantId, tenantId) // Ensure group belongs to tenant
+        ))
+        .where(and(
+          eq(userGroups.userId, userId),
+          eq(userGroups.tenantId, tenantId)
+        ));
+
+      // Combine all permissions from all groups (removing duplicates)
+      const allPermissions = new Set<Permission>();
+      for (const group of userGroupsList) {
+        // Defensive validation of JSONB permissions payload
+        if (group.permissions && Array.isArray(group.permissions)) {
+          for (const permission of group.permissions) {
+            // Validate permission is a string before adding
+            if (typeof permission === 'string') {
+              allPermissions.add(permission as Permission);
+            }
+          }
+        }
+      }
+
+      return Array.from(allPermissions);
+    });
+  }
+
+  // ========================================================================
+  // RBAC - User invitation operations
+  // ========================================================================
+
+  async getUserInvitations(tenantId: string): Promise<UserInvitation[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(userInvitations)
+        .where(eq(userInvitations.tenantId, tenantId))
+        .orderBy(desc(userInvitations.createdAt));
+    });
+  }
+
+  async getUserInvitation(id: string): Promise<UserInvitation | undefined> {
+    return withRetry(async () => {
+      const [invitation] = await db
+        .select()
+        .from(userInvitations)
+        .where(eq(userInvitations.id, id));
+      return invitation;
+    });
+  }
+
+  async getUserInvitationByToken(token: string): Promise<UserInvitation | undefined> {
+    return withRetry(async () => {
+      const [invitation] = await db
+        .select()
+        .from(userInvitations)
+        .where(eq(userInvitations.token, token));
+      return invitation;
+    });
+  }
+
+  async getUserInvitationByEmail(email: string, tenantId: string): Promise<UserInvitation | undefined> {
+    return withRetry(async () => {
+      const [invitation] = await db
+        .select()
+        .from(userInvitations)
+        .where(
+          and(
+            eq(userInvitations.email, email),
+            eq(userInvitations.tenantId, tenantId),
+            eq(userInvitations.status, 'pending')
+          )
+        );
+      return invitation;
+    });
+  }
+
+  async createUserInvitation(invitation: InsertUserInvitation): Promise<UserInvitation> {
+    return withRetry(async () => {
+      // Verify the inviting user belongs to the tenant
+      if (invitation.invitedByUserId) {
+        const invitingUser = await this.getUser(invitation.invitedByUserId);
+        if (!invitingUser || invitingUser.tenantId !== invitation.tenantId) {
+          throw new Error('Inviting user not found or does not belong to this tenant');
+        }
+      }
+      
+      const [newInvitation] = await db
+        .insert(userInvitations)
+        .values(invitation)
+        .returning();
+      return newInvitation;
+    });
+  }
+
+  async updateUserInvitation(id: string, invitation: Partial<InsertUserInvitation>): Promise<UserInvitation | undefined> {
+    return withRetry(async () => {
+      // First verify the invitation exists
+      const existingInvitation = await this.getUserInvitation(id);
+      if (!existingInvitation) {
+        throw new Error('Invitation not found');
+      }
+      
+      // If tenantId is being updated, this should not be allowed
+      if (invitation.tenantId && invitation.tenantId !== existingInvitation.tenantId) {
+        throw new Error('Cannot change tenant of an existing invitation');
+      }
+      
+      const [updatedInvitation] = await db
+        .update(userInvitations)
+        .set(invitation)
+        .where(eq(userInvitations.id, id))
+        .returning();
+      return updatedInvitation;
+    });
+  }
+
+  async deleteUserInvitation(id: string): Promise<boolean> {
+    return withRetry(async () => {
+      // First verify the invitation exists
+      const existingInvitation = await this.getUserInvitation(id);
+      if (!existingInvitation) {
+        throw new Error('Invitation not found');
+      }
+      
+      const result = await db
+        .delete(userInvitations)
+        .where(eq(userInvitations.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  // ========================================================================
+  // RBAC - Audit log operations
+  // ========================================================================
+
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    return withRetry(async () => {
+      const [newLog] = await db
+        .insert(auditLogs)
+        .values(log)
+        .returning();
+      return newLog;
+    });
+  }
+
+  async getAuditLogs(tenantId: string, limit: number = 100): Promise<AuditLog[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.tenantId, tenantId))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit);
+    });
+  }
+
+  async getAuditLogsByUser(tenantId: string, userId: string): Promise<AuditLog[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(auditLogs)
+        .where(
+          and(
+            eq(auditLogs.tenantId, tenantId),
+            eq(auditLogs.userId, userId)
+          )
+        )
+        .orderBy(desc(auditLogs.createdAt));
+    });
+  }
+
+  async getAuditLogsByAction(tenantId: string, action: string): Promise<AuditLog[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(auditLogs)
+        .where(
+          and(
+            eq(auditLogs.tenantId, tenantId),
+            eq(auditLogs.action, action)
+          )
+        )
+        .orderBy(desc(auditLogs.createdAt));
+    });
+  }
+
+  async getAuditLogsByResource(tenantId: string, resource: string): Promise<AuditLog[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(auditLogs)
+        .where(
+          and(
+            eq(auditLogs.tenantId, tenantId),
+            eq(auditLogs.resource, resource)
+          )
+        )
+        .orderBy(desc(auditLogs.createdAt));
     });
   }
 }
