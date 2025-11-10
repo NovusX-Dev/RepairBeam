@@ -66,9 +66,16 @@ export async function setupLocalAuth() {
 export function setupPassportSerialize() {
   passport.serializeUser((user, done) => {
     const sessionUser: SessionUser = {
-      id: user.authProvider === 'oidc' && user.claims ? user.claims.sub : user.id,
+      id: user.id,
       tenantId: user.tenantId,
       authProvider: user.authProvider,
+      // Preserve OIDC token metadata for session persistence
+      ...(user.authProvider === 'oidc' && {
+        claims: user.claims,
+        access_token: user.access_token,
+        refresh_token: user.refresh_token,
+        expires_at: user.expires_at,
+      }),
     };
     done(null, sessionUser);
   });
@@ -100,8 +107,11 @@ export function setupPassportSerialize() {
             tenantId: dbUser.tenantId,
             authProvider: 'oidc',
             mustChangePassword: dbUser.mustChangePassword || false,
-            claims: { sub: dbUser.id },
-            access_token: '',
+            // Restore OIDC token metadata from session
+            claims: sessionUser.claims || { sub: dbUser.id },
+            access_token: sessionUser.access_token || '',
+            refresh_token: sessionUser.refresh_token,
+            expires_at: sessionUser.expires_at,
           };
 
       done(null, authUser);

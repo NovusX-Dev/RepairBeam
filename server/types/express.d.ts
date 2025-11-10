@@ -5,6 +5,18 @@ export interface SessionUser {
   id: string;
   tenantId: string;
   authProvider: 'oidc' | 'local';
+  // OIDC-specific session data
+  claims?: {
+    sub: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+    profile_image_url?: string;
+    exp?: number;
+  };
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
 }
 
 // Base authenticated user properties shared by both auth types
