@@ -23,7 +23,9 @@ export async function setTenantContext(req: Request, res: Response, next: NextFu
 
     // Set the tenant context for this request's database queries
     // Using SET LOCAL ensures it's automatically cleared at transaction end
-    await db.execute(sql`SET LOCAL app.current_tenant_id = ${tenantId}`);
+    // Note: SET commands don't support parameterized queries, so we use sql.raw with proper escaping
+    const escapedTenantId = tenantId.replace(/'/g, "''");
+    await db.execute(sql.raw(`SET LOCAL app.current_tenant_id = '${escapedTenantId}'`));
 
     // Clean up on response finish to ensure session variable is cleared
     res.on('finish', async () => {
@@ -63,7 +65,9 @@ export async function withTenantContext<T>(
 ): Promise<T> {
   try {
     // Set tenant context
-    await db.execute(sql`SET LOCAL app.current_tenant_id = ${tenantId}`);
+    // Note: SET commands don't support parameterized queries, so we use sql.raw with proper escaping
+    const escapedTenantId = tenantId.replace(/'/g, "''");
+    await db.execute(sql.raw(`SET LOCAL app.current_tenant_id = '${escapedTenantId}'`));
     
     // Execute callback
     const result = await callback();
