@@ -85,7 +85,7 @@ export const userGroups = pgTable("user_groups", {
   index('idx_user_groups_tenant').on(table.tenantId),
 ]);
 
-// User Invitations table for email-based user onboarding
+// User Invitations table for password-based user onboarding
 export const userInvitations = pgTable("user_invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
@@ -96,7 +96,8 @@ export const userInvitations = pgTable("user_invitations", {
   telegram: varchar("telegram"),
   invitedByUserId: varchar("invited_by_user_id").notNull().references(() => users.id),
   groupIds: jsonb("group_ids").notNull().default('[]'), // Array of group IDs to assign on acceptance
-  token: varchar("token").notNull().unique(), // Unique invitation token
+  token: varchar("token").notNull().unique(), // Unique invitation token (kept for backward compatibility)
+  temporaryPassword: varchar("temporary_password"), // Plain-text temporary password shown to admins
   expiresAt: timestamp("expires_at").notNull(),
   status: varchar("status").notNull().default('pending'), // 'pending', 'accepted', 'expired'
   acceptedAt: timestamp("accepted_at"),
