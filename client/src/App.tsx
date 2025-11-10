@@ -25,6 +25,7 @@ import Configs from "@/pages/Configs";
 import Users from "@/pages/Users";
 import AuditLogs from "@/pages/AuditLogs";
 import AcceptInvite from "@/pages/AcceptInvite";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -76,6 +77,7 @@ function Router() {
             <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
             <Route path="/users" component={() => <Layout><Users /></Layout>} />
             <Route path="/audit-logs" component={() => <Layout><AuditLogs /></Layout>} />
+            <Route path="/profile" component={() => <Layout><Profile /></Layout>} />
           </>
         )}
         <Route component={NotFound} />

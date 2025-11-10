@@ -35,6 +35,10 @@ const getPageTitleFromRoute = (pathname: string, t: (key: string, fallback?: str
       return t("configs", "Configurations");
     case "/users":
       return t("userManagement", "User Management");
+    case "/profile":
+      return t("my_profile", "My Profile");
+    case "/audit-logs":
+      return t("audit_logs", "Audit Logs");
     default:
       return t("dashboard", "Dashboard");
   }

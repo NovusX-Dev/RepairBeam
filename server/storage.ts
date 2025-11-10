@@ -143,6 +143,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUsersByTenant(tenantId: string): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+  deleteUser(userId: string): Promise<boolean>;
   
   // Tenant operations
   getTenant(id: string): Promise<Tenant | undefined>;
@@ -405,6 +406,15 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
       return user;
+    });
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(users)
+        .where(eq(users.id, userId));
+      return result.rowCount ? result.rowCount > 0 : false;
     });
   }
 

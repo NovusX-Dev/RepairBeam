@@ -232,6 +232,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update current user's profile (self-service)
+  app.put("/api/users/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { firstName, lastName, phone, telegram } = req.body;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const updatedUser = await storage.upsertUser({
+        id: userId,
+        email: user.email,
+        firstName: firstName || user.firstName,
+        lastName: lastName || user.lastName,
+        phone: phone || null,
+        telegram: telegram || null,
+        profileImageUrl: user.profileImageUrl,
+        tenantId: user.tenantId,
+        role: user.role,
+        status: user.status,
+      });
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Delete a user (admin only)
+  app.delete("/api/users/:id", isAuthenticated, requirePermission(PERMISSIONS.USERS_DELETE), async (req: any, res) => {
+    try {
+      const { id: targetUserId } = req.params;
+      const currentUserId = req.user.claims.sub;
+      const currentUser = await storage.getUser(currentUserId);
+      
+      if (!currentUser || !currentUser.tenantId) {
+        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      }
+
+      // Prevent self-deletion
+      if (targetUserId === currentUserId) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+
+      // Get target user to verify tenant
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify user belongs to same tenant
+      if (targetUser.tenantId !== currentUser.tenantId) {
+        return res.status(403).json({ message: "Unauthorized to delete users from other tenants" });
+      }
+
+      // Delete user (cascading deletes handled by database)
+      await storage.deleteUser(targetUserId);
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Client routes
   app.get("/api/clients", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_READ), async (req: any, res) => {
     try {
@@ -267,7 +335,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const searchLower = search.toLowerCase();
         tickets = tickets.filter(ticket => 
           ticket.title?.toLowerCase().includes(searchLower) ||
-          ticket.client?.name?.toLowerCase().includes(searchLower) ||
+          ticket.client?.firstName?.toLowerCase().includes(searchLower) ||
+          ticket.client?.lastName?.toLowerCase().includes(searchLower) ||
           ticket.deviceModel?.toLowerCase().includes(searchLower) ||
           ticket.deviceBrand?.toLowerCase().includes(searchLower)
         );

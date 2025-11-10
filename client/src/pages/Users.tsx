@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangePicker } from "@/components/search-filter/DateRangePicker";
 import { 
   UserPlus, 
   Users as UsersIcon, 
@@ -29,8 +32,11 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  Eye
 } from "lucide-react";
+import { format } from "date-fns";
 import { PermissionGate } from "@/components/PermissionGate";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { PERMISSIONS, PERMISSION_CATEGORIES } from "@shared/permissions";
@@ -78,6 +84,25 @@ interface UserGroup {
   createdAt: Date;
 }
 
+interface AuditLog {
+  id: string;
+  tenantId: string;
+  userId: string | null;
+  action: string;
+  resource: string;
+  resourceId: string | null;
+  details: any;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+  user?: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  };
+}
+
 export default function Users() {
   const { t } = useLocalization();
   const { user: currentUser } = useAuth();
@@ -92,6 +117,16 @@ export default function Users() {
   const [isManageUserGroupsDialogOpen, setIsManageUserGroupsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isBulkInviteDialogOpen, setIsBulkInviteDialogOpen] = useState(false);
+  const [selectedLogDetails, setSelectedLogDetails] = useState<AuditLog | null>(null);
+  const [isLogDetailsDialogOpen, setIsLogDetailsDialogOpen] = useState(false);
+
+  // Activity tab filters
+  const [activitySearchTerm, setActivitySearchTerm] = useState("");
+  const [selectedActivityAction, setSelectedActivityAction] = useState<string>("all");
+  const [activityDateRange, setActivityDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
 
   // Form states
   const [inviteForm, setInviteForm] = useState({
@@ -143,6 +178,24 @@ export default function Users() {
   const { data: selectedUserGroups = [], isLoading: userGroupsLoading } = useQuery<UserGroup[]>({
     queryKey: ["/api/users", selectedUser?.id, "groups"],
     enabled: !!selectedUser && isManageUserGroupsDialogOpen,
+  });
+
+  // Fetch audit logs for Activity tab
+  const buildActivityQueryParams = () => {
+    const params = new URLSearchParams();
+    params.append("resource", "user");
+    if (selectedActivityAction !== "all") params.append("action", selectedActivityAction);
+    if (activityDateRange.from) params.append("startDate", activityDateRange.from.toISOString());
+    if (activityDateRange.to) params.append("endDate", activityDateRange.to.toISOString());
+    return params.toString();
+  };
+
+  const { data: activityLogsData, isLoading: activityLogsLoading } = useQuery<{
+    logs: AuditLog[];
+    total: number;
+  }>({
+    queryKey: ["/api/audit-logs", "user", selectedActivityAction, activityDateRange.from, activityDateRange.to],
+    enabled: activeTab === "activity" && hasPermission(PERMISSIONS.AUDIT_LOGS_READ),
   });
 
   // Create invitation mutation
@@ -294,6 +347,27 @@ export default function Users() {
       toast({
         title: t("error", "Error"),
         description: error.message || t("user_update_failed", "Failed to update user"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest("DELETE", `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: t("user_deleted", "User Deleted"),
+        description: t("user_deleted_desc", "User has been deleted successfully."),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error", "Error"),
+        description: error.message || t("user_deletion_failed", "Failed to delete user"),
         variant: "destructive",
       });
     },
@@ -566,7 +640,7 @@ export default function Users() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className={`grid w-full max-w-md ${hasPermission(PERMISSIONS.AUDIT_LOGS_READ) ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="users" data-testid="tab-users">
             <UsersIcon className="w-4 h-4 mr-2" />
             {t("users", "Users")}
@@ -575,6 +649,12 @@ export default function Users() {
             <Shield className="w-4 h-4 mr-2" />
             {t("groups", "Groups")}
           </TabsTrigger>
+          {hasPermission(PERMISSIONS.AUDIT_LOGS_READ) && (
+            <TabsTrigger value="activity" data-testid="tab-activity">
+              <FileText className="w-4 h-4 mr-2" />
+              {t("activity_logs", "Activity")}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Users Tab */}
@@ -767,16 +847,49 @@ export default function Users() {
                               </Button>
                             </PermissionGate>
                             {user.id !== currentUser?.id && (
-                              <PermissionGate permission={PERMISSIONS.USERS_UPDATE}>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleToggleUserStatus(user.id, user.status)}
-                                  data-testid={`button-toggle-status-${user.id}`}
-                                >
-                                  {user.status === "active" ? t("suspend", "Suspend") : t("activate", "Activate")}
-                                </Button>
-                              </PermissionGate>
+                              <>
+                                <PermissionGate permission={PERMISSIONS.USERS_UPDATE}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleToggleUserStatus(user.id, user.status)}
+                                    data-testid={`button-toggle-status-${user.id}`}
+                                  >
+                                    {user.status === "active" ? t("suspend", "Suspend") : t("activate", "Activate")}
+                                  </Button>
+                                </PermissionGate>
+                                <PermissionGate permission={PERMISSIONS.USERS_DELETE}>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        data-testid={`button-delete-user-${user.id}`}
+                                      >
+                                        <Trash2 className="w-3 h-3 mr-1" />
+                                        {t("delete_user", "Delete")}
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>{t("delete_user_confirm", "Delete User?")}</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          {t("delete_user_desc", "This action cannot be undone. This will permanently delete the user account and remove all associated data.")}
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>{t("cancel", "Cancel")}</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => deleteUserMutation.mutate(user.id)}
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          {t("delete_user", "Delete User")}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </PermissionGate>
+                              </>
                             )}
                           </div>
                         </TableCell>
@@ -1181,7 +1294,196 @@ export default function Users() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Activity Tab */}
+        <TabsContent value="activity" className="space-y-4">
+          <Card className="border-[#00FFFF]/20 bg-gradient-to-br from-[#0A1128] to-[#1a2744]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#00FFFF]" />
+                {t("activity_logs", "Activity Logs")}
+              </CardTitle>
+              <CardDescription>
+                {t("activity_logs_desc", "View user-related activity and audit logs")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Filters */}
+              <div className="flex flex-wrap gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <Label htmlFor="activity-action">{t("filter_by_action", "Filter by Action")}</Label>
+                  <Select 
+                    value={selectedActivityAction} 
+                    onValueChange={setSelectedActivityAction}
+                  >
+                    <SelectTrigger id="activity-action" data-testid="select-activity-action">
+                      <SelectValue placeholder={t("all_actions", "All Actions")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t("all_actions", "All Actions")}</SelectItem>
+                      <SelectItem value="create">{t("create", "Create")}</SelectItem>
+                      <SelectItem value="update">{t("update", "Update")}</SelectItem>
+                      <SelectItem value="delete">{t("delete", "Delete")}</SelectItem>
+                      <SelectItem value="login">{t("login", "Login")}</SelectItem>
+                      <SelectItem value="logout">{t("logout", "Logout")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <Label>{t("filter_by_date", "Filter by Date Range")}</Label>
+                  <DateRangePicker 
+                    value={activityDateRange}
+                    onChange={setActivityDateRange}
+                  />
+                </div>
+              </div>
+
+              {/* Activity Logs Table */}
+              {activityLogsLoading ? (
+                <p className="text-center text-muted-foreground py-8">{t("loading", "Loading...")}</p>
+              ) : !activityLogsData?.logs || activityLogsData.logs.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">{t("no_activity_logs", "No activity logs found")}</p>
+                </div>
+              ) : (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("timestamp", "Timestamp")}</TableHead>
+                        <TableHead>{t("user", "User")}</TableHead>
+                        <TableHead>{t("action", "Action")}</TableHead>
+                        <TableHead>{t("resource", "Resource")}</TableHead>
+                        <TableHead>{t("details", "Details")}</TableHead>
+                        <TableHead className="text-right">{t("actions", "Actions")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {activityLogsData.logs.map((log) => (
+                        <TableRow key={log.id} data-testid={`row-activity-${log.id}`}>
+                          <TableCell className="font-medium">
+                            {format(new Date(log.createdAt), "MMM dd, yyyy HH:mm:ss")}
+                          </TableCell>
+                          <TableCell>
+                            {log.user 
+                              ? `${log.user.firstName || ''} ${log.user.lastName || ''}`.trim() || log.user.email || t("unknown", "Unknown")
+                              : log.userId || t("system", "System")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              className={
+                                log.action === "create" ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                                log.action === "update" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                                log.action === "delete" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                                log.action === "login" ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
+                                "bg-gray-500/20 text-gray-400 border-gray-500/30"
+                              }
+                            >
+                              {log.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {log.resource}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {log.details ? JSON.stringify(log.details).substring(0, 100) : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedLogDetails(log);
+                                setIsLogDetailsDialogOpen(true);
+                              }}
+                              data-testid={`button-view-log-${log.id}`}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Activity Log Details Dialog */}
+      <Dialog open={isLogDetailsDialogOpen} onOpenChange={setIsLogDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("activity_log_details", "Activity Log Details")}</DialogTitle>
+          </DialogHeader>
+          {selectedLogDetails && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-semibold">{t("timestamp", "Timestamp")}</Label>
+                  <p className="text-sm">{format(new Date(selectedLogDetails.createdAt), "PPpp")}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">{t("user", "User")}</Label>
+                  <p className="text-sm">
+                    {selectedLogDetails.user 
+                      ? `${selectedLogDetails.user.firstName || ''} ${selectedLogDetails.user.lastName || ''}`.trim() || selectedLogDetails.user.email
+                      : selectedLogDetails.userId || t("system", "System")}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">{t("action", "Action")}</Label>
+                  <p className="text-sm">
+                    <Badge>{selectedLogDetails.action}</Badge>
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold">{t("resource", "Resource")}</Label>
+                  <p className="text-sm">
+                    <Badge variant="outline">{selectedLogDetails.resource}</Badge>
+                  </p>
+                </div>
+                {selectedLogDetails.resourceId && (
+                  <div className="col-span-2">
+                    <Label className="text-sm font-semibold">{t("resource_id", "Resource ID")}</Label>
+                    <p className="text-sm font-mono">{selectedLogDetails.resourceId}</p>
+                  </div>
+                )}
+                {selectedLogDetails.ipAddress && (
+                  <div>
+                    <Label className="text-sm font-semibold">{t("ip_address", "IP Address")}</Label>
+                    <p className="text-sm font-mono">{selectedLogDetails.ipAddress}</p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">{t("details", "Details")}</Label>
+                <ScrollArea className="h-48 w-full border rounded-md p-3 mt-2 bg-slate-50 dark:bg-slate-900">
+                  <pre className="text-xs font-mono">
+                    {JSON.stringify(selectedLogDetails.details, null, 2)}
+                  </pre>
+                </ScrollArea>
+              </div>
+              {selectedLogDetails.userAgent && (
+                <div>
+                  <Label className="text-sm font-semibold">{t("user_agent", "User Agent")}</Label>
+                  <p className="text-xs text-muted-foreground mt-1">{selectedLogDetails.userAgent}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setIsLogDetailsDialogOpen(false)} data-testid="button-close-log-details">
+              {t("close", "Close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Bulk Invite Dialog */}
       <Dialog 

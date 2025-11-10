@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Bell, LogOut, Globe } from "lucide-react";
+import { Bell, LogOut, Globe, User } from "lucide-react";
 import ReactCountryFlag from "react-country-flag";
 import { useLocalization, LANGUAGES } from "@/contexts/LocalizationContext";
 import { useQuery } from "@tanstack/react-query";
@@ -131,6 +131,15 @@ export default function Header({ currentPage }: HeaderProps) {
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem
+              onClick={() => window.location.href = '/profile'}
+              className="cursor-pointer"
+              data-testid="menuitem-profile"
+            >
+              <User className="w-4 h-4 mr-2" />
+              {t("my_profile", "My Profile")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => window.location.href = '/api/logout'}
               className="cursor-pointer"
