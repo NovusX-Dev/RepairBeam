@@ -3,6 +3,9 @@
 ## Overview
 Repair Beam is a multi-tenant SaaS platform designed to optimize operations for repair businesses. It provides integrated tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale functionalities, and customer support. The platform aims to improve efficiency and streamline workflows for repair businesses.
 
+## Recent Critical Fixes
+- **2025-11-10**: Fixed authentication loop caused by SQL syntax error in tenant context middleware. PostgreSQL `SET LOCAL` commands don't support parameterized queries ($1), requiring `sql.raw()` with proper escaping instead.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
