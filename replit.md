@@ -41,9 +41,11 @@ Preferred communication style: Simple, everyday language.
 - **Configuration Storage**: JSONB columns for flexible settings in `store_settings` table.
 
 ### Authentication & Authorization
-- **Provider**: Replit OIDC authentication.
-- **Session Management**: Server-side sessions stored in PostgreSQL.
+- **Hybrid Authentication System**: Dual authentication supporting both password-based login (for regular users/employees) and Replit OIDC (for admins/owners).
+- **Password Management**: Auto-generated memorable Portuguese-based passwords (e.g., "CasaSol123"), bcrypt hashing with 10 salt rounds, force password change on first login.
+- **Session Management**: Server-side sessions stored in PostgreSQL with Passport.js for both Local and OIDC strategies.
 - **Multi-tenant Security**: User-tenant association with role-based access control and authentication middleware.
+- **Security Features**: NO plain-text password storage (returned once in API response only), OIDC user protection in password change endpoint, proper session handling with discriminated union types (OidcAuthenticatedUser | LocalAuthenticatedUser).
 
 ### Application Structure
 - **Monorepo Layout**: Organized client, server, and shared code directories.
@@ -67,6 +69,7 @@ Preferred communication style: Simple, everyday language.
 - **Critical Rule**: Maintain consistent naming within the same context; database schema and API responses use `camelCase` for TypeScript/frontend consistency.
 
 ### Key Features and Implementations
+- **Password-Based Authentication**: Complete hybrid authentication system with email/password login for employees and OIDC for admins. Features auto-generated memorable passwords, force password change on first login, admin password reset capability, and secure one-time temporary password display dialog.
 - **Inventory Management**: Workflow-based organization, part-to-ticket tracking, real-time updates, predictive alerts, SKU/barcode system, multi-location support, supplier management, and cost tracking. Includes automatic inventory deduction, item usage confirmation, and price override for service items on tickets.
 - **Inventory Analytics**: Comprehensive audit trail, usage history APIs, and a dedicated analytics dashboard with KPIs, advanced filters, and interactive tables.
 - **QR Code Tracking System**: Unique QR code generation for inventory units, automated print functionality, multi-method scanning, and secure verification. Integrated with Purchase Orders, Kanban Tickets, and Inventory Analytics.
@@ -96,9 +99,10 @@ Preferred communication style: Simple, everyday language.
 - **PostgreSQL 16**: Database system.
 
 ### Authentication
-- **Replit OIDC**: OpenID Connect provider.
-- **Passport.js**: Authentication middleware.
+- **Replit OIDC**: OpenID Connect provider for admin/owner authentication.
+- **Passport.js**: Authentication middleware supporting both Local (password) and OIDC strategies.
 - **openid-client**: OIDC client implementation.
+- **bcryptjs**: Password hashing and validation.
 
 ### UI & Styling
 - **Radix UI**: Component primitives library.

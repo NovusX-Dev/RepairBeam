@@ -64,7 +64,7 @@ export default function Landing() {
     setIsLoggingIn(true);
 
     try {
-      const response = await apiRequest("POST", "/api/auth/login", { email, password });
+      const response: any = await apiRequest("POST", "/api/auth/login", { email, password });
 
       if (response.mustChangePassword) {
         setTempUserId(response.user.id);

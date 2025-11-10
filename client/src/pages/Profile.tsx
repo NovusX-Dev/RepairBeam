@@ -128,7 +128,7 @@ export default function Profile() {
         <CardHeader className="bg-gradient-to-r from-primary/10 to-cyan-500/10 border-b border-primary/20">
           <div className="flex items-center gap-4">
             <Avatar className="w-20 h-20 border-2 border-primary">
-              <AvatarImage src={user?.profileImageUrl} alt={user?.firstName || user?.email} />
+              <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || user?.email || undefined} />
               <AvatarFallback className="bg-primary/20 text-primary text-2xl">
                 {initials}
               </AvatarFallback>
