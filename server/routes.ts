@@ -88,14 +88,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", hydrateAuthUser, setTenantContext);
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  
+  // Password-based login endpoint
+  app.post('/api/auth/login', async (req: any, res, next) => {
+    const passport = await import('passport');
+    passport.default.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(400).json({ 
+          message: info?.message || "Invalid email or password" 
+        });
+      }
+      req.logIn(user, (err: any) => {
+        if (err) {
+          return next(err);
+        }
+        return res.json({
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            tenantId: user.tenantId,
+          },
+          mustChangePassword: user.mustChangePassword || false,
+        });
+      });
+    })(req, res, next);
+  });
+
+  // Change password endpoint
+  app.post('/api/auth/change-password', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.id || req.user?.claims?.sub;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({ 
+          message: "New password must be at least 8 characters long" 
+        });
+      }
+
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json(user);
+
+      // Verify current password unless user must change password
+      if (!user.mustChangePassword) {
+        if (!currentPassword) {
+          return res.status(400).json({ 
+            message: "Current password is required" 
+          });
+        }
+
+        const { validatePassword } = await import('./utils/password.js');
+        const isValid = await validatePassword(currentPassword, user.passwordHash!);
+        if (!isValid) {
+          return res.status(400).json({ 
+            message: "Current password is incorrect" 
+          });
+        }
+      }
+
+      // Validate new password strength
+      const { validatePasswordStrength, hashPassword } = await import('./utils/password.js');
+      const validation = validatePasswordStrength(newPassword);
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          message: "Password does not meet requirements",
+          errors: validation.errors 
+        });
+      }
+
+      // Hash new password
+      const passwordHash = await hashPassword(newPassword);
+
+      // Update user
+      await storage.updateUser(userId, {
+        passwordHash,
+        mustChangePassword: false,
+      });
+
+      // Regenerate session to prevent session fixation
+      req.session.regenerate((err: any) => {
+        if (err) {
+          console.error('Error regenerating session:', err);
+        }
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        tenantId: user.tenantId,
+        userId: userId,
+        action: 'change_password',
+        resource: 'user',
+        resourceId: userId,
+        details: { selfService: true },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      res.json({ message: "Password changed successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({
+        ...user,
+        mustChangePassword: user.mustChangePassword || false,
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -3875,7 +3988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new invitation
+  // Create a new user with password (replaces email invitation flow)
   app.post("/api/invitations", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3890,19 +4003,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Email is required" });
       }
 
-      // Check if user with this email already exists in tenant
+      // Check if user with this email already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "A user with this email already exists" });
+      }
+
+      // Check if invitation already exists
       const existingInvitation = await storage.getUserInvitationByEmail(email, user.tenantId);
       if (existingInvitation) {
         return res.status(400).json({ message: "An invitation for this email already exists" });
       }
 
-      // Generate unique token (simple version - in production use crypto.randomBytes)
-      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      // Generate memorable password
+      const { generateMemorablePassword, hashPassword } = await import('./utils/password.js');
+      const temporaryPassword = generateMemorablePassword();
+      const passwordHash = await hashPassword(temporaryPassword);
+
+      // Generate unique token for backward compatibility
+      const { nanoid } = await import('nanoid');
+      const token = nanoid(32);
       
       // Set expiration to 7 days from now
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
+      // Create the invitation record (without storing plain-text password)
       const invitation = await storage.createUserInvitation({
         tenantId: user.tenantId,
         email,
@@ -3913,104 +4039,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
         invitedByUserId: userId,
         groupIds: groupIds || [],
         token,
+        temporaryPassword: null, // Never store plain-text passwords
         expiresAt,
-        status: 'pending',
+        status: 'accepted', // Immediately accepted since no email confirmation needed
       });
 
-      // Send invitation email
-      try {
-        const { sendInvitationEmail } = await import('./resend.js');
-        const invitedName = firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || email;
-        const invitedByName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'A team member';
-        
-        // Get tenant name and language preference from store settings
-        const storeSettings = await storage.getStoreSettings(user.tenantId);
-        const language = storeSettings?.preferredLanguage || 'en';
-        const tenantName = storeSettings?.shopName || 'Repair Beam';
-        
-        await sendInvitationEmail(email, invitedName, invitedByName, token, expiresAt, language, tenantName);
-        console.log(`Invitation email sent to ${email} in language: ${language}`);
-      } catch (emailError) {
-        console.error('Failed to send invitation email, but invitation was created:', emailError);
-        // Don't fail the entire request if email fails - invitation is still created
+      // Create the user immediately
+      const newUser = await storage.createUser({
+        id: undefined,
+        email,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        phone: phone || null,
+        telegram: telegram || null,
+        tenantId: user.tenantId,
+        passwordHash,
+        mustChangePassword: true,
+        status: 'active',
+        role: 'user',
+      });
+
+      // Assign groups
+      if (groupIds && Array.isArray(groupIds) && groupIds.length > 0) {
+        await Promise.all(
+          groupIds.map((groupId: string) =>
+            storage.addUserToGroup(newUser.id, groupId, user.tenantId)
+          )
+        );
       }
 
-      res.status(201).json(invitation);
+      // Log the user creation
+      await storage.createAuditLog({
+        tenantId: user.tenantId,
+        userId: userId,
+        action: 'create',
+        resource: 'user',
+        resourceId: newUser.id,
+        details: { email, createdWithPassword: true },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      res.status(201).json({ 
+        ...invitation, 
+        temporaryPassword, // Return password so admin can share it
+        userId: newUser.id 
+      });
     } catch (error) {
-      console.error("Error creating invitation:", error);
+      console.error("Error creating user:", error);
       if (error instanceof Error && error.message.includes('does not belong to this tenant')) {
-        return res.status(403).json({ message: "Unauthorized to create invitation" });
+        return res.status(403).json({ message: "Unauthorized to create user" });
       }
-      res.status(500).json({ message: "Failed to create invitation" });
+      res.status(500).json({ message: "Failed to create user" });
     }
   });
 
-  // Resend an invitation
-  app.post("/api/invitations/:id/resend", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
+  // Reset user password (Master/Admin only)
+  app.post("/api/users/:userId/reset-password", isAuthenticated, requirePermission(PERMISSIONS.USERS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const user = await storage.getUser(req.user.claims.sub);
+      const { userId } = req.params;
+      const currentUser = await storage.getUser(req.user.claims.sub);
       
-      if (!user) {
+      if (!currentUser) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Get the existing invitation
-      const existingInvitation = await storage.getUserInvitation(id);
-      if (!existingInvitation) {
-        return res.status(404).json({ message: "Invitation not found" });
+      // Get the target user
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
       }
 
-      // Verify the invitation belongs to the same tenant
-      if (existingInvitation.tenantId !== user.tenantId) {
-        return res.status(403).json({ message: "Unauthorized to resend this invitation" });
+      // Verify same tenant
+      if (targetUser.tenantId !== currentUser.tenantId) {
+        return res.status(403).json({ message: "Unauthorized to reset password for this user" });
       }
 
-      // Only allow resending pending invitations
-      if (existingInvitation.status !== 'pending') {
-        return res.status(400).json({ message: "Can only resend pending invitations" });
-      }
+      // Generate new memorable password
+      const { generateMemorablePassword, hashPassword } = await import('./utils/password.js');
+      const temporaryPassword = generateMemorablePassword();
+      const passwordHash = await hashPassword(temporaryPassword);
 
-      // Generate new token and expiration
-      const { nanoid } = await import('nanoid');
-      const token = nanoid(32);
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-
-      // Update the invitation
-      const updatedInvitation = await storage.updateUserInvitation(id, {
-        token,
-        expiresAt,
-        status: 'pending',
+      // Update user
+      await storage.updateUser(userId, {
+        passwordHash,
+        mustChangePassword: true,
       });
 
-      if (!updatedInvitation) {
-        return res.status(500).json({ message: "Failed to update invitation" });
-      }
+      // Don't store plain-text password anywhere - only return it once
 
-      // Send invitation email
-      try {
-        const { sendInvitationEmail } = await import('./resend.js');
-        const invitedName = existingInvitation.firstName && existingInvitation.lastName 
-          ? `${existingInvitation.firstName} ${existingInvitation.lastName}` 
-          : existingInvitation.firstName || existingInvitation.lastName || existingInvitation.email;
-        const invitedByName = user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email || 'A team member';
-        
-        // Get tenant name and language preference from store settings
-        const storeSettings = await storage.getStoreSettings(user.tenantId);
-        const language = storeSettings?.preferredLanguage || 'en';
-        const tenantName = storeSettings?.shopName || 'Repair Beam';
-        
-        await sendInvitationEmail(existingInvitation.email, invitedName, invitedByName, token, expiresAt, language, tenantName);
-        console.log(`Invitation email resent to ${existingInvitation.email} in language: ${language}`);
-      } catch (emailError) {
-        console.error('Failed to send invitation email:', emailError);
-        return res.status(500).json({ message: "Failed to send invitation email" });
-      }
+      // Log the password reset
+      await storage.createAuditLog({
+        tenantId: currentUser.tenantId,
+        userId: currentUser.id,
+        action: 'reset_password',
+        resource: 'user',
+        resourceId: userId,
+        details: { targetEmail: targetUser.email },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
 
-      res.json({ message: "Invitation resent successfully", invitation: updatedInvitation });
+      res.json({ message: "Password reset successfully", temporaryPassword });
     } catch (error) {
-      console.error("Error resending invitation:", error);
-      res.status(500).json({ message: "Failed to resend invitation" });
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 

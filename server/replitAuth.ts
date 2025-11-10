@@ -7,6 +7,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { setupLocalAuth, setupPassportSerialize } from "./localAuth.js";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -114,16 +115,44 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Setup Local Strategy for password-based auth
+  await setupLocalAuth();
+
+  // Setup shared serialization/deserialization for both OIDC and Local
+  setupPassportSerialize();
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
+    const dbUser = await upsertUser(tokens.claims());
+    const claims = tokens.claims();
+    
+    // Build AuthenticatedUser for OIDC
+    const authUser = {
+      id: dbUser.id,
+      email: dbUser.email,
+      firstName: dbUser.firstName,
+      lastName: dbUser.lastName,
+      tenantId: dbUser.tenantId,
+      authProvider: 'oidc' as const,
+      mustChangePassword: dbUser.mustChangePassword || false,
+      claims: {
+        sub: claims.sub,
+        email: claims.email,
+        first_name: claims.first_name,
+        last_name: claims.last_name,
+        profile_image_url: claims.profile_image_url,
+        exp: claims.exp,
+      },
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_at: claims.exp,
+    };
+    
+    verified(null, authUser);
   };
 
   for (const domain of process.env
@@ -139,9 +168,6 @@ export async function setupAuth(app: Express) {
     );
     passport.use(strategy);
   }
-
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {

@@ -141,8 +141,11 @@ export interface IStorage {
   
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getUsersByTenant(tenantId: string): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, user: Partial<UpsertUser>): Promise<User | undefined>;
+  createUser(user: Omit<UpsertUser, 'id'> & { id?: string }): Promise<User>;
   deleteUser(userId: string): Promise<boolean>;
   
   // Tenant operations
@@ -403,6 +406,42 @@ export class DatabaseStorage implements IStorage {
             ...userData,
             updatedAt: new Date(),
           },
+        })
+        .returning();
+      return user;
+    });
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return withRetry(async () => {
+      const [user] = await db.select().from(users).where(eq(users.email, email));
+      return user;
+    });
+  }
+
+  async updateUser(id: string, userData: Partial<UpsertUser>): Promise<User | undefined> {
+    return withRetry(async () => {
+      const [user] = await db
+        .update(users)
+        .set({
+          ...userData,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, id))
+        .returning();
+      return user;
+    });
+  }
+
+  async createUser(userData: Omit<UpsertUser, 'id'> & { id?: string }): Promise<User> {
+    return withRetry(async () => {
+      const { nanoid } = await import('nanoid');
+      const userId = userData.id || nanoid();
+      const [user] = await db
+        .insert(users)
+        .values({
+          ...userData,
+          id: userId,
         })
         .returning();
       return user;

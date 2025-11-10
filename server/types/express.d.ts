@@ -1,5 +1,34 @@
 import { User as DbUser } from "@shared/schema";
 
+// Session user minimal data persisted in session
+export interface SessionUser {
+  id: string;
+  tenantId: string;
+  authProvider: 'oidc' | 'local';
+}
+
+// Authenticated user enriched with auth context
+export interface AuthenticatedUser {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  tenantId: string;
+  authProvider: 'oidc' | 'local';
+  mustChangePassword: boolean;
+  claims?: {
+    sub: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+    profile_image_url?: string;
+    exp?: number;
+  };
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+}
+
 declare global {
   namespace Express {
     // Extend the Express Request interface
@@ -10,19 +39,9 @@ declare global {
       userTenantId?: string;
     }
 
-    // Authenticated user from Replit OIDC (Passport user)
-    interface User {
-      claims: {
-        sub: string;
-        [key: string]: any;
-      };
-    }
+    // Authenticated user from both OIDC and Local strategies
+    type User = AuthenticatedUser;
   }
 }
 
-// Utility type for OIDC authenticated user
-export type OidcUser = Express.User & {
-  claims: {
-    sub: string;
-  };
-};
+export {};
