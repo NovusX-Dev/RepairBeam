@@ -1,7 +1,7 @@
 # Repair Beam
 
 ## Overview
-Repair Beam is a multi-tenant SaaS platform designed to optimize operations for repair businesses. It provides integrated tools for client management, repair tracking using Kanban boards, inventory management, point-of-sale functionalities, and customer support. The platform's goal is to improve efficiency and streamline workflows for repair businesses.
+Repair Beam is a multi-tenant SaaS platform designed to optimize operations for repair businesses. It provides integrated tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale functionalities, and customer support. The platform aims to improve efficiency and streamline workflows for repair businesses.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -38,7 +38,6 @@ Preferred communication style: Simple, everyday language.
 - **ORM**: Drizzle ORM with a schema-first approach.
 - **Multi-tenancy**: Tenant isolation via `tenantId` foreign keys and Row-Level Security (RLS).
 - **Core Entities**: Users, Tenants, Clients, Tickets, Inventory Items, Transactions, Support Tickets.
-- **Session Storage**: Dedicated sessions table.
 - **Configuration Storage**: JSONB columns for flexible settings in `store_settings` table.
 
 ### Authentication & Authorization
@@ -69,10 +68,24 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Features and Implementations
 - **Inventory Management**: Workflow-based organization, part-to-ticket tracking, real-time updates, predictive alerts, SKU/barcode system, multi-location support, supplier management, and cost tracking. Includes automatic inventory deduction, item usage confirmation, and price override for service items on tickets.
-- **Inventory Analytics**: Comprehensive audit trail for inventory units, usage history APIs, and a dedicated analytics dashboard with KPIs, advanced filters, and interactive tables.
-- **QR Code Tracking System**: Unique QR code generation for inventory units, automated print functionality, multi-method scanning (smartphone, PC webcam, USB barcode scanner), and secure verification. Integrated with Purchase Orders, Kanban Tickets, and Inventory Analytics.
+- **Inventory Analytics**: Comprehensive audit trail, usage history APIs, and a dedicated analytics dashboard with KPIs, advanced filters, and interactive tables.
+- **QR Code Tracking System**: Unique QR code generation for inventory units, automated print functionality, multi-method scanning, and secure verification. Integrated with Purchase Orders, Kanban Tickets, and Inventory Analytics.
 - **Inventory Category Management**: Device-type-based categorization with backend validation, CRUD operations via a dedicated UI, and integration across purchase orders, inventory pages, and analytics.
-- **Kanban Status Transition Validation**: Comprehensive workflow enforcement with defined state machine transition rules for all ticket statuses. Includes backend enforcement, enhanced drag-and-drop UX with visual feedback (cyan for valid, red for invalid), and inline status change dropdowns on Kanban cards.
+- **Kanban Status Transition Validation**: Comprehensive workflow enforcement with defined state machine transition rules for all ticket statuses. Includes backend enforcement, enhanced drag-and-drop UX with visual feedback, and inline status change dropdowns on Kanban cards.
+
+### Security & Production Standards
+- **Multi-Tenant Security**: Database-level isolation with Row-Level Security (RLS) policies, session variables for tenant context, and application-level verification on all queries and mutations.
+- **Data Validation & Integrity**: Zod schemas for input validation, TypeScript strict mode, and database constraints (foreign keys, NOT NULL).
+- **API Security**: Rate limiting, mandatory authentication/authorization, error sanitization, pagination, CSRF protection, and secure headers.
+- **Session Security**: HttpOnly, secure, and sameSite cookies, idle timeout, session rotation, and secure PostgreSQL storage.
+- **Secrets Management**: Environment variables, Replit Secrets for production keys, secret rotation, and no logging of secrets.
+- **Dependency Security**: Vulnerability scanning, automated monitoring (Dependabot/Snyk), regular updates, and license compliance.
+- **Audit & Logging**: Logging of security events, audit trails for critical operations, structured logging, and log retention policies.
+- **File Upload Security**: File type/size validation, virus scanning (if applicable), secure storage, and content sanitization.
+- **Backup & Recovery**: Automated PostgreSQL backups with encryption, recovery testing, point-in-time recovery, and disaster recovery planning.
+- **Incident Response**: Defined procedures for detection, containment, recovery, breach notification, monitoring, and forensics.
+- **Testing Standards**: Security, tenant isolation, and integration tests, with regression prevention.
+- **Performance & Scalability**: Pagination, query optimization, N+1 prevention, caching, and connection pooling.
 
 ## External Dependencies
 
