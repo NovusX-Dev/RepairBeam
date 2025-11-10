@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { requirePermission } from "./permissionMiddleware";
+import { hydrateAuthUser } from "./middleware/hydrateAuthUser";
+import { setTenantContext } from "./middleware/tenantContext";
 import { PERMISSIONS } from "@shared/permissions";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
@@ -80,6 +82,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware
   await setupAuth(app);
+
+  // Tenant context middleware (MUST run after auth)
+  // This hydrates req.authUser from database and sets PostgreSQL session variable for RLS
+  app.use("/api", hydrateAuthUser, setTenantContext);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
