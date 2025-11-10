@@ -196,9 +196,19 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
-  const user = req.user as any;
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
-  if (!req.isAuthenticated() || !user.expires_at) {
+  const user = req.user;
+
+  // Local auth users don't need token refresh
+  if (user.authProvider === 'local') {
+    return next();
+  }
+
+  // OIDC auth users need token refresh handling
+  if (!user.expires_at) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -216,7 +226,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   try {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-    updateUserSession(user, tokenResponse);
+    updateUserSession(user as any, tokenResponse);
     return next();
   } catch (error) {
     res.status(401).json({ message: "Unauthorized" });
