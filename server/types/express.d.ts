@@ -7,16 +7,20 @@ export interface SessionUser {
   authProvider: 'oidc' | 'local';
 }
 
-// Authenticated user enriched with auth context
-export interface AuthenticatedUser {
+// Base authenticated user properties shared by both auth types
+interface BaseAuthenticatedUser {
   id: string;
   email: string | null;
   firstName: string | null;
   lastName: string | null;
   tenantId: string;
-  authProvider: 'oidc' | 'local';
   mustChangePassword: boolean;
-  claims?: {
+}
+
+// OIDC authenticated user with token metadata
+export interface OidcAuthenticatedUser extends BaseAuthenticatedUser {
+  authProvider: 'oidc';
+  claims: {
     sub: string;
     email?: string;
     first_name?: string;
@@ -24,10 +28,22 @@ export interface AuthenticatedUser {
     profile_image_url?: string;
     exp?: number;
   };
-  access_token?: string;
+  access_token: string;
   refresh_token?: string;
   expires_at?: number;
 }
+
+// Local authenticated user (password-based)
+export interface LocalAuthenticatedUser extends BaseAuthenticatedUser {
+  authProvider: 'local';
+  claims?: never;
+  access_token?: never;
+  refresh_token?: never;
+  expires_at?: never;
+}
+
+// Discriminated union of both auth types
+export type AuthenticatedUser = OidcAuthenticatedUser | LocalAuthenticatedUser;
 
 declare global {
   namespace Express {
@@ -40,7 +56,20 @@ declare global {
     }
 
     // Authenticated user from both OIDC and Local strategies
-    type User = AuthenticatedUser;
+    interface User extends BaseAuthenticatedUser {
+      authProvider: 'oidc' | 'local';
+      claims?: {
+        sub: string;
+        email?: string;
+        first_name?: string;
+        last_name?: string;
+        profile_image_url?: string;
+        exp?: number;
+      };
+      access_token?: string;
+      refresh_token?: string;
+      expires_at?: number;
+    }
   }
 }
 

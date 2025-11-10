@@ -8,6 +8,7 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { setupLocalAuth, setupPassportSerialize } from "./localAuth.js";
+import type { AuthenticatedUser } from "./types/express.js";
 
 if (!process.env.REPLIT_DOMAINS) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
@@ -127,29 +128,36 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const dbUser = await upsertUser(tokens.claims());
-    const claims = tokens.claims();
+    const tokenClaims = tokens.claims();
     
-    // Build AuthenticatedUser for OIDC
-    const authUser = {
+    // Guard against missing claims
+    if (!tokenClaims || !tokenClaims.sub) {
+      console.error('OIDC authentication failed: missing claims');
+      return verified(new Error('Invalid token claims'), false);
+    }
+    
+    const dbUser = await upsertUser(tokenClaims);
+    
+    // Build OidcAuthenticatedUser for OIDC
+    const authUser: AuthenticatedUser = {
       id: dbUser.id,
       email: dbUser.email,
       firstName: dbUser.firstName,
       lastName: dbUser.lastName,
       tenantId: dbUser.tenantId,
-      authProvider: 'oidc' as const,
+      authProvider: 'oidc',
       mustChangePassword: dbUser.mustChangePassword || false,
       claims: {
-        sub: claims.sub,
-        email: claims.email,
-        first_name: claims.first_name,
-        last_name: claims.last_name,
-        profile_image_url: claims.profile_image_url,
-        exp: claims.exp,
+        sub: String(tokenClaims.sub),
+        email: tokenClaims.email ? String(tokenClaims.email) : undefined,
+        first_name: tokenClaims.first_name ? String(tokenClaims.first_name) : undefined,
+        last_name: tokenClaims.last_name ? String(tokenClaims.last_name) : undefined,
+        profile_image_url: tokenClaims.profile_image_url ? String(tokenClaims.profile_image_url) : undefined,
+        exp: tokenClaims.exp ? Number(tokenClaims.exp) : undefined,
       },
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      expires_at: claims.exp,
+      expires_at: tokenClaims.exp ? Number(tokenClaims.exp) : undefined,
     };
     
     verified(null, authUser);

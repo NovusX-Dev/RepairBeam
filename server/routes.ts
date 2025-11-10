@@ -136,6 +136,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Block OIDC users from changing password (they use SSO)
+      if (!user.passwordHash) {
+        return res.status(400).json({ 
+          message: "This account uses SSO login. Password cannot be changed here." 
+        });
+      }
+
       // Verify current password unless user must change password
       if (!user.mustChangePassword) {
         if (!currentPassword) {
@@ -145,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const { validatePassword } = await import('./utils/password.js');
-        const isValid = await validatePassword(currentPassword, user.passwordHash!);
+        const isValid = await validatePassword(currentPassword, user.passwordHash);
         if (!isValid) {
           return res.status(400).json({ 
             message: "Current password is incorrect" 

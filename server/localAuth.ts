@@ -66,7 +66,7 @@ export async function setupLocalAuth() {
 export function setupPassportSerialize() {
   passport.serializeUser((user, done) => {
     const sessionUser: SessionUser = {
-      id: user.id || user.claims?.sub,
+      id: user.authProvider === 'oidc' && user.claims ? user.claims.sub : user.id,
       tenantId: user.tenantId,
       authProvider: user.authProvider,
     };
@@ -81,16 +81,28 @@ export function setupPassportSerialize() {
         return done(null, false);
       }
 
-      // Construct AuthenticatedUser
-      const authUser: AuthenticatedUser = {
-        id: dbUser.id,
-        email: dbUser.email,
-        firstName: dbUser.firstName,
-        lastName: dbUser.lastName,
-        tenantId: dbUser.tenantId,
-        authProvider: sessionUser.authProvider,
-        mustChangePassword: dbUser.mustChangePassword || false,
-      };
+      // Construct AuthenticatedUser based on auth provider
+      const authUser: AuthenticatedUser = sessionUser.authProvider === 'local'
+        ? {
+            id: dbUser.id,
+            email: dbUser.email,
+            firstName: dbUser.firstName,
+            lastName: dbUser.lastName,
+            tenantId: dbUser.tenantId,
+            authProvider: 'local',
+            mustChangePassword: dbUser.mustChangePassword || false,
+          }
+        : {
+            id: dbUser.id,
+            email: dbUser.email,
+            firstName: dbUser.firstName,
+            lastName: dbUser.lastName,
+            tenantId: dbUser.tenantId,
+            authProvider: 'oidc',
+            mustChangePassword: dbUser.mustChangePassword || false,
+            claims: { sub: dbUser.id },
+            access_token: '',
+          };
 
       done(null, authUser);
     } catch (error) {
