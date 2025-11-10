@@ -34,7 +34,10 @@ import {
   AlertCircle,
   RefreshCw,
   FileText,
-  Eye
+  Eye,
+  KeyRound,
+  Copy,
+  Check
 } from "lucide-react";
 import { format } from "date-fns";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -119,6 +122,9 @@ export default function Users() {
   const [isBulkInviteDialogOpen, setIsBulkInviteDialogOpen] = useState(false);
   const [selectedLogDetails, setSelectedLogDetails] = useState<AuditLog | null>(null);
   const [isLogDetailsDialogOpen, setIsLogDetailsDialogOpen] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   // Activity tab filters
   const [activitySearchTerm, setActivitySearchTerm] = useState("");
@@ -203,11 +209,18 @@ export default function Users() {
     mutationFn: async (data: typeof inviteForm) => {
       return apiRequest("POST", "/api/invitations", data);
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      
+      if (response.temporaryPassword) {
+        setTemporaryPassword(response.temporaryPassword);
+        setIsPasswordDialogOpen(true);
+      }
+      
       toast({
-        title: t("invitation_sent", "Invitation Sent"),
-        description: t("invitation_sent_desc", "User invitation has been created successfully."),
+        title: t("user_created", "User Created"),
+        description: t("user_created_desc", "User has been created successfully with a temporary password."),
       });
       setIsInviteDialogOpen(false);
       resetInviteForm();
@@ -347,6 +360,30 @@ export default function Users() {
       toast({
         title: t("error", "Error"),
         description: error.message || t("user_update_failed", "Failed to update user"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset user password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest("POST", `/api/users/${userId}/reset-password`);
+    },
+    onSuccess: (response: any) => {
+      if (response.temporaryPassword) {
+        setTemporaryPassword(response.temporaryPassword);
+        setIsPasswordDialogOpen(true);
+      }
+      toast({
+        title: t("password_reset", "Password Reset"),
+        description: t("password_reset_desc", "User password has been reset successfully."),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("error", "Error"),
+        description: error.message || t("password_reset_failed", "Failed to reset password"),
         variant: "destructive",
       });
     },
@@ -848,6 +885,18 @@ export default function Users() {
                             </PermissionGate>
                             {user.id !== currentUser?.id && (
                               <>
+                                <PermissionGate permission={PERMISSIONS.USERS_UPDATE}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => resetPasswordMutation.mutate(user.id)}
+                                    disabled={resetPasswordMutation.isPending}
+                                    data-testid={`button-reset-password-${user.id}`}
+                                  >
+                                    <KeyRound className="w-3 h-3 mr-1" />
+                                    {t("reset_password", "Reset Password")}
+                                  </Button>
+                                </PermissionGate>
                                 <PermissionGate permission={PERMISSIONS.USERS_UPDATE}>
                                   <Button
                                     variant="outline"
@@ -1615,6 +1664,92 @@ export default function Users() {
                   {t("send_invitations", "Send Invitations")}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Temporary Password Display Dialog */}
+      <Dialog 
+        open={isPasswordDialogOpen} 
+        onOpenChange={(open) => {
+          setIsPasswordDialogOpen(open);
+          if (!open) {
+            setTemporaryPassword(null);
+            setPasswordCopied(false);
+          }
+        }}
+      >
+        <DialogContent data-testid="dialog-temporary-password">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              {t("temporary_password", "Temporary Password")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("temporary_password_shown_once", "This password will only be shown once. Please save it securely and share it with the user.")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="bg-muted p-4 rounded-lg border border-primary/20">
+              <p className="text-xs text-muted-foreground mb-2">
+                {t("password", "Password")}:
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-2xl font-mono font-bold tracking-wide text-primary">
+                  {temporaryPassword}
+                </code>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (temporaryPassword) {
+                      navigator.clipboard.writeText(temporaryPassword);
+                      setPasswordCopied(true);
+                      setTimeout(() => setPasswordCopied(false), 2000);
+                    }
+                  }}
+                  data-testid="button-copy-password"
+                >
+                  {passwordCopied ? (
+                    <>
+                      <Check className="w-4 h-4 mr-1" />
+                      {t("copied", "Copied!")}
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-1" />
+                      {t("copy", "Copy")}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
+                <div className="text-sm text-yellow-600 dark:text-yellow-500">
+                  <p className="font-medium">{t("important", "Important")}</p>
+                  <p className="text-xs mt-1">
+                    {t("password_will_not_be_shown_again", "This password will not be shown again. The user must change it on their first login.")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsPasswordDialogOpen(false);
+                setTemporaryPassword(null);
+                setPasswordCopied(false);
+              }}
+              data-testid="button-close-password-dialog"
+            >
+              {t("i_have_saved_password", "I've Saved the Password")}
             </Button>
           </DialogFooter>
         </DialogContent>
