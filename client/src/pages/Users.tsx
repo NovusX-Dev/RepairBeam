@@ -207,14 +207,15 @@ export default function Users() {
   // Create invitation mutation
   const createInvitationMutation = useMutation({
     mutationFn: async (data: typeof inviteForm) => {
-      return apiRequest("POST", "/api/invitations", data);
+      const response = await apiRequest("POST", "/api/invitations", data);
+      return response.json();
     },
-    onSuccess: (response: any) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/invitations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       
-      if (response.temporaryPassword) {
-        setTemporaryPassword(response.temporaryPassword);
+      if (data.temporaryPassword) {
+        setTemporaryPassword(data.temporaryPassword);
         setIsPasswordDialogOpen(true);
       }
       
@@ -368,11 +369,12 @@ export default function Users() {
   // Reset user password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest("POST", `/api/users/${userId}/reset-password`);
+      const response = await apiRequest("POST", `/api/users/${userId}/reset-password`);
+      return response.json();
     },
-    onSuccess: (response: any) => {
-      if (response.temporaryPassword) {
-        setTemporaryPassword(response.temporaryPassword);
+    onSuccess: (data: any) => {
+      if (data.temporaryPassword) {
+        setTemporaryPassword(data.temporaryPassword);
         setIsPasswordDialogOpen(true);
       }
       toast({
