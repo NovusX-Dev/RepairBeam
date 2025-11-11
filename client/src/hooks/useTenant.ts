@@ -14,6 +14,6 @@ export function useTenant() {
   return {
     tenant,
     isLoading,
-    hasValidTenant: tenant && tenant.name !== 'Default Organization',
+    hasValidTenant: !!tenant,
   };
 }
