@@ -15,9 +15,11 @@ interface RecentUser {
   firstName: string | null;
   lastName: string | null;
   email: string | null;
-  profileImageUrl: string | null;
-  tenantAlias: string;
-  tenantName: string;
+  role: string;
+  shopLogoUrl: string | null;
+  shopName: string;
+  shopAlias: string | null;
+  tenantDomain: string | null;
 }
 
 export default function Landing() {
@@ -210,12 +212,12 @@ export default function Landing() {
                           data-testid={`button-quick-login-${user.id}`}
                         >
                           <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
-                              {user.profileImageUrl ? (
+                            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium overflow-hidden">
+                              {user.shopLogoUrl ? (
                                 <img 
-                                  src={user.profileImageUrl} 
-                                  alt="Profile" 
-                                  className="w-8 h-8 rounded-full object-cover"
+                                  src={user.shopLogoUrl} 
+                                  alt={user.shopName || "Shop Logo"} 
+                                  className="w-8 h-8 object-cover"
                                 />
                               ) : (
                                 <span>
@@ -227,9 +229,14 @@ export default function Landing() {
                             </div>
                             <div className="text-left">
                               <p className="font-medium">
-                                {user.tenantName || 'Shop'}
+                                {user.shopName || 'Shop'}
                               </p>
-                              <p className="text-xs text-muted-foreground">{user.tenantAlias}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {user.firstName && user.lastName 
+                                  ? `${user.firstName} ${user.lastName}`
+                                  : user.email || "User"}
+                                {user.role && <span className="capitalize"> • {user.role}</span>}
+                              </p>
                             </div>
                           </div>
                         </Button>
