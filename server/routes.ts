@@ -1925,7 +1925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        role: user.role,
+        role: user.groupName || user.role, // Use group name if available, fallback to basic role
         shopLogoUrl: user.storeSettings?.shopLogoUrl,
         shopName: user.storeSettings?.shopName || 'Shop',
         shopAlias: user.storeSettings?.shopAlias,
