@@ -1,12 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage';
-import { type OidcUser } from '../types/express';
+import { type AuthenticatedUser } from '../types/express.js';
+import { getAuthenticatedUserId } from '../utils/auth.js';
 
 /**
  * Authentication Hydration Middleware
  * 
  * Fetches the database User record once per request and caches it on req.authUser.
  * This eliminates the need for routes to repeatedly query storage.getUser().
+ * Supports both OIDC and local (password-based) authentication.
  * 
  * MUST run after authentication middleware (setupAuth) but before routes.
  */
@@ -22,9 +24,9 @@ export async function hydrateAuthUser(req: Request, res: Response, next: NextFun
       return next();
     }
 
-    // Extract user ID from OIDC claims
-    const oidcUser = req.user as OidcUser;
-    const userId = oidcUser.claims.sub;
+    // Extract user ID from either OIDC or local auth user
+    const user = req.user as AuthenticatedUser;
+    const userId = getAuthenticatedUserId(user);
 
     if (!userId) {
       console.error('[Auth] Missing user ID in claims');
