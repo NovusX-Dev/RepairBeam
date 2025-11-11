@@ -1925,9 +1925,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        profileImageUrl: user.tenant?.shopImageUrl, // Use shop image instead of user profile image
-        tenantAlias: user.tenant?.alias || user.tenant?.name || 'Shop',
-        tenantName: user.tenant?.name || 'Shop'
+        role: user.role,
+        shopLogoUrl: user.storeSettings?.shopLogoUrl,
+        shopName: user.storeSettings?.shopName || 'Shop',
+        shopAlias: user.storeSettings?.shopAlias,
+        tenantDomain: user.tenant?.domain,
       }));
       
       res.json(userList);
