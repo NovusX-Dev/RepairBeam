@@ -16,28 +16,15 @@ import { hasPermission, hasAnyPermission } from "@shared/permissions";
 export function requirePermission(requiredPermission: Permission): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      // Use hydrated authUser (populated by hydrateAuthUser middleware)
+      const authUser = (req as any).authUser;
       
-      // Get user from database
-      const userId = user?.claims?.sub;
-      if (!userId) {
+      if (!authUser || !authUser.tenantId) {
         return res.status(401).json({ message: "Unauthorized: User not authenticated" });
       }
 
-      const dbUser = await storage.getUser(userId);
-      if (!dbUser || !dbUser.tenantId) {
-        return res.status(403).json({ message: "Forbidden: User not found or not associated with a tenant" });
-      }
-
-      // Master user bypass (if needed for multi-tenant master admin)
-      if (dbUser.role === 'master' || dbUser.role === 'admin') {
-        // Optional: Master users can bypass permission checks
-        // For now, we'll still enforce permissions even for admins
-        // to maintain consistent RBAC
-      }
-
-      // Get user permissions
-      const userPermissions = await storage.getUserPermissions(userId, dbUser.tenantId);
+      // Get user permissions (authUser already has the full DB user record)
+      const userPermissions = await storage.getUserPermissions(authUser.id, authUser.tenantId);
 
       // Check if user has the required permission
       if (!hasPermission(userPermissions, requiredPermission)) {
@@ -49,8 +36,8 @@ export function requirePermission(requiredPermission: Permission): RequestHandle
 
       // Attach permissions to request for potential use in route handler
       (req as any).userPermissions = userPermissions;
-      (req as any).userId = userId;
-      (req as any).tenantId = dbUser.tenantId;
+      (req as any).userId = authUser.id;
+      (req as any).tenantId = authUser.tenantId;
 
       next();
     } catch (error) {
@@ -72,21 +59,15 @@ export function requirePermission(requiredPermission: Permission): RequestHandle
 export function requireAnyPermission(requiredPermissions: Permission[]): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      // Use hydrated authUser (populated by hydrateAuthUser middleware)
+      const authUser = (req as any).authUser;
       
-      // Get user from database
-      const userId = user?.claims?.sub;
-      if (!userId) {
+      if (!authUser || !authUser.tenantId) {
         return res.status(401).json({ message: "Unauthorized: User not authenticated" });
       }
 
-      const dbUser = await storage.getUser(userId);
-      if (!dbUser || !dbUser.tenantId) {
-        return res.status(403).json({ message: "Forbidden: User not found or not associated with a tenant" });
-      }
-
-      // Get user permissions
-      const userPermissions = await storage.getUserPermissions(userId, dbUser.tenantId);
+      // Get user permissions (authUser already has the full DB user record)
+      const userPermissions = await storage.getUserPermissions(authUser.id, authUser.tenantId);
 
       // Check if user has any of the required permissions
       if (!hasAnyPermission(userPermissions, requiredPermissions)) {
@@ -98,8 +79,8 @@ export function requireAnyPermission(requiredPermissions: Permission[]): Request
 
       // Attach permissions to request for potential use in route handler
       (req as any).userPermissions = userPermissions;
-      (req as any).userId = userId;
-      (req as any).tenantId = dbUser.tenantId;
+      (req as any).userId = authUser.id;
+      (req as any).tenantId = authUser.tenantId;
 
       next();
     } catch (error) {
