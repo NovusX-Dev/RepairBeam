@@ -64,10 +64,11 @@ export default function Landing() {
     setIsLoggingIn(true);
 
     try {
-      const response: any = await apiRequest("POST", "/api/auth/login", { email, password });
+      const response = await apiRequest("POST", "/api/auth/login", { email, password });
+      const data = await response.json();
 
-      if (response.mustChangePassword) {
-        setTempUserId(response.user.id);
+      if (data.mustChangePassword) {
+        setTempUserId(data.user.id);
         setShowChangePasswordModal(true);
         setShowPasswordLogin(false);
       } else {
