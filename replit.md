@@ -4,6 +4,7 @@
 Repair Beam is a multi-tenant SaaS platform designed to optimize operations for repair businesses. It provides integrated tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale functionalities, and customer support. The platform aims to improve efficiency and streamline workflows for repair businesses.
 
 ## Recent Critical Fixes
+- **2025-11-11 (Employee Login Flow)**: Fixed critical bug preventing password change prompt on first employee login. `apiRequest()` returns Response object requiring `.json()` parsing - affected both password change modal in Landing.tsx and temporary password display in Users.tsx. Also fixed `useTenant` hook checking non-existent `tenant.name` property (tenant table only has id/domain/settings).
 - **2025-11-10 (Session Fix)**: Fixed OIDC authentication loop caused by incomplete session serialization. Updated `SessionUser` interface and passport serialize/deserialize to preserve OIDC token metadata (`expires_at`, `access_token`, `refresh_token`, `claims`) so authenticated sessions persist correctly across requests.
 - **2025-11-10 (RLS Fix)**: Fixed SQL syntax error in tenant context middleware. PostgreSQL `SET LOCAL` commands don't support parameterized queries ($1), requiring `sql.raw()` with proper SQL escaping (`'` → `''`) instead.
 
