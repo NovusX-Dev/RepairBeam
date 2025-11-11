@@ -207,14 +207,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
       res.json({
-        ...user,
-        mustChangePassword: user.mustChangePassword || false,
+        ...req.authUser,
+        mustChangePassword: req.authUser.mustChangePassword || false,
       });
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -225,18 +223,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user's permissions (no permission required - users can see their own permissions)
   app.get("/api/auth/me/permissions", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      if (!user.tenantId) {
+      if (!req.authUser.tenantId) {
         return res.json({ permissions: [] });
       }
 
-      const permissions = await storage.getUserPermissions(userId, user.tenantId);
+      const permissions = await storage.getUserPermissions(req.authUser.id, req.authUser.tenantId);
       res.json({ permissions });
     } catch (error) {
       console.error("Error fetching user permissions:", error);
@@ -247,13 +242,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats endpoint
   app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const tenantId = user.tenantId;
+      const tenantId = req.authUser.tenantId;
       
       // Get basic counts for dashboard
       const [tickets, clients, inventoryItems, transactions, completionAnalytics] = await Promise.all([
@@ -344,13 +337,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
   app.get("/api/users", isAuthenticated, requirePermission(PERMISSIONS.USERS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const users = await storage.getUsersByTenant(user.tenantId);
+      const users = await storage.getUsersByTenant(req.authUser.tenantId);
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -361,25 +352,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update current user's profile (self-service)
   app.put("/api/users/me", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { firstName, lastName, phone, telegram } = req.body;
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
+      
+      const { firstName, lastName, phone, telegram } = req.body;
 
       const updatedUser = await storage.upsertUser({
-        id: userId,
-        email: user.email,
-        firstName: firstName || user.firstName,
-        lastName: lastName || user.lastName,
+        id: req.authUser.id,
+        email: req.authUser.email,
+        firstName: firstName || req.authUser.firstName,
+        lastName: lastName || req.authUser.lastName,
         phone: phone || null,
         telegram: telegram || null,
-        profileImageUrl: user.profileImageUrl,
-        tenantId: user.tenantId,
-        role: user.role,
-        status: user.status,
+        profileImageUrl: req.authUser.profileImageUrl,
+        tenantId: req.authUser.tenantId,
+        role: req.authUser.role,
+        status: req.authUser.status,
       });
 
       res.json(updatedUser);
@@ -392,16 +381,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete a user (admin only)
   app.delete("/api/users/:id", isAuthenticated, requirePermission(PERMISSIONS.USERS_DELETE), async (req: any, res) => {
     try {
-      const { id: targetUserId } = req.params;
-      const currentUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(currentUserId);
-      
-      if (!currentUser || !currentUser.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { id: targetUserId } = req.params;
+
       // Prevent self-deletion
-      if (targetUserId === currentUserId) {
+      if (targetUserId === req.authUser.id) {
         return res.status(400).json({ message: "You cannot delete your own account" });
       }
 
@@ -412,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify user belongs to same tenant
-      if (targetUser.tenantId !== currentUser.tenantId) {
+      if (targetUser.tenantId !== req.authUser.tenantId) {
         return res.status(403).json({ message: "Unauthorized to delete users from other tenants" });
       }
 
@@ -429,13 +416,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Client routes
   app.get("/api/clients", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const clients = await storage.getClients(user.tenantId);
+      const clients = await storage.getClients(req.authUser.tenantId);
       res.json(clients);
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -446,13 +431,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Ticket routes
   app.get("/api/tickets", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      let tickets = await storage.getTicketsWithClients(user.tenantId);
+      let tickets = await storage.getTicketsWithClients(req.authUser.tenantId);
 
       // Apply filters if provided in query params
       const { search, status, priority, assignedTo, deviceType, dateFrom, dateTo } = req.query;
@@ -511,14 +494,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get tickets by client ID
   app.get("/api/tickets/client/:clientId", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_READ), async (req: any, res) => {
     try {
-      const { clientId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const tickets = await storage.getTicketsByClientId(clientId, user.tenantId);
+      const { clientId } = req.params;
+      const tickets = await storage.getTicketsByClientId(clientId, req.authUser.tenantId);
       res.json(tickets);
     } catch (error) {
       console.error("Error fetching tickets by client:", error);
@@ -529,14 +510,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Check if ticket ID exists (for unique ID generation)
   app.get("/api/tickets/check-id/:ticketId", isAuthenticated, async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const exists = await storage.checkTicketIdExists(ticketId, user.tenantId);
+      const { ticketId } = req.params;
+      const exists = await storage.checkTicketIdExists(ticketId, req.authUser.tenantId);
       res.json({ exists });
     } catch (error) {
       console.error("Error checking ticket ID:", error);
@@ -547,14 +526,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get single ticket by ID with client details (must be after specific routes)
   app.get("/api/tickets/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const tickets = await storage.getTicketsWithClients(user.tenantId);
+      const { id } = req.params;
+      const tickets = await storage.getTicketsWithClients(req.authUser.tenantId);
       const ticket = tickets.find(t => t.id === id);
       
       if (!ticket) {
@@ -571,10 +548,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new ticket
   app.post("/api/tickets", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_CREATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { issueResponses, ...ticketBody } = req.body;
@@ -582,7 +557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate and normalize currency fields before creating ticket
       const validationResult = validatedTicketSchema.safeParse({
         ...ticketBody,
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         // Convert clientDeadline string to Date object if it exists
         clientDeadline: req.body.clientDeadline ? new Date(req.body.clientDeadline) : null
       });
@@ -618,14 +593,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get ticket notes
   app.get("/api/tickets/:ticketId/notes", isAuthenticated, async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const notes = await storage.getTicketNotes(ticketId, user.tenantId);
+      const { ticketId } = req.params;
+      const notes = await storage.getTicketNotes(ticketId, req.authUser.tenantId);
       res.json(notes);
     } catch (error) {
       console.error("Error fetching ticket notes:", error);
@@ -636,19 +609,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add ticket note
   app.post("/api/tickets/:ticketId/notes", isAuthenticated, async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const { content } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
+      const { content } = req.body;
+      
       const note = await storage.createTicketNote({
         ticketId,
-        userId,
+        userId: req.authUser.id,
         content,
-        tenantId: user.tenantId
+        tenantId: req.authUser.tenantId
       });
       res.status(201).json(note);
     } catch (error) {
@@ -660,13 +632,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get ticket issue responses
   app.get("/api/tickets/:ticketId/issue-responses", isAuthenticated, async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
       const responses = await storage.getIssueResponses(ticketId);
       res.json(responses);
     } catch (error) {
@@ -677,21 +647,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/tickets/:ticketId/status", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_CHANGE_STATUS), async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const { status } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
+      const { status } = req.body;
+      
       if (!status) {
         return res.status(400).json({ message: "Status is required" });
       }
 
       // Get current ticket to validate status transition
-      const currentTicket = await storage.getTicket(ticketId, user.tenantId);
+      const currentTicket = await storage.getTicket(ticketId, req.authUser.tenantId);
       
       if (!currentTicket) {
         return res.status(404).json({ message: "Ticket not found" });
@@ -712,7 +680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const updatedTicket = await storage.updateTicketStatus(ticketId, status, user.tenantId);
+      const updatedTicket = await storage.updateTicketStatus(ticketId, status, req.authUser.tenantId);
       
       if (!updatedTicket) {
         return res.status(404).json({ message: "Ticket not found" });
@@ -731,27 +699,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Finalize ticket with completion data
   app.put("/api/tickets/:ticketId/finalize", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_CHANGE_STATUS), async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const { completionNotes, actualHours, finalActualCost, confirmedItemIds = [] } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
+      const { completionNotes, actualHours, finalActualCost, confirmedItemIds = [] } = req.body;
+      
       if (actualHours === undefined || finalActualCost === undefined) {
         return res.status(400).json({ message: "Actual hours and final cost are required" });
       }
 
       // Get all ticket items
-      const ticketItems = await storage.getTicketItems(ticketId, user.tenantId);
+      const ticketItems = await storage.getTicketItems(ticketId, req.authUser.tenantId);
       
       // Process each ticket item based on confirmation
       for (const ticketItem of ticketItems) {
         if (confirmedItemIds.includes(ticketItem.id)) {
           // Item was used - mark as confirmed
-          await storage.updateTicketItem(ticketItem.id, user.tenantId, {
+          await storage.updateTicketItem(ticketItem.id, req.authUser.tenantId, {
             confirmed: true,
           });
           
@@ -765,7 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } else {
           // Item was NOT used - return to inventory
-          const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
+          const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, req.authUser.tenantId);
           if (inventoryItem) {
             // Return units to inventory
             const unitIds = ticketItem.inventoryUnitIds as string[];
@@ -778,20 +744,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             // Add back to inventory quantity
-            await storage.updateInventoryItem(inventoryItem.id, user.tenantId, {
+            await storage.updateInventoryItem(inventoryItem.id, req.authUser.tenantId, {
               quantity: inventoryItem.quantity + ticketItem.quantity,
             });
           }
 
           // Delete the unconfirmed ticket item
-          await storage.deleteTicketItem(ticketItem.id, user.tenantId);
+          await storage.deleteTicketItem(ticketItem.id, req.authUser.tenantId);
         }
       }
 
       const finalizedTicket = await storage.finalizeTicket(
         ticketId, 
-        user.tenantId,
-        userId,
+        req.authUser.tenantId,
+        req.authUser.id,
         completionNotes || '', // Allow empty completion notes
         parseInt(actualHours),
         parseFloat(finalActualCost)
@@ -814,20 +780,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update ticket priority
   app.put("/api/tickets/:ticketId/priority", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_UPDATE), async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const { priority } = req.body;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
+      const { priority } = req.body;
+      
       if (!priority) {
         return res.status(400).json({ message: "Priority is required" });
       }
 
-      const updatedTicket = await storage.updateTicketPriority(ticketId, priority, user.tenantId);
+      const updatedTicket = await storage.updateTicketPriority(ticketId, priority, req.authUser.tenantId);
       
       if (!updatedTicket) {
         return res.status(404).json({ message: "Ticket not found" });
@@ -846,18 +810,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete ticket
   app.delete("/api/tickets/:ticketId", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_DELETE), async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
+      
       // Return ticket items to inventory before deleting
-      const ticketItems = await storage.getTicketItems(ticketId, user.tenantId);
+      const ticketItems = await storage.getTicketItems(ticketId, req.authUser.tenantId);
       for (const ticketItem of ticketItems) {
-        const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, user.tenantId);
+        const inventoryItem = await storage.getInventoryItem(ticketItem.inventoryItemId, req.authUser.tenantId);
         if (inventoryItem) {
           // Return units to inventory
           const unitIds = ticketItem.inventoryUnitIds as string[];
@@ -870,17 +832,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // Add back to inventory quantity
-          await storage.updateInventoryItem(inventoryItem.id, user.tenantId, {
+          await storage.updateInventoryItem(inventoryItem.id, req.authUser.tenantId, {
             quantity: inventoryItem.quantity + ticketItem.quantity,
           });
         }
       }
 
       // Delete all ticket items
-      await storage.deleteTicketItemsByTicketId(ticketId, user.tenantId);
+      await storage.deleteTicketItemsByTicketId(ticketId, req.authUser.tenantId);
 
       // Delete the ticket
-      const deleted = await storage.deleteTicket(ticketId, user.tenantId);
+      const deleted = await storage.deleteTicket(ticketId, req.authUser.tenantId);
       
       if (!deleted) {
         return res.status(404).json({ message: "Ticket not found" });
@@ -899,20 +861,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create sample tickets for testing Kanban (development only)
   app.post("/api/tickets/create-samples", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       // Get or create a client first
-      let clients = await storage.getClients(user.tenantId);
+      let clients = await storage.getClients(req.authUser.tenantId);
       let clientId;
       
       if (clients.length === 0) {
         // Create a sample client
         const sampleClient = await storage.createClient({
-          tenantId: user.tenantId,
+          tenantId: req.authUser.tenantId,
           firstName: "John",
           lastName: "Doe", 
           email: "john.doe@example.com",
@@ -928,7 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sample tickets for different stages
       const sampleTickets = [
         {
-          tenantId: user.tenantId,
+          tenantId: req.authUser.tenantId,
           clientId,
           title: "iPhone 12 Screen Replacement",
           description: "Customer dropped phone, screen is cracked",
@@ -940,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedCost: "149.99"
         },
         {
-          tenantId: user.tenantId,
+          tenantId: req.authUser.tenantId,
           clientId,
           title: "Samsung Galaxy Battery Issue",
           description: "Phone not holding charge, needs diagnostic",
@@ -952,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedCost: "89.99"
         },
         {
-          tenantId: user.tenantId,
+          tenantId: req.authUser.tenantId,
           clientId,
           title: "MacBook Pro Water Damage",
           description: "Laptop exposed to water, won't boot",
@@ -964,7 +924,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedCost: "450.00"
         },
         {
-          tenantId: user.tenantId,
+          tenantId: req.authUser.tenantId,
           clientId,
           title: "iPad Screen and Digitizer",
           description: "Touch not responding, screen replacement approved",
@@ -976,7 +936,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           estimatedCost: "199.99"
         },
         {
-          tenantId: user.tenantId,
+          tenantId: req.authUser.tenantId,
           clientId,
           title: "Dell Laptop Keyboard Replacement",
           description: "Multiple keys not working, replacement in progress",
@@ -1005,19 +965,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Inventory routes
   app.get("/api/inventory", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const searchQuery = req.query.search as string | undefined;
       
       let items;
       if (searchQuery && searchQuery.trim()) {
-        items = await storage.searchInventoryItems(user.tenantId, searchQuery.trim());
+        items = await storage.searchInventoryItems(req.authUser.tenantId, searchQuery.trim());
       } else {
-        items = await storage.getInventoryItems(user.tenantId);
+        items = await storage.getInventoryItems(req.authUser.tenantId);
       }
       
       res.json(items);
@@ -1029,13 +987,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_CREATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const itemData = { ...req.body, tenantId: user.tenantId };
+      const itemData = { ...req.body, tenantId: req.authUser.tenantId };
       const newItem = await storage.createInventoryItem(itemData);
       res.status(201).json(newItem);
     } catch (error) {
@@ -1046,14 +1002,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/inventory/:id", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
-      const updatedItem = await storage.updateInventoryItem(id, user.tenantId, req.body);
+      const updatedItem = await storage.updateInventoryItem(id, req.authUser.tenantId, req.body);
       
       if (!updatedItem) {
         return res.status(404).json({ message: "Inventory item not found" });
@@ -1068,14 +1022,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/inventory/:id", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_DELETE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
-      const deleted = await storage.deleteInventoryItem(id, user.tenantId);
+      const deleted = await storage.deleteInventoryItem(id, req.authUser.tenantId);
       
       if (!deleted) {
         return res.status(404).json({ message: "Inventory item not found" });
@@ -1091,14 +1043,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Ticket items routes
   app.get("/api/tickets/:ticketId/items", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { ticketId } = req.params;
-      const items = await storage.getTicketItems(ticketId, user.tenantId);
+      const items = await storage.getTicketItems(ticketId, req.authUser.tenantId);
       res.json(items);
     } catch (error) {
       console.error("Error fetching ticket items:", error);
@@ -1109,16 +1059,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get available service items for ticket (filtered by device type)
   app.get("/api/inventory/available-for-ticket/:deviceType", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { deviceType } = req.params;
       
       // Get all inventory items with supplier info for the tenant
-      const allItemsWithSuppliers = await storage.getInventoryItemsWithSuppliers(user.tenantId);
+      const allItemsWithSuppliers = await storage.getInventoryItemsWithSuppliers(req.authUser.tenantId);
       
       // Filter for service items only, with stock, matching device type or "Other"
       const availableItems = allItemsWithSuppliers.filter(item => {
@@ -1142,10 +1090,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tickets/:ticketId/items", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { ticketId } = req.params;
@@ -1153,7 +1099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use atomic transaction to add ticket item and deduct inventory
       const ticketItem = await storage.addTicketItemWithInventoryDeduction({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         ticketId,
         inventoryItemId,
         quantity,
@@ -1170,10 +1116,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tickets/:ticketId/items/:itemId", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { itemId } = req.params;
@@ -1181,7 +1125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use atomic transaction to remove ticket item and restore inventory
       await storage.removeTicketItemWithInventoryRestore({
         ticketItemId: itemId,
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
       });
 
       res.json({ message: "Item removed from ticket and returned to inventory" });
@@ -1196,9 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Verify QR code / unique tag - used for scanning
   app.get("/api/inventory-units/verify/:uniqueTag", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_SCAN_QR), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
+      if (!req.authUser) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
@@ -1210,14 +1152,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get inventory unit by unique tag (with tenant isolation)
-      const unit = await storage.getInventoryUnitByTag(uniqueTag, user.tenantId);
+      const unit = await storage.getInventoryUnitByTag(uniqueTag, req.authUser.tenantId);
       
       if (!unit) {
         return res.status(404).json({ message: "Unit not found" });
       }
 
       // Get the inventory item to get details
-      const inventoryItem = await storage.getInventoryItem(unit.inventoryItemId, user.tenantId);
+      const inventoryItem = await storage.getInventoryItem(unit.inventoryItemId, req.authUser.tenantId);
       
       if (!inventoryItem) {
         return res.status(404).json({ message: "Unit not found" });
@@ -1244,14 +1186,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/inventory-units/:unitId/history", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_VIEW_ANALYTICS), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { unitId } = req.params;
-      const history = await storage.getInventoryUnitHistory(unitId, user.tenantId);
+      const history = await storage.getInventoryUnitHistory(unitId, req.authUser.tenantId);
       
       if (!history) {
         return res.status(404).json({ message: "Inventory unit not found" });
@@ -1266,14 +1206,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/inventory/:itemId/usage-stats", isAuthenticated, requirePermission(PERMISSIONS.INVENTORY_VIEW_ANALYTICS), async (req: any, res) =>{
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { itemId } = req.params;
-      const stats = await storage.getInventoryItemUsageStats(itemId, user.tenantId);
+      const stats = await storage.getInventoryItemUsageStats(itemId, req.authUser.tenantId);
       
       if (!stats || !stats.inventoryItem) {
         return res.status(404).json({ message: "Inventory item not found" });
@@ -1289,22 +1227,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all inventory units for a specific item (for QR code printing)
   app.get("/api/inventory/:itemId/units", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
+      if (!req.authUser) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { itemId } = req.params;
       
       // Verify the item belongs to this tenant
-      const item = await storage.getInventoryItem(itemId, user.tenantId);
+      const item = await storage.getInventoryItem(itemId, req.authUser.tenantId);
       if (!item) {
         return res.status(404).json({ message: "Inventory item not found" });
       }
 
       // Get all units for this item
-      const units = await storage.getInventoryUnitsByItem(itemId, user.tenantId);
+      const units = await storage.getInventoryUnitsByItem(itemId, req.authUser.tenantId);
       res.json(units);
     } catch (error) {
       console.error("Error fetching inventory units:", error);
@@ -1315,13 +1251,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Supplier routes
   app.get("/api/suppliers", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const suppliers = await storage.getSuppliers(user.tenantId);
+      const suppliers = await storage.getSuppliers(req.authUser.tenantId);
       res.json(suppliers);
     } catch (error) {
       console.error("Error fetching suppliers:", error);
@@ -1331,13 +1265,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/suppliers", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_CREATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const supplierData = { ...req.body, tenantId: user.tenantId };
+      const supplierData = { ...req.body, tenantId: req.authUser.tenantId };
       const newSupplier = await storage.createSupplier(supplierData);
       res.status(201).json(newSupplier);
     } catch (error) {
@@ -1348,14 +1280,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/suppliers/:id", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
-      const updatedSupplier = await storage.updateSupplier(id, user.tenantId, req.body);
+      const updatedSupplier = await storage.updateSupplier(id, req.authUser.tenantId, req.body);
       
       if (!updatedSupplier) {
         return res.status(404).json({ message: "Supplier not found" });
@@ -1370,14 +1300,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/suppliers/:id", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_DELETE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
-      const deleted = await storage.deleteSupplier(id, user.tenantId);
+      const deleted = await storage.deleteSupplier(id, req.authUser.tenantId);
       
       if (!deleted) {
         return res.status(404).json({ message: "Supplier not found" });
@@ -1393,13 +1321,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Inventory category routes
   app.get("/api/inventory-categories", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const categories = await storage.getInventoryCategories(user.tenantId);
+      const categories = await storage.getInventoryCategories(req.authUser.tenantId);
       res.json(categories);
     } catch (error) {
       console.error("Error fetching inventory categories:", error);
@@ -1409,13 +1335,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory-categories", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const categoryData = { ...req.body, tenantId: user.tenantId };
+      const categoryData = { ...req.body, tenantId: req.authUser.tenantId };
       const newCategory = await storage.createInventoryCategory(categoryData);
       res.status(201).json(newCategory);
     } catch (error) {
@@ -1426,14 +1350,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/inventory-categories/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
-      const updatedCategory = await storage.updateInventoryCategory(id, user.tenantId, req.body);
+      const updatedCategory = await storage.updateInventoryCategory(id, req.authUser.tenantId, req.body);
       
       if (!updatedCategory) {
         return res.status(404).json({ message: "Inventory category not found" });
@@ -1448,14 +1370,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/inventory-categories/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
-      const deleted = await storage.deleteInventoryCategory(id, user.tenantId);
+      const deleted = await storage.deleteInventoryCategory(id, req.authUser.tenantId);
       
       if (!deleted) {
         return res.status(404).json({ message: "Inventory category not found" });
@@ -1471,13 +1391,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Purchase order routes
   app.get("/api/purchase-orders", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const purchaseOrders = await storage.getPurchaseOrders(user.tenantId);
+      const purchaseOrders = await storage.getPurchaseOrders(req.authUser.tenantId);
       res.json(purchaseOrders);
     } catch (error) {
       console.error("Error fetching purchase orders:", error);
@@ -1487,17 +1405,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/purchase-orders", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_CREATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { supplierId, items, expectedDate, notes } = req.body;
 
       // Create the purchase order
       const poData = {
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         supplierId,
         status: 'pending',
         expectedDate: expectedDate ? new Date(expectedDate) : null,
@@ -1531,16 +1447,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/purchase-orders/:id/items", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
 
       // Verify PO belongs to tenant
-      const po = await storage.getPurchaseOrder(id, user.tenantId);
+      const po = await storage.getPurchaseOrder(id, req.authUser.tenantId);
       if (!po) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
@@ -1557,17 +1471,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/purchase-orders/:id/finalize", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_RECEIVE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
       const { items } = req.body;
 
       // Get the PO
-      const po = await storage.getPurchaseOrder(id, user.tenantId);
+      const po = await storage.getPurchaseOrder(id, req.authUser.tenantId);
       if (!po) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
@@ -1613,14 +1525,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Use existing inventory item and update its supplierId if it's null
             inventoryItemId = existingItem.id;
             if (!existingItem.supplierId) {
-              await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
+              await storage.updateInventoryItem(inventoryItemId, req.authUser.tenantId, {
                 supplierId: po.supplierId,
               });
             }
           } else {
             // Create new inventory item (new item or same item from different supplier)
             const newInventoryItem = await storage.createInventoryItem({
-              tenantId: user.tenantId,
+              tenantId: req.authUser.tenantId,
               supplierId: po.supplierId,
               name: itemName,
               quantity: 0, // Will be updated below
@@ -1647,7 +1559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const uniqueTag = `${itemNameForTag.substring(0, 3).toUpperCase()}-${Date.now()}-${i}`;
           
           const newUnit = await storage.createInventoryUnit({
-            tenantId: user.tenantId,
+            tenantId: req.authUser.tenantId,
             inventoryItemId: inventoryItemId,
             supplierId: po.supplierId || '',
             purchaseOrderItemId: poItem.id,
@@ -1668,7 +1580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Update inventory item quantity and metadata
-        const inventoryItem = await storage.getInventoryItem(inventoryItemId, user.tenantId);
+        const inventoryItem = await storage.getInventoryItem(inventoryItemId, req.authUser.tenantId);
         if (inventoryItem) {
           const oldQuantity = inventoryItem.quantity;
           const newQuantity = oldQuantity + receivedItem.receivedQuantity;
@@ -1690,7 +1602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? inventoryItem.price // Keep existing valid price
             : receivedItem.sellingPrice; // Use new price for new/invalid items
           
-          await storage.updateInventoryItem(inventoryItemId, user.tenantId, {
+          await storage.updateInventoryItem(inventoryItemId, req.authUser.tenantId, {
             quantity: newQuantity,
             cost: weightedAverageCost,
             price: updatedPrice,
@@ -1704,7 +1616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update PO status and total cost
-      await storage.updatePurchaseOrder(id, user.tenantId, {
+      await storage.updatePurchaseOrder(id, req.authUser.tenantId, {
         status: 'received',
         receivedDate: new Date(),
         totalCost: totalCost.toFixed(2),
@@ -1728,16 +1640,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cancel PO route
   app.patch("/api/purchase-orders/:id/cancel", isAuthenticated, requirePermission(PERMISSIONS.PURCHASE_ORDERS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { id } = req.params;
 
       // Get the PO to verify it's in pending status
-      const po = await storage.getPurchaseOrder(id, user.tenantId);
+      const po = await storage.getPurchaseOrder(id, req.authUser.tenantId);
       if (!po) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
@@ -1747,7 +1657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update PO status to cancelled
-      await storage.updatePurchaseOrder(id, user.tenantId, {
+      await storage.updatePurchaseOrder(id, req.authUser.tenantId, {
         status: 'cancelled',
       });
 
@@ -1761,13 +1671,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Transaction routes
   app.get("/api/transactions", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const transactions = await storage.getTransactions(user.tenantId);
+      const transactions = await storage.getTransactions(req.authUser.tenantId);
       res.json(transactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -1778,13 +1686,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Support ticket routes
   app.get("/api/support-tickets", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const supportTickets = await storage.getSupportTickets(user.tenantId);
+      const supportTickets = await storage.getSupportTickets(req.authUser.tenantId);
       res.json(supportTickets);
     } catch (error) {
       console.error("Error fetching support tickets:", error);
@@ -1974,11 +1880,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.initializeDefaultChecklists(tenant.id);
 
       // Update user's tenant association
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (user) {
+      if (req.authUser) {
         await storage.upsertUser({
-          ...user,
+          ...req.authUser,
           tenantId: tenant.id
         });
       }
@@ -1992,13 +1896,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/tenants/current", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ error: "Unauthorized" });
       }
 
-      const tenant = await storage.getTenant(user.tenantId);
+      const tenant = await storage.getTenant(req.authUser.tenantId);
       if (!tenant) {
         return res.status(404).json({ error: "Tenant not found" });
       }
@@ -2050,14 +1952,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Filter presets routes
   app.get("/api/filter-presets", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { pageType } = req.query;
-      const presets = await storage.getFilterPresets(user.tenantId, userId, pageType as string);
+      const presets = await storage.getFilterPresets(req.authUser.tenantId, req.authUser.id, pageType as string);
       res.json(presets);
     } catch (error) {
       console.error("Error fetching filter presets:", error);
@@ -2067,16 +1967,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/filter-presets", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const presetData = {
         ...req.body,
-        tenantId: user.tenantId,
-        userId: userId
+        tenantId: req.authUser.tenantId,
+        userId: req.authUser.id
       };
 
       const preset = await storage.createFilterPreset(presetData);
@@ -2089,13 +1987,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/filter-presets/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const preset = await storage.updateFilterPreset(req.params.id, user.tenantId, userId, req.body);
+      const preset = await storage.updateFilterPreset(req.params.id, req.authUser.tenantId, req.authUser.id, req.body);
       if (!preset) {
         return res.status(404).json({ message: "Filter preset not found" });
       }
@@ -2109,13 +2005,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/filter-presets/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      await storage.deleteFilterPreset(req.params.id, user.tenantId, userId);
+      await storage.deleteFilterPreset(req.params.id, req.authUser.tenantId, req.authUser.id);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting filter preset:", error);
@@ -2126,10 +2020,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Client search endpoint
   app.get("/api/clients/search", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const query = req.query.q as string;
@@ -2137,7 +2029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      const clients = await storage.searchClients(user.tenantId, query.trim());
+      const clients = await storage.searchClients(req.authUser.tenantId, query.trim());
       res.json(clients);
     } catch (error) {
       console.error("Error searching clients:", error);
@@ -2148,14 +2040,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get client by CPF endpoint
   app.get("/api/clients/cpf/:cpf", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { cpf } = req.params;
-      const client = await storage.getClientByCPF(user.tenantId, cpf);
+      const client = await storage.getClientByCPF(req.authUser.tenantId, cpf);
       
       if (client) {
         res.json(client);
@@ -2171,13 +2061,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create client endpoint
   app.post("/api/clients", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_CREATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const clientData = { ...req.body, tenantId: user.tenantId };
+      const clientData = { ...req.body, tenantId: req.authUser.tenantId };
       const client = await storage.createClient(clientData);
       res.json(client);
     } catch (error) {
@@ -2189,14 +2077,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update client endpoint
   app.put("/api/clients/:clientId", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_UPDATE), async (req: any, res) => {
     try {
-      const { clientId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const client = await storage.updateClient(clientId, req.body, user.tenantId);
+      const { clientId } = req.params;
+      const client = await storage.updateClient(clientId, req.body, req.authUser.tenantId);
       
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
@@ -2286,11 +2172,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize brand lists if they don't exist
   app.post("/api/auto-gen-lists/initialize", isAuthenticated, async (req: any, res) => {
     try {
-      // Check if user has admin privileges (you can add this check later)
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       console.log("Initializing auto-generated brand lists...");
@@ -2306,13 +2189,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Force update specific category
   app.post("/api/auto-gen-lists/:category/update", isAuthenticated, async (req: any, res) => {
     try {
-      const { category } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { category } = req.params;
       console.log(`Force updating brand list for ${category}...`);
       const { brands } = await aiService.generateDeviceBrands(category);
       
@@ -2789,12 +2670,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate model lists for all brands of a specific category
   app.post("/api/auto-gen-lists/:category/generate-models", isAuthenticated, async (req: any, res) => {
     try {
-      const { category } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
+
+      const { category } = req.params;
 
       // Check if generation is already in progress
       const existingStatus = aiService.getGenerationStatus(category) as any;
@@ -2834,13 +2714,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate models for a specific brand and category
   app.post("/api/auto-gen-lists/:category/:brand/generate-models", isAuthenticated, async (req: any, res) => {
     try {
-      const { category, brand } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { category, brand } = req.params;
       console.log(`💰 Making OpenAI API call for ${brand} ${category} models...`);
       const { models } = await aiService.generateDeviceModels(category, brand);
       
@@ -2908,13 +2786,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cancel stuck generation process
   app.post("/api/auto-gen-lists/:category/cancel", isAuthenticated, async (req: any, res) => {
     try {
-      const { category } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { category } = req.params;
       const cancelled = aiService.cancelGeneration(category);
       
       if (cancelled) {
@@ -2931,13 +2807,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reset generation status for recovery
   app.post("/api/auto-gen-lists/:category/reset", isAuthenticated, async (req: any, res) => {
     try {
-      const { category } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { category } = req.params;
       aiService.resetGenerationStatus(category);
       res.json({ message: `Generation status reset for ${category}` });
     } catch (error) {
@@ -2949,10 +2823,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Emergency reset all generations
   app.post("/api/auto-gen-lists/reset-all", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const cancelledCount = aiService.cancelAllGenerations();
@@ -2969,14 +2841,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Retry failed brands for a specific category
   app.post("/api/auto-gen-lists/:category/retry", isAuthenticated, async (req: any, res) => {
     try {
-      const { category } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      console.log(`⚠️  COST WARNING: User ${userId} is retrying failed brands for ${category}`);
+      const { category } = req.params;
+      console.log(`⚠️  COST WARNING: User ${req.authUser.id} is retrying failed brands for ${category}`);
       
       // Start retry process asynchronously
       aiService.retryFailedBrands(category).catch(error => {
@@ -3182,20 +3052,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/issue-responses", isAuthenticated, async (req: any, res) => {
     try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const { ticketId, responses } = req.body;
       
       if (!ticketId || !responses || !Array.isArray(responses)) {
         return res.status(400).json({ message: "ticketId and responses array are required" });
       }
 
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
       // Verify ticket belongs to user's tenant
-      const ticket = await storage.getTicket(ticketId, user.tenantId);
+      const ticket = await storage.getTicket(ticketId, req.authUser.tenantId);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
       }
@@ -3223,15 +3091,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/issue-responses/:ticketId", isAuthenticated, async (req: any, res) => {
     try {
-      const { ticketId } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { ticketId } = req.params;
+
       // Verify ticket belongs to user's tenant
-      const ticket = await storage.getTicket(ticketId, user.tenantId);
+      const ticket = await storage.getTicket(ticketId, req.authUser.tenantId);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
       }
@@ -3247,13 +3114,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Store settings API endpoints
   app.get("/api/store-settings", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const settings = await storage.getStoreSettings(user.tenantId);
+      const settings = await storage.getStoreSettings(req.authUser.tenantId);
       res.json(settings);
     } catch (error) {
       console.error("Error fetching store settings:", error);
@@ -3263,14 +3128,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/store-settings", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const settings = await storage.createStoreSettings({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         ...req.body
       });
       res.json(settings);
@@ -3282,13 +3145,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/store-settings", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const settings = await storage.updateStoreSettings(user.tenantId, req.body);
+      const settings = await storage.updateStoreSettings(req.authUser.tenantId, req.body);
       if (!settings) {
         return res.status(404).json({ message: "Store settings not found" });
       }
@@ -3302,13 +3163,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Warranty tiers API endpoints
   app.get("/api/warranty-tiers", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const tiers = await storage.getWarrantyTiers(user.tenantId);
+      const tiers = await storage.getWarrantyTiers(req.authUser.tenantId);
       res.json(tiers);
     } catch (error) {
       console.error("Error fetching warranty tiers:", error);
@@ -3318,14 +3177,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/warranty-tiers/:deviceType", isAuthenticated, async (req: any, res) => {
     try {
-      const { deviceType } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const tiers = await storage.getWarrantyTiersByDeviceType(user.tenantId, deviceType);
+      const { deviceType } = req.params;
+      const tiers = await storage.getWarrantyTiersByDeviceType(req.authUser.tenantId, deviceType);
       res.json(tiers);
     } catch (error) {
       console.error("Error fetching warranty tiers for device type:", error);
@@ -3335,14 +3192,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/warranty-tiers", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const tier = await storage.createWarrantyTier({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         ...req.body
       });
       res.json(tier);
@@ -3354,14 +3209,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/warranty-tiers/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const tier = await storage.updateWarrantyTier(id, user.tenantId, req.body);
+      const { id } = req.params;
+      const tier = await storage.updateWarrantyTier(id, req.authUser.tenantId, req.body);
       if (!tier) {
         return res.status(404).json({ message: "Warranty tier not found" });
       }
@@ -3374,14 +3227,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/warranty-tiers/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const success = await storage.deleteWarrantyTier(id, user.tenantId);
+      const { id } = req.params;
+      const success = await storage.deleteWarrantyTier(id, req.authUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "Warranty tier not found" });
       }
@@ -3395,13 +3246,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Repair services routes
   app.get("/api/repair-services", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const services = await storage.getRepairServices(user.tenantId);
+      const services = await storage.getRepairServices(req.authUser.tenantId);
       res.json(services);
     } catch (error) {
       console.error("Error fetching repair services:", error);
@@ -3411,14 +3260,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/repair-services/device/:deviceType", isAuthenticated, async (req: any, res) => {
     try {
-      const { deviceType } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const services = await storage.getRepairServicesByDeviceType(user.tenantId, deviceType);
+      const { deviceType } = req.params;
+      const services = await storage.getRepairServicesByDeviceType(req.authUser.tenantId, deviceType);
       res.json(services);
     } catch (error) {
       console.error("Error fetching repair services by device type:", error);
@@ -3428,14 +3275,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/repair-services", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const service = await storage.createRepairService({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         ...req.body
       });
       res.json(service);
@@ -3447,14 +3292,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/repair-services/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const service = await storage.updateRepairService(id, user.tenantId, req.body);
+      const { id } = req.params;
+      const service = await storage.updateRepairService(id, req.authUser.tenantId, req.body);
       if (!service) {
         return res.status(404).json({ message: "Repair service not found" });
       }
@@ -3467,14 +3310,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/repair-services/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const success = await storage.deleteRepairService(id, user.tenantId);
+      const { id } = req.params;
+      const success = await storage.deleteRepairService(id, req.authUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "Repair service not found" });
       }
@@ -3488,13 +3329,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Possible defects routes
   app.get("/api/possible-defects", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const defects = await storage.getPossibleDefects(user.tenantId);
+      const defects = await storage.getPossibleDefects(req.authUser.tenantId);
       res.json(defects);
     } catch (error) {
       console.error("Error fetching possible defects:", error);
@@ -3504,20 +3343,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/possible-defects/device/:deviceType", isAuthenticated, async (req: any, res) => {
     try {
-      const { deviceType } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { deviceType } = req.params;
       if (!deviceType || deviceType.trim() === '') {
         return res.status(400).json({ message: "Device type is required" });
       }
 
       // Get tenant-specific defects for this device type
-      const defects = await storage.getPossibleDefectsByDeviceType(user.tenantId, deviceType);
+      const defects = await storage.getPossibleDefectsByDeviceType(req.authUser.tenantId, deviceType);
       
       // Sort alphabetically to ensure consistent ordering
       const sortedDefects = defects.sort((a, b) => a.name.localeCompare(b.name));
@@ -3531,14 +3367,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/possible-defects", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const defect = await storage.createPossibleDefect({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         ...req.body
       });
       res.json(defect);
@@ -3550,14 +3384,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/possible-defects/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const defect = await storage.updatePossibleDefect(id, user.tenantId, req.body);
+      const { id } = req.params;
+      const defect = await storage.updatePossibleDefect(id, req.authUser.tenantId, req.body);
       if (!defect) {
         return res.status(404).json({ message: "Possible defect not found" });
       }
@@ -3570,14 +3402,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/possible-defects/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const success = await storage.deletePossibleDefect(id, user.tenantId);
+      const { id } = req.params;
+      const success = await storage.deletePossibleDefect(id, req.authUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "Possible defect not found" });
       }
@@ -3591,13 +3421,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Checklists routes
   app.get("/api/checklists", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const checklists = await storage.getChecklists(user.tenantId);
+      const checklists = await storage.getChecklists(req.authUser.tenantId);
       res.json(checklists);
     } catch (error) {
       console.error("Error fetching checklists:", error);
@@ -3607,19 +3435,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/checklists/device/:deviceType", isAuthenticated, async (req: any, res) => {
     try {
-      const { deviceType } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { deviceType } = req.params;
       if (!deviceType || deviceType.trim() === '') {
         return res.status(400).json({ message: "Device type is required" });
       }
 
-      const checklists = await storage.getChecklistsByDeviceType(user.tenantId, deviceType);
+      const checklists = await storage.getChecklistsByDeviceType(req.authUser.tenantId, deviceType);
       res.json(checklists);
     } catch (error) {
       console.error("Error fetching checklists by device type:", error);
@@ -3630,14 +3455,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize default checklists for current tenant (for existing tenants)
   app.post("/api/checklists/initialize", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      console.log(`🔧 Initializing default checklists for tenant: ${user.tenantId}`);
-      await storage.initializeDefaultChecklists(user.tenantId);
+      console.log(`🔧 Initializing default checklists for tenant: ${req.authUser.tenantId}`);
+      await storage.initializeDefaultChecklists(req.authUser.tenantId);
       
       res.json({ message: "Default checklists initialized successfully" });
     } catch (error) {
@@ -3648,10 +3471,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/checklists", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       // Validate request body using Zod schema
@@ -3665,7 +3486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { tenantId, ...checklistData } = validationResult.data;
       const checklist = await storage.createChecklist({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         ...checklistData
       });
       res.status(201).json(checklist);
@@ -3677,12 +3498,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/checklists/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
+
+      const { id } = req.params;
 
       // Validate request body using Zod schema (partial for updates)
       const validationResult = insertChecklistSchema.partial().safeParse(req.body);
@@ -3693,7 +3513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const checklist = await storage.updateChecklist(id, user.tenantId, validationResult.data);
+      const checklist = await storage.updateChecklist(id, req.authUser.tenantId, validationResult.data);
       if (!checklist) {
         return res.status(404).json({ message: "Checklist not found" });
       }
@@ -3706,14 +3526,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/checklists/:id", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const success = await storage.deleteChecklist(id, user.tenantId);
+      const { id } = req.params;
+      const success = await storage.deleteChecklist(id, req.authUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "Checklist not found" });
       }
@@ -3731,13 +3549,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all groups for a tenant
   app.get("/api/groups", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const groups = await storage.getGroups(user.tenantId);
+      const groups = await storage.getGroups(req.authUser.tenantId);
       res.json(groups);
     } catch (error) {
       console.error("Error fetching groups:", error);
@@ -3748,14 +3564,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get a specific group
   app.get("/api/groups/:id", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_READ), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const group = await storage.getGroup(id, user.tenantId);
+      const { id } = req.params;
+      const group = await storage.getGroup(id, req.authUser.tenantId);
       if (!group) {
         return res.status(404).json({ message: "Group not found" });
       }
@@ -3769,10 +3583,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new group
   app.post("/api/groups", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_CREATE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { name, description, permissions, isDefault } = req.body;
@@ -3783,7 +3595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const newGroup = await storage.createGroup({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         name,
         description: description || null,
         permissions,
@@ -3801,16 +3613,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update a group
   app.put("/api/groups/:id", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_UPDATE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { id } = req.params;
       const { name, description, permissions, isDefault } = req.body;
 
-      const updatedGroup = await storage.updateGroup(id, user.tenantId, {
+      const updatedGroup = await storage.updateGroup(id, req.authUser.tenantId, {
         name,
         description,
         permissions,
@@ -3834,14 +3644,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete a group
   app.delete("/api/groups/:id", isAuthenticated, requirePermission(PERMISSIONS.GROUPS_DELETE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const success = await storage.deleteGroup(id, user.tenantId);
+      const { id } = req.params;
+      const success = await storage.deleteGroup(id, req.authUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "Group not found" });
       }
@@ -3863,14 +3671,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get groups for a specific user
   app.get("/api/users/:userId/groups", isAuthenticated, requirePermission(PERMISSIONS.USERS_MANAGE_GROUPS), async (req: any, res) => {
     try {
-      const { userId: targetUserId } = req.params;
-      const currentUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(currentUserId);
-      if (!currentUser || !currentUser.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const userGroups = await storage.getUserGroups(targetUserId, currentUser.tenantId);
+      const { userId: targetUserId } = req.params;
+      const userGroups = await storage.getUserGroups(targetUserId, req.authUser.tenantId);
       res.json(userGroups);
     } catch (error) {
       console.error("Error fetching user groups:", error);
@@ -3881,19 +3687,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add user to a group
   app.post("/api/users/:userId/groups", isAuthenticated, requirePermission(PERMISSIONS.USERS_MANAGE_GROUPS), async (req: any, res) => {
     try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const { userId: targetUserId } = req.params;
       const { groupId } = req.body;
-      const currentUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(currentUserId);
-      if (!currentUser || !currentUser.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
-      }
 
       if (!groupId) {
         return res.status(400).json({ message: "groupId is required" });
       }
 
-      const userGroup = await storage.addUserToGroup(targetUserId, groupId, currentUser.tenantId);
+      const userGroup = await storage.addUserToGroup(targetUserId, groupId, req.authUser.tenantId);
       res.status(201).json(userGroup);
     } catch (error) {
       console.error("Error adding user to group:", error);
@@ -3907,17 +3712,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Remove user from a group
   app.delete("/api/users/:userId/groups/:groupId", isAuthenticated, requirePermission(PERMISSIONS.USERS_MANAGE_GROUPS), async (req: any, res) => {
     try {
-      const { userId: targetUserId, groupId } = req.params;
-      const currentUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(currentUserId);
-      if (!currentUser || !currentUser.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { userId: targetUserId, groupId } = req.params;
+
       // Self-demotion guard: prevent users from removing themselves from their last admin group
-      if (currentUserId === targetUserId) {
-        const userGroups = await storage.getUserGroups(targetUserId, currentUser.tenantId);
-        const allGroups = await storage.getGroups(currentUser.tenantId);
+      if (req.authUser.id === targetUserId) {
+        const userGroups = await storage.getUserGroups(targetUserId, req.authUser.tenantId);
+        const allGroups = await storage.getGroups(req.authUser.tenantId);
         
         // Check if user is removing themselves from an admin group
         const groupBeingRemoved = allGroups.find(g => g.id === groupId);
@@ -3941,7 +3745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const success = await storage.removeUserFromGroup(targetUserId, groupId, currentUser.tenantId);
+      const success = await storage.removeUserFromGroup(targetUserId, groupId, req.authUser.tenantId);
       if (!success) {
         return res.status(404).json({ message: "User-group association not found" });
       }
@@ -3959,14 +3763,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get user permissions (combined from all groups)
   app.get("/api/users/:userId/permissions", isAuthenticated, requirePermission(PERMISSIONS.USERS_READ), async (req: any, res) => {
     try {
-      const { userId: targetUserId } = req.params;
-      const currentUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(currentUserId);
-      if (!currentUser || !currentUser.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const permissions = await storage.getUserPermissions(targetUserId, currentUser.tenantId);
+      const { userId: targetUserId } = req.params;
+      const permissions = await storage.getUserPermissions(targetUserId, req.authUser.tenantId);
       res.json({ permissions });
     } catch (error) {
       console.error("Error fetching user permissions:", error);
@@ -3981,13 +3783,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all invitations for a tenant
   app.get("/api/invitations", isAuthenticated, requirePermission(PERMISSIONS.USERS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const invitations = await storage.getUserInvitations(user.tenantId);
+      const invitations = await storage.getUserInvitations(req.authUser.tenantId);
       res.json(invitations);
     } catch (error) {
       console.error("Error fetching invitations:", error);
@@ -3998,10 +3798,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new user with password (replaces email invitation flow)
   app.post("/api/invitations", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { email, firstName, lastName, phone, telegram, groupIds } = req.body;
@@ -4017,7 +3815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if invitation already exists
-      const existingInvitation = await storage.getUserInvitationByEmail(email, user.tenantId);
+      const existingInvitation = await storage.getUserInvitationByEmail(email, req.authUser.tenantId);
       if (existingInvitation) {
         return res.status(400).json({ message: "An invitation for this email already exists" });
       }
@@ -4037,13 +3835,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create the invitation record (without storing plain-text password)
       const invitation = await storage.createUserInvitation({
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         email,
         firstName: firstName || null,
         lastName: lastName || null,
         phone: phone || null,
         telegram: telegram || null,
-        invitedByUserId: userId,
+        invitedByUserId: req.authUser.id,
         groupIds: groupIds || [],
         token,
         temporaryPassword: null, // Never store plain-text passwords
@@ -4059,7 +3857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: lastName || null,
         phone: phone || null,
         telegram: telegram || null,
-        tenantId: user.tenantId,
+        tenantId: req.authUser.tenantId,
         passwordHash,
         mustChangePassword: true,
         status: 'active',
@@ -4070,15 +3868,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (groupIds && Array.isArray(groupIds) && groupIds.length > 0) {
         await Promise.all(
           groupIds.map((groupId: string) =>
-            storage.addUserToGroup(newUser.id, groupId, user.tenantId)
+            storage.addUserToGroup(newUser.id, groupId, req.authUser.tenantId)
           )
         );
       }
 
       // Log the user creation
       await storage.createAuditLog({
-        tenantId: user.tenantId,
-        userId: userId,
+        tenantId: req.authUser.tenantId,
+        userId: req.authUser.id,
         action: 'create',
         resource: 'user',
         resourceId: newUser.id,
@@ -4104,12 +3902,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reset user password (Master/Admin only)
   app.post("/api/users/:userId/reset-password", isAuthenticated, requirePermission(PERMISSIONS.USERS_UPDATE), async (req: any, res) => {
     try {
-      const { userId } = req.params;
-      const currentUser = await storage.getUser(req.user.claims.sub);
-      
-      if (!currentUser) {
+      if (!req.authUser) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+
+      const { userId } = req.params;
 
       // Get the target user
       const targetUser = await storage.getUser(userId);
@@ -4118,7 +3915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify same tenant
-      if (targetUser.tenantId !== currentUser.tenantId) {
+      if (targetUser.tenantId !== req.authUser.tenantId) {
         return res.status(403).json({ message: "Unauthorized to reset password for this user" });
       }
 
@@ -4137,8 +3934,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log the password reset
       await storage.createAuditLog({
-        tenantId: currentUser.tenantId,
-        userId: currentUser.id,
+        tenantId: req.authUser.tenantId,
+        userId: req.authUser.id,
         action: 'reset_password',
         resource: 'user',
         resourceId: userId,
@@ -4184,8 +3981,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Accept invitation (authenticated endpoint)
   app.post("/api/invitations/accept/:token", isAuthenticated, async (req: any, res) => {
     try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const { token } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = req.authUser.id;
       
       // Get the invitation
       const invitation = await storage.getUserInvitationByToken(token);
@@ -4281,13 +4082,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete/Cancel an invitation
   app.delete("/api/invitations/:id", isAuthenticated, requirePermission(PERMISSIONS.USERS_INVITE), async (req: any, res) => {
     try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { id } = req.params;
       const success = await storage.deleteUserInvitation(id);
       if (!success) {
         return res.status(404).json({ message: "Invitation not found" });
@@ -4310,10 +4109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get audit logs with filtering and pagination
   app.get("/api/audit-logs", isAuthenticated, requirePermission(PERMISSIONS.AUDIT_LOGS_READ), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user || !user.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
 
       const { 
@@ -4328,13 +4125,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use storage methods based on filters
       let logs;
       if (filterUserId) {
-        logs = await storage.getAuditLogsByUser(user.tenantId, filterUserId as string);
+        logs = await storage.getAuditLogsByUser(req.authUser.tenantId, filterUserId as string);
       } else if (filterAction) {
-        logs = await storage.getAuditLogsByAction(user.tenantId, filterAction as string);
+        logs = await storage.getAuditLogsByAction(req.authUser.tenantId, filterAction as string);
       } else if (filterResource) {
-        logs = await storage.getAuditLogsByResource(user.tenantId, filterResource as string);
+        logs = await storage.getAuditLogsByResource(req.authUser.tenantId, filterResource as string);
       } else {
-        logs = await storage.getAuditLogs(user.tenantId, limitNum);
+        logs = await storage.getAuditLogs(req.authUser.tenantId, limitNum);
       }
 
       res.json(logs);
@@ -4353,14 +4150,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update user status (activate/suspend)
   app.patch("/api/users/:userId/status", isAuthenticated, requirePermission(PERMISSIONS.USERS_UPDATE), async (req: any, res) => {
     try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       const { userId: targetUserId } = req.params;
       const { status } = req.body;
-      const currentUserId = req.user.claims.sub;
-      const currentUser = await storage.getUser(currentUserId);
-      
-      if (!currentUser || !currentUser.tenantId) {
-        return res.status(404).json({ message: "User not found or not associated with a tenant" });
-      }
 
       if (!status || !['active', 'suspended'].includes(status)) {
         return res.status(400).json({ message: "Valid status (active/suspended) is required" });
@@ -4368,12 +4163,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify target user belongs to same tenant
       const targetUser = await storage.getUser(targetUserId);
-      if (!targetUser || targetUser.tenantId !== currentUser.tenantId) {
+      if (!targetUser || targetUser.tenantId !== req.authUser.tenantId) {
         return res.status(403).json({ message: "Unauthorized to modify this user" });
       }
 
       // Prevent users from suspending themselves
-      if (targetUserId === currentUserId) {
+      if (targetUserId === req.authUser.id) {
         return res.status(400).json({ message: "Cannot change your own status" });
       }
 
