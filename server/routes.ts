@@ -1509,7 +1509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let inventoryItemId = poItem.inventoryItemId;
         if (!inventoryItemId) {
           // Check if an inventory item with the same name AND supplier already exists
-          const allInventoryItems = await storage.getInventoryItems(user.tenantId);
+          const allInventoryItems = await storage.getInventoryItems(req.authUser.tenantId);
           const itemName = poItem.itemName || receivedItem.itemName;
           
           // Find matching item: prioritize same supplier, fallback to legacy items without supplierId
@@ -3112,7 +3112,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Store settings API endpoints
-  app.get("/api/store-settings", isAuthenticated, requirePermission(PERMISSIONS.SETTINGS_READ), async (req: any, res) => {
+  // GET store settings - accessible to all authenticated users (for shop name/logo display)
+  app.get("/api/store-settings", isAuthenticated, async (req: any, res) => {
     try {
       if (!req.authUser) {
         return res.status(401).json({ message: "Unauthorized" });

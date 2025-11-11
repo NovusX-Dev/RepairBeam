@@ -79,18 +79,28 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       <div className="flex items-center justify-between p-6 border-b border-border">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-background">
-            <img 
-              src="/repair-beam-logo.png" 
-              alt="Repair Beam Logo" 
-              className="w-10 h-10 object-contain"
-            />
+            {storeSettings?.shopLogoUrl ? (
+              <img 
+                src={storeSettings.shopLogoUrl} 
+                alt={storeSettings.shopName || "Shop Logo"}
+                className="w-10 h-10 object-cover rounded-lg"
+              />
+            ) : (
+              <img 
+                src="/repair-beam-logo.png" 
+                alt="Repair Beam Logo" 
+                className="w-10 h-10 object-contain"
+              />
+            )}
           </div>
           {!isCollapsed && (
             <div>
               <h1 className="text-xl font-bold text-white">
-                Repair Beam
+                {storeSettings?.shopName || "Repair Beam"}
               </h1>
-              <p className="text-xs text-muted-foreground">{t("repair_shop_management", "Professional Repair Management")}</p>
+              <p className="text-xs text-muted-foreground">
+                {storeSettings?.shopAlias || t("repair_shop_management", "Professional Repair Management")}
+              </p>
             </div>
           )}
         </div>

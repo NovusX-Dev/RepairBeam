@@ -123,9 +123,12 @@ export default function Header({ currentPage }: HeaderProps) {
                   {storeSettings?.shopName || "Shop"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {storeSettings?.shopAlias || "Display Name"} • {user?.firstName && user?.lastName 
+                  {user?.firstName && user?.lastName 
                     ? `${user.firstName} ${user.lastName}` 
-                    : user?.email || "User"}
+                    : user?.email || "User"} 
+                  {user?.role && (
+                    <span className="capitalize"> • {user.role}</span>
+                  )}
                 </div>
               </div>
             </div>
