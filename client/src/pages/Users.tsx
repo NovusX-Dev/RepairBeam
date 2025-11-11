@@ -112,6 +112,8 @@ export default function Users() {
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("users");
+  const [currentPage, setCurrentPage] = useState(1);
+  const USERS_PER_PAGE = 15;
   
   // Dialog states
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -714,14 +716,14 @@ export default function Users() {
                 <DialogTrigger asChild>
                   <Button data-testid="button-invite-user">
                     <UserPlus className="w-4 h-4 mr-2" />
-                    {t("invite_user", "Invite User")}
+                    {t("create_user", "Create User")}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle>{t("invite_new_user", "Invite New User")}</DialogTitle>
+                    <DialogTitle>{t("create_new_user", "Create New User")}</DialogTitle>
                     <DialogDescription>
-                      {t("invite_user_desc", "Send an invitation to a new team member")}
+                      {t("create_user_desc", "Create a new user account with a temporary password")}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -837,18 +839,19 @@ export default function Users() {
               ) : users.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">{t("no_users_found", "No users found")}</p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("name", "Name")}</TableHead>
-                      <TableHead>{t("email", "Email")}</TableHead>
-                      <TableHead>{t("role", "Role")}</TableHead>
-                      <TableHead>{t("status", "Status")}</TableHead>
-                      <TableHead className="text-right">{t("actions", "Actions")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {users.map(user => (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{t("name", "Name")}</TableHead>
+                        <TableHead>{t("email", "Email")}</TableHead>
+                        <TableHead>{t("role", "Role")}</TableHead>
+                        <TableHead>{t("status", "Status")}</TableHead>
+                        <TableHead className="text-right">{t("actions", "Actions")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE).map(user => (
                       <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
                         <TableCell className="font-medium">
                           {user.firstName || user.lastName
@@ -945,89 +948,39 @@ export default function Users() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Pending Invitations Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("pending_invitations", "Pending Invitations")}</CardTitle>
-              <CardDescription>{t("pending_invitations_desc", "Invitations waiting to be accepted")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {invitationsLoading ? (
-                <p className="text-center text-muted-foreground py-8">{t("loading", "Loading...")}</p>
-              ) : invitations.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">{t("no_invitations_found", "No pending invitations")}</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("email", "Email")}</TableHead>
-                      <TableHead>{t("name", "Name")}</TableHead>
-                      <TableHead>{t("status", "Status")}</TableHead>
-                      <TableHead>{t("expires", "Expires")}</TableHead>
-                      <TableHead className="text-right">{t("actions", "Actions")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invitations.map(invitation => (
-                      <TableRow key={invitation.id} data-testid={`row-invitation-${invitation.id}`}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center">
-                            <Mail className="w-4 h-4 mr-2 text-muted-foreground" />
-                            {invitation.email}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {invitation.firstName || invitation.lastName
-                            ? `${invitation.firstName || ''} ${invitation.lastName || ''}`.trim()
-                            : t("not_specified", "Not specified")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            {invitation.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(invitation.expiresAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleResendInvitation(invitation.id)}
-                                disabled={resendInvitationMutation.isPending}
-                                data-testid={`button-resend-invitation-${invitation.id}`}
-                              >
-                                <RefreshCw className="w-4 h-4 mr-1" />
-                                {t("resend", "Resend")}
-                              </Button>
-                            </PermissionGate>
-                            <PermissionGate permission={PERMISSIONS.USERS_INVITE}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleCancelInvitation(invitation.id)}
-                                data-testid={`button-cancel-invitation-${invitation.id}`}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                {t("cancel", "Cancel")}
-                              </Button>
-                            </PermissionGate>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination Controls */}
+                  {users.length > USERS_PER_PAGE && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        {t("showing_users", `Showing ${(currentPage - 1) * USERS_PER_PAGE + 1}-${Math.min(currentPage * USERS_PER_PAGE, users.length)} of ${users.length}`)}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          data-testid="button-previous-page"
+                        >
+                          {t("previous", "Previous")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(Math.ceil(users.length / USERS_PER_PAGE), p + 1))}
+                          disabled={currentPage >= Math.ceil(users.length / USERS_PER_PAGE)}
+                          data-testid="button-next-page"
+                        >
+                          {t("next", "Next")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
