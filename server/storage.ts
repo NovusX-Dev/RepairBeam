@@ -245,7 +245,7 @@ export interface IStorage {
   createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
   
   // Recent users for quick login
-  getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant })[]>;
+  getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant; storeSettings?: Pick<StoreSettings, 'id' | 'tenantId' | 'shopName' | 'shopAlias' | 'shopLogoUrl'> })[]>;
 
   // Localization operations
   getLocalizations(language?: string): Promise<Localization[]>;
@@ -1482,7 +1482,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get recent users for quick login display
-  async getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant })[]> {
+  async getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant; storeSettings?: Pick<StoreSettings, 'id' | 'tenantId' | 'shopName' | 'shopAlias' | 'shopLogoUrl'> })[]> {
     const usersWithTenants = await db
       .select({
         id: users.id,
@@ -1501,15 +1501,24 @@ export class DatabaseStorage implements IStorage {
           createdAt: tenants.createdAt,
           updatedAt: tenants.updatedAt,
         },
+        storeSettings: {
+          id: storeSettings.id,
+          tenantId: storeSettings.tenantId,
+          shopName: storeSettings.shopName,
+          shopAlias: storeSettings.shopAlias,
+          shopLogoUrl: storeSettings.shopLogoUrl,
+        },
       })
       .from(users)
       .leftJoin(tenants, eq(users.tenantId, tenants.id))
+      .leftJoin(storeSettings, eq(tenants.id, storeSettings.tenantId))
       .orderBy(desc(users.updatedAt))
       .limit(limit);
 
     return usersWithTenants.map(row => ({
       ...row,
-      tenant: row.tenant?.id ? row.tenant : undefined
+      tenant: row.tenant?.id ? row.tenant : undefined,
+      storeSettings: row.storeSettings?.id ? row.storeSettings : undefined
     }));
   }
 
