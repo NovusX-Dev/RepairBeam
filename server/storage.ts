@@ -245,7 +245,7 @@ export interface IStorage {
   createSupportTicket(ticket: InsertSupportTicket): Promise<SupportTicket>;
   
   // Recent users for quick login
-  getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant; storeSettings?: Pick<StoreSettings, 'id' | 'tenantId' | 'shopName' | 'shopAlias' | 'shopLogoUrl'> })[]>;
+  getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant; storeSettings?: Pick<StoreSettings, 'id' | 'tenantId' | 'shopName' | 'shopAlias' | 'shopLogoUrl'>; groupName?: string })[]>;
 
   // Localization operations
   getLocalizations(language?: string): Promise<Localization[]>;
@@ -1482,7 +1482,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get recent users for quick login display
-  async getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant; storeSettings?: Pick<StoreSettings, 'id' | 'tenantId' | 'shopName' | 'shopAlias' | 'shopLogoUrl'> })[]> {
+  async getRecentUsers(limit: number): Promise<(User & { tenant?: Tenant; storeSettings?: Pick<StoreSettings, 'id' | 'tenantId' | 'shopName' | 'shopAlias' | 'shopLogoUrl'>; groupName?: string })[]> {
     const usersWithTenants = await db
       .select({
         id: users.id,
@@ -1508,17 +1508,21 @@ export class DatabaseStorage implements IStorage {
           shopAlias: storeSettings.shopAlias,
           shopLogoUrl: storeSettings.shopLogoUrl,
         },
+        groupName: groups.name,
       })
       .from(users)
       .leftJoin(tenants, eq(users.tenantId, tenants.id))
       .leftJoin(storeSettings, eq(tenants.id, storeSettings.tenantId))
+      .leftJoin(userGroups, eq(users.id, userGroups.userId))
+      .leftJoin(groups, eq(userGroups.groupId, groups.id))
       .orderBy(desc(users.updatedAt))
       .limit(limit);
 
     return usersWithTenants.map(row => ({
       ...row,
       tenant: row.tenant?.id ? row.tenant : undefined,
-      storeSettings: row.storeSettings?.id ? row.storeSettings : undefined
+      storeSettings: row.storeSettings?.id ? row.storeSettings : undefined,
+      groupName: row.groupName || undefined
     }));
   }
 
