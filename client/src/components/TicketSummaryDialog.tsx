@@ -20,12 +20,15 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, Check, AlertTriangle } from "lucide-react";
+import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, Check, AlertTriangle, FileText, Printer } from "lucide-react";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { formatTicketId } from "@/lib/utils";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@shared/permissions";
+import { useInvoice } from "@/hooks/use-invoice";
+import { DropOffReceiptInvoice } from "@/components/invoices/DropOffReceiptInvoice";
+import { FinalInvoice } from "@/components/invoices/FinalInvoice";
 
 type TicketWithClient = Ticket & { client?: Client };
 
@@ -285,6 +288,7 @@ export default function TicketSummaryDialog({
   const [notes, setNotes] = useState<any[]>([]);
   const [issueResponses, setIssueResponses] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('general');
+  const { generateAndPrintInvoice } = useInvoice();
 
   // Currency formatting utility
   const formatCurrency = (amountCents: number, locale: Locale = 'en') => {
@@ -742,6 +746,174 @@ export default function TicketSummaryDialog({
                       })()}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Invoice Actions */}
+              <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  {t("invoices", "Invoices")}
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <PermissionGate permissions={[PERMISSIONS.TICKETS.WRITE]}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2"
+                      onClick={() => {
+                        if (!ticket.client) {
+                          return;
+                        }
+                        const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                        generateAndPrintInvoice.mutate({
+                          ticketId: ticket.id,
+                          type: 'drop_off',
+                          InvoiceComponent: DropOffReceiptInvoice,
+                          invoiceProps: {
+                            ticketId: ticket.id,
+                            clientName: `${ticket.client.firstName} ${ticket.client.lastName}`,
+                            clientPhone: ticket.client.phone,
+                            clientEmail: ticket.client.email,
+                            deviceType: ticket.deviceType || '',
+                            deviceModel: ticket.deviceModel || '',
+                            deviceColor: ticket.deviceColor || '',
+                            issue: issueResponses.find(r => r.questionId === 'additional_comments')?.response || t("not_specified", "Not specified"),
+                            estimatedCost: (() => {
+                              let services = [];
+                              if (ticket.selectedServices) {
+                                if (Array.isArray(ticket.selectedServices)) {
+                                  services = ticket.selectedServices;
+                                } else if (typeof ticket.selectedServices === 'string') {
+                                  try {
+                                    services = JSON.parse(ticket.selectedServices);
+                                  } catch (e) {
+                                    services = [];
+                                  }
+                                }
+                              }
+                              const totalServicesCents = services.reduce((total: number, serviceId: string) => {
+                                const service = ticketRepairServices.find(s => s.id === serviceId);
+                                if (service) {
+                                  const serviceCostCents = toCents(service.estimatedLaborCost || '0', locale);
+                                  return addCents(total, serviceCostCents);
+                                }
+                                return total;
+                              }, 0);
+                              const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+                              return formatCurrency(addCents(totalServicesCents, extraCostCents), locale);
+                            })(),
+                            invoiceNumber: '',
+                          },
+                        });
+                      }}
+                      disabled={generateAndPrintInvoice.isPending || !ticket.client}
+                      data-testid="button-print-drop-off-receipt"
+                    >
+                      {generateAndPrintInvoice.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Printer className="h-4 w-4" />
+                      )}
+                      {t("print_drop_off_receipt", "Print Drop-Off Receipt")}
+                    </Button>
+                  </PermissionGate>
+
+                  <PermissionGate permissions={[PERMISSIONS.TICKETS.WRITE]}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2"
+                      onClick={() => {
+                        if (!ticket.client) {
+                          return;
+                        }
+                        const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                        
+                        // Calculate totals
+                        let services = [];
+                        if (ticket.selectedServices) {
+                          if (Array.isArray(ticket.selectedServices)) {
+                            services = ticket.selectedServices;
+                          } else if (typeof ticket.selectedServices === 'string') {
+                            try {
+                              services = JSON.parse(ticket.selectedServices);
+                            } catch (e) {
+                              services = [];
+                            }
+                          }
+                        }
+                        
+                        const serviceItems = services.map((serviceId: string) => {
+                          const service = ticketRepairServices.find(s => s.id === serviceId);
+                          return service ? {
+                            description: service.name,
+                            quantity: 1,
+                            unitPrice: formatCurrency(toCents(service.estimatedLaborCost || '0', locale), locale),
+                            total: formatCurrency(toCents(service.estimatedLaborCost || '0', locale), locale),
+                          } : null;
+                        }).filter(Boolean);
+
+                        const partItems = summaryTicketItems.map((item: any) => {
+                          const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                          const itemTotalCents = unitPriceCents * item.quantity;
+                          return {
+                            description: item.inventoryItem?.name || t("unnamed_item", "Unnamed Item"),
+                            quantity: item.quantity,
+                            unitPrice: formatCurrency(unitPriceCents, locale),
+                            total: formatCurrency(itemTotalCents, locale),
+                          };
+                        });
+
+                        const totalServicesCents = services.reduce((total: number, serviceId: string) => {
+                          const service = ticketRepairServices.find(s => s.id === serviceId);
+                          if (service) {
+                            const serviceCostCents = toCents(service.estimatedLaborCost || '0', locale);
+                            return addCents(total, serviceCostCents);
+                          }
+                          return total;
+                        }, 0);
+                        
+                        const totalItemsCents = summaryTicketItems.reduce((total: number, item: any) => {
+                          const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                          const itemTotalCents = unitPriceCents * item.quantity;
+                          return addCents(total, itemTotalCents);
+                        }, 0);
+                        
+                        const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+                        const subtotal = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
+
+                        generateAndPrintInvoice.mutate({
+                          ticketId: ticket.id,
+                          type: 'final',
+                          InvoiceComponent: FinalInvoice,
+                          invoiceProps: {
+                            ticketId: ticket.id,
+                            clientName: `${ticket.client.firstName} ${ticket.client.lastName}`,
+                            clientPhone: ticket.client.phone,
+                            clientEmail: ticket.client.email,
+                            deviceType: ticket.deviceType || '',
+                            deviceModel: ticket.deviceModel || '',
+                            services: serviceItems,
+                            parts: partItems,
+                            subtotal: formatCurrency(subtotal, locale),
+                            tax: formatCurrency(0, locale),
+                            total: formatCurrency(subtotal, locale),
+                            invoiceNumber: '',
+                          },
+                        });
+                      }}
+                      disabled={generateAndPrintInvoice.isPending || !ticket.client}
+                      data-testid="button-print-final-invoice"
+                    >
+                      {generateAndPrintInvoice.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Printer className="h-4 w-4" />
+                      )}
+                      {t("print_final_invoice", "Print Final Invoice")}
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
 
