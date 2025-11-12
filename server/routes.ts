@@ -4188,6 +4188,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================================================
+  // Invoice routes
+  // ========================================================================
+
+  // Create invoice
+  app.post("/api/invoices", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const invoiceData = req.body;
+      
+      // Validate required fields
+      if (!invoiceData.ticketId || !invoiceData.type) {
+        return res.status(400).json({ message: "Ticket ID and invoice type are required" });
+      }
+
+      // Get the next invoice number
+      const invoiceNumber = await storage.getNextInvoiceNumber(req.authUser.tenantId);
+
+      const invoice = await storage.createInvoice({
+        ...invoiceData,
+        tenantId: req.authUser.tenantId,
+        invoiceNumber,
+        issuedBy: req.authUser.id,
+      });
+
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error creating invoice:", error);
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  // Get invoice by ID
+  app.get("/api/invoices/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const invoice = await storage.getInvoice(req.params.id, req.authUser.tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error fetching invoice:", error);
+      res.status(500).json({ message: "Failed to fetch invoice" });
+    }
+  });
+
+  // Get invoices by ticket
+  app.get("/api/tickets/:ticketId/invoices", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const invoices = await storage.getInvoicesByTicket(req.params.ticketId, req.authUser.tenantId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching invoices:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
