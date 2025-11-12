@@ -3130,20 +3130,39 @@ export class DatabaseStorage implements IStorage {
 
   async getNextInvoiceNumber(tenantId: string): Promise<string> {
     return withRetry(async () => {
-      // Get store settings to get prefix and next number
-      const settings = await this.getStoreSettings(tenantId);
-      const prefix = settings?.invoicePrefix || 'INV';
-      const nextNumber = settings?.nextInvoiceNumber || 1;
+      // Atomically increment and get the next invoice number using SQL
+      // This prevents race conditions when multiple invoices are created simultaneously
+      const result = await db
+        .update(storeSettings)
+        .set({ 
+          nextInvoiceNumber: sql`${storeSettings.nextInvoiceNumber} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(storeSettings.tenantId, tenantId))
+        .returning({
+          invoicePrefix: storeSettings.invoicePrefix,
+          nextInvoiceNumber: storeSettings.nextInvoiceNumber,
+        });
+
+      // If no settings exist, create them with defaults
+      if (!result || result.length === 0) {
+        await this.createStoreSettings({
+          tenantId,
+          invoicePrefix: 'INV',
+          nextInvoiceNumber: 2, // Start at 2 since we're using 1 now
+        });
+        return `INV-${new Date().getFullYear()}-001`;
+      }
+
+      const { invoicePrefix, nextInvoiceNumber } = result[0];
+      const prefix = invoicePrefix || 'INV';
+      // The returned nextInvoiceNumber is already incremented due to RETURNING
+      const currentNumber = (nextInvoiceNumber || 1) - 1; // Subtract 1 to get the number we just claimed
       
       // Format: PREFIX-YYYY-NNN (e.g., INV-2025-001)
       const year = new Date().getFullYear();
-      const formattedNumber = String(nextNumber).padStart(3, '0');
+      const formattedNumber = String(currentNumber).padStart(3, '0');
       const invoiceNumber = `${prefix}-${year}-${formattedNumber}`;
-      
-      // Increment the next invoice number in settings
-      await this.updateStoreSettings(tenantId, {
-        nextInvoiceNumber: nextNumber + 1,
-      });
       
       return invoiceNumber;
     });

@@ -4206,6 +4206,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Ticket ID and invoice type are required" });
       }
 
+      // Validate invoice type
+      if (!['drop_off', 'final'].includes(invoiceData.type)) {
+        return res.status(400).json({ message: "Invalid invoice type. Must be 'drop_off' or 'final'" });
+      }
+
+      // Verify ticket exists and belongs to this tenant
+      const ticket = await storage.getTicket(invoiceData.ticketId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      if (ticket.tenantId !== req.authUser.tenantId) {
+        return res.status(403).json({ message: "Access denied to this ticket" });
+      }
+
       // Get the next invoice number
       const invoiceNumber = await storage.getNextInvoiceNumber(req.authUser.tenantId);
 

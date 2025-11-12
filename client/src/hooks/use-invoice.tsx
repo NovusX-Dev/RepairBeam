@@ -19,12 +19,24 @@ export function useInvoice() {
 
   const generateAndPrintInvoice = useMutation({
     mutationFn: async ({ ticketId, type, InvoiceComponent, invoiceProps }: GenerateInvoiceParams) => {
-      // Create invoice record in database
-      const response = await apiRequest("POST", "/api/invoices", {
-        ticketId,
-        type,
-      });
-      const invoice = await response.json();
+      // Check if invoice already exists for this ticket/type (for reprinting)
+      const existingResponse = await apiRequest("GET", `/api/tickets/${ticketId}/invoices`);
+      const existingInvoices = await existingResponse.json();
+      
+      let invoice;
+      const matchingInvoice = existingInvoices.find((inv: any) => inv.type === type);
+      
+      if (matchingInvoice) {
+        // Reprint existing invoice - don't create a new one
+        invoice = matchingInvoice;
+      } else {
+        // Create new invoice record in database
+        const createResponse = await apiRequest("POST", "/api/invoices", {
+          ticketId,
+          type,
+        });
+        invoice = await createResponse.json();
+      }
 
       // Generate PDF blob
       const blob = await pdf(<InvoiceComponent {...invoiceProps} invoiceNumber={invoice.invoiceNumber} />).toBlob();
