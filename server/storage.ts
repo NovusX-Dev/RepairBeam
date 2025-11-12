@@ -35,6 +35,7 @@ import {
   userGroups,
   userInvitations,
   auditLogs,
+  invoices,
   type User,
   type UpsertUser,
   type Tenant,
@@ -107,6 +108,8 @@ import {
   type InsertUserInvitation,
   type AuditLog,
   type InsertAuditLog,
+  type Invoice,
+  type InsertInvoice,
 } from "@shared/schema";
 import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
@@ -363,6 +366,12 @@ export interface IStorage {
   getAuditLogsByUser(tenantId: string, userId: string): Promise<AuditLog[]>;
   getAuditLogsByAction(tenantId: string, action: string): Promise<AuditLog[]>;
   getAuditLogsByResource(tenantId: string, resource: string): Promise<AuditLog[]>;
+  
+  // Invoice operations
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  getInvoice(id: string, tenantId: string): Promise<Invoice | undefined>;
+  getInvoicesByTicket(ticketId: string, tenantId: string): Promise<Invoice[]>;
+  getNextInvoiceNumber(tenantId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3088,6 +3097,55 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .orderBy(desc(auditLogs.createdAt));
+    });
+  }
+
+  // Invoice operations
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    return withRetry(async () => {
+      const [newInvoice] = await db.insert(invoices).values(invoice).returning();
+      return newInvoice;
+    });
+  }
+
+  async getInvoice(id: string, tenantId: string): Promise<Invoice | undefined> {
+    return withRetry(async () => {
+      const [invoice] = await db
+        .select()
+        .from(invoices)
+        .where(and(eq(invoices.id, id), eq(invoices.tenantId, tenantId)));
+      return invoice;
+    });
+  }
+
+  async getInvoicesByTicket(ticketId: string, tenantId: string): Promise<Invoice[]> {
+    return withRetry(async () => {
+      return await db
+        .select()
+        .from(invoices)
+        .where(and(eq(invoices.ticketId, ticketId), eq(invoices.tenantId, tenantId)))
+        .orderBy(desc(invoices.createdAt));
+    });
+  }
+
+  async getNextInvoiceNumber(tenantId: string): Promise<string> {
+    return withRetry(async () => {
+      // Get store settings to get prefix and next number
+      const settings = await this.getStoreSettings(tenantId);
+      const prefix = settings?.invoicePrefix || 'INV';
+      const nextNumber = settings?.nextInvoiceNumber || 1;
+      
+      // Format: PREFIX-YYYY-NNN (e.g., INV-2025-001)
+      const year = new Date().getFullYear();
+      const formattedNumber = String(nextNumber).padStart(3, '0');
+      const invoiceNumber = `${prefix}-${year}-${formattedNumber}`;
+      
+      // Increment the next invoice number in settings
+      await this.updateStoreSettings(tenantId, {
+        nextInvoiceNumber: nextNumber + 1,
+      });
+      
+      return invoiceNumber;
     });
   }
 
