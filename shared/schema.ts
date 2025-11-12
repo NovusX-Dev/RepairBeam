@@ -138,6 +138,12 @@ export const storeSettings = pgTable("store_settings", {
   address: text("address"),
   businessHours: jsonb("business_hours").default('{"monday":{"open":"09:00","close":"18:00","closed":false},"tuesday":{"open":"09:00","close":"18:00","closed":false},"wednesday":{"open":"09:00","close":"18:00","closed":false},"thursday":{"open":"09:00","close":"18:00","closed":false},"friday":{"open":"09:00","close":"18:00","closed":false},"saturday":{"open":"10:00","close":"16:00","closed":false},"sunday":{"open":"","close":"","closed":true}}'),
   preferredLanguage: varchar("preferred_language").default('en'), // User's preferred language
+  // Invoice settings
+  invoicePrefix: varchar("invoice_prefix").default('INV'), // Invoice number prefix (e.g., "INV", "FAT")
+  nextInvoiceNumber: integer("next_invoice_number").notNull().default(1), // Auto-incrementing invoice number
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('0'), // Tax rate as percentage (e.g., 8.5 for 8.5%)
+  invoiceFooterText: text("invoice_footer_text"), // Custom footer text for invoices
+  warrantyTermsText: text("warranty_terms_text"), // Default warranty terms for invoices
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -498,6 +504,27 @@ export const ticketNotes = pgTable("ticket_notes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Invoices table
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  ticketId: varchar("ticket_id").notNull(),
+  invoiceNumber: varchar("invoice_number").notNull(), // Formatted number (e.g., "INV-2025-001")
+  type: varchar("type").notNull(), // 'drop_off_receipt' or 'final_invoice'
+  issuedDate: timestamp("issued_date").notNull().defaultNow(),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").notNull().default('issued'), // 'issued', 'paid', 'void'
+  pdfUrl: varchar("pdf_url"), // URL to stored PDF (optional)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique("unique_invoice_number_per_tenant").on(table.tenantId, table.invoiceNumber),
+  index("idx_invoices_ticket").on(table.ticketId),
+  index("idx_invoices_tenant").on(table.tenantId),
+]);
+
 // Localization table
 export const localizations = pgTable("localizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -674,6 +701,8 @@ export type UserInvitation = typeof userInvitations.$inferSelect;
 export type InsertUserInvitation = typeof userInvitations.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;
 
 // Zod schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -805,6 +834,12 @@ export const insertInventoryUsageSchema = createInsertSchema(inventoryUsage).omi
 });
 
 export const insertTicketItemSchema = createInsertSchema(ticketItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
