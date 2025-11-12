@@ -27,8 +27,8 @@ import { formatTicketId } from "@/lib/utils";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@shared/permissions";
 import { useInvoice } from "@/hooks/use-invoice";
-import { DropOffReceiptInvoice } from "@/components/invoices/DropOffReceiptInvoice";
-import { FinalInvoice } from "@/components/invoices/FinalInvoice";
+import DropOffReceiptInvoice from "@/components/invoices/DropOffReceiptInvoice";
+import FinalInvoice from "@/components/invoices/FinalInvoice";
 
 type TicketWithClient = Ticket & { client?: Client };
 

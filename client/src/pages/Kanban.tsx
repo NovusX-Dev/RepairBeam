@@ -83,7 +83,7 @@ import { type KanbanFilters, defaultKanbanFilters } from "@shared/filter-types";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@shared/permissions";
 import { useInvoice } from "@/hooks/use-invoice";
-import { DropOffReceiptInvoice } from "@/components/invoices/DropOffReceiptInvoice";
+import DropOffReceiptInvoice from "@/components/invoices/DropOffReceiptInvoice";
 
 // Problems Tab Component
 interface ProblemsTabContentProps {
