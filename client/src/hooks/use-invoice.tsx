@@ -15,7 +15,7 @@ interface GenerateInvoiceParams {
 
 export function useInvoice() {
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t } = useLocalization();
 
   const generateAndPrintInvoice = useMutation({
     mutationFn: async ({ ticketId, type, InvoiceComponent, invoiceProps }: GenerateInvoiceParams) => {
