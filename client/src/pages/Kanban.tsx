@@ -49,7 +49,7 @@ import QRCodeScanner from "@/components/QRCodeScanner";
 import { AdvancedSearch } from "@/components/search-filter/AdvancedSearch";
 import { FilterPanel } from "@/components/search-filter/FilterPanel";
 import { DateRangePicker } from "@/components/search-filter/DateRangePicker";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -82,6 +82,8 @@ import { useSavedFilters } from "@/hooks/useSavedFilters";
 import { type KanbanFilters, defaultKanbanFilters } from "@shared/filter-types";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@shared/permissions";
+import { useInvoice } from "@/hooks/use-invoice";
+import { DropOffReceiptInvoice } from "@/components/invoices/DropOffReceiptInvoice";
 
 // Problems Tab Component
 interface ProblemsTabContentProps {
@@ -1326,6 +1328,7 @@ export default function KanbanTickets() {
   const queryClient = useQueryClient();
   const { t, currentLanguage, formatDate } = useLocalization();
   const { toast } = useToast();
+  const { generateAndPrintInvoice } = useInvoice();
 
   // Fetch notes and issue responses when ticket summary modal opens
   useEffect(() => {
@@ -5704,6 +5707,47 @@ export default function KanbanTickets() {
                               <Clock className="w-3 h-3 mr-1" />
                               {formatDate(ticket.createdAt)}
                             </div>
+
+                            {/* Quick Actions */}
+                            {ticket.client && (
+                              <div className="pt-2 mt-2 border-t border-muted/20">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-full text-xs flex items-center justify-center gap-1.5 hover:bg-[#00FFFF]/10 hover:text-[#00FFFF]"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                                    generateAndPrintInvoice.mutate({
+                                      ticketId: ticket.id,
+                                      type: 'drop_off',
+                                      InvoiceComponent: DropOffReceiptInvoice,
+                                      invoiceProps: {
+                                        ticketId: ticket.id,
+                                        clientName: `${ticket.client.firstName} ${ticket.client.lastName}`,
+                                        clientPhone: ticket.client.phone,
+                                        clientEmail: ticket.client.email,
+                                        deviceType: ticket.deviceType || '',
+                                        deviceModel: ticket.deviceModel || '',
+                                        deviceColor: ticket.deviceColor || '',
+                                        issue: t("not_specified", "Not specified"),
+                                        estimatedCost: ticket.estimatedCost || t("not_specified", "Not specified"),
+                                        invoiceNumber: '',
+                                      },
+                                    });
+                                  }}
+                                  disabled={generateAndPrintInvoice.isPending}
+                                  data-testid={`button-print-invoice-${ticket.id}`}
+                                >
+                                  {generateAndPrintInvoice.isPending ? (
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Printer className="w-3 h-3" />
+                                  )}
+                                  {t("print_receipt", "Print Receipt")}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </CardContent>
