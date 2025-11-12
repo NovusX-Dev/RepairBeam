@@ -510,11 +510,12 @@ export const invoices = pgTable("invoices", {
   tenantId: varchar("tenant_id").notNull(),
   ticketId: varchar("ticket_id").notNull(),
   invoiceNumber: varchar("invoice_number").notNull(), // Formatted number (e.g., "INV-2025-001")
-  type: varchar("type").notNull(), // 'drop_off_receipt' or 'final_invoice'
+  type: varchar("type").notNull(), // 'drop_off' or 'final'
   issuedDate: timestamp("issued_date").notNull().defaultNow(),
-  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
-  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).notNull().default('0'),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  issuedBy: varchar("issued_by").notNull(), // User ID who generated the invoice
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
   status: varchar("status").notNull().default('issued'), // 'issued', 'paid', 'void'
   pdfUrl: varchar("pdf_url"), // URL to stored PDF (optional)
   createdAt: timestamp("created_at").defaultNow(),
