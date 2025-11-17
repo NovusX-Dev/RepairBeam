@@ -333,6 +333,16 @@ export default function TicketSummaryDialog({
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Fetch client data if not already populated on ticket
+  const { data: fetchedClient } = useQuery<Client>({
+    queryKey: [`/api/clients/${ticket?.clientId}`],
+    enabled: !!ticket?.clientId && !ticket?.client,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // Use either ticket.client or fetchedClient
+  const clientData = ticket?.client || fetchedClient;
+
   // Priority update mutation
   const updateTicketPriority = useMutation({
     mutationFn: async ({ ticketId, priority }: { ticketId: string; priority: TicketPriority }) => {
@@ -495,7 +505,7 @@ export default function TicketSummaryDialog({
               </div>
 
               {/* Client Information */}
-              {ticket.client && (
+              {clientData && (
                 <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
                   <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
                     <User className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -504,19 +514,19 @@ export default function TicketSummaryDialog({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                       <div className="font-medium text-cyan-400">{t("name", "Name")}</div>
-                      <div className="truncate text-slate-200">{ticket.client.firstName} {ticket.client.lastName}</div>
+                      <div className="truncate text-slate-200">{clientData.firstName} {clientData.lastName}</div>
                     </div>
                     <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                       <div className="font-medium text-cyan-400">{t("email", "Email")}</div>
-                      <div className="truncate text-slate-200">{ticket.client.email}</div>
+                      <div className="truncate text-slate-200">{clientData.email}</div>
                     </div>
                     <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                       <div className="font-medium text-cyan-400">{t("phone", "Phone")}</div>
-                      <div className="truncate text-slate-200">{ticket.client.phone}</div>
+                      <div className="truncate text-slate-200">{clientData.phone}</div>
                     </div>
                     <div className="bg-slate-800/50 dark:bg-slate-900/50 p-2 rounded border border-cyan-500/20">
                       <div className="font-medium text-cyan-400">{t("cpf", "CPF")}</div>
-                      <div className="truncate text-slate-200">{ticket.client.cpf}</div>
+                      <div className="truncate text-slate-200">{clientData.cpf}</div>
                     </div>
                   </div>
                 </div>
@@ -762,7 +772,7 @@ export default function TicketSummaryDialog({
                       variant="outline"
                       className="flex items-center gap-2"
                       onClick={() => {
-                        if (!ticket.client) {
+                        if (!clientData) {
                           return;
                         }
                         const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
@@ -772,9 +782,9 @@ export default function TicketSummaryDialog({
                           InvoiceComponent: DropOffReceiptInvoice,
                           invoiceProps: {
                             ticketId: ticket.id,
-                            clientName: `${ticket.client.firstName} ${ticket.client.lastName}`,
-                            clientPhone: ticket.client.phone,
-                            clientEmail: ticket.client.email,
+                            clientName: `${clientData.firstName} ${clientData.lastName}`,
+                            clientPhone: clientData.phone,
+                            clientEmail: clientData.email,
                             deviceType: ticket.deviceType || '',
                             deviceModel: ticket.deviceModel || '',
                             deviceColor: ticket.deviceColor || '',
@@ -807,7 +817,7 @@ export default function TicketSummaryDialog({
                           },
                         });
                       }}
-                      disabled={generateAndPrintInvoice.isPending || !ticket.client}
+                      disabled={generateAndPrintInvoice.isPending || !clientData}
                       data-testid="button-print-drop-off-receipt"
                     >
                       {generateAndPrintInvoice.isPending ? (
@@ -825,7 +835,7 @@ export default function TicketSummaryDialog({
                       variant="outline"
                       className="flex items-center gap-2"
                       onClick={() => {
-                        if (!ticket.client) {
+                        if (!clientData) {
                           return;
                         }
                         const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
@@ -889,9 +899,9 @@ export default function TicketSummaryDialog({
                           InvoiceComponent: FinalInvoice,
                           invoiceProps: {
                             ticketId: ticket.id,
-                            clientName: `${ticket.client.firstName} ${ticket.client.lastName}`,
-                            clientPhone: ticket.client.phone,
-                            clientEmail: ticket.client.email,
+                            clientName: `${clientData.firstName} ${clientData.lastName}`,
+                            clientPhone: clientData.phone,
+                            clientEmail: clientData.email,
                             deviceType: ticket.deviceType || '',
                             deviceModel: ticket.deviceModel || '',
                             services: serviceItems,
@@ -903,7 +913,7 @@ export default function TicketSummaryDialog({
                           },
                         });
                       }}
-                      disabled={generateAndPrintInvoice.isPending || !ticket.client}
+                      disabled={generateAndPrintInvoice.isPending || !clientData}
                       data-testid="button-print-final-invoice"
                     >
                       {generateAndPrintInvoice.isPending ? (

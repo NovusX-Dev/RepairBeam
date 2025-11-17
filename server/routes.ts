@@ -428,6 +428,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:id", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_READ), async (req: any, res) => {
+    try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { id } = req.params;
+      const client = await storage.getClient(id, req.authUser.tenantId);
+      
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      res.json(client);
+    } catch (error) {
+      console.error("Error fetching client:", error);
+      res.status(500).json({ message: "Failed to fetch client" });
+    }
+  });
+
   // Ticket routes
   app.get("/api/tickets", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_READ), async (req: any, res) => {
     try {
@@ -4212,12 +4232,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify ticket exists and belongs to this tenant
-      const ticket = await storage.getTicket(invoiceData.ticketId);
+      const ticket = await storage.getTicket(invoiceData.ticketId, req.authUser.tenantId);
       if (!ticket) {
         return res.status(404).json({ message: "Ticket not found" });
-      }
-      if (ticket.tenantId !== req.authUser.tenantId) {
-        return res.status(403).json({ message: "Access denied to this ticket" });
       }
 
       // Get the next invoice number
