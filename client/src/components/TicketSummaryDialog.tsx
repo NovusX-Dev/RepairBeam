@@ -756,7 +756,7 @@ export default function TicketSummaryDialog({
                   {t("invoices", "Invoices")}
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  <PermissionGate permissions={[PERMISSIONS.TICKETS.WRITE]}>
+                  <PermissionGate permission={PERMISSIONS.TICKETS_UPDATE}>
                     <Button
                       size="sm"
                       variant="outline"
@@ -819,7 +819,7 @@ export default function TicketSummaryDialog({
                     </Button>
                   </PermissionGate>
 
-                  <PermissionGate permissions={[PERMISSIONS.TICKETS.WRITE]}>
+                  <PermissionGate permission={PERMISSIONS.TICKETS_UPDATE}>
                     <Button
                       size="sm"
                       variant="outline"
