@@ -428,6 +428,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Client search endpoint (must come before /api/clients/:id to avoid matching "search" as an id)
+  app.get("/api/clients/search", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const query = req.query.q as string;
+      if (!query || query.trim().length < 2) {
+        return res.json([]);
+      }
+
+      const clients = await storage.searchClients(req.authUser.tenantId, query.trim());
+      res.json(clients);
+    } catch (error) {
+      console.error("Error searching clients:", error);
+      res.status(500).json({ message: "Failed to search clients" });
+    }
+  });
+
   app.get("/api/clients/:id", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_READ), async (req: any, res) => {
     try {
       if (!req.authUser) {
@@ -2036,26 +2056,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting filter preset:", error);
       res.status(500).json({ message: "Failed to delete filter preset" });
-    }
-  });
-
-  // Client search endpoint
-  app.get("/api/clients/search", isAuthenticated, async (req: any, res) => {
-    try {
-      if (!req.authUser) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const query = req.query.q as string;
-      if (!query || query.trim().length < 2) {
-        return res.json([]);
-      }
-
-      const clients = await storage.searchClients(req.authUser.tenantId, query.trim());
-      res.json(clients);
-    } catch (error) {
-      console.error("Error searching clients:", error);
-      res.status(500).json({ message: "Failed to search clients" });
     }
   });
 
