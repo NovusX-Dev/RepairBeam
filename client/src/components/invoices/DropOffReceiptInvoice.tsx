@@ -14,11 +14,14 @@ export interface DropOffReceiptData {
   deviceBrand?: string | null;
   deviceModel?: string | null;
   deviceColor?: string | null;
+  deviceMemory?: string | null;
+  deviceStorageCapacity?: string | null;
   serialNumber?: string | null;
   issueDescription?: string | null;
   estimatedCost?: string | null;
   estimatedHours?: number | null;
   serviceChecklist?: any;
+  selectedServices?: Array<{ name: string; cost: string }> | null;
   language: 'en' | 'pt-BR';
 }
 
@@ -35,10 +38,15 @@ const translations = {
     brand: 'Brand',
     model: 'Model',
     color: 'Color',
+    memory: 'Memory',
+    storage: 'Storage',
     serialNumber: 'Serial Number',
     issueInfo: 'Reported Issue',
     issue: 'Issue Description',
     serviceChecklist: 'Device Condition Checklist',
+    selectedServices: 'Selected Services',
+    serviceName: 'Service',
+    serviceCost: 'Cost',
     estimate: 'Cost Estimate',
     estimatedCost: 'Estimated Cost',
     estimatedTime: 'Estimated Time',
@@ -62,10 +70,15 @@ const translations = {
     brand: 'Marca',
     model: 'Modelo',
     color: 'Cor',
+    memory: 'Memória',
+    storage: 'Armazenamento',
     serialNumber: 'Número de Série',
     issueInfo: 'Problema Relatado',
     issue: 'Descrição do Problema',
     serviceChecklist: 'Checklist de Condição do Dispositivo',
+    selectedServices: 'Serviços Selecionados',
+    serviceName: 'Serviço',
+    serviceCost: 'Custo',
     estimate: 'Estimativa de Custo',
     estimatedCost: 'Custo Estimado',
     estimatedTime: 'Tempo Estimado',
@@ -147,14 +160,26 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
             </View>
           )}
         </View>
-        {props.serialNumber && (
-          <View style={styles.row}>
+        <View style={styles.row}>
+          {props.deviceMemory && (
+            <View style={styles.col25}>
+              <Text style={styles.label}>{t.memory}:</Text>
+              <Text style={styles.value}>{props.deviceMemory}</Text>
+            </View>
+          )}
+          {props.deviceStorageCapacity && (
+            <View style={styles.col25}>
+              <Text style={styles.label}>{t.storage}:</Text>
+              <Text style={styles.value}>{props.deviceStorageCapacity}</Text>
+            </View>
+          )}
+          {props.serialNumber && (
             <View style={styles.col50}>
               <Text style={styles.label}>{t.serialNumber}:</Text>
               <Text style={styles.value}>{props.serialNumber}</Text>
             </View>
-          </View>
-        )}
+          )}
+        </View>
       </View>
 
       {/* Reported Issue */}
@@ -162,6 +187,23 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.issueInfo}</Text>
           <Text style={styles.value}>{props.issueDescription}</Text>
+        </View>
+      )}
+
+      {/* Selected Services */}
+      {props.selectedServices && props.selectedServices.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t.selectedServices}</Text>
+          {props.selectedServices.map((service, index) => (
+            <View key={index} style={styles.row}>
+              <View style={styles.col50}>
+                <Text style={styles.label}>{service.name}</Text>
+              </View>
+              <View style={styles.col50}>
+                <Text style={styles.value}>{currencySymbol} {service.cost}</Text>
+              </View>
+            </View>
+          ))}
         </View>
       )}
 

@@ -599,21 +599,38 @@ export default function TicketSummaryDialog({
                 </div>
                 
                 {/* Selected Services List */}
-                {ticket.selectedServices && Array.isArray(ticket.selectedServices) && ticket.selectedServices.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-muted/20">
-                    <div className="font-medium text-cyan-400 text-xs mb-2">{t("selected_services", "Selected Services")}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {ticketRepairServices
-                        .filter(service => ticket.selectedServices.includes(service.id))
-                        .map((service) => (
-                          <div key={service.id} className="flex items-center gap-2 text-xs bg-slate-700/30 rounded p-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-[#00FFFF]"></div>
-                            <span className="text-slate-200 truncate">{service.name}</span>
-                          </div>
-                        ))}
+                {(() => {
+                  let services = [];
+                  if (ticket.selectedServices) {
+                    if (Array.isArray(ticket.selectedServices)) {
+                      services = ticket.selectedServices;
+                    } else if (typeof ticket.selectedServices === 'string') {
+                      try {
+                        services = JSON.parse(ticket.selectedServices);
+                      } catch (e) {
+                        services = [];
+                      }
+                    }
+                  }
+                  
+                  if (services.length === 0) return null;
+                  
+                  return (
+                    <div className="mt-3 pt-3 border-t border-muted/20">
+                      <div className="font-medium text-cyan-400 text-xs mb-2">{t("selected_services", "Selected Services")}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {ticketRepairServices
+                          .filter(service => services.includes(service.id))
+                          .map((service) => (
+                            <div key={service.id} className="flex items-center gap-2 text-xs bg-slate-700/30 rounded p-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-[#00FFFF]"></div>
+                              <span className="text-slate-200 truncate">{service.name}</span>
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
                 
                 {/* Service Items List */}
                 {summaryTicketItems && summaryTicketItems.length > 0 && (
@@ -782,6 +799,59 @@ export default function TicketSummaryDialog({
                           return;
                         }
                         const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+                        
+                        // Parse selected services
+                        let services = [];
+                        if (ticket.selectedServices) {
+                          if (Array.isArray(ticket.selectedServices)) {
+                            services = ticket.selectedServices;
+                          } else if (typeof ticket.selectedServices === 'string') {
+                            try {
+                              services = JSON.parse(ticket.selectedServices);
+                            } catch (e) {
+                              services = [];
+                            }
+                          }
+                        }
+                        
+                        // Build selected services breakdown with names and costs
+                        const selectedServicesBreakdown = services.map((serviceId: string) => {
+                          const service = ticketRepairServices.find(s => s.id === serviceId);
+                          if (service) {
+                            return {
+                              name: service.name,
+                              cost: service.estimatedLaborCost || '0',
+                            };
+                          }
+                          return null;
+                        }).filter(Boolean);
+                        
+                        // Calculate total cost
+                        const totalServicesCents = services.reduce((total: number, serviceId: string) => {
+                          const service = ticketRepairServices.find(s => s.id === serviceId);
+                          if (service) {
+                            const serviceCostCents = toCents(service.estimatedLaborCost || '0', locale);
+                            return addCents(total, serviceCostCents);
+                          }
+                          return total;
+                        }, 0);
+                        const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+                        const totalCostCents = addCents(totalServicesCents, extraCostCents);
+                        
+                        // Parse service checklist
+                        let serviceChecklist = null;
+                        if (ticket.serviceChecklist) {
+                          if (typeof ticket.serviceChecklist === 'object') {
+                            serviceChecklist = ticket.serviceChecklist;
+                          } else if (typeof ticket.serviceChecklist === 'string') {
+                            try {
+                              serviceChecklist = JSON.parse(ticket.serviceChecklist);
+                            } catch (e) {
+                              serviceChecklist = null;
+                            }
+                          }
+                        }
+                        
                         generateAndPrintInvoice.mutate({
                           ticketId: ticket.id,
                           type: 'drop_off',
@@ -796,33 +866,17 @@ export default function TicketSummaryDialog({
                             customerPhone: clientData.phone,
                             customerEmail: clientData.email,
                             deviceType: ticket.deviceType || null,
+                            deviceBrand: ticket.deviceBrand || null,
                             deviceModel: ticket.deviceModel || null,
                             deviceColor: ticket.deviceColor || null,
+                            deviceMemory: ticket.deviceMemory || null,
+                            deviceStorageCapacity: ticket.deviceStorageCapacity || null,
+                            serialNumber: null,
                             issueDescription: issueResponses.find(r => r.questionId === 'additional_comments')?.response || null,
-                            estimatedCost: (() => {
-                              let services = [];
-                              if (ticket.selectedServices) {
-                                if (Array.isArray(ticket.selectedServices)) {
-                                  services = ticket.selectedServices;
-                                } else if (typeof ticket.selectedServices === 'string') {
-                                  try {
-                                    services = JSON.parse(ticket.selectedServices);
-                                  } catch (e) {
-                                    services = [];
-                                  }
-                                }
-                              }
-                              const totalServicesCents = services.reduce((total: number, serviceId: string) => {
-                                const service = ticketRepairServices.find(s => s.id === serviceId);
-                                if (service) {
-                                  const serviceCostCents = toCents(service.estimatedLaborCost || '0', locale);
-                                  return addCents(total, serviceCostCents);
-                                }
-                                return total;
-                              }, 0);
-                              const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
-                              return formatCurrency(addCents(totalServicesCents, extraCostCents), locale);
-                            })(),
+                            estimatedCost: fromCents(totalCostCents).toString(),
+                            estimatedHours: ticket.technicianEstimatedHours || null,
+                            serviceChecklist: serviceChecklist,
+                            selectedServices: selectedServicesBreakdown,
                             language: locale,
                           },
                         });
