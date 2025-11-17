@@ -15,6 +15,7 @@ export async function hydrateAuthUser(req: Request, res: Response, next: NextFun
   try {
     // Skip unauthenticated requests
     if (!req.isAuthenticated || !req.isAuthenticated()) {
+      console.log(`[Auth] Skipping hydration for ${req.method} ${req.path} - not authenticated`);
       return next();
     }
 
@@ -26,6 +27,7 @@ export async function hydrateAuthUser(req: Request, res: Response, next: NextFun
 
     // Skip if already hydrated (e.g., in middleware chain)
     if (req.authUser) {
+      console.log(`[Auth] Already hydrated for ${req.method} ${req.path}`);
       return next();
     }
 
@@ -43,6 +45,8 @@ export async function hydrateAuthUser(req: Request, res: Response, next: NextFun
     // Directly assign req.user to req.authUser (no redundant DB fetch)
     req.authUser = user as any; // Cast to match expected type
     req.userTenantId = user.tenantId;
+    
+    console.log(`[Auth] Hydrated user ${userId} for ${req.method} ${req.path}`);
 
     next();
   } catch (error) {
