@@ -835,8 +835,13 @@ export default function TicketSummaryDialog({
                           }
                           return total;
                         }, 0);
+                        const totalItemsCents = summaryTicketItems.reduce((total: number, item: any) => {
+                          const unitPriceCents = toCents(item.unitPrice || '0', locale);
+                          const itemTotalCents = unitPriceCents * item.quantity;
+                          return addCents(total, itemTotalCents);
+                        }, 0);
                         const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
-                        const totalCostCents = addCents(totalServicesCents, extraCostCents);
+                        const totalCostCents = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
                         
                         // Parse service checklist
                         let serviceChecklist = null;
