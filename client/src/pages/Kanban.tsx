@@ -2152,6 +2152,16 @@ export default function KanbanTickets() {
   const deleteTicketMutation = useMutation({
     mutationFn: async (ticketId: string) => {
       const response = await apiRequest("DELETE", `/api/tickets/${ticketId}`);
+      
+      // Handle 404 as success (ticket already deleted)
+      if (response.status === 404) {
+        return { success: true, message: "Ticket already deleted" };
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to delete ticket: ${response.statusText}`);
+      }
+      
       return await response.json();
     },
     onSuccess: () => {
@@ -5893,8 +5903,17 @@ export default function KanbanTickets() {
                   deleteTicketMutation.mutate(selectedTicketSummary.id);
                 }
               }}
+              disabled={deleteTicketMutation.isPending}
+              data-testid="button-confirm-delete-ticket"
             >
-              {t("delete", "Delete")}
+              {deleteTicketMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("deleting", "Deleting...")}
+                </>
+              ) : (
+                t("delete", "Delete")
+              )}
             </Button>
           </div>
         </DialogContent>
