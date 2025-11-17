@@ -340,6 +340,12 @@ export default function TicketSummaryDialog({
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Fetch store settings for invoice generation
+  const { data: storeSettings } = useQuery<any>({
+    queryKey: ['/api/store-settings'],
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Use either ticket.client or fetchedClient
   const clientData = ticket?.client || fetchedClient;
 
@@ -772,7 +778,7 @@ export default function TicketSummaryDialog({
                       variant="outline"
                       className="flex items-center gap-2"
                       onClick={() => {
-                        if (!clientData) {
+                        if (!clientData || !storeSettings) {
                           return;
                         }
                         const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
@@ -781,14 +787,18 @@ export default function TicketSummaryDialog({
                           type: 'drop_off',
                           InvoiceComponent: DropOffReceiptInvoice,
                           invoiceProps: {
-                            ticketId: ticket.id,
-                            clientName: `${clientData.firstName} ${clientData.lastName}`,
-                            clientPhone: clientData.phone,
-                            clientEmail: clientData.email,
-                            deviceType: ticket.deviceType || '',
-                            deviceModel: ticket.deviceModel || '',
-                            deviceColor: ticket.deviceColor || '',
-                            issue: issueResponses.find(r => r.questionId === 'additional_comments')?.response || t("not_specified", "Not specified"),
+                            shopName: storeSettings.storeName || 'Repair Shop',
+                            shopLogo: storeSettings.logoUrl || null,
+                            shopAddress: storeSettings.address || null,
+                            invoiceNumber: '',
+                            invoiceDate: formatDate(new Date()),
+                            customerName: `${clientData.firstName} ${clientData.lastName}`,
+                            customerPhone: clientData.phone,
+                            customerEmail: clientData.email,
+                            deviceType: ticket.deviceType || null,
+                            deviceModel: ticket.deviceModel || null,
+                            deviceColor: ticket.deviceColor || null,
+                            issueDescription: issueResponses.find(r => r.questionId === 'additional_comments')?.response || null,
                             estimatedCost: (() => {
                               let services = [];
                               if (ticket.selectedServices) {
@@ -813,11 +823,11 @@ export default function TicketSummaryDialog({
                               const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
                               return formatCurrency(addCents(totalServicesCents, extraCostCents), locale);
                             })(),
-                            invoiceNumber: '',
+                            language: locale,
                           },
                         });
                       }}
-                      disabled={generateAndPrintInvoice.isPending || !clientData}
+                      disabled={generateAndPrintInvoice.isPending || !clientData || !storeSettings}
                       data-testid="button-print-drop-off-receipt"
                     >
                       {generateAndPrintInvoice.isPending ? (
@@ -835,7 +845,7 @@ export default function TicketSummaryDialog({
                       variant="outline"
                       className="flex items-center gap-2"
                       onClick={() => {
-                        if (!clientData) {
+                        if (!clientData || !storeSettings) {
                           return;
                         }
                         const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
@@ -854,24 +864,15 @@ export default function TicketSummaryDialog({
                           }
                         }
                         
-                        const serviceItems = services.map((serviceId: string) => {
-                          const service = ticketRepairServices.find(s => s.id === serviceId);
-                          return service ? {
-                            description: service.name,
-                            quantity: 1,
-                            unitPrice: formatCurrency(toCents(service.estimatedLaborCost || '0', locale), locale),
-                            total: formatCurrency(toCents(service.estimatedLaborCost || '0', locale), locale),
-                          } : null;
-                        }).filter(Boolean);
-
+                        // Build items array for parts (convert cents to dollars for FinalInvoice)
                         const partItems = summaryTicketItems.map((item: any) => {
                           const unitPriceCents = toCents(item.unitPrice || '0', locale);
                           const itemTotalCents = unitPriceCents * item.quantity;
                           return {
                             description: item.inventoryItem?.name || t("unnamed_item", "Unnamed Item"),
                             quantity: item.quantity,
-                            unitPrice: formatCurrency(unitPriceCents, locale),
-                            total: formatCurrency(itemTotalCents, locale),
+                            unitPrice: fromCents(unitPriceCents),
+                            total: fromCents(itemTotalCents),
                           };
                         });
 
@@ -891,29 +892,40 @@ export default function TicketSummaryDialog({
                         }, 0);
                         
                         const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
-                        const subtotal = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
+                        const subtotalCents = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
+                        const taxCents = 0; // No tax for now
+                        const totalCents = addCents(subtotalCents, taxCents);
 
                         generateAndPrintInvoice.mutate({
                           ticketId: ticket.id,
                           type: 'final',
                           InvoiceComponent: FinalInvoice,
                           invoiceProps: {
-                            ticketId: ticket.id,
-                            clientName: `${clientData.firstName} ${clientData.lastName}`,
-                            clientPhone: clientData.phone,
-                            clientEmail: clientData.email,
-                            deviceType: ticket.deviceType || '',
-                            deviceModel: ticket.deviceModel || '',
-                            services: serviceItems,
-                            parts: partItems,
-                            subtotal: formatCurrency(subtotal, locale),
-                            tax: formatCurrency(0, locale),
-                            total: formatCurrency(subtotal, locale),
+                            shopName: storeSettings.storeName || 'Repair Shop',
+                            shopLogo: storeSettings.logoUrl || null,
+                            shopAddress: storeSettings.address || null,
                             invoiceNumber: '',
+                            invoiceDate: formatDate(new Date()),
+                            customerName: `${clientData.firstName} ${clientData.lastName}`,
+                            customerPhone: clientData.phone,
+                            customerEmail: clientData.email,
+                            deviceType: ticket.deviceType || null,
+                            deviceModel: ticket.deviceModel || null,
+                            items: partItems,
+                            laborDescription: services.map((serviceId: string) => {
+                              const service = ticketRepairServices.find(s => s.id === serviceId);
+                              return service?.name || '';
+                            }).filter(Boolean).join(', ') || null,
+                            laborTotal: fromCents(totalServicesCents),
+                            subtotal: fromCents(subtotalCents),
+                            taxRate: 0,
+                            taxAmount: fromCents(taxCents),
+                            totalAmount: fromCents(totalCents),
+                            language: locale,
                           },
                         });
                       }}
-                      disabled={generateAndPrintInvoice.isPending || !clientData}
+                      disabled={generateAndPrintInvoice.isPending || !clientData || !storeSettings}
                       data-testid="button-print-final-invoice"
                     >
                       {generateAndPrintInvoice.isPending ? (
