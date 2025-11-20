@@ -22,6 +22,7 @@ export interface DropOffReceiptData {
   estimatedHours?: number | null;
   serviceChecklist?: any;
   selectedServices?: Array<{ name: string; cost: string }> | null;
+  identifiedDefects?: string[] | null;
   language: 'en' | 'pt-BR';
 }
 
@@ -45,6 +46,7 @@ const translations = {
     issue: 'Issue Description',
     serviceChecklist: 'Device Condition Checklist',
     additionalNotes: 'Additional Notes',
+    identifiedDefects: 'Identified Defects',
     selectedServices: 'Selected Services',
     serviceName: 'Service',
     serviceCost: 'Cost',
@@ -78,6 +80,7 @@ const translations = {
     issue: 'Descrição do Problema',
     serviceChecklist: 'Checklist de Condição do Dispositivo',
     additionalNotes: 'Observações Adicionais',
+    identifiedDefects: 'Defeitos Identificados',
     selectedServices: 'Serviços Selecionados',
     serviceName: 'Serviço',
     serviceCost: 'Custo',
@@ -189,6 +192,23 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.issueInfo}</Text>
           <Text style={styles.value}>{props.issueDescription}</Text>
+        </View>
+      )}
+
+      {/* Identified Defects */}
+      {props.identifiedDefects && props.identifiedDefects.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t.identifiedDefects}</Text>
+          {props.identifiedDefects.map((defect: string, index: number) => (
+            <View key={index} style={styles.row}>
+              <View style={{ width: '10%' }}>
+                <Text style={styles.label}>•</Text>
+              </View>
+              <View style={{ width: '90%' }}>
+                <Text style={styles.value}>{defect}</Text>
+              </View>
+            </View>
+          ))}
         </View>
       )}
 

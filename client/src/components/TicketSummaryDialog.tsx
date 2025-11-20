@@ -341,6 +341,14 @@ export default function TicketSummaryDialog({
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Load possible defects for ticket summary
+  const { data: ticketPossibleDefects = [] } = useQuery<any[]>({
+    queryKey: [`/api/possible-defects/device/${ticket?.deviceType}`],
+    enabled: !!ticket?.deviceType,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Fetch client data if not already populated on ticket
   const { data: fetchedClient } = useQuery<Client>({
     queryKey: [`/api/clients/${ticket?.clientId}`],
@@ -866,17 +874,41 @@ export default function TicketSummaryDialog({
                           }
                           
                           if (parsedChecklist) {
-                            const selectedChecklistNames = (parsedChecklist.selectedChecklists || [])
-                              .map((checklistId: string) => {
-                                const checklist = ticketChecklists.find(c => c.id === checklistId);
-                                return checklist?.name || checklistId;
-                              })
-                              .filter(Boolean);
+                            // Map checklist IDs to names if we have checklist data
+                            const selectedChecklistNames = ticketChecklists && ticketChecklists.length > 0
+                              ? (parsedChecklist.selectedChecklists || [])
+                                  .map((checklistId: string) => {
+                                    const checklist = ticketChecklists.find(c => c.id === checklistId);
+                                    return checklist?.name;
+                                  })
+                                  .filter(Boolean)
+                              : []; // Empty array if no checklists defined (preserve structure)
                             
                             serviceChecklist = {
                               selectedChecklists: selectedChecklistNames,
                               additionalNotes: parsedChecklist.additionalNotes
                             };
+                          }
+                        }
+                        
+                        // Extract and map identified defects
+                        let identifiedDefects: string[] = [];
+                        if (issueResponses && ticketPossibleDefects && ticketPossibleDefects.length > 0) {
+                          const selectedDefectsResponse = issueResponses.find(
+                            r => r.questionId === 'selected_defects'
+                          );
+                          
+                          if (selectedDefectsResponse && selectedDefectsResponse.response) {
+                            const defectIds = Array.isArray(selectedDefectsResponse.response)
+                              ? selectedDefectsResponse.response
+                              : [];
+                            
+                            identifiedDefects = defectIds
+                              .map((defectId: string) => {
+                                const defect = ticketPossibleDefects.find(d => d.id === defectId);
+                                return defect?.name;
+                              })
+                              .filter(Boolean);
                           }
                         }
                         
@@ -905,6 +937,7 @@ export default function TicketSummaryDialog({
                             estimatedHours: ticket.technicianEstimatedHours || null,
                             serviceChecklist: serviceChecklist,
                             selectedServices: selectedServicesBreakdown,
+                            identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
                             language: locale,
                           },
                         });
