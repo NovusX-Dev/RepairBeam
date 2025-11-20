@@ -263,8 +263,8 @@ export default function FinalInvoice(props: FinalInvoiceData) {
       </View>
 
       {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
+      <View style={{ marginTop: 12, paddingTop: 8, borderTop: '1 solid #e5e7eb' }}>
+        <Text style={{ fontSize: 7.5, color: '#666', fontStyle: 'italic', textAlign: 'center' }}>
           {props.footerText || t.thankYou}
         </Text>
       </View>
