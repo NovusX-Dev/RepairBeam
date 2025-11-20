@@ -244,22 +244,22 @@ export default function FinalInvoice(props: FinalInvoiceData) {
         </View>
       )}
 
-      {/* Warranty */}
-      <View style={styles.warrantySection}>
-        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1e40af', marginBottom: 4 }}>
-          {t.warranty}
-        </Text>
-        <Text style={styles.warrantyText}>
-          {props.warrantyText || t.defaultWarranty}
-        </Text>
-      </View>
-
-      {/* Disclaimer */}
-      <View style={styles.disclaimer}>
-        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#92400e', marginBottom: 4 }}>
-          {t.disclaimer}
-        </Text>
-        <Text style={styles.disclaimerText}>{t.disclaimerText}</Text>
+      {/* Warranty & Disclaimer - Combined */}
+      <View style={{ marginTop: 8, flexDirection: 'row' }}>
+        <View style={{ ...styles.warrantySection, flex: 1, marginTop: 0, marginRight: 6 }}>
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e40af', marginBottom: 3 }}>
+            {t.warranty}
+          </Text>
+          <Text style={styles.warrantyText}>
+            {props.warrantyText || t.defaultWarranty}
+          </Text>
+        </View>
+        <View style={{ ...styles.disclaimer, flex: 1, marginTop: 0 }}>
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#92400e', marginBottom: 3 }}>
+            {t.disclaimer}
+          </Text>
+          <Text style={styles.disclaimerText}>{t.disclaimerText}</Text>
+        </View>
       </View>
 
       {/* Footer */}
