@@ -33,8 +33,23 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    // On 401, clear the auth cache to trigger re-auth check and redirect
+    // Skip cache clearing if this IS the auth query to prevent infinite refetch loop
+    if (res.status === 401) {
+      const isAuthQuery = queryKey[0] === "/api/auth/user";
+      
+      if (!isAuthQuery) {
+        // When any non-auth query returns 401 (session expired), clear the auth cache
+        // This triggers useAuth to return isAuthenticated=false, redirecting to login
+        // Note: We use setQueryData (not invalidateQueries) to avoid refetch loop
+        // Auth cache repopulates after login via full page reload (window.location.href)
+        const { queryClient } = await import("./queryClient");
+        queryClient.setQueryData(["/api/auth/user"], null);
+      }
+      
+      if (unauthorizedBehavior === "returnNull") {
+        return null;
+      }
     }
 
     await throwIfResNotOk(res);
