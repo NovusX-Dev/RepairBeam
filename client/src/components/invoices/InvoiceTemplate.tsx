@@ -56,20 +56,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   section: {
-    marginTop: 15,
-    marginBottom: 15,
+    marginTop: 10,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#1e3a8a',
-    marginBottom: 8,
+    marginBottom: 4,
     borderBottom: '1 solid #e5e7eb',
-    paddingBottom: 4,
+    paddingBottom: 3,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   col50: {
     width: '50%',
@@ -84,14 +84,15 @@ const styles = StyleSheet.create({
     width: '75%',
   },
   label: {
-    fontSize: 9,
+    fontSize: 8,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   value: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#000',
     fontWeight: 'bold',
+    lineHeight: 1.2,
   },
   table: {
     marginTop: 10,
@@ -161,26 +162,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   disclaimer: {
-    marginTop: 15,
-    padding: 10,
+    marginTop: 8,
+    padding: 6,
     backgroundColor: '#fef3c7',
     border: '1 solid #fbbf24',
   },
   disclaimerText: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: '#92400e',
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
   warrantySection: {
-    marginTop: 15,
-    padding: 10,
+    marginTop: 8,
+    padding: 6,
     backgroundColor: '#dbeafe',
     border: '1 solid #3b82f6',
   },
   warrantyText: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: '#1e40af',
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
 });
 
