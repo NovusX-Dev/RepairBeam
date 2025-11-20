@@ -44,6 +44,8 @@ const translations = {
     issueInfo: 'Reported Issue',
     issue: 'Issue Description',
     serviceChecklist: 'Device Condition Checklist',
+    additionalNotes: 'Additional Notes',
+    checklistsSelected: 'checklists selected',
     selectedServices: 'Selected Services',
     serviceName: 'Service',
     serviceCost: 'Cost',
@@ -76,6 +78,8 @@ const translations = {
     issueInfo: 'Problema Relatado',
     issue: 'Descrição do Problema',
     serviceChecklist: 'Checklist de Condição do Dispositivo',
+    additionalNotes: 'Observações Adicionais',
+    checklistsSelected: 'checklists selecionados',
     selectedServices: 'Serviços Selecionados',
     serviceName: 'Serviço',
     serviceCost: 'Custo',
@@ -208,19 +212,29 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       )}
 
       {/* Service Checklist */}
-      {props.serviceChecklist && Object.keys(props.serviceChecklist).length > 0 && (
+      {props.serviceChecklist && (props.serviceChecklist.additionalNotes || (props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0)) && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.serviceChecklist}</Text>
-          {Object.entries(props.serviceChecklist).map(([component, condition]: [string, any]) => (
-            <View key={component} style={styles.row}>
+          {props.serviceChecklist.additionalNotes && (
+            <View style={styles.row}>
               <View style={styles.col50}>
-                <Text style={styles.label}>{component}:</Text>
+                <Text style={styles.label}>{t.additionalNotes}:</Text>
               </View>
               <View style={styles.col50}>
-                <Text style={styles.value}>{condition?.status || condition}</Text>
+                <Text style={styles.value}>{props.serviceChecklist.additionalNotes}</Text>
               </View>
             </View>
-          ))}
+          )}
+          {props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0 && (
+            <View style={styles.row}>
+              <View style={styles.col50}>
+                <Text style={styles.label}>{t.checklistsSelected}:</Text>
+              </View>
+              <View style={styles.col50}>
+                <Text style={styles.value}>{props.serviceChecklist.selectedChecklists.length} {t.checklistsSelected}</Text>
+              </View>
+            </View>
+          )}
         </View>
       )}
 
