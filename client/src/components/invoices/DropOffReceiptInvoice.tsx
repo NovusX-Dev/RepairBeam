@@ -257,37 +257,37 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
         </View>
       )}
 
-      {/* Disclaimer */}
-      <View style={styles.disclaimer}>
-        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#92400e', marginBottom: 4 }}>
-          {t.disclaimer}
-        </Text>
-        <Text style={styles.disclaimerText}>{t.disclaimerText}</Text>
-      </View>
-
-      {/* Warranty */}
-      <View style={styles.warrantySection}>
-        <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#1e40af', marginBottom: 4 }}>
-          {t.warranty}
-        </Text>
-        <Text style={styles.warrantyText}>{t.warrantyText}</Text>
+      {/* Disclaimer & Warranty - Combined */}
+      <View style={{ marginTop: 8, flexDirection: 'row', gap: 6 }}>
+        <View style={{ ...styles.disclaimer, flex: 1, marginTop: 0 }}>
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#92400e', marginBottom: 3 }}>
+            {t.disclaimer}
+          </Text>
+          <Text style={styles.disclaimerText}>{t.disclaimerText}</Text>
+        </View>
+        <View style={{ ...styles.warrantySection, flex: 1, marginTop: 0 }}>
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e40af', marginBottom: 3 }}>
+            {t.warranty}
+          </Text>
+          <Text style={styles.warrantyText}>{t.warrantyText}</Text>
+        </View>
       </View>
 
       {/* Signature Area */}
-      <View style={{ marginTop: 30, flexDirection: 'row', justifyContent: 'space-between' }}>
-        <View style={{ width: '45%' }}>
-          <View style={{ borderBottom: '1 solid #000', marginBottom: 4, height: 40 }} />
-          <Text style={{ fontSize: 9, color: '#666' }}>{t.signature}</Text>
+      <View style={{ marginTop: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <View style={{ width: '60%' }}>
+          <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
+          <Text style={{ fontSize: 8, color: '#666' }}>{t.signature}</Text>
         </View>
-        <View style={{ width: '30%' }}>
-          <View style={{ borderBottom: '1 solid #000', marginBottom: 4, height: 40 }} />
-          <Text style={{ fontSize: 9, color: '#666' }}>{t.date}</Text>
+        <View style={{ width: '35%' }}>
+          <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
+          <Text style={{ fontSize: 8, color: '#666' }}>{t.date}</Text>
         </View>
       </View>
 
       {/* Footer Note */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>{t.note}</Text>
+      <View style={{ marginTop: 12, paddingTop: 8, borderTop: '1 solid #e5e7eb' }}>
+        <Text style={{ fontSize: 7.5, color: '#666', fontStyle: 'italic', textAlign: 'center' }}>{t.note}</Text>
       </View>
     </InvoiceTemplate>
   );
