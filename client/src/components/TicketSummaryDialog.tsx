@@ -1025,7 +1025,9 @@ export default function TicketSummaryDialog({
                             customerPhone: clientData.phone,
                             customerEmail: clientData.email,
                             deviceType: ticket.deviceType || null,
+                            deviceBrand: ticket.deviceBrand || null,
                             deviceModel: ticket.deviceModel || null,
+                            serialNumber: ticket.serialNumber || null,
                             items: partItems,
                             laborDescription: services.map((serviceId: string) => {
                               const service = ticketRepairServices.find(s => s.id === serviceId);
