@@ -258,8 +258,8 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       )}
 
       {/* Disclaimer & Warranty - Combined */}
-      <View style={{ marginTop: 8, flexDirection: 'row', gap: 6 }}>
-        <View style={{ ...styles.disclaimer, flex: 1, marginTop: 0 }}>
+      <View style={{ marginTop: 8, flexDirection: 'row' }}>
+        <View style={{ ...styles.disclaimer, flex: 1, marginTop: 0, marginRight: 6 }}>
           <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#92400e', marginBottom: 3 }}>
             {t.disclaimer}
           </Text>
