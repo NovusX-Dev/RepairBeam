@@ -843,17 +843,6 @@ export default function TicketSummaryDialog({
                         const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
                         const totalCostCents = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
                         
-                        console.log('Drop-off receipt calculation:', {
-                          services,
-                          ticketRepairServices: ticketRepairServices.length,
-                          summaryTicketItems: summaryTicketItems.length,
-                          totalServicesCents,
-                          totalItemsCents,
-                          extraCostCents,
-                          totalCostCents,
-                          estimatedCost: fromCents(totalCostCents).toString()
-                        });
-                        
                         // Parse service checklist
                         let serviceChecklist = null;
                         if (ticket.serviceChecklist) {
