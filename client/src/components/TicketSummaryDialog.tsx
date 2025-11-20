@@ -333,6 +333,14 @@ export default function TicketSummaryDialog({
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Load checklists for ticket summary
+  const { data: ticketChecklists = [] } = useQuery<any[]>({
+    queryKey: [`/api/checklists/device/${ticket?.deviceType}`],
+    enabled: !!ticket?.deviceType,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Fetch client data if not already populated on ticket
   const { data: fetchedClient } = useQuery<Client>({
     queryKey: [`/api/clients/${ticket?.clientId}`],
@@ -843,17 +851,32 @@ export default function TicketSummaryDialog({
                         const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
                         const totalCostCents = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
                         
-                        // Parse service checklist
+                        // Parse service checklist and map IDs to names
                         let serviceChecklist = null;
                         if (ticket.serviceChecklist) {
+                          let parsedChecklist = null;
                           if (typeof ticket.serviceChecklist === 'object') {
-                            serviceChecklist = ticket.serviceChecklist;
+                            parsedChecklist = ticket.serviceChecklist;
                           } else if (typeof ticket.serviceChecklist === 'string') {
                             try {
-                              serviceChecklist = JSON.parse(ticket.serviceChecklist);
+                              parsedChecklist = JSON.parse(ticket.serviceChecklist);
                             } catch (e) {
-                              serviceChecklist = null;
+                              parsedChecklist = null;
                             }
+                          }
+                          
+                          if (parsedChecklist) {
+                            const selectedChecklistNames = (parsedChecklist.selectedChecklists || [])
+                              .map((checklistId: string) => {
+                                const checklist = ticketChecklists.find(c => c.id === checklistId);
+                                return checklist?.name || checklistId;
+                              })
+                              .filter(Boolean);
+                            
+                            serviceChecklist = {
+                              selectedChecklists: selectedChecklistNames,
+                              additionalNotes: parsedChecklist.additionalNotes
+                            };
                           }
                         }
                         

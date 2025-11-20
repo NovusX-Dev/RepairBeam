@@ -45,7 +45,6 @@ const translations = {
     issue: 'Issue Description',
     serviceChecklist: 'Device Condition Checklist',
     additionalNotes: 'Additional Notes',
-    checklistsSelected: 'checklists selected',
     selectedServices: 'Selected Services',
     serviceName: 'Service',
     serviceCost: 'Cost',
@@ -79,7 +78,6 @@ const translations = {
     issue: 'Descrição do Problema',
     serviceChecklist: 'Checklist de Condição do Dispositivo',
     additionalNotes: 'Observações Adicionais',
-    checklistsSelected: 'checklists selecionados',
     selectedServices: 'Serviços Selecionados',
     serviceName: 'Serviço',
     serviceCost: 'Custo',
@@ -215,24 +213,24 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       {props.serviceChecklist && (props.serviceChecklist.additionalNotes || (props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0)) && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.serviceChecklist}</Text>
-          {props.serviceChecklist.additionalNotes && (
-            <View style={styles.row}>
-              <View style={styles.col50}>
-                <Text style={styles.label}>{t.additionalNotes}:</Text>
-              </View>
-              <View style={styles.col50}>
-                <Text style={styles.value}>{props.serviceChecklist.additionalNotes}</Text>
-              </View>
-            </View>
-          )}
           {props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0 && (
-            <View style={styles.row}>
-              <View style={styles.col50}>
-                <Text style={styles.label}>{t.checklistsSelected}:</Text>
-              </View>
-              <View style={styles.col50}>
-                <Text style={styles.value}>{props.serviceChecklist.selectedChecklists.length} {t.checklistsSelected}</Text>
-              </View>
+            <>
+              {props.serviceChecklist.selectedChecklists.map((checklistName: string, index: number) => (
+                <View key={index} style={styles.row}>
+                  <View style={{ width: '10%' }}>
+                    <Text style={styles.label}>•</Text>
+                  </View>
+                  <View style={{ width: '90%' }}>
+                    <Text style={styles.value}>{checklistName}</Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
+          {props.serviceChecklist.additionalNotes && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={[styles.label, { marginBottom: 4 }]}>{t.additionalNotes}:</Text>
+              <Text style={styles.value}>{props.serviceChecklist.additionalNotes}</Text>
             </View>
           )}
         </View>
