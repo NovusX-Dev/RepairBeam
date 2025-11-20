@@ -889,7 +889,7 @@ export default function TicketSummaryDialog({
                             deviceStorageCapacity: ticket.deviceStorageCapacity || null,
                             serialNumber: null,
                             issueDescription: issueResponses.find(r => r.questionId === 'additional_comments')?.response || null,
-                            estimatedCost: fromCents(totalCostCents).toString(),
+                            estimatedCost: fromCents(totalCostCents, locale),
                             estimatedHours: ticket.technicianEstimatedHours || null,
                             serviceChecklist: serviceChecklist,
                             selectedServices: selectedServicesBreakdown,
