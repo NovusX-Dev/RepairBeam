@@ -136,33 +136,25 @@ export default function FinalInvoice(props: FinalInvoiceData) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t.deviceInfo}</Text>
         <View style={styles.row}>
-          {props.deviceType && (
-            <View style={styles.col33}>
-              <Text style={styles.label}>{t.deviceType}:</Text>
-              <Text style={styles.value}>{props.deviceType}</Text>
-            </View>
-          )}
-          {props.deviceBrand && (
-            <View style={styles.col33}>
-              <Text style={styles.label}>{t.brand}:</Text>
-              <Text style={styles.value}>{props.deviceBrand}</Text>
-            </View>
-          )}
-          {props.deviceModel && (
-            <View style={styles.col33}>
-              <Text style={styles.label}>{t.model}:</Text>
-              <Text style={styles.value}>{props.deviceModel}</Text>
-            </View>
-          )}
-        </View>
-        {props.serialNumber && (
-          <View style={styles.row}>
-            <View style={styles.col50}>
-              <Text style={styles.label}>{t.serialNumber}:</Text>
-              <Text style={styles.value}>{props.serialNumber}</Text>
-            </View>
+          <View style={styles.col33}>
+            <Text style={styles.label}>{t.deviceType}:</Text>
+            <Text style={styles.value}>{props.deviceType || '-'}</Text>
           </View>
-        )}
+          <View style={styles.col33}>
+            <Text style={styles.label}>{t.brand}:</Text>
+            <Text style={styles.value}>{props.deviceBrand || '-'}</Text>
+          </View>
+          <View style={styles.col33}>
+            <Text style={styles.label}>{t.model}:</Text>
+            <Text style={styles.value}>{props.deviceModel || '-'}</Text>
+          </View>
+        </View>
+        <View style={styles.row}>
+          <View style={styles.col50}>
+            <Text style={styles.label}>{t.serialNumber}:</Text>
+            <Text style={styles.value}>{props.serialNumber || '-'}</Text>
+          </View>
+        </View>
       </View>
 
       {/* Parts & Materials Table */}
