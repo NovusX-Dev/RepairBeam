@@ -246,19 +246,19 @@ export default function FinalInvoice(props: FinalInvoiceData) {
 
       {/* Warranty & Disclaimer - Combined */}
       <View style={{ marginTop: 8, flexDirection: 'row' }}>
-        <View style={{ ...styles.warrantySection, flex: 1, marginTop: 0, marginRight: 6 }}>
+        <View style={{ backgroundColor: '#eff6ff', borderRadius: 4, padding: 6, flex: 1, marginRight: 6 }}>
           <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e40af', marginBottom: 3 }}>
             {t.warranty}
           </Text>
-          <Text style={styles.warrantyText}>
+          <Text style={{ fontSize: 7.5, color: '#333', lineHeight: 1.4 }}>
             {props.warrantyText || t.defaultWarranty}
           </Text>
         </View>
-        <View style={{ ...styles.disclaimer, flex: 1, marginTop: 0 }}>
+        <View style={{ backgroundColor: '#fef3c7', borderRadius: 4, padding: 6, flex: 1 }}>
           <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#92400e', marginBottom: 3 }}>
             {t.disclaimer}
           </Text>
-          <Text style={styles.disclaimerText}>{t.disclaimerText}</Text>
+          <Text style={{ fontSize: 7.5, color: '#333', lineHeight: 1.4 }}>{t.disclaimerText}</Text>
         </View>
       </View>
 
