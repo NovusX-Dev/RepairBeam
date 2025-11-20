@@ -115,25 +115,19 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t.customerInfo}</Text>
         <View style={styles.row}>
-          <View style={styles.col50}>
+          <View style={styles.col33}>
             <Text style={styles.label}>{t.name}:</Text>
             <Text style={styles.value}>{props.customerName}</Text>
           </View>
-          {props.customerPhone && (
-            <View style={styles.col50}>
-              <Text style={styles.label}>{t.phone}:</Text>
-              <Text style={styles.value}>{props.customerPhone}</Text>
-            </View>
-          )}
-        </View>
-        {props.customerEmail && (
-          <View style={styles.row}>
-            <View style={styles.col50}>
-              <Text style={styles.label}>{t.email}:</Text>
-              <Text style={styles.value}>{props.customerEmail}</Text>
-            </View>
+          <View style={styles.col33}>
+            <Text style={styles.label}>{t.phone}:</Text>
+            <Text style={styles.value}>{props.customerPhone || '-'}</Text>
           </View>
-        )}
+          <View style={styles.col33}>
+            <Text style={styles.label}>{t.email}:</Text>
+            <Text style={styles.value}>{props.customerEmail || '-'}</Text>
+          </View>
+        </View>
       </View>
 
       {/* Device Information */}
