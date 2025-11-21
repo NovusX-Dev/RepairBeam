@@ -73,6 +73,7 @@ const formatBrazilianPhone = (value: string): string => {
 import type { Ticket, Client, TicketStatus, TicketPriority, WarrantyTier } from "@shared/schema";
 import { isValidStatusTransition, getAllowedNextStatuses } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
+import { formatTicketId } from "@/lib/utils";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
 import { useDeviceColors, useSaveCustomColor } from '@/hooks/useDeviceColors';
 import { useDeviceModels } from "@/hooks/useDeviceModels";
@@ -1919,6 +1920,8 @@ export default function KanbanTickets() {
       setCompletionData({ completionNotes: '', actualHours: '', finalActualCost: '' });
 
       // Automatically print final invoice
+      const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+      
       (async () => {
         try {
           // Fetch necessary data for invoice
@@ -2297,14 +2300,17 @@ export default function KanbanTickets() {
       });
 
       // Automatically print drop-off receipt
+      const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+      
       (async () => {
         try {
-          // Fetch all required data
-          const [storeSettings, clientData, ticketChecklists, possibleDefects] = await Promise.all([
+          // Fetch all required data including repair services
+          const [storeSettings, clientData, ticketChecklists, possibleDefects, repairServices] = await Promise.all([
             queryClient.fetchQuery({ queryKey: ['/api/store-settings'] }),
             queryClient.fetchQuery({ queryKey: [`/api/clients/${newTicket.clientId}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${newTicket.deviceType}`] }),
-            queryClient.fetchQuery({ queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`] })
+            queryClient.fetchQuery({ queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${newTicket.deviceType}`] })
           ]);
 
           if (!storeSettings || !clientData) {
@@ -2338,8 +2344,36 @@ export default function KanbanTickets() {
             return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
           };
 
-          // Calculate costs properly
+          // Map selected services to {name, cost} format
+          const selectedServicesFormatted = (newTicket.selectedServices || []).map((serviceId: string) => {
+            const service = (repairServices as any[])?.find((s: any) => s.id === serviceId);
+            if (service && service.estimatedLaborCost) {
+              return {
+                name: service.name,
+                cost: service.estimatedLaborCost // Already a string from DB
+              };
+            }
+            return null;
+          }).filter(Boolean);
+
+          // Calculate costs properly - estimatedCost from costEstimation, extraCost is null for drop-off
           const estimatedCostCents = newTicket.costEstimation ? toCents(newTicket.costEstimation, locale) : 0;
+          
+          // Format currency values as strings
+          const formattedEstimatedCost = estimatedCostCents > 0 
+            ? fromCents(estimatedCostCents, locale as Locale)
+            : null;
+
+          // Build serviceChecklist object
+          const additionalNotesValue = (newTicket.issueResponses || [])
+            .find((r: any) => r.questionId === 'additional_comments')?.response || null;
+          
+          const serviceChecklistObj = (checklistNames.length > 0 || additionalNotesValue)
+            ? {
+                selectedChecklists: checklistNames.length > 0 ? checklistNames : undefined,
+                additionalNotes: additionalNotesValue || undefined,
+              }
+            : null;
 
           generateAndPrintInvoice.mutate({
             ticketId: newTicket.id,
@@ -2360,12 +2394,11 @@ export default function KanbanTickets() {
               deviceColor: newTicket.deviceColor || null,
               deviceMemory: newTicket.deviceMemory || null,
               deviceStorageCapacity: newTicket.deviceStorageCapacity || null,
-              checklist: checklistNames.length > 0 ? checklistNames : null,
+              serviceChecklist: serviceChecklistObj,
+              selectedServices: selectedServicesFormatted.length > 0 ? selectedServicesFormatted : null,
               identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
-              additionalNotes: (newTicket.issueResponses || [])
-                .find((r: any) => r.questionId === 'additional_comments')?.response || null,
-              estimatedCost: estimatedCostCents > 0 ? estimatedCostCents / 100 : null,
-              extraCost: estimatedCostCents > 0 ? estimatedCostCents / 100 : null,
+              estimatedCost: formattedEstimatedCost,
+              extraCost: null, // No extra cost at drop-off time
               language: locale as 'en' | 'pt-BR',
             },
           });
