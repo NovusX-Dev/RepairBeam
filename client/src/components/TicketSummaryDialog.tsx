@@ -362,6 +362,13 @@ export default function TicketSummaryDialog({
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Fetch warranty tiers for calculating warranty cost and duration
+  const { data: warrantyTiers = [] } = useQuery<any[]>({
+    queryKey: [`/api/warranty-tiers/${ticket?.deviceType}`],
+    enabled: !!ticket?.deviceType,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Use either ticket.client or fetchedClient
   const clientData = ticket?.client || fetchedClient;
 
@@ -1008,9 +1015,35 @@ export default function TicketSummaryDialog({
                         }, 0);
                         
                         const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
-                        const subtotalCents = addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
+                        
+                        // Calculate warranty cost and valid until date
+                        let warrantyCostCents = 0;
+                        let warrantyValidUntil = null;
+                        const warrantyType = ticket.warrantyType || 'standard';
+                        
+                        if (warrantyTiers && warrantyTiers.length > 0) {
+                          const warrantyTier = warrantyTiers.find((tier: any) => 
+                            tier.tierType === warrantyType && tier.isActive
+                          );
+                          
+                          if (warrantyTier) {
+                            warrantyCostCents = toCents(warrantyTier.price || '0', locale);
+                            
+                            // Calculate warranty valid until date based on completion date
+                            if (ticket.completedAt && warrantyTier.durationMonths) {
+                              const completedDate = new Date(ticket.completedAt);
+                              const validUntilDate = new Date(completedDate);
+                              validUntilDate.setMonth(validUntilDate.getMonth() + warrantyTier.durationMonths);
+                              warrantyValidUntil = formatDate(validUntilDate);
+                            }
+                          }
+                        }
+                        
+                        // Subtotal is only parts + labor (excluding extra costs and warranty)
+                        const subtotalCents = addCents(totalServicesCents, totalItemsCents);
                         const taxCents = 0; // No tax for now
-                        const totalCents = addCents(subtotalCents, taxCents);
+                        // Total includes subtotal + extra costs + warranty + tax
+                        const totalCents = addCents(addCents(addCents(subtotalCents, extraCostCents), warrantyCostCents), taxCents);
 
                         generateAndPrintInvoice.mutate({
                           ticketId: ticket.id,
@@ -1037,12 +1070,17 @@ export default function TicketSummaryDialog({
                             laborHours: null,
                             laborRate: null,
                             laborTotal: totalServicesCents / 100,
+                            extraCost: extraCostCents > 0 ? extraCostCents / 100 : null,
+                            extraCostDescription: extraCostCents > 0 ? 'Additional costs' : null,
+                            warrantyCost: warrantyCostCents > 0 ? warrantyCostCents / 100 : null,
+                            warrantyType: warrantyType,
+                            warrantyValidUntil: warrantyValidUntil,
                             subtotal: subtotalCents / 100,
                             taxRate: 0,
                             taxAmount: taxCents / 100,
                             totalAmount: totalCents / 100,
                             paymentMethod: null,
-                            warrantyText: null,
+                            warrantyText: storeSettings?.warrantyTermsText || null,
                             footerText: null,
                             language: locale,
                           },
