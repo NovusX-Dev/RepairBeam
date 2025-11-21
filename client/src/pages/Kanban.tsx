@@ -1927,7 +1927,14 @@ export default function KanbanTickets() {
             queryClient.fetchQuery({ queryKey: ['/api/store-settings'] })
           ]);
 
-          if (!finalizedTicket || !storeSettings) return;
+          if (!finalizedTicket || !storeSettings) {
+            toast({
+              title: t("warning", "Warning"),
+              description: t("invoice_print_failed_missing_data", "Invoice printing failed due to missing data"),
+              variant: "default",
+            });
+            return;
+          }
 
           const ticket = finalizedTicket as any;
           
@@ -1939,31 +1946,45 @@ export default function KanbanTickets() {
             queryClient.fetchQuery({ queryKey: [`/api/warranty-tiers/${ticket.deviceType}`] })
           ]);
 
-          if (!clientData) return;
+          if (!clientData) {
+            toast({
+              title: t("warning", "Warning"),
+              description: t("invoice_print_failed_missing_data", "Invoice printing failed due to missing data"),
+              variant: "default",
+            });
+            return;
+          }
 
-          // Calculate costs
+          // Calculate costs properly using currency helpers
           const services = ticket.selectedServices || [];
           const totalServicesCents = services.reduce((total: number, serviceId: string) => {
             const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
-            if (service) {
-              return addCents(total, toCents(service.estimatedLaborCost, locale));
+            if (service && service.estimatedLaborCost) {
+              const serviceCostCents = toCents(service.estimatedLaborCost, locale);
+              return addCents(total, serviceCostCents);
             }
             return total;
           }, 0);
 
           // Calculate items cost
-          const partItems = (ticketItems as any[]).map((item: any) => ({
-            description: item.inventoryItem?.name || 'Unknown Item',
-            quantity: item.quantity,
-            unitPrice: item.unitPrice ? parseFloat(item.unitPrice) : 0,
-            total: item.quantity * (item.unitPrice ? parseFloat(item.unitPrice) : 0)
-          }));
+          const partItems = (ticketItems as any[])?.map((item: any) => {
+            const unitPriceNum = item.unitPrice ? parseFloat(item.unitPrice) : 0;
+            return {
+              description: item.inventoryItem?.name || 'Unknown Item',
+              quantity: item.quantity,
+              unitPrice: unitPriceNum,
+              total: item.quantity * unitPriceNum
+            };
+          }) || [];
 
-          const totalItemsCents = (ticketItems as any[]).reduce((total: number, item: any) => {
-            const unitPriceCents = item.unitPrice ? toCents(item.unitPrice, locale) : 0;
-            const itemTotalCents = unitPriceCents * item.quantity;
-            return addCents(total, itemTotalCents);
-          }, 0);
+          const totalItemsCents = (ticketItems as any[])?.reduce((total: number, item: any) => {
+            if (item.unitPrice) {
+              const unitPriceCents = toCents(item.unitPrice, locale);
+              const itemTotalCents = unitPriceCents * item.quantity;
+              return addCents(total, itemTotalCents);
+            }
+            return total;
+          }, 0) || 0;
 
           const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
 
@@ -1976,8 +1997,8 @@ export default function KanbanTickets() {
               tier.tierType === finalizedWarrantyType && tier.isActive
             );
 
-            if (warrantyTier) {
-              warrantyCostCents = toCents(warrantyTier.price || '0', locale);
+            if (warrantyTier && warrantyTier.price) {
+              warrantyCostCents = toCents(warrantyTier.price, locale);
 
               if (ticket.completedAt && warrantyTier.durationMonths) {
                 const completedDate = new Date(ticket.completedAt);
@@ -2015,7 +2036,7 @@ export default function KanbanTickets() {
               deviceBrand: ticket.deviceBrand || null,
               deviceModel: ticket.deviceModel || null,
               serialNumber: null,
-              items: partItems,
+              items: partItems.length > 0 ? partItems : null,
               laborDescription: services.map((serviceId: string) => {
                 const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
                 return service?.name || '';
@@ -2026,7 +2047,7 @@ export default function KanbanTickets() {
               extraCost: extraCostCents > 0 ? extraCostCents / 100 : null,
               extraCostDescription: extraCostCents > 0 ? t('additional_costs', 'Additional costs') : null,
               warrantyCost: warrantyCostCents > 0 ? warrantyCostCents / 100 : null,
-              warrantyType: finalizedWarrantyType,
+              warrantyType: finalizedWarrantyType || null,
               warrantyValidUntil: warrantyValidUntil,
               subtotal: subtotalCents / 100,
               taxRate: 0,
@@ -2040,6 +2061,11 @@ export default function KanbanTickets() {
           });
         } catch (error) {
           console.error('Failed to print final invoice:', error);
+          toast({
+            title: t("error", "Error"),
+            description: t("invoice_print_failed", "Failed to print invoice. Please try again from the ticket details."),
+            variant: "destructive",
+          });
         }
       })();
     },
@@ -2273,72 +2299,83 @@ export default function KanbanTickets() {
       // Automatically print drop-off receipt
       (async () => {
         try {
-          const [storeSettings, clientData, ticketChecklists] = await Promise.all([
+          // Fetch all required data
+          const [storeSettings, clientData, ticketChecklists, possibleDefects] = await Promise.all([
             queryClient.fetchQuery({ queryKey: ['/api/store-settings'] }),
             queryClient.fetchQuery({ queryKey: [`/api/clients/${newTicket.clientId}`] }),
-            queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${newTicket.deviceType}`] })
+            queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${newTicket.deviceType}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`] })
           ]);
 
-          if (storeSettings && clientData) {
-            // Map checklist IDs to names
-            const checklistNames = (newTicket.selectedChecklists || []).map((id: string) => {
-              const item = (ticketChecklists as any[])?.find((c: any) => c.id === id);
-              return item?.name || id;
+          if (!storeSettings || !clientData) {
+            toast({
+              title: t("warning", "Warning"),
+              description: t("invoice_print_failed_missing_data", "Invoice printing failed due to missing data"),
+              variant: "default",
             });
-
-            // Map defects from issue responses
-            const defectIds = (newTicket.issueResponses || [])
-              .filter((r: any) => r.questionId === 'selected_defects')
-              .flatMap((r: any) => r.response || []);
-
-            let identifiedDefects: string[] = [];
-            if (defectIds.length > 0) {
-              const possibleDefects = await queryClient.fetchQuery({ 
-                queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`]
-              });
-              identifiedDefects = defectIds.map((id: string) => {
-                const defect = (possibleDefects as any[])?.find((d: any) => d.id === id);
-                return defect?.name || id;
-              });
-            }
-
-            const formatDate = (date: Date | string | null) => {
-              if (!date) return 'N/A';
-              const d = typeof date === 'string' ? new Date(date) : date;
-              return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
-            };
-
-            generateAndPrintInvoice.mutate({
-              ticketId: newTicket.id,
-              type: 'drop_off',
-              InvoiceComponent: DropOffReceiptInvoice,
-              invoiceProps: {
-                shopName: (storeSettings as any).storeName || 'Repair Shop',
-                shopLogo: (storeSettings as any).logoUrl || null,
-                shopAddress: (storeSettings as any).address || null,
-                invoiceNumber: formatTicketId(newTicket.id),
-                invoiceDate: formatDate(new Date()),
-                customerName: `${(clientData as any).firstName || ''} ${(clientData as any).lastName || ''}`.trim() || 'N/A',
-                customerPhone: (clientData as any).phone || null,
-                customerEmail: (clientData as any).email || null,
-                deviceType: newTicket.deviceType || null,
-                deviceBrand: newTicket.deviceBrand || null,
-                deviceModel: newTicket.deviceModel || null,
-                deviceColor: newTicket.deviceColor || null,
-                deviceMemory: newTicket.deviceMemory || null,
-                deviceStorageCapacity: newTicket.deviceStorageCapacity || null,
-                checklist: checklistNames,
-                identifiedDefects,
-                additionalNotes: (newTicket.issueResponses || [])
-                  .find((r: any) => r.questionId === 'additional_comments')?.response || null,
-                estimatedCost: newTicket.costEstimation ? parseFloat(newTicket.costEstimation) : null,
-                extraCost: newTicket.costEstimation ? parseFloat(newTicket.costEstimation) : null,
-                language: locale as 'en' | 'pt-BR',
-              },
-            });
+            return;
           }
+
+          // Map checklist IDs to names
+          const checklistNames = (newTicket.selectedChecklists || []).map((id: string) => {
+            const item = (ticketChecklists as any[])?.find((c: any) => c.id === id);
+            return item?.name || id;
+          });
+
+          // Map defects from issue responses
+          const defectIds = (newTicket.issueResponses || [])
+            .filter((r: any) => r.questionId === 'selected_defects')
+            .flatMap((r: any) => r.response || []);
+
+          const identifiedDefects = defectIds.map((id: string) => {
+            const defect = (possibleDefects as any[])?.find((d: any) => d.id === id);
+            return defect?.name || id;
+          });
+
+          const formatDate = (date: Date | string | null) => {
+            if (!date) return 'N/A';
+            const d = typeof date === 'string' ? new Date(date) : date;
+            return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
+          };
+
+          // Calculate costs properly
+          const estimatedCostCents = newTicket.costEstimation ? toCents(newTicket.costEstimation, locale) : 0;
+
+          generateAndPrintInvoice.mutate({
+            ticketId: newTicket.id,
+            type: 'drop_off',
+            InvoiceComponent: DropOffReceiptInvoice,
+            invoiceProps: {
+              shopName: (storeSettings as any).storeName || 'Repair Shop',
+              shopLogo: (storeSettings as any).logoUrl || null,
+              shopAddress: (storeSettings as any).address || null,
+              invoiceNumber: formatTicketId(newTicket.id),
+              invoiceDate: formatDate(new Date()),
+              customerName: `${(clientData as any).firstName || ''} ${(clientData as any).lastName || ''}`.trim() || 'N/A',
+              customerPhone: (clientData as any).phone || null,
+              customerEmail: (clientData as any).email || null,
+              deviceType: newTicket.deviceType || null,
+              deviceBrand: newTicket.deviceBrand || null,
+              deviceModel: newTicket.deviceModel || null,
+              deviceColor: newTicket.deviceColor || null,
+              deviceMemory: newTicket.deviceMemory || null,
+              deviceStorageCapacity: newTicket.deviceStorageCapacity || null,
+              checklist: checklistNames.length > 0 ? checklistNames : null,
+              identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
+              additionalNotes: (newTicket.issueResponses || [])
+                .find((r: any) => r.questionId === 'additional_comments')?.response || null,
+              estimatedCost: estimatedCostCents > 0 ? estimatedCostCents / 100 : null,
+              extraCost: estimatedCostCents > 0 ? estimatedCostCents / 100 : null,
+              language: locale as 'en' | 'pt-BR',
+            },
+          });
         } catch (error) {
           console.error('Failed to print drop-off receipt:', error);
+          toast({
+            title: t("error", "Error"),
+            description: t("invoice_print_failed", "Failed to print invoice. Please try again from the ticket details."),
+            variant: "destructive",
+          });
         }
       })();
     },
