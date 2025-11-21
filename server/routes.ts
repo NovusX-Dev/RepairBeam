@@ -744,7 +744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { ticketId } = req.params;
-      const { completionNotes, actualHours, finalActualCost, confirmedItemIds = [] } = req.body;
+      const { completionNotes, actualHours, finalActualCost, confirmedItemIds = [], warrantyType = 'standard' } = req.body;
       
       if (actualHours === undefined || finalActualCost === undefined) {
         return res.status(400).json({ message: "Actual hours and final cost are required" });
@@ -800,7 +800,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.authUser.id,
         completionNotes || '', // Allow empty completion notes
         parseInt(actualHours),
-        parseFloat(finalActualCost)
+        parseFloat(finalActualCost),
+        warrantyType
       );
       
       if (!finalizedTicket) {

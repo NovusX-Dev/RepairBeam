@@ -1864,19 +1864,22 @@ export default function KanbanTickets() {
       completionNotes, 
       actualHours, 
       finalActualCost,
-      confirmedItemIds = []
+      confirmedItemIds = [],
+      warrantyType
     }: { 
       ticketId: string; 
       completionNotes: string; 
       actualHours: number; 
       finalActualCost: number; 
       confirmedItemIds?: string[];
+      warrantyType: string;
     }) => {
       return await apiRequest("PUT", `/api/tickets/${ticketId}/finalize`, { 
         completionNotes, 
         actualHours, 
         finalActualCost,
-        confirmedItemIds
+        confirmedItemIds,
+        warrantyType
       });
     },
     onMutate: async ({ ticketId }) => {
@@ -6685,7 +6688,8 @@ export default function KanbanTickets() {
                         completionNotes: completionData.completionNotes || '', // Optional notes
                         actualHours: parseInt(completionData.actualHours),
                         finalActualCost: parseFloat(completionData.finalActualCost),
-                        confirmedItemIds: wizardData.confirmedItemIds
+                        confirmedItemIds: wizardData.confirmedItemIds,
+                        warrantyType: wizardData.selectedWarrantyTier
                       });
                     }
                   } else {

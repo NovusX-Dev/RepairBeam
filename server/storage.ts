@@ -649,7 +649,8 @@ export class DatabaseStorage implements IStorage {
     completedBy: string,
     completionNotes: string,
     actualHours: number,
-    finalActualCost: number
+    finalActualCost: number,
+    warrantyType: string = 'standard'
   ): Promise<Ticket | undefined> {
     // Check if ticket is already finalized
     if (await this.isTicketFinalized(ticketId, tenantId)) {
@@ -672,6 +673,7 @@ export class DatabaseStorage implements IStorage {
         completionNotes,
         actualHours,
         finalActualCost: finalActualCost.toString(),
+        warrantyType,
         updatedAt: now
       })
       .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
