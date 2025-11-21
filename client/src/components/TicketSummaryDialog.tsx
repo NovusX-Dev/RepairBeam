@@ -986,8 +986,8 @@ export default function TicketSummaryDialog({
                           return {
                             description: item.inventoryItem?.name || t("unnamed_item", "Unnamed Item"),
                             quantity: item.quantity,
-                            unitPrice: fromCents(unitPriceCents),
-                            total: fromCents(itemTotalCents),
+                            unitPrice: unitPriceCents / 100,
+                            total: itemTotalCents / 100,
                           };
                         });
 
@@ -1035,11 +1035,11 @@ export default function TicketSummaryDialog({
                             }).filter(Boolean).join(', ') || null,
                             laborHours: null,
                             laborRate: null,
-                            laborTotal: fromCents(totalServicesCents),
-                            subtotal: fromCents(subtotalCents),
+                            laborTotal: totalServicesCents / 100,
+                            subtotal: subtotalCents / 100,
                             taxRate: 0,
-                            taxAmount: fromCents(taxCents),
-                            totalAmount: fromCents(totalCents),
+                            taxAmount: taxCents / 100,
+                            totalAmount: totalCents / 100,
                             paymentMethod: null,
                             warrantyText: null,
                             footerText: null,
