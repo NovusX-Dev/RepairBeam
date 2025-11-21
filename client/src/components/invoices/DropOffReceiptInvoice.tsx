@@ -20,6 +20,7 @@ export interface DropOffReceiptData {
   issueDescription?: string | null;
   estimatedCost?: string | null;
   estimatedHours?: number | null;
+  extraCost?: string | null;
   serviceChecklist?: any;
   selectedServices?: Array<{ name: string; cost: string }> | null;
   identifiedDefects?: string[] | null;
@@ -53,6 +54,7 @@ const translations = {
     estimate: 'Cost Estimate',
     estimatedCost: 'Estimated Cost',
     estimatedTime: 'Estimated Time',
+    extraCost: 'Additional Costs',
     hours: 'hours',
     disclaimer: 'IMPORTANT DISCLAIMER',
     disclaimerText: 'Customer is responsible for backing up all data. The repair shop is NOT liable for any data loss during repair. We strongly recommend backing up your device before leaving it for service. By signing below, you acknowledge and accept these terms.',
@@ -87,6 +89,7 @@ const translations = {
     estimate: 'Estimativa de Custo',
     estimatedCost: 'Custo Estimado',
     estimatedTime: 'Tempo Estimado',
+    extraCost: 'Custos Adicionais',
     hours: 'horas',
     disclaimer: 'AVISO IMPORTANTE',
     disclaimerText: 'O cliente é responsável por fazer backup de todos os dados. A loja de reparos NÃO é responsável por qualquer perda de dados durante o reparo. Recomendamos fortemente fazer backup do seu dispositivo antes de deixá-lo para serviço. Ao assinar abaixo, você reconhece e aceita estes termos.',
@@ -237,7 +240,7 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       )}
 
       {/* Estimate */}
-      {(props.estimatedCost || props.estimatedHours) && (
+      {(props.estimatedCost || props.estimatedHours || props.extraCost) && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.estimate}</Text>
           <View style={styles.row}>
@@ -254,6 +257,14 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
               </View>
             )}
           </View>
+          {props.extraCost && (
+            <View style={styles.row}>
+              <View style={styles.col50}>
+                <Text style={styles.label}>{t.extraCost}:</Text>
+                <Text style={styles.value}>{currencySymbol} {props.extraCost}</Text>
+              </View>
+            </View>
+          )}
         </View>
       )}
 

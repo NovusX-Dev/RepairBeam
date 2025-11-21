@@ -935,6 +935,7 @@ export default function TicketSummaryDialog({
                             issueDescription: issueResponses.find(r => r.questionId === 'additional_comments')?.response || null,
                             estimatedCost: fromCents(totalCostCents, locale),
                             estimatedHours: ticket.technicianEstimatedHours || null,
+                            extraCost: extraCostCents > 0 ? fromCents(extraCostCents, locale) : null,
                             serviceChecklist: serviceChecklist,
                             selectedServices: selectedServicesBreakdown,
                             identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
