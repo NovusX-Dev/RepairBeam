@@ -84,6 +84,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { PERMISSIONS } from "@shared/permissions";
 import { useInvoice } from "@/hooks/use-invoice";
 import DropOffReceiptInvoice from "@/components/invoices/DropOffReceiptInvoice";
+import FinalInvoice from "@/components/invoices/FinalInvoice";
 
 // Problems Tab Component
 interface ProblemsTabContentProps {
@@ -1906,14 +1907,141 @@ export default function KanbanTickets() {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: async (_, variables) => {
       toast({
         title: t("success", "Success"),
         description: t("ticket_finalized", "Ticket finalized successfully"),
       });
       setShowCompletionDialog(false);
+      const finalizedTicketId = variables.ticketId;
+      const finalizedWarrantyType = variables.warrantyType;
       setTicketToFinalize(null);
       setCompletionData({ completionNotes: '', actualHours: '', finalActualCost: '' });
+
+      // Automatically print final invoice
+      (async () => {
+        try {
+          // Fetch necessary data for invoice
+          const [finalizedTicket, storeSettings] = await Promise.all([
+            queryClient.fetchQuery({ queryKey: [`/api/tickets/${finalizedTicketId}`] }),
+            queryClient.fetchQuery({ queryKey: ['/api/store-settings'] })
+          ]);
+
+          if (!finalizedTicket || !storeSettings) return;
+
+          const ticket = finalizedTicket as any;
+          
+          // Fetch client, ticket items, services, and warranty tiers
+          const [clientData, ticketItems, ticketRepairServices, warrantyTiers] = await Promise.all([
+            queryClient.fetchQuery({ queryKey: [`/api/clients/${ticket.clientId}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/tickets/${ticket.id}/items`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${ticket.deviceType}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/warranty-tiers/${ticket.deviceType}`] })
+          ]);
+
+          if (!clientData) return;
+
+          // Calculate costs
+          const services = ticket.selectedServices || [];
+          const totalServicesCents = services.reduce((total: number, serviceId: string) => {
+            const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
+            if (service) {
+              return addCents(total, toCents(service.estimatedLaborCost, locale));
+            }
+            return total;
+          }, 0);
+
+          // Calculate items cost
+          const partItems = (ticketItems as any[]).map((item: any) => ({
+            description: item.inventoryItem?.name || 'Unknown Item',
+            quantity: item.quantity,
+            unitPrice: item.unitPrice ? parseFloat(item.unitPrice) : 0,
+            total: item.quantity * (item.unitPrice ? parseFloat(item.unitPrice) : 0)
+          }));
+
+          const totalItemsCents = (ticketItems as any[]).reduce((total: number, item: any) => {
+            const unitPriceCents = item.unitPrice ? toCents(item.unitPrice, locale) : 0;
+            const itemTotalCents = unitPriceCents * item.quantity;
+            return addCents(total, itemTotalCents);
+          }, 0);
+
+          const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+
+          // Calculate warranty cost
+          let warrantyCostCents = 0;
+          let warrantyValidUntil = null;
+
+          if (warrantyTiers && (warrantyTiers as any[]).length > 0) {
+            const warrantyTier = (warrantyTiers as any[]).find((tier: any) => 
+              tier.tierType === finalizedWarrantyType && tier.isActive
+            );
+
+            if (warrantyTier) {
+              warrantyCostCents = toCents(warrantyTier.price || '0', locale);
+
+              if (ticket.completedAt && warrantyTier.durationMonths) {
+                const completedDate = new Date(ticket.completedAt);
+                const validUntilDate = new Date(completedDate);
+                validUntilDate.setMonth(validUntilDate.getMonth() + warrantyTier.durationMonths);
+                warrantyValidUntil = validUntilDate.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
+              }
+            }
+          }
+
+          const subtotalCents = addCents(totalServicesCents, totalItemsCents);
+          const taxCents = 0;
+          const totalCents = addCents(addCents(addCents(subtotalCents, extraCostCents), warrantyCostCents), taxCents);
+
+          const formatDate = (date: Date | string | null) => {
+            if (!date) return 'N/A';
+            const d = typeof date === 'string' ? new Date(date) : date;
+            return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
+          };
+
+          generateAndPrintInvoice.mutate({
+            ticketId: ticket.id,
+            type: 'final',
+            InvoiceComponent: FinalInvoice,
+            invoiceProps: {
+              shopName: (storeSettings as any).storeName || 'Repair Shop',
+              shopLogo: (storeSettings as any).logoUrl || null,
+              shopAddress: (storeSettings as any).address || null,
+              invoiceNumber: formatTicketId(ticket.id),
+              invoiceDate: formatDate(new Date()),
+              customerName: `${(clientData as any).firstName || ''} ${(clientData as any).lastName || ''}`.trim() || 'N/A',
+              customerPhone: (clientData as any).phone || null,
+              customerEmail: (clientData as any).email || null,
+              deviceType: ticket.deviceType || null,
+              deviceBrand: ticket.deviceBrand || null,
+              deviceModel: ticket.deviceModel || null,
+              serialNumber: null,
+              items: partItems,
+              laborDescription: services.map((serviceId: string) => {
+                const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
+                return service?.name || '';
+              }).filter(Boolean).join(', ') || null,
+              laborHours: null,
+              laborRate: null,
+              laborTotal: totalServicesCents / 100,
+              extraCost: extraCostCents > 0 ? extraCostCents / 100 : null,
+              extraCostDescription: extraCostCents > 0 ? t('additional_costs', 'Additional costs') : null,
+              warrantyCost: warrantyCostCents > 0 ? warrantyCostCents / 100 : null,
+              warrantyType: finalizedWarrantyType,
+              warrantyValidUntil: warrantyValidUntil,
+              subtotal: subtotalCents / 100,
+              taxRate: 0,
+              taxAmount: taxCents / 100,
+              totalAmount: totalCents / 100,
+              paymentMethod: null,
+              warrantyText: (storeSettings as any)?.warrantyTermsText || null,
+              footerText: null,
+              language: locale as 'en' | 'pt-BR',
+            },
+          });
+        } catch (error) {
+          console.error('Failed to print final invoice:', error);
+        }
+      })();
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
@@ -2141,6 +2269,78 @@ export default function KanbanTickets() {
         title: t("success", "Success"),
         description: t("ticket_created_successfully", "Ticket created successfully!"),
       });
+
+      // Automatically print drop-off receipt
+      (async () => {
+        try {
+          const [storeSettings, clientData, ticketChecklists] = await Promise.all([
+            queryClient.fetchQuery({ queryKey: ['/api/store-settings'] }),
+            queryClient.fetchQuery({ queryKey: [`/api/clients/${newTicket.clientId}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${newTicket.deviceType}`] })
+          ]);
+
+          if (storeSettings && clientData) {
+            // Map checklist IDs to names
+            const checklistNames = (newTicket.selectedChecklists || []).map((id: string) => {
+              const item = (ticketChecklists as any[])?.find((c: any) => c.id === id);
+              return item?.name || id;
+            });
+
+            // Map defects from issue responses
+            const defectIds = (newTicket.issueResponses || [])
+              .filter((r: any) => r.questionId === 'selected_defects')
+              .flatMap((r: any) => r.response || []);
+
+            let identifiedDefects: string[] = [];
+            if (defectIds.length > 0) {
+              const possibleDefects = await queryClient.fetchQuery({ 
+                queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`]
+              });
+              identifiedDefects = defectIds.map((id: string) => {
+                const defect = (possibleDefects as any[])?.find((d: any) => d.id === id);
+                return defect?.name || id;
+              });
+            }
+
+            const formatDate = (date: Date | string | null) => {
+              if (!date) return 'N/A';
+              const d = typeof date === 'string' ? new Date(date) : date;
+              return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
+            };
+
+            generateAndPrintInvoice.mutate({
+              ticketId: newTicket.id,
+              type: 'drop_off',
+              InvoiceComponent: DropOffReceiptInvoice,
+              invoiceProps: {
+                shopName: (storeSettings as any).storeName || 'Repair Shop',
+                shopLogo: (storeSettings as any).logoUrl || null,
+                shopAddress: (storeSettings as any).address || null,
+                invoiceNumber: formatTicketId(newTicket.id),
+                invoiceDate: formatDate(new Date()),
+                customerName: `${(clientData as any).firstName || ''} ${(clientData as any).lastName || ''}`.trim() || 'N/A',
+                customerPhone: (clientData as any).phone || null,
+                customerEmail: (clientData as any).email || null,
+                deviceType: newTicket.deviceType || null,
+                deviceBrand: newTicket.deviceBrand || null,
+                deviceModel: newTicket.deviceModel || null,
+                deviceColor: newTicket.deviceColor || null,
+                deviceMemory: newTicket.deviceMemory || null,
+                deviceStorageCapacity: newTicket.deviceStorageCapacity || null,
+                checklist: checklistNames,
+                identifiedDefects,
+                additionalNotes: (newTicket.issueResponses || [])
+                  .find((r: any) => r.questionId === 'additional_comments')?.response || null,
+                estimatedCost: newTicket.costEstimation ? parseFloat(newTicket.costEstimation) : null,
+                extraCost: newTicket.costEstimation ? parseFloat(newTicket.costEstimation) : null,
+                language: locale as 'en' | 'pt-BR',
+              },
+            });
+          }
+        } catch (error) {
+          console.error('Failed to print drop-off receipt:', error);
+        }
+      })();
     },
     onError: (error) => {
       console.error('Failed to create ticket:', error);
