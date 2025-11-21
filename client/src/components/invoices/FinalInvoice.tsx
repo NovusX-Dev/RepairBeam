@@ -26,6 +26,11 @@ export interface FinalInvoiceData {
   laborHours?: number | null;
   laborRate?: number | null;
   laborTotal?: number;
+  extraCost?: number | null;
+  extraCostDescription?: string | null;
+  warrantyCost?: number | null;
+  warrantyType?: string | null;
+  warrantyValidUntil?: string | null;
   subtotal: number;
   taxRate: number;
   taxAmount: number;
@@ -57,6 +62,13 @@ const translations = {
     total: 'Total',
     hours: 'hours',
     rate: 'Rate',
+    extraCost: 'Additional Costs',
+    warrantyCost: 'Warranty',
+    warrantyInfo: 'Warranty Information',
+    warrantyTypeLabel: 'Type',
+    warrantyValidUntil: 'Valid Until',
+    standardWarranty: 'Standard Warranty',
+    extendedWarranty: 'Extended Warranty',
     subtotal: 'Subtotal',
     tax: 'Tax',
     totalDue: 'TOTAL DUE',
@@ -87,6 +99,13 @@ const translations = {
     total: 'Total',
     hours: 'horas',
     rate: 'Taxa',
+    extraCost: 'Custos Adicionais',
+    warrantyCost: 'Garantia',
+    warrantyInfo: 'Informações de Garantia',
+    warrantyTypeLabel: 'Tipo',
+    warrantyValidUntil: 'Válido Até',
+    standardWarranty: 'Garantia Padrão',
+    extendedWarranty: 'Garantia Estendida',
     subtotal: 'Subtotal',
     tax: 'Imposto',
     totalDue: 'TOTAL A PAGAR',
@@ -219,6 +238,18 @@ export default function FinalInvoice(props: FinalInvoiceData) {
           <Text style={styles.summaryLabel}>{t.subtotal}:</Text>
           <Text style={styles.summaryValue}>{currencySymbol} {props.subtotal.toFixed(2)}</Text>
         </View>
+        {props.extraCost !== null && props.extraCost !== undefined && props.extraCost > 0 && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t.extraCost}:</Text>
+            <Text style={styles.summaryValue}>{currencySymbol} {props.extraCost.toFixed(2)}</Text>
+          </View>
+        )}
+        {props.warrantyCost !== null && props.warrantyCost !== undefined && props.warrantyCost > 0 && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>{t.warrantyCost}:</Text>
+            <Text style={styles.summaryValue}>{currencySymbol} {props.warrantyCost.toFixed(2)}</Text>
+          </View>
+        )}
         {props.taxAmount > 0 && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{t.tax} ({props.taxRate}%):</Text>
@@ -230,6 +261,29 @@ export default function FinalInvoice(props: FinalInvoiceData) {
           <Text style={styles.totalValue}>{currencySymbol} {props.totalAmount.toFixed(2)}</Text>
         </View>
       </View>
+
+      {/* Warranty Information */}
+      {(props.warrantyType || props.warrantyValidUntil) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t.warrantyInfo}</Text>
+          <View style={styles.row}>
+            {props.warrantyType && (
+              <View style={styles.col50}>
+                <Text style={styles.label}>{t.warrantyTypeLabel}:</Text>
+                <Text style={styles.value}>
+                  {props.warrantyType === 'extended' ? t.extendedWarranty : t.standardWarranty}
+                </Text>
+              </View>
+            )}
+            {props.warrantyValidUntil && (
+              <View style={styles.col50}>
+                <Text style={styles.label}>{t.warrantyValidUntil}:</Text>
+                <Text style={styles.value}>{props.warrantyValidUntil}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Payment Information */}
       {props.paymentMethod && (
