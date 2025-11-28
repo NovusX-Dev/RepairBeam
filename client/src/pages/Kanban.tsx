@@ -3163,6 +3163,7 @@ export default function KanbanTickets() {
         estimatedCost: null,
         actualCost: null,
         deviceType: formData.deviceType,
+        deviceBrand: formData.deviceBrand,
         deviceModel: formData.deviceModel,
         deviceColor: formData.deviceColor,
         deviceMemory: formData.deviceMemory || null,
