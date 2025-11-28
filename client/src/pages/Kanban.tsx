@@ -71,7 +71,7 @@ const formatBrazilianPhone = (value: string): string => {
   }
 };
 import type { Ticket, Client, TicketStatus, TicketPriority, WarrantyTier } from "@shared/schema";
-import { isValidStatusTransition, getAllowedNextStatuses } from "@shared/schema";
+import { isValidStatusTransition, getAllowedNextStatuses, getCategorizedTransitions } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { formatTicketId } from "@/lib/utils";
 import { useDeviceBrands, useValidateBrand, useValidateModel } from "@/hooks/useDeviceBrands";
@@ -5931,24 +5931,55 @@ export default function KanbanTickets() {
                                     value={ticket.status}
                                     className="text-xs font-medium capitalize"
                                   >
-                                    {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))} {t("current", "(Current)")}
+                                    <span className="flex items-center gap-1.5">
+                                      <Check className="w-3 h-3 text-[#00FFFF]" />
+                                      {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))} {t("current", "(Current)")}
+                                    </span>
                                   </SelectItem>
                                   
-                                  {/* Divider */}
-                                  {getAllowedNextStatuses(ticket.status).length > 0 && (
-                                    <div className="h-px bg-border my-1" />
+                                  {/* Forward transitions - Progress */}
+                                  {getCategorizedTransitions(ticket.status as TicketStatus).forward.length > 0 && (
+                                    <>
+                                      <div className="px-2 py-1.5 text-[10px] font-semibold text-emerald-600 uppercase tracking-wide flex items-center gap-1 bg-emerald-50 border-y border-emerald-100">
+                                        <ChevronDown className="w-3 h-3 rotate-[-90deg]" />
+                                        {t("progress", "Progress")}
+                                      </div>
+                                      {getCategorizedTransitions(ticket.status as TicketStatus).forward.map((status) => (
+                                        <SelectItem 
+                                          key={status} 
+                                          value={status}
+                                          className="text-xs capitalize"
+                                        >
+                                          <span className="flex items-center gap-1.5 text-emerald-700">
+                                            <ChevronDown className="w-3 h-3 rotate-[-90deg] text-emerald-500" />
+                                            {t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </>
                                   )}
                                   
-                                  {/* Valid next statuses */}
-                                  {getAllowedNextStatuses(ticket.status).map((status) => (
-                                    <SelectItem 
-                                      key={status} 
-                                      value={status}
-                                      className="text-xs capitalize"
-                                    >
-                                      {t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
-                                    </SelectItem>
-                                  ))}
+                                  {/* Backward transitions - Go Back */}
+                                  {getCategorizedTransitions(ticket.status as TicketStatus).backward.length > 0 && (
+                                    <>
+                                      <div className="px-2 py-1.5 text-[10px] font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1 bg-amber-50 border-y border-amber-100">
+                                        <ChevronDown className="w-3 h-3 rotate-90" />
+                                        {t("go_back", "Go Back")}
+                                      </div>
+                                      {getCategorizedTransitions(ticket.status as TicketStatus).backward.map((status) => (
+                                        <SelectItem 
+                                          key={status} 
+                                          value={status}
+                                          className="text-xs capitalize"
+                                        >
+                                          <span className="flex items-center gap-1.5 text-amber-700">
+                                            <ChevronDown className="w-3 h-3 rotate-90 text-amber-500" />
+                                            {t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </>
+                                  )}
                                 </SelectContent>
                               </Select>
                             )}

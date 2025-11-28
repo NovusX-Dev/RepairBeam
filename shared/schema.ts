@@ -275,6 +275,36 @@ export function getStandardNextStatus(currentStatus: TicketStatus): TicketStatus
   return ticketStatusEnum[currentIndex + 1];
 }
 
+// Helper function to check if a transition is forward (progress) or backward (regression)
+export function isForwardTransition(currentStatus: TicketStatus, newStatus: TicketStatus): boolean {
+  const currentIndex = ticketStatusEnum.indexOf(currentStatus);
+  const newIndex = ticketStatusEnum.indexOf(newStatus);
+  return newIndex > currentIndex;
+}
+
+// Helper function to categorize allowed transitions into forward and backward
+export function getCategorizedTransitions(currentStatus: TicketStatus): {
+  forward: TicketStatus[];
+  backward: TicketStatus[];
+} {
+  const allowed = statusTransitionMap[currentStatus];
+  const currentIndex = ticketStatusEnum.indexOf(currentStatus);
+  
+  const forward: TicketStatus[] = [];
+  const backward: TicketStatus[] = [];
+  
+  for (const status of allowed) {
+    const statusIndex = ticketStatusEnum.indexOf(status);
+    if (statusIndex > currentIndex) {
+      forward.push(status);
+    } else {
+      backward.push(status);
+    }
+  }
+  
+  return { forward, backward };
+}
+
 export const ticketPriorityEnum = [
   'low',
   'medium', 
