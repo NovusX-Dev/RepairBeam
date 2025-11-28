@@ -5925,22 +5925,22 @@ export default function KanbanTickets() {
                                 >
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="bg-[#0A1128] border-[#00FFFF]/30">
                                   {/* Current status */}
                                   <SelectItem 
                                     value={ticket.status}
-                                    className="text-xs font-medium capitalize"
+                                    className="text-xs font-medium capitalize text-white focus:bg-[#00FFFF]/20 focus:text-white"
                                   >
                                     <span className="flex items-center gap-1.5">
                                       <Check className="w-3 h-3 text-[#00FFFF]" />
-                                      {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))} {t("current", "(Current)")}
+                                      {t(`status_${ticket.status}`, ticket.status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
                                     </span>
                                   </SelectItem>
                                   
                                   {/* Forward transitions - Progress */}
                                   {getCategorizedTransitions(ticket.status as TicketStatus).forward.length > 0 && (
                                     <>
-                                      <div className="px-2 py-1.5 text-[10px] font-semibold text-emerald-600 uppercase tracking-wide flex items-center gap-1 bg-emerald-50 border-y border-emerald-100">
+                                      <div className="px-2 py-1.5 text-[10px] font-semibold text-[#00FFFF] uppercase tracking-wide flex items-center gap-1 bg-[#00FFFF]/10 border-y border-[#00FFFF]/20">
                                         <ChevronDown className="w-3 h-3 rotate-[-90deg]" />
                                         {t("progress", "Progress")}
                                       </div>
@@ -5948,10 +5948,10 @@ export default function KanbanTickets() {
                                         <SelectItem 
                                           key={status} 
                                           value={status}
-                                          className="text-xs capitalize"
+                                          className="text-xs capitalize text-[#00FFFF]/80 focus:bg-[#00FFFF]/20 focus:text-[#00FFFF]"
                                         >
-                                          <span className="flex items-center gap-1.5 text-emerald-700">
-                                            <ChevronDown className="w-3 h-3 rotate-[-90deg] text-emerald-500" />
+                                          <span className="flex items-center gap-1.5">
+                                            <ChevronDown className="w-3 h-3 rotate-[-90deg] text-[#00FFFF]" />
                                             {t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
                                           </span>
                                         </SelectItem>
@@ -5962,7 +5962,7 @@ export default function KanbanTickets() {
                                   {/* Backward transitions - Go Back */}
                                   {getCategorizedTransitions(ticket.status as TicketStatus).backward.length > 0 && (
                                     <>
-                                      <div className="px-2 py-1.5 text-[10px] font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1 bg-amber-50 border-y border-amber-100">
+                                      <div className="px-2 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1 bg-gray-800/50 border-y border-gray-700/50">
                                         <ChevronDown className="w-3 h-3 rotate-90" />
                                         {t("go_back", "Go Back")}
                                       </div>
@@ -5970,10 +5970,10 @@ export default function KanbanTickets() {
                                         <SelectItem 
                                           key={status} 
                                           value={status}
-                                          className="text-xs capitalize"
+                                          className="text-xs capitalize text-gray-400 focus:bg-gray-700/50 focus:text-gray-300"
                                         >
-                                          <span className="flex items-center gap-1.5 text-amber-700">
-                                            <ChevronDown className="w-3 h-3 rotate-90 text-amber-500" />
+                                          <span className="flex items-center gap-1.5">
+                                            <ChevronDown className="w-3 h-3 rotate-90 text-gray-500" />
                                             {t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '))}
                                           </span>
                                         </SelectItem>
