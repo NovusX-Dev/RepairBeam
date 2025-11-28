@@ -1,17 +1,7 @@
 # Repair Beam
 
 ## Overview
-Repair Beam is a multi-tenant SaaS platform designed to optimize operations for repair businesses. It provides integrated tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale functionalities, and customer support. The platform aims to improve efficiency and streamline workflows for repair businesses.
-
-## Recent Critical Fixes
-- **2025-11-20 (Session Expiration & 401 Handling Fix)**: Fixed critical bug where expired sessions caused empty data on authenticated pages (Kanban, Clients, etc.) instead of redirecting to login. Root cause: QueryClient's `staleTime: Infinity` combined with lack of 401 handling meant cached user data persisted even after server session expired. When API calls returned 401, frontend showed authenticated UI with empty data instead of redirecting to login. Solution: (1) Enhanced `getQueryFn` in queryClient.ts to detect 401 responses and invalidate `/api/auth/user` query before throwing/returning null; (2) Updated `useAuth` hook to use `on401: "returnNull"` mode so `isAuthenticated` flips to false when session expires; (3) This triggers App.tsx to redirect to Landing page. Now expired sessions properly redirect users to login page instead of showing empty authenticated pages.
-- **2025-11-20 (Drop-Off Receipt Invoice Fixes)**: Fixed three critical issues with invoice printing: (1) Checklist section showing raw database IDs instead of names - resolved by mapping IDs to names using ticketChecklists query before passing to invoice component; (2) Missing identified defects section - extracted from issueResponses, mapped defect IDs to names, and added separate bulleted list in invoice; (3) Price calculation verified to correctly sum services + inventory items + extra costs in cents. Added safeguards to allow printing even when no checklists are registered for device type (preserves additionalNotes). Invoice now displays properly formatted checklist items, identified defects, and accurate pricing.
-- **2025-11-17 (Invoice Buttons Visibility Fix)**: Fixed critical invoice printing feature where buttons were never visible in TicketSummaryDialog despite proper permissions. Root cause: The dialog expected `ticket.client` object but API only returned `clientId` (client data populated via LEFT JOIN could be undefined for orphaned tickets). Solution: (1) Added `GET /api/clients/:id` endpoint in routes.ts for fetching individual clients; (2) Added `useQuery` in TicketSummaryDialog to fetch client data when `ticket.client` is undefined; (3) Created `clientData` variable combining `ticket.client || fetchedClient`; (4) Replaced all references to `ticket.client` with `clientData` throughout component. Invoice buttons now always visible when client data exists, regardless of whether it's embedded in ticket or fetched separately.
-- **2025-11-12 (Authentication Hydration Fix)**: Fixed critical bug where `hydrateAuthUser` middleware was performing redundant DB fetches and silently failing, causing intermittent 401 errors on all data endpoints (tickets, clients, inventory, suppliers) and forcing users to tenant setup page on fresh loads. Refactored middleware to directly use `req.user` (already populated by Passport's deserializeUser) instead of redundant `storage.getUser()` call. Changed error handling to "fail closed" - returns 401 immediately if auth context missing instead of silently continuing. This eliminated race conditions and ensured consistent `req.authUser` availability across all authenticated routes.
-- **2025-11-11 (Authentication Refactoring)**: Completed comprehensive refactoring to support both OIDC and password-based authentication. Created `getAuthenticatedUserId()` helper to handle discriminated union types. Fixed `hydrateAuthUser` middleware to populate `req.authUser` for both auth types. Systematically replaced ~100 occurrences of `req.user.claims.sub` (OIDC-only) with `req.authUser.id` pattern in routes.ts. Employee login flow now works: login → password change modal → main app (no more "Cannot read properties of undefined (reading 'sub')" crashes).
-- **2025-11-11 (Frontend Fixes)**: Fixed critical bugs - `apiRequest()` returns Response object requiring `.json()` parsing (affected password change modal in Landing.tsx and temporary password display in Users.tsx). Fixed `useTenant` hook checking non-existent `tenant.name` property (tenant table only has id/domain/settings).
-- **2025-11-10 (Session Fix)**: Fixed OIDC authentication loop caused by incomplete session serialization. Updated `SessionUser` interface and passport serialize/deserialize to preserve OIDC token metadata (`expires_at`, `access_token`, `refresh_token`, `claims`) so authenticated sessions persist correctly across requests.
-- **2025-11-10 (RLS Fix)**: Fixed SQL syntax error in tenant context middleware. PostgreSQL `SET LOCAL` commands don't support parameterized queries ($1), requiring `sql.raw()` with proper SQL escaping (`'` → `''`) instead.
+Repair Beam is a multi-tenant SaaS platform designed to optimize operations for repair businesses. It provides integrated tools for client management, repair tracking via Kanban boards, inventory management, point-of-sale functionalities, and customer support. The platform aims to improve efficiency and streamline workflows, offering significant market potential by consolidating essential business functions into a single, comprehensive solution.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -52,10 +42,9 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication & Authorization
 - **Hybrid Authentication System**: Dual authentication supporting both password-based login (for regular users/employees) and Replit OIDC (for admins/owners).
-- **Password Management**: Auto-generated memorable Portuguese-based passwords (e.g., "CasaSol123"), bcrypt hashing with 10 salt rounds, force password change on first login.
+- **Password Management**: Auto-generated memorable Portuguese-based passwords, bcrypt hashing, force password change on first login.
 - **Session Management**: Server-side sessions stored in PostgreSQL with Passport.js for both Local and OIDC strategies.
 - **Multi-tenant Security**: User-tenant association with role-based access control and authentication middleware.
-- **Security Features**: NO plain-text password storage (returned once in API response only), OIDC user protection in password change endpoint, proper session handling with discriminated union types (OidcAuthenticatedUser | LocalAuthenticatedUser).
 
 ### Application Structure
 - **Monorepo Layout**: Organized client, server, and shared code directories.
@@ -79,25 +68,23 @@ Preferred communication style: Simple, everyday language.
 - **Critical Rule**: Maintain consistent naming within the same context; database schema and API responses use `camelCase` for TypeScript/frontend consistency.
 
 ### Key Features and Implementations
-- **Password-Based Authentication**: Complete hybrid authentication system with email/password login for employees and OIDC for admins. Features auto-generated memorable passwords, force password change on first login, admin password reset capability, and secure one-time temporary password display dialog.
-- **Inventory Management**: Workflow-based organization, part-to-ticket tracking, real-time updates, predictive alerts, SKU/barcode system, multi-location support, supplier management, and cost tracking. Includes automatic inventory deduction, item usage confirmation, and price override for service items on tickets.
-- **Inventory Analytics**: Comprehensive audit trail, usage history APIs, and a dedicated analytics dashboard with KPIs, advanced filters, and interactive tables.
-- **QR Code Tracking System**: Unique QR code generation for inventory units, automated print functionality, multi-method scanning, and secure verification. Integrated with Purchase Orders, Kanban Tickets, and Inventory Analytics.
-- **Inventory Category Management**: Device-type-based categorization with backend validation, CRUD operations via a dedicated UI, and integration across purchase orders, inventory pages, and analytics.
-- **Kanban Status Transition Validation**: Comprehensive workflow enforcement with defined state machine transition rules for all ticket statuses. Includes backend enforcement, enhanced drag-and-drop UX with visual feedback, and inline status change dropdowns on Kanban cards.
+- **Password-Based Authentication**: Hybrid system with email/password login for employees and OIDC for admins, including auto-generated passwords and force password change.
+- **Client Management (CRM)**: Full-featured client database with KPI dashboard, searchable/filterable list, client profile sheets, and comprehensive add/edit functionalities.
+- **Inventory Management**: Workflow-based organization, part-to-ticket tracking, real-time updates, SKU/barcode system, multi-location support, and supplier management. Includes automatic inventory deduction and price override.
+- **Inventory Analytics**: Comprehensive audit trail, usage history APIs, and a dedicated analytics dashboard with KPIs.
+- **QR Code Tracking System**: Unique QR code generation for inventory units, automated print functionality, multi-method scanning, and secure verification, integrated with Purchase Orders, Kanban Tickets, and Inventory Analytics.
+- **Inventory Category Management**: Device-type-based categorization with backend validation and CRUD operations.
+- **Kanban Status Transition Validation**: Comprehensive workflow enforcement with defined state machine transition rules for ticket statuses, including backend enforcement and enhanced drag-and-drop UX.
 
 ### Security & Production Standards
-- **Multi-Tenant Security**: Database-level isolation with Row-Level Security (RLS) policies, session variables for tenant context, and application-level verification on all queries and mutations.
-- **Data Validation & Integrity**: Zod schemas for input validation, TypeScript strict mode, and database constraints (foreign keys, NOT NULL).
+- **Multi-Tenant Security**: Database-level isolation with Row-Level Security (RLS) policies and application-level verification.
+- **Data Validation & Integrity**: Zod schemas for input validation and database constraints.
 - **API Security**: Rate limiting, mandatory authentication/authorization, error sanitization, pagination, CSRF protection, and secure headers.
 - **Session Security**: HttpOnly, secure, and sameSite cookies, idle timeout, session rotation, and secure PostgreSQL storage.
-- **Secrets Management**: Environment variables, Replit Secrets for production keys, secret rotation, and no logging of secrets.
-- **Dependency Security**: Vulnerability scanning, automated monitoring (Dependabot/Snyk), regular updates, and license compliance.
-- **Audit & Logging**: Logging of security events, audit trails for critical operations, structured logging, and log retention policies.
-- **File Upload Security**: File type/size validation, virus scanning (if applicable), secure storage, and content sanitization.
-- **Backup & Recovery**: Automated PostgreSQL backups with encryption, recovery testing, point-in-time recovery, and disaster recovery planning.
-- **Incident Response**: Defined procedures for detection, containment, recovery, breach notification, monitoring, and forensics.
-- **Testing Standards**: Security, tenant isolation, and integration tests, with regression prevention.
+- **Secrets Management**: Environment variables, Replit Secrets for production keys.
+- **Dependency Security**: Vulnerability scanning and automated monitoring.
+- **Audit & Logging**: Logging of security events and audit trails for critical operations.
+- **Testing Standards**: Security, tenant isolation, and integration tests.
 - **Performance & Scalability**: Pagination, query optimization, N+1 prevention, caching, and connection pooling.
 
 ## External Dependencies
@@ -110,7 +97,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication
 - **Replit OIDC**: OpenID Connect provider for admin/owner authentication.
-- **Passport.js**: Authentication middleware supporting both Local (password) and OIDC strategies.
+- **Passport.js**: Authentication middleware supporting Local and OIDC strategies.
 - **openid-client**: OIDC client implementation.
 - **bcryptjs**: Password hashing and validation.
 
