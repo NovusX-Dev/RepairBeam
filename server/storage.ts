@@ -113,7 +113,7 @@ import {
 } from "@shared/schema";
 import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
-import { eq, and, desc, or, ilike, sql, asc, inArray } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql, asc, inArray, gte } from "drizzle-orm";
 
 // Database retry utility with exponential backoff
 async function withRetry<T>(
@@ -158,10 +158,14 @@ export interface IStorage {
   
   // Client operations
   getClients(tenantId: string): Promise<Client[]>;
+  getClientsWithFilters(tenantId: string, filters?: { status?: string; search?: string; page?: number; limit?: number }): Promise<{ clients: Client[]; total: number }>;
   getClient(id: string, tenantId: string): Promise<Client | undefined>;
   getClientByCPF(tenantId: string, cpf: string): Promise<Client | undefined>;
   searchClients(tenantId: string, query: string): Promise<Client[]>;
   createClient(client: InsertClient): Promise<Client>;
+  deleteClient(clientId: string, tenantId: string): Promise<boolean>;
+  getClientStats(tenantId: string): Promise<{ total: number; activeThisMonth: number; vipCount: number; newThisWeek: number }>;
+  updateClientMetrics(clientId: string, tenantId: string, updates: { lastVisitAt?: Date; totalSpendCents?: number; ticketCount?: number }): Promise<Client | undefined>;
   
   // Ticket operations
   getTickets(tenantId: string): Promise<Ticket[]>;
@@ -544,6 +548,131 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(clients.id, clientId), eq(clients.tenantId, tenantId)))
       .returning();
     return updatedClient || null;
+  }
+
+  async deleteClient(clientId: string, tenantId: string): Promise<boolean> {
+    const result = await db
+      .delete(clients)
+      .where(and(eq(clients.id, clientId), eq(clients.tenantId, tenantId)));
+    return true;
+  }
+
+  async getClientsWithFilters(
+    tenantId: string, 
+    filters?: { status?: string; search?: string; page?: number; limit?: number }
+  ): Promise<{ clients: Client[]; total: number }> {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 25;
+    const offset = (page - 1) * limit;
+
+    const conditions: any[] = [eq(clients.tenantId, tenantId)];
+
+    if (filters?.status && filters.status !== 'all') {
+      conditions.push(eq(clients.status, filters.status));
+    }
+
+    if (filters?.search) {
+      const searchTerm = `%${filters.search}%`;
+      conditions.push(
+        or(
+          ilike(clients.firstName, searchTerm),
+          ilike(clients.lastName, searchTerm),
+          ilike(clients.email, searchTerm),
+          ilike(clients.cpf, searchTerm),
+          ilike(clients.phone, searchTerm)
+        )
+      );
+    }
+
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clients)
+      .where(and(...conditions));
+
+    const clientList = await db
+      .select()
+      .from(clients)
+      .where(and(...conditions))
+      .orderBy(desc(clients.updatedAt))
+      .limit(limit)
+      .offset(offset);
+
+    return { clients: clientList, total: totalResult?.count || 0 };
+  }
+
+  async getClientStats(tenantId: string): Promise<{ total: number; activeThisMonth: number; vipCount: number; newThisWeek: number }> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clients)
+      .where(eq(clients.tenantId, tenantId));
+
+    const [activeResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clients)
+      .where(and(
+        eq(clients.tenantId, tenantId),
+        gte(clients.lastVisitAt, startOfMonth)
+      ));
+
+    const [vipResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clients)
+      .where(and(
+        eq(clients.tenantId, tenantId),
+        eq(clients.status, 'vip')
+      ));
+
+    const [newResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(clients)
+      .where(and(
+        eq(clients.tenantId, tenantId),
+        gte(clients.createdAt, startOfWeek)
+      ));
+
+    return {
+      total: totalResult?.count || 0,
+      activeThisMonth: activeResult?.count || 0,
+      vipCount: vipResult?.count || 0,
+      newThisWeek: newResult?.count || 0
+    };
+  }
+
+  async updateClientMetrics(
+    clientId: string, 
+    tenantId: string, 
+    updates: { lastVisitAt?: Date; totalSpendCents?: number; ticketCount?: number }
+  ): Promise<Client | undefined> {
+    const client = await this.getClient(clientId, tenantId);
+    if (!client) return undefined;
+
+    const newValues: any = { updatedAt: new Date() };
+    
+    if (updates.lastVisitAt) {
+      newValues.lastVisitAt = updates.lastVisitAt;
+    }
+    
+    if (updates.totalSpendCents !== undefined) {
+      newValues.totalSpendCents = (client.totalSpendCents || 0) + updates.totalSpendCents;
+    }
+    
+    if (updates.ticketCount !== undefined) {
+      newValues.ticketCount = (client.ticketCount || 0) + updates.ticketCount;
+    }
+
+    const [updatedClient] = await db
+      .update(clients)
+      .set(newValues)
+      .where(and(eq(clients.id, clientId), eq(clients.tenantId, tenantId)))
+      .returning();
+
+    return updatedClient;
   }
 
   // Ticket operations

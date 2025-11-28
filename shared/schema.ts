@@ -199,6 +199,10 @@ export const checklists = pgTable("checklists", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Client status enum
+export const clientStatusEnum = ['active', 'inactive', 'vip'] as const;
+export type ClientStatus = typeof clientStatusEnum[number];
+
 // Clients table
 export const clients = pgTable("clients", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -213,6 +217,13 @@ export const clients = pgTable("clients", {
   apartment: varchar("apartment"),
   birthday: varchar("birthday"),
   notes: text("notes"),
+  status: varchar("status").default('active'),
+  preferredLanguage: varchar("preferred_language").default('en'),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  marketingOptIn: boolean("marketing_opt_in").default(false),
+  lastVisitAt: timestamp("last_visit_at"),
+  totalSpendCents: integer("total_spend_cents").default(0),
+  ticketCount: integer("ticket_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

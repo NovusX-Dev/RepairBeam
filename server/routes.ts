@@ -420,11 +420,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const clients = await storage.getClients(req.authUser.tenantId);
-      res.json(clients);
+      const { status, search, page, limit } = req.query;
+      const result = await storage.getClientsWithFilters(req.authUser.tenantId, {
+        status: status as string,
+        search: search as string,
+        page: page ? parseInt(page as string) : 1,
+        limit: limit ? parseInt(limit as string) : 25
+      });
+      res.json(result);
     } catch (error) {
       console.error("Error fetching clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
+    }
+  });
+
+  // Client stats endpoint
+  app.get("/api/clients/stats", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_READ), async (req: any, res) => {
+    try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const stats = await storage.getClientStats(req.authUser.tenantId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching client stats:", error);
+      res.status(500).json({ message: "Failed to fetch client stats" });
     }
   });
 
@@ -806,6 +827,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!finalizedTicket) {
         return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      // Update client metrics when ticket is finalized
+      if (finalizedTicket.clientId) {
+        try {
+          // Calculate total cost in cents (finalActualCost is in reais/currency)
+          const costInCents = Math.round(parseFloat(finalActualCost) * 100);
+          
+          await storage.updateClientMetrics(
+            finalizedTicket.clientId,
+            req.authUser.tenantId,
+            {
+              lastVisitAt: new Date(),
+              totalSpendCents: costInCents,
+              ticketCount: 1
+            }
+          );
+        } catch (clientError) {
+          console.error("Warning: Failed to update client metrics:", clientError);
+          // Don't fail the finalization if client update fails
+        }
       }
 
       res.json(finalizedTicket);
@@ -2115,6 +2157,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating client:", error);
       res.status(500).json({ message: "Failed to update client" });
+    }
+  });
+
+  // Delete client endpoint
+  app.delete("/api/clients/:clientId", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_DELETE), async (req: any, res) => {
+    try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { clientId } = req.params;
+      
+      // Check if client has any tickets
+      const clientTickets = await storage.getTicketsByClientId(clientId, req.authUser.tenantId);
+      if (clientTickets.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete client with existing tickets. Please delete or reassign tickets first.",
+          ticketCount: clientTickets.length
+        });
+      }
+
+      await storage.deleteClient(clientId, req.authUser.tenantId);
+      res.json({ message: "Client deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      res.status(500).json({ message: "Failed to delete client" });
+    }
+  });
+
+  // Get client tickets with summary info
+  app.get("/api/clients/:clientId/tickets", isAuthenticated, requirePermission(PERMISSIONS.CLIENTS_READ), async (req: any, res) => {
+    try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { clientId } = req.params;
+      const tickets = await storage.getTicketsByClientId(clientId, req.authUser.tenantId);
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching client tickets:", error);
+      res.status(500).json({ message: "Failed to fetch client tickets" });
     }
   });
 
