@@ -216,20 +216,18 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       {props.serviceChecklist && (props.serviceChecklist.additionalNotes || (props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0)) && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.serviceChecklist}</Text>
-          {props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0 && (
-            <>
-              {props.serviceChecklist.selectedChecklists.map((checklistName: string, index: number) => (
-                <View key={index} style={styles.row}>
-                  <View style={{ width: '10%' }}>
-                    <Text style={styles.label}>•</Text>
-                  </View>
-                  <View style={{ width: '90%' }}>
-                    <Text style={styles.value}>{checklistName}</Text>
-                  </View>
+          {props.serviceChecklist.selectedChecklists && props.serviceChecklist.selectedChecklists.length > 0 && 
+            props.serviceChecklist.selectedChecklists.map((checklistName: string, index: number) => (
+              <View key={index} style={styles.row}>
+                <View style={{ width: '10%' }}>
+                  <Text style={styles.label}>•</Text>
                 </View>
-              ))}
-            </>
-          )}
+                <View style={{ width: '90%' }}>
+                  <Text style={styles.value}>{checklistName}</Text>
+                </View>
+              </View>
+            ))
+          }
           {props.serviceChecklist.additionalNotes && (
             <View style={{ marginTop: 8 }}>
               <Text style={[styles.label, { marginBottom: 4 }]}>{t.additionalNotes}:</Text>
