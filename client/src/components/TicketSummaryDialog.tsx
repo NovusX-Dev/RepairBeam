@@ -369,6 +369,13 @@ export default function TicketSummaryDialog({
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
+  // Fetch signature requests for the ticket
+  const { data: ticketSignatures = [] } = useQuery<any[]>({
+    queryKey: [`/api/tickets/${ticket?.id}/signatures`],
+    enabled: !!ticket?.id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
   // Use either ticket.client or fetchedClient
   const clientData = ticket?.client || fetchedClient;
 
@@ -919,6 +926,11 @@ export default function TicketSummaryDialog({
                           }
                         }
                         
+                        // Find dropoff signature for the invoice
+                        const dropoffSignature = ticketSignatures.find(
+                          (sig: any) => sig.type === 'dropoff' && sig.status === 'signed' && sig.signaturePng
+                        );
+                        
                         generateAndPrintInvoice.mutate({
                           ticketId: ticket.id,
                           type: 'drop_off',
@@ -947,6 +959,8 @@ export default function TicketSummaryDialog({
                             selectedServices: selectedServicesBreakdown,
                             identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
                             language: locale,
+                            dropoffSignaturePng: dropoffSignature?.signaturePng || null,
+                            dropoffSignedAt: dropoffSignature?.signedAt ? formatDate(new Date(dropoffSignature.signedAt)) : null,
                           },
                         });
                       }}
@@ -1045,6 +1059,11 @@ export default function TicketSummaryDialog({
                         // Total includes subtotal + extra costs + warranty + tax
                         const totalCents = addCents(addCents(addCents(subtotalCents, extraCostCents), warrantyCostCents), taxCents);
 
+                        // Find pickup signature for the invoice
+                        const pickupSignature = ticketSignatures.find(
+                          (sig: any) => sig.type === 'pickup' && sig.status === 'signed' && sig.signaturePng
+                        );
+
                         generateAndPrintInvoice.mutate({
                           ticketId: ticket.id,
                           type: 'final',
@@ -1083,6 +1102,8 @@ export default function TicketSummaryDialog({
                             warrantyText: storeSettings?.warrantyTermsText || null,
                             footerText: null,
                             language: locale,
+                            pickupSignaturePng: pickupSignature?.signaturePng || null,
+                            pickupSignedAt: pickupSignature?.signedAt ? formatDate(new Date(pickupSignature.signedAt)) : null,
                           },
                         });
                       }}

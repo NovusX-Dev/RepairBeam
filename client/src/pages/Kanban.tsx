@@ -86,6 +86,7 @@ import { PERMISSIONS } from "@shared/permissions";
 import { useInvoice } from "@/hooks/use-invoice";
 import DropOffReceiptInvoice from "@/components/invoices/DropOffReceiptInvoice";
 import FinalInvoice from "@/components/invoices/FinalInvoice";
+import SignatureWaitingModal from "@/components/signature/SignatureWaitingModal";
 
 // Problems Tab Component
 interface ProblemsTabContentProps {
@@ -1218,6 +1219,20 @@ export default function KanbanTickets() {
   const [showCreateConfirmation, setShowCreateConfirmation] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
+  // Signature flow state for ticket creation
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [pendingSignatureRequest, setPendingSignatureRequest] = useState<{
+    id: string;
+    type: 'dropoff' | 'pickup';
+    ticketData: any;
+  } | null>(null);
+  
+  // Pickup signature flow state for ticket finalization
+  const [showPickupSignatureModal, setShowPickupSignatureModal] = useState(false);
+  const [pickupSignatureRequestId, setPickupSignatureRequestId] = useState<string | null>(null);
+  const [pickupSignatureSent, setPickupSignatureSent] = useState(false);
+  const [sendingPickupSignature, setSendingPickupSignature] = useState(false);
+  
   // Completion dialog state
   const [showCompletionDialog, setShowCompletionDialog] = useState(false);
   const [ticketToFinalize, setTicketToFinalize] = useState<TicketWithClient | null>(null);
@@ -1941,12 +1956,13 @@ export default function KanbanTickets() {
 
           const ticket = finalizedTicket as any;
           
-          // Fetch client, ticket items, services, and warranty tiers
-          const [clientData, ticketItems, ticketRepairServices, warrantyTiers] = await Promise.all([
+          // Fetch client, ticket items, services, warranty tiers, and signatures
+          const [clientData, ticketItems, ticketRepairServices, warrantyTiers, ticketSignatures] = await Promise.all([
             queryClient.fetchQuery({ queryKey: [`/api/clients/${ticket.clientId}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/tickets/${ticket.id}/items`] }),
             queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${ticket.deviceType}`] }),
-            queryClient.fetchQuery({ queryKey: [`/api/warranty-tiers/${ticket.deviceType}`] })
+            queryClient.fetchQuery({ queryKey: [`/api/warranty-tiers/${ticket.deviceType}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/tickets/${ticket.id}/signatures`] })
           ]);
 
           if (!clientData) {
@@ -2022,6 +2038,11 @@ export default function KanbanTickets() {
             return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
           };
 
+          // Find pickup signature for the invoice
+          const pickupSignature = ((ticketSignatures as any[]) || []).find(
+            (sig: any) => sig.type === 'pickup' && sig.status === 'signed' && sig.signaturePng
+          );
+
           generateAndPrintInvoice.mutate({
             ticketId: ticket.id,
             type: 'final',
@@ -2060,6 +2081,8 @@ export default function KanbanTickets() {
               warrantyText: (storeSettings as any)?.warrantyTermsText || null,
               footerText: null,
               language: locale as 'en' | 'pt-BR',
+              pickupSignaturePng: pickupSignature?.signaturePng || null,
+              pickupSignedAt: pickupSignature?.signedAt ? formatDate(new Date(pickupSignature.signedAt)) : null,
             },
           });
         } catch (error) {
@@ -2218,6 +2241,8 @@ export default function KanbanTickets() {
         totalCost: '',
         costExplanation: '',
         selectedServices: [],
+        // Service Items
+        selectedItems: [],
         // Service Checklist defaults
         selectedChecklists: [],
         additionalNotes: '',
@@ -2304,13 +2329,14 @@ export default function KanbanTickets() {
       
       (async () => {
         try {
-          // Fetch all required data including repair services
-          const [storeSettings, clientData, ticketChecklists, possibleDefects, repairServices] = await Promise.all([
+          // Fetch all required data including repair services and signatures
+          const [storeSettings, clientData, ticketChecklists, possibleDefects, repairServices, ticketSignatures] = await Promise.all([
             queryClient.fetchQuery({ queryKey: ['/api/store-settings'] }),
             queryClient.fetchQuery({ queryKey: [`/api/clients/${newTicket.clientId}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${newTicket.deviceType}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`] }),
-            queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${newTicket.deviceType}`] })
+            queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${newTicket.deviceType}`] }),
+            queryClient.fetchQuery({ queryKey: [`/api/tickets/${newTicket.id}/signatures`] })
           ]);
 
           if (!storeSettings || !clientData) {
@@ -2375,6 +2401,11 @@ export default function KanbanTickets() {
               }
             : null;
 
+          // Find dropoff signature for the invoice
+          const dropoffSignature = ((ticketSignatures as any[]) || []).find(
+            (sig: any) => sig.type === 'dropoff' && sig.status === 'signed' && sig.signaturePng
+          );
+
           generateAndPrintInvoice.mutate({
             ticketId: newTicket.id,
             type: 'drop_off',
@@ -2400,6 +2431,8 @@ export default function KanbanTickets() {
               estimatedCost: formattedEstimatedCost,
               extraCost: null, // No extra cost at drop-off time
               language: locale as 'en' | 'pt-BR',
+              dropoffSignaturePng: dropoffSignature?.signaturePng || null,
+              dropoffSignedAt: dropoffSignature?.signedAt ? formatDate(new Date(dropoffSignature.signedAt)) : null,
             },
           });
         } catch (error) {
@@ -3110,94 +3143,283 @@ export default function KanbanTickets() {
     setShowCreateConfirmation(true);
   };
 
-  const handleConfirmCreateTicket = () => {
+  // Generate unique ticket ID with collision protection
+  const generateUniqueTicketId = async (): Promise<string> => {
+    const generateId = () => {
+      const timestamp = Date.now().toString(36);
+      const randomPart = Math.random().toString(36).substr(2, 9);
+      return `TK-${timestamp}-${randomPart}`.toUpperCase();
+    };
 
-    // Generate unique ticket ID with collision protection
-    const generateUniqueTicketId = async (): Promise<string> => {
-      const generateId = () => {
-        const timestamp = Date.now().toString(36);
-        const randomPart = Math.random().toString(36).substr(2, 9);
-        return `TK-${timestamp}-${randomPart}`.toUpperCase();
-      };
-
-      let attempts = 0;
-      const maxAttempts = 10;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      const ticketId = generateId();
       
-      while (attempts < maxAttempts) {
-        const ticketId = generateId();
+      // Check if ID already exists
+      try {
+        const response = await fetch(`/api/tickets/check-id/${ticketId}`);
+        const { exists } = await response.json();
         
-        // Check if ID already exists
-        try {
-          const response = await fetch(`/api/tickets/check-id/${ticketId}`);
-          const { exists } = await response.json();
-          
-          if (!exists) {
-            return ticketId;
-          }
-        } catch (error) {
-          console.warn('Error checking ticket ID uniqueness:', error);
+        if (!exists) {
+          return ticketId;
         }
-        
-        attempts++;
+      } catch (error) {
+        console.warn('Error checking ticket ID uniqueness:', error);
       }
       
-      // Fallback: use timestamp + random number if all attempts fail
-      return `TK-${Date.now()}-${Math.floor(Math.random() * 999999)}`;
-    };
-
-    const createTicketWithUniqueId = async () => {
-      const uniqueId = await generateUniqueTicketId();
-      
-      const ticketData = {
-        id: uniqueId,
-        clientId: selectedClient?.id || '',
-        title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
-        description: t("device_repair_request_description", "Device repair request for {deviceType} {deviceBrand} {deviceModel} in {deviceColor}")
-          .replace("{deviceType}", formData.deviceType)
-          .replace("{deviceBrand}", formData.deviceBrand)
-          .replace("{deviceModel}", formData.deviceModel)
-          .replace("{deviceColor}", formData.deviceColor),
-        status: 'backlog' as const,
-        priority: 'medium' as const,
-        assignedTo: null,
-        estimatedCost: null,
-        actualCost: null,
-        deviceType: formData.deviceType,
-        deviceBrand: formData.deviceBrand,
-        deviceModel: formData.deviceModel,
-        deviceColor: formData.deviceColor,
-        deviceMemory: formData.deviceMemory || null,
-        deviceStorageCapacity: formData.deviceStorageCapacity || null,
-        issueDescription: null,
-        // Service Timeline & Coverage fields with form data
-        clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
-        technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
-        selectedServices: formData.selectedServices || [],
-        costEstimation: formData.costEstimation || null,
-        totalCost: formData.totalCost || null,
-        costExplanation: formData.costExplanation || null,
-        // Service Checklist data
-        warrantyType: 'standard' as const,
-        serviceChecklist: {
-          selectedChecklists: formData.selectedChecklists,
-          additionalNotes: formData.additionalNotes
-        },
-        // Completion tracking fields (null for new tickets)
-        completedAt: null,
-        completedBy: null,
-        finalActualCost: null,
-        completionNotes: null,
-        actualHours: null,
-        issueResponses: formData.issueResponses || [],
-      };
-      
-      createTicketMutation.mutate(ticketData);
-    };
+      attempts++;
+    }
     
-    // Execute the ticket creation
-    createTicketWithUniqueId();
-    setShowCreateConfirmation(false);
+    // Fallback: use timestamp + random number if all attempts fail
+    return `TK-${Date.now()}-${Math.floor(Math.random() * 999999)}`;
   };
+
+  // Build ticket data object from form data
+  const buildTicketData = async (dropoffSignatureId: string | null = null) => {
+    const uniqueId = await generateUniqueTicketId();
+    
+    return {
+      id: uniqueId,
+      clientId: selectedClient?.id || '',
+      title: `${formData.deviceType} ${formData.deviceBrand} ${formData.deviceModel} - ${formData.deviceColor}`,
+      description: t("device_repair_request_description", "Device repair request for {deviceType} {deviceBrand} {deviceModel} in {deviceColor}")
+        .replace("{deviceType}", formData.deviceType)
+        .replace("{deviceBrand}", formData.deviceBrand)
+        .replace("{deviceModel}", formData.deviceModel)
+        .replace("{deviceColor}", formData.deviceColor),
+      status: 'backlog' as const,
+      priority: 'medium' as const,
+      assignedTo: null,
+      estimatedCost: null,
+      actualCost: null,
+      deviceType: formData.deviceType,
+      deviceBrand: formData.deviceBrand,
+      deviceModel: formData.deviceModel,
+      deviceColor: formData.deviceColor,
+      deviceMemory: formData.deviceMemory || null,
+      deviceStorageCapacity: formData.deviceStorageCapacity || null,
+      issueDescription: null,
+      // Service Timeline & Coverage fields with form data
+      clientDeadline: formData.clientDeadline ? new Date(formData.clientDeadline) : null,
+      technicianEstimatedHours: formData.technicianEstimatedHours ? parseInt(formData.technicianEstimatedHours) : null,
+      selectedServices: formData.selectedServices || [],
+      costEstimation: formData.costEstimation || null,
+      totalCost: formData.totalCost || null,
+      costExplanation: formData.costExplanation || null,
+      // Service Checklist data
+      warrantyType: 'standard' as const,
+      serviceChecklist: {
+        selectedChecklists: formData.selectedChecklists,
+        additionalNotes: formData.additionalNotes
+      },
+      // Completion tracking fields (null for new tickets)
+      completedAt: null,
+      completedBy: null,
+      finalActualCost: null,
+      completionNotes: null,
+      actualHours: null,
+      issueResponses: formData.issueResponses || [],
+      // Service Items from inventory
+      selectedItems: formData.selectedItems.map(item => ({
+        inventoryItemId: item.inventoryItemId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+      // Signature tracking
+      dropoffSignatureId,
+      pickupSignatureId: null,
+    };
+  };
+
+  // Request signature via SMS and wait for client to sign
+  const requestDropoffSignature = async (ticketData: any) => {
+    try {
+      // Get client phone number
+      const clientPhone = selectedClient?.phone;
+      if (!clientPhone) {
+        toast({
+          title: t("error", "Error"),
+          description: t("client_phone_required_for_signature", "Client phone number is required for SMS signature"),
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      // Create signature request
+      const response = await apiRequest("POST", "/api/signature-requests", {
+        ticketId: ticketData.id,
+        clientId: selectedClient?.id,
+        type: 'dropoff',
+        phoneNumber: clientPhone,
+      });
+      
+      const signatureRequest = await response.json();
+      return signatureRequest;
+    } catch (error) {
+      console.error('Failed to create signature request:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("signature_request_failed", "Failed to send signature request. Please try again."),
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleConfirmCreateTicket = async () => {
+    setShowCreateConfirmation(false);
+    
+    // Build ticket data first
+    const ticketData = await buildTicketData();
+    
+    // Check if client has a phone number for SMS signature
+    const clientPhone = selectedClient?.phone;
+    if (clientPhone) {
+      // Request signature via SMS
+      const signatureRequest = await requestDropoffSignature(ticketData);
+      if (signatureRequest) {
+        // Store pending request and show waiting modal
+        setPendingSignatureRequest({
+          id: signatureRequest.id,
+          type: 'dropoff',
+          ticketData,
+        });
+        setShowSignatureModal(true);
+      }
+    } else {
+      // No phone number - create ticket without signature
+      createTicketMutation.mutate(ticketData);
+    }
+  };
+
+  // Handle signature completed callback
+  const handleSignatureCompleted = async () => {
+    if (!pendingSignatureRequest) return;
+    
+    // Fetch the updated signature request to get the signature ID
+    try {
+      const response = await fetch(`/api/signature-requests/${pendingSignatureRequest.id}/status`);
+      const signatureStatus = await response.json();
+      
+      if (signatureStatus.status === 'signed') {
+        // Create ticket with the signature ID
+        const ticketDataWithSignature = {
+          ...pendingSignatureRequest.ticketData,
+          dropoffSignatureId: pendingSignatureRequest.id,
+        };
+        
+        createTicketMutation.mutate(ticketDataWithSignature);
+        
+        // Close signature modal and clear pending request
+        setShowSignatureModal(false);
+        setPendingSignatureRequest(null);
+      }
+    } catch (error) {
+      console.error('Failed to verify signature:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("signature_verification_failed", "Failed to verify signature. Please try again."),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle signature cancelled
+  const handleSignatureCancelled = () => {
+    setShowSignatureModal(false);
+    setPendingSignatureRequest(null);
+    
+    toast({
+      title: t("info", "Info"),
+      description: t("ticket_creation_cancelled", "Ticket creation was cancelled"),
+    });
+  };
+
+  // Request pickup signature via SMS for ticket finalization
+  const requestPickupSignature = async () => {
+    if (!ticketToFinalize || !ticketToFinalize.client) {
+      toast({
+        title: t("error", "Error"),
+        description: t("no_ticket_or_client", "No ticket or client information available"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const clientPhone = ticketToFinalize.client.phone;
+    if (!clientPhone) {
+      toast({
+        title: t("error", "Error"),
+        description: t("client_phone_required_for_signature", "Client phone number is required for SMS signature"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingPickupSignature(true);
+
+    try {
+      const response = await apiRequest("POST", "/api/signature-requests", {
+        ticketId: ticketToFinalize.id,
+        clientId: ticketToFinalize.clientId,
+        type: 'pickup',
+        phoneNumber: clientPhone,
+      });
+
+      const signatureRequest = await response.json();
+      setPickupSignatureRequestId(signatureRequest.id);
+      setPickupSignatureSent(true);
+      setShowPickupSignatureModal(true);
+
+      toast({
+        title: t("success", "Success"),
+        description: t("signature_sms_sent", "SMS sent to client for signature"),
+      });
+    } catch (error) {
+      console.error('Failed to send pickup signature request:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("signature_request_failed", "Failed to send signature request. Please try again."),
+        variant: "destructive",
+      });
+    } finally {
+      setSendingPickupSignature(false);
+    }
+  };
+
+  // Handle pickup signature completed callback
+  const handlePickupSignatureCompleted = async () => {
+    // Set client authorization to true when signature is received
+    setWizardData(prev => ({ ...prev, clientAuthorized: true }));
+    setShowPickupSignatureModal(false);
+    
+    toast({
+      title: t("success", "Success"),
+      description: t("client_signature_received", "Client signature has been received!"),
+    });
+  };
+
+  // Handle pickup signature cancelled
+  const handlePickupSignatureCancelled = () => {
+    setShowPickupSignatureModal(false);
+    setPickupSignatureRequestId(null);
+    
+    toast({
+      title: t("info", "Info"),
+      description: t("signature_request_cancelled", "Signature request was cancelled"),
+    });
+  };
+
+  // Reset pickup signature state when completion dialog closes
+  useEffect(() => {
+    if (!showCompletionDialog) {
+      setPickupSignatureRequestId(null);
+      setPickupSignatureSent(false);
+      setShowPickupSignatureModal(false);
+    }
+  }, [showCompletionDialog]);
 
   // Handle next step
   const handleNextStep = () => {
@@ -6070,26 +6292,108 @@ export default function KanbanTickets() {
                                   size="sm"
                                   variant="ghost"
                                   className="h-7 w-full text-xs flex items-center justify-center gap-1.5 hover:bg-[#00FFFF]/10 hover:text-[#00FFFF]"
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
                                     const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
-                                    generateAndPrintInvoice.mutate({
-                                      ticketId: ticket.id,
-                                      type: 'drop_off',
-                                      InvoiceComponent: DropOffReceiptInvoice,
-                                      invoiceProps: {
+                                    
+                                    try {
+                                      // Fetch all required data for proper invoice
+                                      const [storeSettings, ticketSignatures, ticketChecklists, repairServices, possibleDefects] = await Promise.all([
+                                        queryClient.fetchQuery({ queryKey: ['/api/store-settings'] }),
+                                        queryClient.fetchQuery({ queryKey: [`/api/tickets/${ticket.id}/signatures`] }),
+                                        queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${ticket.deviceType}`] }),
+                                        queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${ticket.deviceType}`] }),
+                                        queryClient.fetchQuery({ queryKey: [`/api/possible-defects/device/${ticket.deviceType}`] })
+                                      ]);
+
+                                      // Find dropoff signature for the invoice
+                                      const dropoffSignature = ((ticketSignatures as any[]) || []).find(
+                                        (sig: any) => sig.type === 'dropoff' && sig.status === 'signed' && sig.signaturePng
+                                      );
+
+                                      const formatDateLocal = (date: Date | string | null) => {
+                                        if (!date) return 'N/A';
+                                        const d = typeof date === 'string' ? new Date(date) : date;
+                                        return d.toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US');
+                                      };
+
+                                      // Map selected services to {name, cost} format
+                                      const selectedServicesFormatted = (ticket.selectedServices || []).map((serviceId: string) => {
+                                        const service = (repairServices as any[])?.find((s: any) => s.id === serviceId);
+                                        if (service && service.estimatedLaborCost) {
+                                          return { name: service.name, cost: service.estimatedLaborCost };
+                                        }
+                                        return null;
+                                      }).filter(Boolean);
+
+                                      // Map identified defects from issue responses
+                                      const defectIds = (ticket.issueResponses || [])
+                                        .filter((r: any) => r.questionId === 'selected_defects')
+                                        .flatMap((r: any) => r.response || []);
+                                      const identifiedDefects = defectIds.map((id: string) => {
+                                        const defect = (possibleDefects as any[])?.find((d: any) => d.id === id);
+                                        return defect?.name || id;
+                                      });
+
+                                      // Map checklist IDs to names
+                                      const checklistNames = (ticket.selectedChecklists || []).map((id: string) => {
+                                        const item = (ticketChecklists as any[])?.find((c: any) => c.id === id);
+                                        return item?.name || id;
+                                      });
+
+                                      const additionalNotesValue = (ticket.issueResponses || [])
+                                        .find((r: any) => r.questionId === 'additional_comments')?.response || null;
+                                      
+                                      const serviceChecklistObj = (checklistNames.length > 0 || additionalNotesValue)
+                                        ? {
+                                            selectedChecklists: checklistNames.length > 0 ? checklistNames : undefined,
+                                            additionalNotes: additionalNotesValue || undefined,
+                                          }
+                                        : null;
+
+                                      // Calculate estimated cost
+                                      const estimatedCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+                                      const formattedEstimatedCost = estimatedCostCents > 0 
+                                        ? fromCents(estimatedCostCents, locale as Locale)
+                                        : null;
+
+                                      generateAndPrintInvoice.mutate({
                                         ticketId: ticket.id,
-                                        clientName: `${ticket.client.firstName} ${ticket.client.lastName}`,
-                                        clientPhone: ticket.client.phone,
-                                        clientEmail: ticket.client.email,
-                                        deviceType: ticket.deviceType || '',
-                                        deviceModel: ticket.deviceModel || '',
-                                        deviceColor: ticket.deviceColor || '',
-                                        issue: t("not_specified", "Not specified"),
-                                        estimatedCost: ticket.estimatedCost || t("not_specified", "Not specified"),
-                                        invoiceNumber: '',
-                                      },
-                                    });
+                                        type: 'drop_off',
+                                        InvoiceComponent: DropOffReceiptInvoice,
+                                        invoiceProps: {
+                                          shopName: (storeSettings as any)?.storeName || 'Repair Shop',
+                                          shopLogo: (storeSettings as any)?.logoUrl || null,
+                                          shopAddress: (storeSettings as any)?.address || null,
+                                          invoiceNumber: formatTicketId(ticket.id),
+                                          invoiceDate: formatDateLocal(new Date()),
+                                          customerName: `${ticket.client?.firstName || ''} ${ticket.client?.lastName || ''}`.trim() || 'N/A',
+                                          customerPhone: ticket.client?.phone || null,
+                                          customerEmail: ticket.client?.email || null,
+                                          deviceType: ticket.deviceType || null,
+                                          deviceBrand: ticket.deviceBrand || null,
+                                          deviceModel: ticket.deviceModel || null,
+                                          deviceColor: ticket.deviceColor || null,
+                                          deviceMemory: ticket.deviceMemory || null,
+                                          deviceStorageCapacity: ticket.deviceStorageCapacity || null,
+                                          serviceChecklist: serviceChecklistObj,
+                                          selectedServices: selectedServicesFormatted.length > 0 ? selectedServicesFormatted : null,
+                                          identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
+                                          estimatedCost: formattedEstimatedCost,
+                                          extraCost: null,
+                                          language: locale as 'en' | 'pt-BR',
+                                          dropoffSignaturePng: dropoffSignature?.signaturePng || null,
+                                          dropoffSignedAt: dropoffSignature?.signedAt ? formatDateLocal(new Date(dropoffSignature.signedAt)) : null,
+                                        },
+                                      });
+                                    } catch (error) {
+                                      console.error('Failed to print receipt:', error);
+                                      toast({
+                                        title: t("error", "Error"),
+                                        description: t("invoice_print_failed", "Failed to print invoice. Please try again."),
+                                        variant: "destructive",
+                                      });
+                                    }
                                   }}
                                   disabled={generateAndPrintInvoice.isPending}
                                   data-testid={`button-print-invoice-${ticket.id}`}
@@ -6887,18 +7191,90 @@ export default function KanbanTickets() {
                         </div>
                       </div>
 
-                      {/* Authorization Switch */}
-                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Label className="text-cyan-400 font-medium">{t("authorize_completion", "Authorize Completion")}</Label>
-                            <p className="text-xs text-gray-400 mt-1">{t("client_confirms_satisfactory", "Client confirms all work is satisfactory")}</p>
-                          </div>
-                          <Switch
-                            checked={wizardData.clientAuthorized}
-                            onCheckedChange={(checked) => setWizardData(prev => ({ ...prev, clientAuthorized: checked }))}
-                            data-testid="switch-client-authorization"
-                          />
+                      {/* Client Authorization Section */}
+                      <div className="bg-slate-800/50 rounded-lg border border-[#00FFFF]/20 overflow-hidden">
+                        <div className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] px-4 py-3">
+                          <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4" />
+                            {t("client_signature", "Client Signature")}
+                          </h4>
+                        </div>
+                        <div className="p-4 space-y-4">
+                          {/* Show signature status */}
+                          {wizardData.clientAuthorized ? (
+                            <div className="flex items-center gap-3 p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+                              <CheckCircle className="w-5 h-5 text-green-400" />
+                              <div>
+                                <p className="text-green-400 font-medium">{t("signature_received", "Signature Received")}</p>
+                                <p className="text-xs text-green-300">{t("client_has_authorized", "Client has authorized the pickup")}</p>
+                              </div>
+                            </div>
+                          ) : pickupSignatureSent ? (
+                            <div className="flex items-center gap-3 p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                              <Clock className="w-5 h-5 text-amber-400 animate-pulse" />
+                              <div className="flex-1">
+                                <p className="text-amber-400 font-medium">{t("waiting_for_signature", "Waiting for Signature")}</p>
+                                <p className="text-xs text-amber-300">{t("sms_sent_waiting", "SMS sent, waiting for client to sign...")}</p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowPickupSignatureModal(true)}
+                                className="border-amber-500/50 text-amber-400 hover:bg-amber-500/20"
+                                data-testid="button-view-signature-status"
+                              >
+                                {t("view_status", "View Status")}
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <p className="text-sm text-gray-300">
+                                {t("signature_required_pickup", "A digital signature from the client is required to complete the pickup and finalize the ticket.")}
+                              </p>
+                              <div className="flex items-center gap-3">
+                                <Button
+                                  onClick={requestPickupSignature}
+                                  disabled={sendingPickupSignature || !ticketToFinalize?.client?.phone}
+                                  className="bg-gradient-to-r from-[#0A192F] to-[#00FFFF] hover:from-[#0A192F] hover:to-[#00FFFF]/80"
+                                  data-testid="button-send-signature-sms"
+                                >
+                                  {sendingPickupSignature ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      {t("sending", "Sending...")}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <MessageSquare className="w-4 h-4 mr-2" />
+                                      {t("send_signature_sms", "Send Signature SMS")}
+                                    </>
+                                  )}
+                                </Button>
+                                {!ticketToFinalize?.client?.phone && (
+                                  <span className="text-xs text-red-400">
+                                    {t("no_phone_number", "Client has no phone number")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Manual override switch for cases when SMS is not possible */}
+                          {!wizardData.clientAuthorized && (
+                            <div className="pt-3 border-t border-slate-700">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label className="text-gray-400 font-medium text-sm">{t("manual_authorization", "Manual Authorization")}</Label>
+                                  <p className="text-xs text-gray-500 mt-1">{t("manual_auth_desc", "Use only if client is present and cannot sign digitally")}</p>
+                                </div>
+                                <Switch
+                                  checked={wizardData.clientAuthorized}
+                                  onCheckedChange={(checked) => setWizardData(prev => ({ ...prev, clientAuthorized: checked }))}
+                                  data-testid="switch-client-authorization"
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -7155,6 +7531,32 @@ export default function KanbanTickets() {
         t={t}
         deviceType={formData.deviceType}
       />
+
+      {/* Signature Waiting Modal - shown when waiting for client to sign via SMS (dropoff) */}
+      {pendingSignatureRequest && (
+        <SignatureWaitingModal
+          isOpen={showSignatureModal}
+          onClose={handleSignatureCancelled}
+          signatureRequestId={pendingSignatureRequest.id}
+          type={pendingSignatureRequest.type}
+          clientName={selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : ''}
+          onSigned={handleSignatureCompleted}
+          onCancel={handleSignatureCancelled}
+        />
+      )}
+
+      {/* Pickup Signature Waiting Modal - shown when waiting for pickup signature during finalization */}
+      {pickupSignatureRequestId && (
+        <SignatureWaitingModal
+          isOpen={showPickupSignatureModal}
+          onClose={handlePickupSignatureCancelled}
+          signatureRequestId={pickupSignatureRequestId}
+          type="pickup"
+          clientName={ticketToFinalize?.client ? `${ticketToFinalize.client.firstName} ${ticketToFinalize.client.lastName}` : ''}
+          onSigned={handlePickupSignatureCompleted}
+          onCancel={handlePickupSignatureCancelled}
+        />
+      )}
     </TooltipProvider>
   );
 }

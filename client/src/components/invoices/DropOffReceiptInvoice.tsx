@@ -1,4 +1,4 @@
-import { View, Text } from '@react-pdf/renderer';
+import { View, Text, Image } from '@react-pdf/renderer';
 import InvoiceTemplate, { styles } from './InvoiceTemplate';
 
 export interface DropOffReceiptData {
@@ -25,6 +25,8 @@ export interface DropOffReceiptData {
   selectedServices?: Array<{ name: string; cost: string }> | null;
   identifiedDefects?: string[] | null;
   language: 'en' | 'pt-BR';
+  dropoffSignaturePng?: string | null;
+  dropoffSignedAt?: string | null;
 }
 
 // Localized text
@@ -61,6 +63,8 @@ const translations = {
     warranty: 'WARRANTY TERMS',
     warrantyText: 'All repairs come with a standard warranty covering parts and labor. Warranty does not cover physical damage, liquid damage, or issues arising from unauthorized modifications after repair. Warranty is void if device is repaired by third parties.',
     signature: 'Customer Signature',
+    digitalSignature: 'Digital Signature',
+    signedDigitally: 'Signed digitally on',
     date: 'Date',
     note: 'NOTE: This is a drop-off receipt, not a final invoice. Final charges will be provided upon completion.',
   },
@@ -96,6 +100,8 @@ const translations = {
     warranty: 'TERMOS DE GARANTIA',
     warrantyText: 'Todos os reparos vêm com garantia padrão cobrindo peças e mão de obra. A garantia não cobre danos físicos, danos causados por líquidos ou problemas decorrentes de modificações não autorizadas após o reparo. A garantia é anulada se o dispositivo for reparado por terceiros.',
     signature: 'Assinatura do Cliente',
+    digitalSignature: 'Assinatura Digital',
+    signedDigitally: 'Assinado digitalmente em',
     date: 'Data',
     note: 'NOTA: Este é um comprovante de entrega, não uma fatura final. Os custos finais serão fornecidos após a conclusão.',
   },
@@ -283,15 +289,50 @@ export default function DropOffReceiptInvoice(props: DropOffReceiptData) {
       </View>
 
       {/* Signature Area */}
-      <View style={{ marginTop: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <View style={{ width: '60%' }}>
-          <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
-          <Text style={{ fontSize: 8, color: '#666' }}>{t.signature}</Text>
-        </View>
-        <View style={{ width: '35%' }}>
-          <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
-          <Text style={{ fontSize: 8, color: '#666' }}>{t.date}</Text>
-        </View>
+      <View style={{ marginTop: 16 }}>
+        {props.dropoffSignaturePng ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View style={{ width: '60%' }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e40af', marginBottom: 4 }}>
+                {t.digitalSignature}
+              </Text>
+              <View style={{ 
+                border: '1 solid #e5e7eb', 
+                borderRadius: 4, 
+                padding: 8, 
+                backgroundColor: '#f9fafb',
+                height: 50,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <Image 
+                  src={props.dropoffSignaturePng} 
+                  style={{ maxHeight: 40, maxWidth: 180, objectFit: 'contain' }} 
+                />
+              </View>
+            </View>
+            <View style={{ width: '35%' }}>
+              <Text style={{ fontSize: 8, color: '#666', marginBottom: 4 }}>{t.date}:</Text>
+              <Text style={{ fontSize: 9, color: '#333' }}>
+                {props.dropoffSignedAt || props.invoiceDate}
+              </Text>
+              <Text style={{ fontSize: 7, color: '#10b981', marginTop: 4 }}>
+                {t.signedDigitally}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View style={{ width: '60%' }}>
+              <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
+              <Text style={{ fontSize: 8, color: '#666' }}>{t.signature}</Text>
+            </View>
+            <View style={{ width: '35%' }}>
+              <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
+              <Text style={{ fontSize: 8, color: '#666' }}>{t.date}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Footer Note */}

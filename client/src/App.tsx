@@ -26,6 +26,7 @@ import Users from "@/pages/Users";
 import AuditLogs from "@/pages/AuditLogs";
 import AcceptInvite from "@/pages/AcceptInvite";
 import Profile from "@/pages/Profile";
+import SignaturePage from "@/pages/SignaturePage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -57,6 +58,9 @@ function Router() {
       <Switch>
         {/* Public route for accepting invitations */}
         <Route path="/accept-invite/:token" component={AcceptInvite} />
+        
+        {/* Public route for digital signatures */}
+        <Route path="/sign/:token" component={SignaturePage} />
         
         {!isAuthenticated ? (
           <Route path="/" component={Landing} />

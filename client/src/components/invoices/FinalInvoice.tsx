@@ -1,4 +1,4 @@
-import { View, Text } from '@react-pdf/renderer';
+import { View, Text, Image } from '@react-pdf/renderer';
 import InvoiceTemplate, { styles } from './InvoiceTemplate';
 
 export interface FinalInvoiceItem {
@@ -39,6 +39,8 @@ export interface FinalInvoiceData {
   warrantyText?: string | null;
   footerText?: string | null;
   language: 'en' | 'pt-BR';
+  pickupSignaturePng?: string | null;
+  pickupSignedAt?: string | null;
 }
 
 // Localized text
@@ -79,6 +81,11 @@ const translations = {
     disclaimer: 'IMPORTANT',
     disclaimerText: 'Customer is responsible for data backup. Not liable for data loss. Replaced parts become property of the shop unless customer requests otherwise.',
     thankYou: 'Thank you for your business!',
+    signature: 'Customer Signature',
+    digitalSignature: 'Digital Signature',
+    signedDigitally: 'Signed digitally on',
+    deviceReceived: 'Device Received',
+    date: 'Date',
   },
   'pt-BR': {
     title: 'FATURA',
@@ -116,6 +123,11 @@ const translations = {
     disclaimer: 'IMPORTANTE',
     disclaimerText: 'O cliente é responsável pelo backup de dados. Não nos responsabilizamos por perda de dados. Peças substituídas tornam-se propriedade da loja, salvo solicitação do cliente.',
     thankYou: 'Obrigado pelo seu negócio!',
+    signature: 'Assinatura do Cliente',
+    digitalSignature: 'Assinatura Digital',
+    signedDigitally: 'Assinado digitalmente em',
+    deviceReceived: 'Dispositivo Recebido',
+    date: 'Data',
   },
 };
 
@@ -314,6 +326,53 @@ export default function FinalInvoice(props: FinalInvoiceData) {
           </Text>
           <Text style={{ fontSize: 7.5, color: '#333', lineHeight: 1.4 }}>{t.disclaimerText}</Text>
         </View>
+      </View>
+
+      {/* Signature Area */}
+      <View style={{ marginTop: 16 }}>
+        {props.pickupSignaturePng ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View style={{ width: '60%' }}>
+              <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e40af', marginBottom: 4 }}>
+                {t.digitalSignature} - {t.deviceReceived}
+              </Text>
+              <View style={{ 
+                border: '1 solid #e5e7eb', 
+                borderRadius: 4, 
+                padding: 8, 
+                backgroundColor: '#f9fafb',
+                height: 50,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <Image 
+                  src={props.pickupSignaturePng} 
+                  style={{ maxHeight: 40, maxWidth: 180, objectFit: 'contain' }} 
+                />
+              </View>
+            </View>
+            <View style={{ width: '35%' }}>
+              <Text style={{ fontSize: 8, color: '#666', marginBottom: 4 }}>{t.date}:</Text>
+              <Text style={{ fontSize: 9, color: '#333' }}>
+                {props.pickupSignedAt || props.invoiceDate}
+              </Text>
+              <Text style={{ fontSize: 7, color: '#10b981', marginTop: 4 }}>
+                {t.signedDigitally}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View style={{ width: '60%' }}>
+              <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
+              <Text style={{ fontSize: 8, color: '#666' }}>{t.signature}</Text>
+            </View>
+            <View style={{ width: '35%' }}>
+              <View style={{ borderBottom: '1 solid #000', marginBottom: 3, height: 24 }} />
+              <Text style={{ fontSize: 8, color: '#666' }}>{t.date}</Text>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Footer */}
