@@ -416,6 +416,36 @@ export const signatureRequests = pgTable("signature_requests", {
   index('idx_signature_requests_tenant').on(table.tenantId),
 ]);
 
+// Signature audit event types enum
+export const signatureAuditEventTypeEnum = [
+  'sms_sent',           // SMS with signing link sent successfully
+  'sms_failed',         // SMS send failed
+  'sms_resent',         // SMS resent after initial failure or expiry
+  'link_opened',        // Client opened the signing link
+  'signature_started',  // Client started drawing signature
+  'signature_completed',// Client submitted signature successfully
+  'signature_expired',  // Signature request expired without completion
+  'signature_cancelled' // Signature request was cancelled
+] as const;
+
+// Signature audit events table for tracking signature workflow
+export const signatureAuditEvents = pgTable("signature_audit_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  signatureRequestId: varchar("signature_request_id").notNull(),
+  tenantId: varchar("tenant_id").notNull(),
+  eventType: varchar("event_type").notNull(), // From signatureAuditEventTypeEnum
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  deviceMeta: jsonb("device_meta"), // Additional device info (screen size, platform, etc.)
+  metadata: jsonb("metadata"), // Additional event-specific data (error messages, etc.)
+  occurredAt: timestamp("occurred_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index('idx_signature_audit_events_request').on(table.signatureRequestId),
+  index('idx_signature_audit_events_tenant').on(table.tenantId),
+  index('idx_signature_audit_events_occurred').on(table.occurredAt),
+]);
+
 // Suppliers table
 export const suppliers = pgTable("suppliers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1088,6 +1118,16 @@ export type SignatureRequest = typeof signatureRequests.$inferSelect;
 export type InsertSignatureRequest = z.infer<typeof insertSignatureRequestSchema>;
 export type SignatureRequestStatus = (typeof signatureRequestStatusEnum)[number];
 export type SignatureRequestType = (typeof signatureRequestTypeEnum)[number];
+
+// Signature audit event schemas and types
+export const insertSignatureAuditEventSchema = createInsertSchema(signatureAuditEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SignatureAuditEvent = typeof signatureAuditEvents.$inferSelect;
+export type InsertSignatureAuditEvent = z.infer<typeof insertSignatureAuditEventSchema>;
+export type SignatureAuditEventType = (typeof signatureAuditEventTypeEnum)[number];
 
 // Relations - moved to end after all tables are defined
 export const tenantRelations = relations(tenants, ({ many, one }) => ({

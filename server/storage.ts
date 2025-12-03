@@ -37,6 +37,7 @@ import {
   auditLogs,
   invoices,
   signatureRequests,
+  signatureAuditEvents,
   type User,
   type UpsertUser,
   type Tenant,
@@ -114,6 +115,9 @@ import {
   type SignatureRequest,
   type InsertSignatureRequest,
   type SignatureRequestStatus,
+  type SignatureAuditEvent,
+  type InsertSignatureAuditEvent,
+  type SignatureAuditEventType,
 } from "@shared/schema";
 import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
@@ -392,6 +396,11 @@ export interface IStorage {
   markSignatureRequestSigned(id: string, signaturePng: string, signerDeviceMeta?: Record<string, unknown>): Promise<SignatureRequest | undefined>;
   getLatestSignatureForTicket(ticketId: string, tenantId: string, type: 'dropoff' | 'pickup'): Promise<SignatureRequest | undefined>;
   linkSignatureToTicket(signatureId: string, ticketId: string): Promise<SignatureRequest | undefined>;
+
+  // Signature audit event operations (tracking signature workflow events)
+  createSignatureAuditEvent(event: InsertSignatureAuditEvent): Promise<SignatureAuditEvent>;
+  getSignatureAuditEvents(signatureRequestId: string, tenantId: string): Promise<SignatureAuditEvent[]>;
+  getSignatureAuditEventsByTenant(tenantId: string, limit?: number): Promise<SignatureAuditEvent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3541,6 +3550,41 @@ export class DatabaseStorage implements IStorage {
         .where(eq(signatureRequests.id, signatureId))
         .returning();
       return updated;
+    });
+  }
+
+  // Signature Audit Event operations
+  async createSignatureAuditEvent(event: InsertSignatureAuditEvent): Promise<SignatureAuditEvent> {
+    return withRetry(async () => {
+      const [auditEvent] = await db
+        .insert(signatureAuditEvents)
+        .values(event)
+        .returning();
+      return auditEvent;
+    });
+  }
+
+  async getSignatureAuditEvents(signatureRequestId: string, tenantId: string): Promise<SignatureAuditEvent[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(signatureAuditEvents)
+        .where(and(
+          eq(signatureAuditEvents.signatureRequestId, signatureRequestId),
+          eq(signatureAuditEvents.tenantId, tenantId)
+        ))
+        .orderBy(desc(signatureAuditEvents.occurredAt));
+    });
+  }
+
+  async getSignatureAuditEventsByTenant(tenantId: string, limit: number = 100): Promise<SignatureAuditEvent[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(signatureAuditEvents)
+        .where(eq(signatureAuditEvents.tenantId, tenantId))
+        .orderBy(desc(signatureAuditEvents.occurredAt))
+        .limit(limit);
     });
   }
 }
