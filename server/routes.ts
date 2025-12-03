@@ -4480,13 +4480,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt,
       });
 
-      // Build signature URL
+      // Build signature URL with language parameter
       const baseUrl = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : process.env.REPLIT_DOMAIN 
           ? `https://${process.env.REPLIT_DOMAIN}`
           : 'http://localhost:5000';
-      const signatureUrl = `${baseUrl}/sign/${token}`;
+      const signatureUrl = `${baseUrl}/sign/${token}?lang=${language}`;
 
       // Send SMS
       const clientName = `${client.firstName} ${client.lastName || ''}`.trim();
