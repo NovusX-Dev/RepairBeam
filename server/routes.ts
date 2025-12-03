@@ -4465,6 +4465,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Mark as sent with the message SID
         await storage.markSignatureRequestSent(signatureRequest.id, smsResult.messageSid!);
         
+        // Log audit event: SMS sent successfully
+        await storage.createSignatureAuditEvent({
+          signatureRequestId: signatureRequest.id,
+          tenantId: req.authUser.tenantId,
+          eventType: 'sms_sent',
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.headers['user-agent'],
+          metadata: { messageSid: smsResult.messageSid, clientPhone }
+        });
+        
         res.json({
           id: signatureRequest.id,
           status: 'sent',
@@ -4476,6 +4486,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Mark as failed
         await storage.updateSignatureRequestStatus(signatureRequest.id, 'failed', {
           failureReason: smsResult.error
+        });
+        
+        // Log audit event: SMS failed
+        await storage.createSignatureAuditEvent({
+          signatureRequestId: signatureRequest.id,
+          tenantId: req.authUser.tenantId,
+          eventType: 'sms_failed',
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.headers['user-agent'],
+          metadata: { error: smsResult.error, clientPhone }
         });
         
         res.status(500).json({
@@ -4505,6 +4525,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if expired
       if (signatureRequest.status === 'sent' && new Date() > signatureRequest.expiresAt) {
         await storage.updateSignatureRequestStatus(signatureRequest.id, 'expired');
+        
+        // Log audit event: signature expired
+        await storage.createSignatureAuditEvent({
+          signatureRequestId: signatureRequest.id,
+          tenantId: req.authUser.tenantId,
+          eventType: 'signature_expired',
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.headers['user-agent'],
+          metadata: { expiresAt: signatureRequest.expiresAt.toISOString(), detectedVia: 'status_check' }
+        });
+        
         return res.json({
           id: signatureRequest.id,
           status: 'expired',
@@ -4604,6 +4635,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (smsResult.success) {
         await storage.markSignatureRequestSent(signatureRequest.id, smsResult.messageSid!);
         
+        // Log audit event: SMS resent successfully
+        await storage.createSignatureAuditEvent({
+          signatureRequestId: signatureRequest.id,
+          tenantId: req.authUser.tenantId,
+          eventType: 'sms_resent',
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.headers['user-agent'],
+          metadata: { messageSid: smsResult.messageSid, clientPhone: signatureRequest.clientPhone, newToken }
+        });
+        
         res.json({
           id: signatureRequest.id,
           status: 'sent',
@@ -4614,6 +4655,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         await storage.updateSignatureRequestStatus(signatureRequest.id, 'failed', {
           failureReason: smsResult.error
+        });
+        
+        // Log audit event: SMS resend failed
+        await storage.createSignatureAuditEvent({
+          signatureRequestId: signatureRequest.id,
+          tenantId: req.authUser.tenantId,
+          eventType: 'sms_failed',
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.headers['user-agent'],
+          metadata: { error: smsResult.error, clientPhone: signatureRequest.clientPhone, wasResend: true }
         });
         
         res.status(500).json({
@@ -4645,6 +4696,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (new Date() > signatureRequest.expiresAt) {
         if (signatureRequest.status === 'sent') {
           await storage.updateSignatureRequestStatus(signatureRequest.id, 'expired');
+          
+          // Log audit event: expired when link opened
+          await storage.createSignatureAuditEvent({
+            signatureRequestId: signatureRequest.id,
+            tenantId: signatureRequest.tenantId,
+            eventType: 'signature_expired',
+            ipAddress: req.ip || req.socket?.remoteAddress,
+            userAgent: req.headers['user-agent'],
+            metadata: { expiresAt: signatureRequest.expiresAt.toISOString(), detectedVia: 'link_opened' }
+          });
         }
         return res.status(410).json({ message: "This signature link has expired" });
       }
@@ -4653,6 +4714,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (signatureRequest.status === 'signed') {
         return res.status(409).json({ message: "This document has already been signed" });
       }
+
+      // Log audit event: link opened
+      await storage.createSignatureAuditEvent({
+        signatureRequestId: signatureRequest.id,
+        tenantId: signatureRequest.tenantId,
+        eventType: 'link_opened',
+        ipAddress: req.ip || req.socket?.remoteAddress,
+        userAgent: req.headers['user-agent'],
+        metadata: { token: req.params.token }
+      });
 
       // Get client info
       const client = await storage.getClient(signatureRequest.clientId, signatureRequest.tenantId);
@@ -4751,6 +4822,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         signaturePng,
         signerDeviceMeta
       );
+
+      // Log audit event: signature completed
+      await storage.createSignatureAuditEvent({
+        signatureRequestId: signatureRequest.id,
+        tenantId: signatureRequest.tenantId,
+        eventType: 'signature_completed',
+        ipAddress: req.ip || req.socket?.remoteAddress,
+        userAgent: req.headers['user-agent'],
+        deviceMeta: signerDeviceMeta,
+        metadata: { signedAt: updated?.signedAt?.toISOString(), type: signatureRequest.type }
+      });
 
       // If this is linked to a ticket, update the ticket with signature reference
       if (signatureRequest.ticketId) {
