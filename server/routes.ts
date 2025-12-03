@@ -4457,11 +4457,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Client has no phone number configured" });
       }
 
-      const clientPhone = client.phone;
-
-      // Get store settings for shop name
+      // Get store settings for shop name and default country code
       const storeSettings = await storage.getStoreSettings(req.authUser.tenantId);
       const storeName = storeSettings?.shopName || 'Repair Beam';
+      const defaultCountryCode = storeSettings?.defaultCountryCode || '+55';
+
+      // Format phone number with country code
+      const { formatPhoneWithCountryCode } = await import('./utils/phone.js');
+      const clientPhone = formatPhoneWithCountryCode(client.phone, defaultCountryCode);
 
       // Generate unique token for signing URL
       const token = nanoid(32);
@@ -4658,9 +4661,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
 
-      // Get store settings for shop name
+      // Get store settings for shop name and default country code
       const storeSettings = await storage.getStoreSettings(req.authUser.tenantId);
       const storeName = storeSettings?.shopName || 'Repair Beam';
+      const defaultCountryCode = storeSettings?.defaultCountryCode || '+55';
+
+      // Format phone number with country code
+      const { formatPhoneWithCountryCode } = await import('./utils/phone.js');
+      const formattedPhone = formatPhoneWithCountryCode(signatureRequest.clientPhone, defaultCountryCode);
 
       // Generate new token and extend expiry
       const newToken = nanoid(32);
@@ -4673,18 +4681,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         failureReason: null
       });
 
-      // Build signature URL
+      // Build signature URL with language parameter
       const baseUrl = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : process.env.REPLIT_DOMAIN 
           ? `https://${process.env.REPLIT_DOMAIN}`
           : 'http://localhost:5000';
-      const signatureUrl = `${baseUrl}/sign/${newToken}`;
+      const signatureUrl = `${baseUrl}/sign/${newToken}?lang=${language}`;
 
       // Send SMS
       const clientName = `${client.firstName} ${client.lastName || ''}`.trim();
       const smsResult = await sendSignatureSMS(
-        signatureRequest.clientPhone,
+        formattedPhone,
         signatureUrl,
         clientName,
         storeName,
