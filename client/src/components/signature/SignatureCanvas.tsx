@@ -111,6 +111,11 @@ export default function SignatureCanvas({
       ctx.fillStyle = backgroundColor;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
+  }, [backgroundColor]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     const handleMouseDown = (e: MouseEvent) => startDrawing(e);
     const handleMouseMove = (e: MouseEvent) => draw(e);
@@ -140,7 +145,7 @@ export default function SignatureCanvas({
       canvas.removeEventListener('touchmove', handleTouchMove);
       canvas.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [startDrawing, draw, stopDrawing, backgroundColor]);
+  }, [startDrawing, draw, stopDrawing]);
 
   return (
     <div className="flex flex-col gap-3">
