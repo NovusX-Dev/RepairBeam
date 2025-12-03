@@ -3503,6 +3503,7 @@ export class DatabaseStorage implements IStorage {
     signerDeviceMeta?: Record<string, unknown>
   ): Promise<SignatureRequest | undefined> {
     return withRetry(async () => {
+      const { nanoid } = await import('nanoid');
       const [updated] = await db
         .update(signatureRequests)
         .set({
@@ -3510,6 +3511,7 @@ export class DatabaseStorage implements IStorage {
           signaturePng,
           signerDeviceMeta: signerDeviceMeta || null,
           signedAt: new Date(),
+          token: `USED_${nanoid(32)}`,
           updatedAt: new Date(),
         })
         .where(eq(signatureRequests.id, id))
