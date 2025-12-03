@@ -4850,6 +4850,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid signature format" });
       }
 
+      // Validate signature size (max 500KB base64 = ~375KB actual image)
+      const MAX_SIGNATURE_SIZE = 500 * 1024;
+      if (signaturePng.length > MAX_SIGNATURE_SIZE) {
+        return res.status(400).json({ message: "Signature image is too large" });
+      }
+
       const signatureRequest = await storage.getSignatureRequestByToken(req.params.token);
       
       if (!signatureRequest) {

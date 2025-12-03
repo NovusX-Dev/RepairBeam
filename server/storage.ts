@@ -3440,6 +3440,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSignatureRequestByToken(token: string): Promise<SignatureRequest | undefined> {
+    if (!token) {
+      return undefined;
+    }
     return withRetry(async () => {
       const [signatureRequest] = await db
         .select()
@@ -3503,7 +3506,6 @@ export class DatabaseStorage implements IStorage {
     signerDeviceMeta?: Record<string, unknown>
   ): Promise<SignatureRequest | undefined> {
     return withRetry(async () => {
-      const { nanoid } = await import('nanoid');
       const [updated] = await db
         .update(signatureRequests)
         .set({
@@ -3511,7 +3513,6 @@ export class DatabaseStorage implements IStorage {
           signaturePng,
           signerDeviceMeta: signerDeviceMeta || null,
           signedAt: new Date(),
-          token: `USED_${nanoid(32)}`,
           updatedAt: new Date(),
         })
         .where(eq(signatureRequests.id, id))
