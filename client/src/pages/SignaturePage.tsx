@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'wouter';
+import { useParams, useSearch } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import SignatureCanvas from '@/components/signature/SignatureCanvas';
@@ -57,19 +57,23 @@ const DEMO_DATA: SignatureData = {
 
 export default function SignaturePage() {
   const { token } = useParams<{ token: string }>();
+  const searchString = useSearch();
   const isDemo = token === 'demo';
   const [signature, setSignature] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [language, setLanguage] = useState<'en' | 'pt-BR'>('en');
   const [demoType, setDemoType] = useState<'dropoff' | 'pickup'>('dropoff');
 
-  useEffect(() => {
+  const getInitialLanguage = (): 'en' | 'pt-BR' => {
+    const params = new URLSearchParams(searchString);
+    const urlLang = params.get('lang');
+    if (urlLang === 'pt-BR') return 'pt-BR';
+    if (urlLang === 'en') return 'en';
     const browserLang = navigator.language;
-    if (browserLang.startsWith('pt')) {
-      setLanguage('pt-BR');
-    }
-  }, []);
+    return browserLang.startsWith('pt') ? 'pt-BR' : 'en';
+  };
+
+  const [language, setLanguage] = useState<'en' | 'pt-BR'>(getInitialLanguage);
 
   const { data: apiSignatureData, isLoading, error } = useQuery<SignatureData>({
     queryKey: ['/api/public/signature', token],
