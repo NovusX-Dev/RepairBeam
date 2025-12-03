@@ -4573,6 +4573,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get audit trail for a signature request
+  app.get("/api/signature-requests/:id/audit", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Verify the signature request exists and belongs to this tenant
+      const signatureRequest = await storage.getSignatureRequest(req.params.id, req.authUser.tenantId);
+      if (!signatureRequest) {
+        return res.status(404).json({ message: "Signature request not found" });
+      }
+
+      // Get audit events for this signature request
+      const auditEvents = await storage.getSignatureAuditEvents(req.params.id, req.authUser.tenantId);
+      res.json(auditEvents);
+    } catch (error) {
+      console.error("Error fetching signature audit events:", error);
+      res.status(500).json({ message: "Failed to fetch signature audit events" });
+    }
+  });
+
   // Resend signature request SMS
   app.post("/api/signature-requests/:id/resend", isAuthenticated, async (req: any, res) => {
     try {
@@ -4775,7 +4797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit signature (public)
   app.post("/api/public/signature/:token/submit", async (req, res) => {
     try {
-      const { signaturePng, agreedToTerms } = req.body;
+      const { signaturePng, agreedToTerms, deviceMeta } = req.body;
 
       if (!signaturePng) {
         return res.status(400).json({ message: "Signature is required" });
@@ -4809,11 +4831,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "This document has already been signed" });
       }
 
-      // Capture device metadata for audit trail
+      // Capture comprehensive device metadata for audit trail
       const signerDeviceMeta = {
         userAgent: req.headers['user-agent'],
-        ip: req.ip || req.connection?.remoteAddress,
-        timestamp: new Date().toISOString()
+        ip: req.ip || req.socket?.remoteAddress,
+        timestamp: new Date().toISOString(),
+        ...(deviceMeta || {}),
       };
 
       // Mark as signed

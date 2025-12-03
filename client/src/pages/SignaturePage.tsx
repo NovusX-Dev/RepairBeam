@@ -59,8 +59,29 @@ export default function SignaturePage() {
     retry: false,
   });
 
+  const getDeviceMeta = () => {
+    return {
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      platform: navigator.platform,
+      language: navigator.language,
+      languages: navigator.languages ? [...navigator.languages] : [navigator.language],
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneOffset: new Date().getTimezoneOffset(),
+      touchSupport: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+      maxTouchPoints: navigator.maxTouchPoints || 0,
+      colorDepth: window.screen.colorDepth,
+      pixelRatio: window.devicePixelRatio || 1,
+      online: navigator.onLine,
+      cookiesEnabled: navigator.cookieEnabled,
+      doNotTrack: navigator.doNotTrack,
+    };
+  };
+
   const submitMutation = useMutation({
-    mutationFn: async (data: { signaturePng: string; agreedToTerms: boolean }) => {
+    mutationFn: async (data: { signaturePng: string; agreedToTerms: boolean; deviceMeta: Record<string, unknown> }) => {
       const response = await fetch(`/api/public/signature/${token}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,7 +100,8 @@ export default function SignaturePage() {
 
   const handleSubmit = () => {
     if (signature && agreedToTerms) {
-      submitMutation.mutate({ signaturePng: signature, agreedToTerms });
+      const deviceMeta = getDeviceMeta();
+      submitMutation.mutate({ signaturePng: signature, agreedToTerms, deviceMeta });
     }
   };
 
