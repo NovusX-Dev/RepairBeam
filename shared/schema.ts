@@ -353,6 +353,9 @@ export const tickets = pgTable("tickets", {
   finalActualCost: decimal("final_actual_cost", { precision: 10, scale: 2 }), // Locked final cost
   completionNotes: text("completion_notes"), // Notes about completion
   actualHours: integer("actual_hours"), // Actual time spent in hours
+  // Signature tracking fields
+  dropoffSignatureId: varchar("dropoff_signature_id"), // Signature request ID for drop-off
+  pickupSignatureId: varchar("pickup_signature_id"), // Signature request ID for pickup
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -372,6 +375,46 @@ export const authorizationRequests = pgTable("authorization_requests", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Signature request status enum
+export const signatureRequestStatusEnum = [
+  'pending',      // Created but not yet sent
+  'sent',         // SMS sent successfully
+  'signed',       // Client has signed
+  'expired',      // Link expired without signature
+  'failed'        // SMS send failed
+] as const;
+
+// Signature request type enum
+export const signatureRequestTypeEnum = [
+  'dropoff',      // Signature when creating ticket (client drops off device)
+  'pickup'        // Signature when finalizing (client picks up device)
+] as const;
+
+// Signature requests table for SMS-based client signatures
+export const signatureRequests = pgTable("signature_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull(),
+  ticketId: varchar("ticket_id"), // Null for dropoff until ticket is created
+  clientId: varchar("client_id").notNull(),
+  type: varchar("type").notNull(), // 'dropoff' or 'pickup'
+  status: varchar("status").notNull().default('pending'), // 'pending', 'sent', 'signed', 'expired', 'failed'
+  token: varchar("token").notNull().unique(), // Unique token for signing URL
+  smsMessageSid: varchar("sms_message_sid"), // Twilio message SID for tracking
+  clientPhone: varchar("client_phone").notNull(),
+  signaturePng: text("signature_png"), // Base64 encoded signature image
+  signerDeviceMeta: jsonb("signer_device_meta"), // Browser/device info for audit
+  expiresAt: timestamp("expires_at").notNull(),
+  sentAt: timestamp("sent_at"),
+  signedAt: timestamp("signed_at"),
+  failureReason: text("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index('idx_signature_requests_token').on(table.token),
+  index('idx_signature_requests_ticket').on(table.ticketId),
+  index('idx_signature_requests_tenant').on(table.tenantId),
+]);
 
 // Suppliers table
 export const suppliers = pgTable("suppliers", {
@@ -1033,6 +1076,18 @@ export type InsertDeviceChecklistTemplate = z.infer<typeof insertDeviceChecklist
 export type TicketStatus = (typeof ticketStatusEnum)[number];
 export type TicketPriority = (typeof ticketPriorityEnum)[number];
 export type WarrantyType = (typeof warrantyTypeEnum)[number];
+
+// Signature request schemas and types
+export const insertSignatureRequestSchema = createInsertSchema(signatureRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SignatureRequest = typeof signatureRequests.$inferSelect;
+export type InsertSignatureRequest = z.infer<typeof insertSignatureRequestSchema>;
+export type SignatureRequestStatus = (typeof signatureRequestStatusEnum)[number];
+export type SignatureRequestType = (typeof signatureRequestTypeEnum)[number];
 
 // Relations - moved to end after all tables are defined
 export const tenantRelations = relations(tenants, ({ many, one }) => ({
