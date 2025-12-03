@@ -144,6 +144,7 @@ export const storeSettings = pgTable("store_settings", {
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('0'), // Tax rate as percentage (e.g., 8.5 for 8.5%)
   invoiceFooterText: text("invoice_footer_text"), // Custom footer text for invoices
   warrantyTermsText: text("warranty_terms_text"), // Default warranty terms for invoices
+  defaultCountryCode: varchar("default_country_code").default('+55'), // Default country code for phone numbers (e.g., +55 for Brazil)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
