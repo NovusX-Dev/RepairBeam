@@ -6,7 +6,7 @@ import SignatureCanvas from '@/components/signature/SignatureCanvas';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle, XCircle, Clock, AlertTriangle, Smartphone, FileText, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, AlertTriangle, Smartphone, FileText, Loader2, Eye } from 'lucide-react';
 
 interface SignatureData {
   id: string;
@@ -32,12 +32,37 @@ interface SignatureData {
   };
 }
 
+const DEMO_DATA: SignatureData = {
+  id: 'demo-signature-request',
+  type: 'dropoff',
+  status: 'pending',
+  expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  client: {
+    firstName: 'Maria',
+    lastName: 'Silva',
+  },
+  store: {
+    name: 'Repair Beam Demo Store',
+  },
+  ticket: {
+    id: 'demo-ticket',
+    title: 'Screen replacement and battery check',
+    deviceType: 'smartphone',
+    deviceBrand: 'Apple',
+    deviceModel: 'iPhone 14 Pro',
+    estimatedCost: '299.00',
+    status: 'pending',
+  },
+};
+
 export default function SignaturePage() {
   const { token } = useParams<{ token: string }>();
+  const isDemo = token === 'demo';
   const [signature, setSignature] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [language, setLanguage] = useState<'en' | 'pt-BR'>('en');
+  const [demoType, setDemoType] = useState<'dropoff' | 'pickup'>('dropoff');
 
   useEffect(() => {
     const browserLang = navigator.language;
@@ -46,7 +71,7 @@ export default function SignaturePage() {
     }
   }, []);
 
-  const { data: signatureData, isLoading, error } = useQuery<SignatureData>({
+  const { data: apiSignatureData, isLoading, error } = useQuery<SignatureData>({
     queryKey: ['/api/public/signature', token],
     queryFn: async () => {
       const response = await fetch(`/api/public/signature/${token}`);
@@ -57,7 +82,12 @@ export default function SignaturePage() {
       return response.json();
     },
     retry: false,
+    enabled: !isDemo,
   });
+
+  const signatureData = isDemo 
+    ? { ...DEMO_DATA, type: demoType } 
+    : apiSignatureData;
 
   const getDeviceMeta = () => {
     return {
@@ -99,6 +129,10 @@ export default function SignaturePage() {
   });
 
   const handleSubmit = () => {
+    if (isDemo) {
+      setSubmitted(true);
+      return;
+    }
     if (signature && agreedToTerms) {
       const deviceMeta = getDeviceMeta();
       submitMutation.mutate({ signaturePng: signature, agreedToTerms, deviceMeta });
@@ -133,6 +167,11 @@ export default function SignaturePage() {
       successPickup: 'Device pickup confirmed. Thank you for choosing',
       pleaseSign: 'Please draw your signature',
       pleaseAgree: 'Please agree to the terms',
+      demoMode: 'Preview Mode',
+      demoModeDesc: 'This is a preview of the signature page. No data will be saved.',
+      switchToPickup: 'Switch to Pickup View',
+      switchToDropoff: 'Switch to Drop-off View',
+      demoSuccess: 'This is a preview of the success screen. In production, the signature would be saved.',
     },
     'pt-BR': {
       loading: 'Carregando...',
@@ -161,12 +200,17 @@ export default function SignaturePage() {
       successPickup: 'Retirada do dispositivo confirmada. Obrigado por escolher',
       pleaseSign: 'Por favor, desenhe sua assinatura',
       pleaseAgree: 'Por favor, concorde com os termos',
+      demoMode: 'Modo de Visualização',
+      demoModeDesc: 'Esta é uma visualização da página de assinatura. Nenhum dado será salvo.',
+      switchToPickup: 'Mudar para Retirada',
+      switchToDropoff: 'Mudar para Entrega',
+      demoSuccess: 'Esta é uma visualização da tela de sucesso. Em produção, a assinatura seria salva.',
     },
   };
 
   const t = translations[language];
 
-  if (isLoading) {
+  if (isLoading && !isDemo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0A1128] to-[#1a2744] flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-[#0f1a2e] border-[#1e3a5f]">
@@ -179,7 +223,7 @@ export default function SignaturePage() {
     );
   }
 
-  if (error) {
+  if (error && !isDemo) {
     const errorMessage = (error as Error).message || '';
     let icon = <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />;
     let title = t.notFound;
@@ -215,13 +259,36 @@ export default function SignaturePage() {
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#0A1128] to-[#1a2744] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-[#0f1a2e] border-[#1e3a5f]">
-          <CardContent className="p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-white mb-2">{t.successTitle}</h2>
-            <p className="text-gray-300">{successMessage}</p>
-          </CardContent>
-        </Card>
+        <div className="max-w-md mx-auto space-y-4">
+          {isDemo && (
+            <Card className="bg-amber-500/20 border-amber-500/50">
+              <CardContent className="p-4 flex items-center gap-3">
+                <Eye className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                <div>
+                  <p className="text-amber-200 font-medium text-sm">{t.demoMode}</p>
+                  <p className="text-amber-300/70 text-xs">{t.demoSuccess}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          <Card className="w-full bg-[#0f1a2e] border-[#1e3a5f]">
+            <CardContent className="p-8 text-center">
+              <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">{t.successTitle}</h2>
+              <p className="text-gray-300">{successMessage}</p>
+              {isDemo && (
+                <Button 
+                  onClick={() => setSubmitted(false)}
+                  variant="outline"
+                  className="mt-4 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
+                  data-testid="button-back-to-form"
+                >
+                  {language === 'pt-BR' ? 'Voltar ao Formulário' : 'Back to Form'}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -233,6 +300,29 @@ export default function SignaturePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0A1128] to-[#1a2744] py-8 px-4">
       <div className="max-w-md mx-auto space-y-6">
+        {isDemo && (
+          <Card className="bg-amber-500/20 border-amber-500/50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Eye className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                <div>
+                  <p className="text-amber-200 font-medium text-sm">{t.demoMode}</p>
+                  <p className="text-amber-300/70 text-xs">{t.demoModeDesc}</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setDemoType(demoType === 'dropoff' ? 'pickup' : 'dropoff')}
+                variant="outline"
+                size="sm"
+                className="w-full border-amber-500/50 text-amber-200 hover:bg-amber-500/20"
+                data-testid="button-toggle-demo-type"
+              >
+                {demoType === 'dropoff' ? t.switchToPickup : t.switchToDropoff}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="text-center mb-6">
           {signatureData.store.logo ? (
             <img 
