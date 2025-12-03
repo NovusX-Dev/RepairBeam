@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, Check, AlertTriangle, FileText, Printer } from "lucide-react";
+import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, Check, AlertTriangle, FileText, Printer, PenTool, History } from "lucide-react";
+import SignatureAuditTrail from "@/components/signature/SignatureAuditTrail";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
 import { formatTicketId } from "@/lib/utils";
@@ -502,7 +503,7 @@ export default function TicketSummaryDialog({
 
         {/* Tabs Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general" data-testid="tab-general-info">
               {t("general_info", "General Info")}
             </TabsTrigger>
@@ -511,6 +512,10 @@ export default function TicketSummaryDialog({
             </TabsTrigger>
             <TabsTrigger value="checklist" data-testid="tab-checklist">
               {t("checklist", "Checklist")}
+            </TabsTrigger>
+            <TabsTrigger value="signatures" data-testid="tab-signatures">
+              <PenTool className="h-3 w-3 mr-1" />
+              {t("signatures", "Signatures")}
             </TabsTrigger>
           </TabsList>
 
@@ -1307,6 +1312,176 @@ export default function TicketSummaryDialog({
                   </div>
                 );
               })()}
+            </div>
+          </TabsContent>
+
+          {/* Signatures Tab */}
+          <TabsContent value="signatures" className="space-y-4">
+            <div className="bg-muted/5 border border-muted/20 rounded-lg p-4">
+              <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
+                <PenTool className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                {t("signature_history", "Signature History")}
+              </h3>
+
+              {/* Dropoff Signature Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-blue-500" />
+                    {t("dropoff_signature", "Drop-off Signature")}
+                  </h4>
+                  {(() => {
+                    const dropoffSig = ticketSignatures.find((sig: any) => sig.type === 'dropoff');
+                    if (!dropoffSig) {
+                      return (
+                        <Badge variant="outline" className="text-xs bg-gray-500/10 text-gray-400 border-gray-500/20">
+                          {t("not_requested", "Not requested")}
+                        </Badge>
+                      );
+                    }
+                    if (dropoffSig.status === 'signed') {
+                      return (
+                        <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/20">
+                          <Check className="h-3 w-3 mr-1" />
+                          {t("signed", "Signed")}
+                        </Badge>
+                      );
+                    }
+                    if (dropoffSig.status === 'expired') {
+                      return (
+                        <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          {t("expired", "Expired")}
+                        </Badge>
+                      );
+                    }
+                    return (
+                      <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {t("pending", "Pending")}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+                {(() => {
+                  const dropoffSig = ticketSignatures.find((sig: any) => sig.type === 'dropoff');
+                  if (dropoffSig) {
+                    return (
+                      <div className="space-y-3">
+                        {dropoffSig.signaturePng && (
+                          <div className="bg-white p-3 rounded border border-border/50">
+                            <img 
+                              src={`data:image/png;base64,${dropoffSig.signaturePng}`} 
+                              alt={t("dropoff_signature", "Drop-off Signature")}
+                              className="max-h-20 mx-auto"
+                              data-testid="img-dropoff-signature"
+                            />
+                            {dropoffSig.signedAt && (
+                              <div className="text-xs text-center text-muted-foreground mt-2">
+                                {t("signed_on", "Signed on")}: {formatDate(new Date(dropoffSig.signedAt))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className="border border-border/30 rounded-lg overflow-hidden">
+                          <div className="bg-muted/30 px-3 py-2 border-b border-border/30 flex items-center gap-2">
+                            <History className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs font-medium">{t("audit_trail", "Audit Trail")}</span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            <SignatureAuditTrail signatureRequestId={dropoffSig.id} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="text-sm text-muted-foreground italic">
+                      {t("no_dropoff_signature_requested", "No drop-off signature has been requested yet")}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Pickup Signature Section */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-green-500" />
+                    {t("pickup_signature", "Pick-up Signature")}
+                  </h4>
+                  {(() => {
+                    const pickupSig = ticketSignatures.find((sig: any) => sig.type === 'pickup');
+                    if (!pickupSig) {
+                      return (
+                        <Badge variant="outline" className="text-xs bg-gray-500/10 text-gray-400 border-gray-500/20">
+                          {t("not_requested", "Not requested")}
+                        </Badge>
+                      );
+                    }
+                    if (pickupSig.status === 'signed') {
+                      return (
+                        <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/20">
+                          <Check className="h-3 w-3 mr-1" />
+                          {t("signed", "Signed")}
+                        </Badge>
+                      );
+                    }
+                    if (pickupSig.status === 'expired') {
+                      return (
+                        <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          {t("expired", "Expired")}
+                        </Badge>
+                      );
+                    }
+                    return (
+                      <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {t("pending", "Pending")}
+                      </Badge>
+                    );
+                  })()}
+                </div>
+                {(() => {
+                  const pickupSig = ticketSignatures.find((sig: any) => sig.type === 'pickup');
+                  if (pickupSig) {
+                    return (
+                      <div className="space-y-3">
+                        {pickupSig.signaturePng && (
+                          <div className="bg-white p-3 rounded border border-border/50">
+                            <img 
+                              src={`data:image/png;base64,${pickupSig.signaturePng}`} 
+                              alt={t("pickup_signature", "Pick-up Signature")}
+                              className="max-h-20 mx-auto"
+                              data-testid="img-pickup-signature"
+                            />
+                            {pickupSig.signedAt && (
+                              <div className="text-xs text-center text-muted-foreground mt-2">
+                                {t("signed_on", "Signed on")}: {formatDate(new Date(pickupSig.signedAt))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className="border border-border/30 rounded-lg overflow-hidden">
+                          <div className="bg-muted/30 px-3 py-2 border-b border-border/30 flex items-center gap-2">
+                            <History className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs font-medium">{t("audit_trail", "Audit Trail")}</span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            <SignatureAuditTrail signatureRequestId={pickupSig.id} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="text-sm text-muted-foreground italic">
+                      {t("no_pickup_signature_requested", "No pick-up signature has been requested yet")}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </TabsContent>
         </Tabs>
