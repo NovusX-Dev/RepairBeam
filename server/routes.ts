@@ -14,6 +14,44 @@ import { insertTicketSchema, insertChecklistSchema, isValidStatusTransition, get
 import { z } from "zod";
 import { sendSignatureSMS, isTwilioConfigured } from "./services/twilio";
 import { nanoid } from "nanoid";
+import { rateLimit, createPhoneRateLimiter, createTokenRateLimiter, createTenantRateLimiter } from "./middleware/rateLimit";
+
+const signatureSmsRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 10,
+  storeName: 'signature-sms',
+  message: 'Too many SMS requests. Please try again in an hour.',
+  skipFailedRequests: true
+});
+
+const signatureSmsPerPhoneRateLimiter = createPhoneRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 5,
+  storeName: 'signature-sms-phone',
+  message: 'Too many SMS requests to this number. Please try again later.',
+  skipFailedRequests: true
+});
+
+const publicSignatureRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 30,
+  storeName: 'public-signature',
+  message: 'Too many requests. Please try again later.'
+});
+
+const signatureSubmitRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 10,
+  storeName: 'signature-submit',
+  message: 'Too many signature attempts. Please try again later.'
+});
+
+const signatureSubmitPerTokenRateLimiter = createTokenRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 5,
+  storeName: 'signature-submit-token',
+  message: 'Too many attempts for this signature link.'
+});
 
 // Enhanced validation schema for tickets with currency normalization
 const validateAndNormalizeCurrency = (value: any, ctx: z.RefinementCtx, fieldName: string) => {
@@ -4390,8 +4428,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create signature request and send SMS
-  app.post("/api/signature-requests", isAuthenticated, async (req: any, res) => {
+  // Create signature request and send SMS (rate limited)
+  app.post("/api/signature-requests", isAuthenticated, signatureSmsRateLimiter, signatureSmsPerPhoneRateLimiter, async (req: any, res) => {
     try {
       if (!req.authUser || !req.authUser.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -4595,8 +4633,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Resend signature request SMS
-  app.post("/api/signature-requests/:id/resend", isAuthenticated, async (req: any, res) => {
+  // Resend signature request SMS (rate limited)
+  app.post("/api/signature-requests/:id/resend", isAuthenticated, signatureSmsRateLimiter, async (req: any, res) => {
     try {
       if (!req.authUser || !req.authUser.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -4705,8 +4743,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public Signature Routes (No authentication required)
   // ========================================================================
 
-  // Get signature request details for signing page (public)
-  app.get("/api/public/signature/:token", async (req, res) => {
+  // Get signature request details for signing page (public, rate limited)
+  app.get("/api/public/signature/:token", publicSignatureRateLimiter, async (req, res) => {
     try {
       const signatureRequest = await storage.getSignatureRequestByToken(req.params.token);
       
@@ -4794,8 +4832,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit signature (public)
-  app.post("/api/public/signature/:token/submit", async (req, res) => {
+  // Submit signature (public, rate limited)
+  app.post("/api/public/signature/:token/submit", signatureSubmitRateLimiter, signatureSubmitPerTokenRateLimiter, async (req, res) => {
     try {
       const { signaturePng, agreedToTerms, deviceMeta } = req.body;
 
