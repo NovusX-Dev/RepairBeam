@@ -10,8 +10,10 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
 import { deviceColorService } from "./deviceColorService";
 import { normalizeCurrency, toCents, fromCents } from "@shared/money";
-import { insertTicketSchema, insertChecklistSchema, isValidStatusTransition, getAllowedNextStatuses, type TicketStatus } from "@shared/schema";
+import { insertTicketSchema, insertChecklistSchema, isValidStatusTransition, getAllowedNextStatuses, type TicketStatus, insertSignatureRequestSchema } from "@shared/schema";
 import { z } from "zod";
+import { sendSignatureSMS, isTwilioConfigured } from "./services/twilio";
+import { nanoid } from "nanoid";
 
 // Enhanced validation schema for tickets with currency normalization
 const validateAndNormalizeCurrency = (value: any, ctx: z.RefinementCtx, fieldName: string) => {
@@ -4370,6 +4372,408 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching invoices:", error);
       res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  // ========================================================================
+  // Signature Request Routes (SMS-based client signatures)
+  // ========================================================================
+
+  // Check if Twilio is configured
+  app.get("/api/signature-requests/config", isAuthenticated, async (req: any, res) => {
+    try {
+      const configured = await isTwilioConfigured();
+      res.json({ configured });
+    } catch (error) {
+      console.error("Error checking Twilio config:", error);
+      res.json({ configured: false });
+    }
+  });
+
+  // Create signature request and send SMS
+  app.post("/api/signature-requests", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { clientId, ticketId, type, language = 'en' } = req.body;
+
+      // Validate required fields
+      if (!clientId || !type) {
+        return res.status(400).json({ message: "Client ID and signature type are required" });
+      }
+
+      // Validate type
+      if (!['dropoff', 'pickup'].includes(type)) {
+        return res.status(400).json({ message: "Invalid signature type. Must be 'dropoff' or 'pickup'" });
+      }
+
+      // Get client to verify they exist and get phone number
+      const client = await storage.getClient(clientId, req.authUser.tenantId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      if (!client.phone) {
+        return res.status(400).json({ message: "Client has no phone number configured" });
+      }
+
+      const clientPhone = client.phone;
+
+      // Get store settings for shop name
+      const storeSettings = await storage.getStoreSettings(req.authUser.tenantId);
+      const storeName = storeSettings?.shopName || 'Repair Beam';
+
+      // Generate unique token for signing URL
+      const token = nanoid(32);
+      
+      // Token expires in 60 minutes
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      // Create signature request in database
+      const signatureRequest = await storage.createSignatureRequest({
+        tenantId: req.authUser.tenantId,
+        clientId,
+        ticketId: ticketId || null,
+        type,
+        token,
+        clientPhone,
+        expiresAt,
+      });
+
+      // Build signature URL
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.REPLIT_DOMAIN 
+          ? `https://${process.env.REPLIT_DOMAIN}`
+          : 'http://localhost:5000';
+      const signatureUrl = `${baseUrl}/sign/${token}`;
+
+      // Send SMS
+      const clientName = `${client.firstName} ${client.lastName || ''}`.trim();
+      const smsResult = await sendSignatureSMS(
+        clientPhone,
+        signatureUrl,
+        clientName,
+        storeName,
+        type,
+        language as 'en' | 'pt-BR'
+      );
+
+      if (smsResult.success) {
+        // Mark as sent with the message SID
+        await storage.markSignatureRequestSent(signatureRequest.id, smsResult.messageSid!);
+        
+        res.json({
+          id: signatureRequest.id,
+          status: 'sent',
+          token,
+          expiresAt,
+          message: 'SMS sent successfully'
+        });
+      } else {
+        // Mark as failed
+        await storage.updateSignatureRequestStatus(signatureRequest.id, 'failed', {
+          failureReason: smsResult.error
+        });
+        
+        res.status(500).json({
+          id: signatureRequest.id,
+          status: 'failed',
+          error: smsResult.error || 'Failed to send SMS'
+        });
+      }
+    } catch (error) {
+      console.error("Error creating signature request:", error);
+      res.status(500).json({ message: "Failed to create signature request" });
+    }
+  });
+
+  // Get signature request status (for polling)
+  app.get("/api/signature-requests/:id/status", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const signatureRequest = await storage.getSignatureRequest(req.params.id, req.authUser.tenantId);
+      if (!signatureRequest) {
+        return res.status(404).json({ message: "Signature request not found" });
+      }
+
+      // Check if expired
+      if (signatureRequest.status === 'sent' && new Date() > signatureRequest.expiresAt) {
+        await storage.updateSignatureRequestStatus(signatureRequest.id, 'expired');
+        return res.json({
+          id: signatureRequest.id,
+          status: 'expired',
+          type: signatureRequest.type,
+          expiresAt: signatureRequest.expiresAt
+        });
+      }
+
+      res.json({
+        id: signatureRequest.id,
+        status: signatureRequest.status,
+        type: signatureRequest.type,
+        expiresAt: signatureRequest.expiresAt,
+        signedAt: signatureRequest.signedAt,
+        hasSignature: !!signatureRequest.signaturePng
+      });
+    } catch (error) {
+      console.error("Error fetching signature request status:", error);
+      res.status(500).json({ message: "Failed to fetch signature request status" });
+    }
+  });
+
+  // Get signature requests for a ticket
+  app.get("/api/tickets/:ticketId/signatures", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const signatures = await storage.getSignatureRequestsByTicket(req.params.ticketId, req.authUser.tenantId);
+      res.json(signatures);
+    } catch (error) {
+      console.error("Error fetching ticket signatures:", error);
+      res.status(500).json({ message: "Failed to fetch ticket signatures" });
+    }
+  });
+
+  // Resend signature request SMS
+  app.post("/api/signature-requests/:id/resend", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser || !req.authUser.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { language = 'en' } = req.body;
+
+      const signatureRequest = await storage.getSignatureRequest(req.params.id, req.authUser.tenantId);
+      if (!signatureRequest) {
+        return res.status(404).json({ message: "Signature request not found" });
+      }
+
+      // Only allow resend for pending, sent, or failed statuses
+      if (!['pending', 'sent', 'failed'].includes(signatureRequest.status)) {
+        return res.status(400).json({ message: `Cannot resend signature request with status: ${signatureRequest.status}` });
+      }
+
+      // Get client details
+      const client = await storage.getClient(signatureRequest.clientId, req.authUser.tenantId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      // Get store settings for shop name
+      const storeSettings = await storage.getStoreSettings(req.authUser.tenantId);
+      const storeName = storeSettings?.shopName || 'Repair Beam';
+
+      // Generate new token and extend expiry
+      const newToken = nanoid(32);
+      const newExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      // Update the signature request with new token
+      await storage.updateSignatureRequestStatus(signatureRequest.id, 'pending', {
+        token: newToken,
+        expiresAt: newExpiresAt,
+        failureReason: null
+      });
+
+      // Build signature URL
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.REPLIT_DOMAIN 
+          ? `https://${process.env.REPLIT_DOMAIN}`
+          : 'http://localhost:5000';
+      const signatureUrl = `${baseUrl}/sign/${newToken}`;
+
+      // Send SMS
+      const clientName = `${client.firstName} ${client.lastName || ''}`.trim();
+      const smsResult = await sendSignatureSMS(
+        signatureRequest.clientPhone,
+        signatureUrl,
+        clientName,
+        storeName,
+        signatureRequest.type as 'dropoff' | 'pickup',
+        language as 'en' | 'pt-BR'
+      );
+
+      if (smsResult.success) {
+        await storage.markSignatureRequestSent(signatureRequest.id, smsResult.messageSid!);
+        
+        res.json({
+          id: signatureRequest.id,
+          status: 'sent',
+          token: newToken,
+          expiresAt: newExpiresAt,
+          message: 'SMS resent successfully'
+        });
+      } else {
+        await storage.updateSignatureRequestStatus(signatureRequest.id, 'failed', {
+          failureReason: smsResult.error
+        });
+        
+        res.status(500).json({
+          id: signatureRequest.id,
+          status: 'failed',
+          error: smsResult.error || 'Failed to resend SMS'
+        });
+      }
+    } catch (error) {
+      console.error("Error resending signature request:", error);
+      res.status(500).json({ message: "Failed to resend signature request" });
+    }
+  });
+
+  // ========================================================================
+  // Public Signature Routes (No authentication required)
+  // ========================================================================
+
+  // Get signature request details for signing page (public)
+  app.get("/api/public/signature/:token", async (req, res) => {
+    try {
+      const signatureRequest = await storage.getSignatureRequestByToken(req.params.token);
+      
+      if (!signatureRequest) {
+        return res.status(404).json({ message: "Signature request not found" });
+      }
+
+      // Check if expired
+      if (new Date() > signatureRequest.expiresAt) {
+        if (signatureRequest.status === 'sent') {
+          await storage.updateSignatureRequestStatus(signatureRequest.id, 'expired');
+        }
+        return res.status(410).json({ message: "This signature link has expired" });
+      }
+
+      // Check if already signed
+      if (signatureRequest.status === 'signed') {
+        return res.status(409).json({ message: "This document has already been signed" });
+      }
+
+      // Get client info
+      const client = await storage.getClient(signatureRequest.clientId, signatureRequest.tenantId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      // Get store settings
+      const storeSettings = await storage.getStoreSettings(signatureRequest.tenantId);
+
+      // Get ticket info if available
+      let ticketInfo = null;
+      if (signatureRequest.ticketId) {
+        const ticket = await storage.getTicket(signatureRequest.ticketId, signatureRequest.tenantId);
+        if (ticket) {
+          ticketInfo = {
+            id: ticket.id,
+            title: ticket.title,
+            deviceType: ticket.deviceType,
+            deviceBrand: ticket.deviceBrand,
+            deviceModel: ticket.deviceModel,
+            estimatedCost: ticket.estimatedCost,
+            status: ticket.status
+          };
+        }
+      }
+
+      res.json({
+        id: signatureRequest.id,
+        type: signatureRequest.type,
+        status: signatureRequest.status,
+        expiresAt: signatureRequest.expiresAt,
+        client: {
+          firstName: client.firstName,
+          lastName: client.lastName
+        },
+        store: {
+          name: storeSettings?.shopName || 'Repair Beam',
+          logo: storeSettings?.shopLogoUrl
+        },
+        ticket: ticketInfo
+      });
+    } catch (error) {
+      console.error("Error fetching signature request details:", error);
+      res.status(500).json({ message: "Failed to fetch signature request details" });
+    }
+  });
+
+  // Submit signature (public)
+  app.post("/api/public/signature/:token/submit", async (req, res) => {
+    try {
+      const { signaturePng, agreedToTerms } = req.body;
+
+      if (!signaturePng) {
+        return res.status(400).json({ message: "Signature is required" });
+      }
+
+      if (!agreedToTerms) {
+        return res.status(400).json({ message: "You must agree to the terms" });
+      }
+
+      // Validate signature is base64 PNG
+      if (!signaturePng.startsWith('data:image/png;base64,')) {
+        return res.status(400).json({ message: "Invalid signature format" });
+      }
+
+      const signatureRequest = await storage.getSignatureRequestByToken(req.params.token);
+      
+      if (!signatureRequest) {
+        return res.status(404).json({ message: "Signature request not found" });
+      }
+
+      // Check if expired
+      if (new Date() > signatureRequest.expiresAt) {
+        if (signatureRequest.status === 'sent') {
+          await storage.updateSignatureRequestStatus(signatureRequest.id, 'expired');
+        }
+        return res.status(410).json({ message: "This signature link has expired" });
+      }
+
+      // Check if already signed
+      if (signatureRequest.status === 'signed') {
+        return res.status(409).json({ message: "This document has already been signed" });
+      }
+
+      // Capture device metadata for audit trail
+      const signerDeviceMeta = {
+        userAgent: req.headers['user-agent'],
+        ip: req.ip || req.connection?.remoteAddress,
+        timestamp: new Date().toISOString()
+      };
+
+      // Mark as signed
+      const updated = await storage.markSignatureRequestSigned(
+        signatureRequest.id,
+        signaturePng,
+        signerDeviceMeta
+      );
+
+      // If this is linked to a ticket, update the ticket with signature reference
+      if (signatureRequest.ticketId) {
+        // Update the ticket with the signature ID
+        const ticketUpdateData: Record<string, string | null> = {};
+        if (signatureRequest.type === 'dropoff') {
+          ticketUpdateData.dropoffSignatureId = signatureRequest.id;
+        } else {
+          ticketUpdateData.pickupSignatureId = signatureRequest.id;
+        }
+        await storage.updateTicket(signatureRequest.ticketId, signatureRequest.tenantId, ticketUpdateData);
+      }
+
+      res.json({
+        success: true,
+        message: signatureRequest.type === 'dropoff' 
+          ? 'Thank you! Your repair has been authorized.' 
+          : 'Thank you! Device pickup confirmed.',
+        signedAt: updated?.signedAt
+      });
+    } catch (error) {
+      console.error("Error submitting signature:", error);
+      res.status(500).json({ message: "Failed to submit signature" });
     }
   });
 

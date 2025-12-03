@@ -36,6 +36,7 @@ import {
   userInvitations,
   auditLogs,
   invoices,
+  signatureRequests,
   type User,
   type UpsertUser,
   type Tenant,
@@ -110,6 +111,9 @@ import {
   type InsertAuditLog,
   type Invoice,
   type InsertInvoice,
+  type SignatureRequest,
+  type InsertSignatureRequest,
+  type SignatureRequestStatus,
 } from "@shared/schema";
 import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
@@ -173,6 +177,7 @@ export interface IStorage {
   getTicketsByClientId(clientId: string, tenantId: string): Promise<Ticket[]>;
   getTicket(id: string, tenantId: string): Promise<Ticket | undefined>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
+  updateTicket(ticketId: string, tenantId: string, updates: Partial<InsertTicket>): Promise<Ticket | undefined>;
   updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined>;
   updateTicketPriority(ticketId: string, priority: string, tenantId: string): Promise<Ticket | undefined>;
   checkTicketIdExists(ticketId: string, tenantId: string): Promise<boolean>;
@@ -376,6 +381,17 @@ export interface IStorage {
   getInvoice(id: string, tenantId: string): Promise<Invoice | undefined>;
   getInvoicesByTicket(ticketId: string, tenantId: string): Promise<Invoice[]>;
   getNextInvoiceNumber(tenantId: string): Promise<string>;
+
+  // Signature request operations (SMS-based client signatures)
+  createSignatureRequest(request: InsertSignatureRequest): Promise<SignatureRequest>;
+  getSignatureRequest(id: string, tenantId: string): Promise<SignatureRequest | undefined>;
+  getSignatureRequestByToken(token: string): Promise<SignatureRequest | undefined>;
+  getSignatureRequestsByTicket(ticketId: string, tenantId: string): Promise<SignatureRequest[]>;
+  updateSignatureRequestStatus(id: string, status: SignatureRequestStatus, additionalData?: Partial<SignatureRequest>): Promise<SignatureRequest | undefined>;
+  markSignatureRequestSent(id: string, smsMessageSid: string): Promise<SignatureRequest | undefined>;
+  markSignatureRequestSigned(id: string, signaturePng: string, signerDeviceMeta?: Record<string, unknown>): Promise<SignatureRequest | undefined>;
+  getLatestSignatureForTicket(ticketId: string, tenantId: string, type: 'dropoff' | 'pickup'): Promise<SignatureRequest | undefined>;
+  linkSignatureToTicket(signatureId: string, ticketId: string): Promise<SignatureRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -814,6 +830,25 @@ export class DatabaseStorage implements IStorage {
     }
 
     return finalizedTicket;
+  }
+
+  async updateTicket(ticketId: string, tenantId: string, updates: Partial<InsertTicket>): Promise<Ticket | undefined> {
+    return withRetry(async () => {
+      // Prevent updates to finalized tickets (except for signature-related fields)
+      const signatureFields = ['dropoffSignatureId', 'pickupSignatureId'];
+      const nonSignatureUpdates = Object.keys(updates).filter(key => !signatureFields.includes(key));
+      
+      if (nonSignatureUpdates.length > 0 && await this.isTicketFinalized(ticketId, tenantId)) {
+        throw new Error('Cannot modify finalized ticket');
+      }
+
+      const [updatedTicket] = await db
+        .update(tickets)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(and(eq(tickets.id, ticketId), eq(tickets.tenantId, tenantId)))
+        .returning();
+      return updatedTicket;
+    });
   }
 
   async updateTicketStatus(ticketId: string, status: string, tenantId: string): Promise<Ticket | undefined> {
@@ -3365,6 +3400,147 @@ export class DatabaseStorage implements IStorage {
           });
         }
       }
+    });
+  }
+
+  // ========================================================================
+  // Signature Request Operations (SMS-based client signatures)
+  // ========================================================================
+
+  async createSignatureRequest(request: InsertSignatureRequest): Promise<SignatureRequest> {
+    return withRetry(async () => {
+      const [signatureRequest] = await db
+        .insert(signatureRequests)
+        .values(request)
+        .returning();
+      return signatureRequest;
+    });
+  }
+
+  async getSignatureRequest(id: string, tenantId: string): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [signatureRequest] = await db
+        .select()
+        .from(signatureRequests)
+        .where(and(
+          eq(signatureRequests.id, id),
+          eq(signatureRequests.tenantId, tenantId)
+        ));
+      return signatureRequest;
+    });
+  }
+
+  async getSignatureRequestByToken(token: string): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [signatureRequest] = await db
+        .select()
+        .from(signatureRequests)
+        .where(eq(signatureRequests.token, token));
+      return signatureRequest;
+    });
+  }
+
+  async getSignatureRequestsByTicket(ticketId: string, tenantId: string): Promise<SignatureRequest[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(signatureRequests)
+        .where(and(
+          eq(signatureRequests.ticketId, ticketId),
+          eq(signatureRequests.tenantId, tenantId)
+        ))
+        .orderBy(desc(signatureRequests.createdAt));
+    });
+  }
+
+  async updateSignatureRequestStatus(
+    id: string,
+    status: SignatureRequestStatus,
+    additionalData?: Partial<SignatureRequest>
+  ): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(signatureRequests)
+        .set({
+          status,
+          ...additionalData,
+          updatedAt: new Date(),
+        })
+        .where(eq(signatureRequests.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async markSignatureRequestSent(id: string, smsMessageSid: string): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(signatureRequests)
+        .set({
+          status: 'sent',
+          smsMessageSid,
+          sentAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(signatureRequests.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async markSignatureRequestSigned(
+    id: string,
+    signaturePng: string,
+    signerDeviceMeta?: Record<string, unknown>
+  ): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(signatureRequests)
+        .set({
+          status: 'signed',
+          signaturePng,
+          signerDeviceMeta: signerDeviceMeta || null,
+          signedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(signatureRequests.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async getLatestSignatureForTicket(
+    ticketId: string,
+    tenantId: string,
+    type: 'dropoff' | 'pickup'
+  ): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [signatureRequest] = await db
+        .select()
+        .from(signatureRequests)
+        .where(and(
+          eq(signatureRequests.ticketId, ticketId),
+          eq(signatureRequests.tenantId, tenantId),
+          eq(signatureRequests.type, type),
+          eq(signatureRequests.status, 'signed')
+        ))
+        .orderBy(desc(signatureRequests.signedAt))
+        .limit(1);
+      return signatureRequest;
+    });
+  }
+
+  async linkSignatureToTicket(signatureId: string, ticketId: string): Promise<SignatureRequest | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(signatureRequests)
+        .set({
+          ticketId,
+          updatedAt: new Date(),
+        })
+        .where(eq(signatureRequests.id, signatureId))
+        .returning();
+      return updated;
     });
   }
 }
