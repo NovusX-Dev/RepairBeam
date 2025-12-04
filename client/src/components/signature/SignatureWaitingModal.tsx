@@ -13,6 +13,7 @@ interface SignatureWaitingModalProps {
   clientName: string;
   onSigned: () => void;
   onCancel?: () => void;
+  onManualApproval?: () => void;
 }
 
 export default function SignatureWaitingModal({
@@ -23,12 +24,15 @@ export default function SignatureWaitingModal({
   clientName,
   onSigned,
   onCancel,
+  onManualApproval,
 }: SignatureWaitingModalProps) {
   const { currentLanguage } = useLocalization();
   const language = currentLanguage.code;
   const [isResending, setIsResending] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [manualApprovalCountdown, setManualApprovalCountdown] = useState(60);
+  const [isManualApprovalEnabled, setIsManualApprovalEnabled] = useState(false);
 
   const {
     data,
@@ -52,6 +56,31 @@ export default function SignatureWaitingModal({
     }
   }, [isOpen, signatureRequestId, startPolling, stopPolling]);
 
+  // Reset countdown when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setManualApprovalCountdown(60);
+      setIsManualApprovalEnabled(false);
+    }
+  }, [isOpen]);
+
+  // Countdown timer for manual approval button
+  useEffect(() => {
+    if (!isOpen || isManualApprovalEnabled) return;
+    
+    const timer = setInterval(() => {
+      setManualApprovalCountdown((prev) => {
+        if (prev <= 1) {
+          setIsManualApprovalEnabled(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, isManualApprovalEnabled]);
+
   const handleResend = async () => {
     if (!signatureRequestId) return;
     
@@ -74,6 +103,25 @@ export default function SignatureWaitingModal({
     stopPolling();
     onCancel?.();
     onClose();
+  };
+
+  const handleManualApproval = () => {
+    stopPolling();
+    onManualApproval?.();
+    onClose();
+  };
+
+  const getManualApprovalLabel = () => {
+    const labels = {
+      en: isManualApprovalEnabled 
+        ? 'Approve Manually' 
+        : `Manual Approval (${manualApprovalCountdown}s)`,
+      'pt-BR': isManualApprovalEnabled 
+        ? 'Aprovar Manualmente' 
+        : `Aprovação Manual (${manualApprovalCountdown}s)`,
+    };
+    const lang = language === 'pt-BR' ? 'pt-BR' : 'en';
+    return labels[lang];
   };
 
   const getStatusIcon = (status?: SignatureStatus) => {
@@ -184,30 +232,49 @@ export default function SignatureWaitingModal({
           )}
         </div>
 
-        <DialogFooter className="flex gap-2 sm:gap-2">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            className="border-[#2a3f5f] text-gray-300 hover:bg-[#1a2744]"
-            data-testid="button-cancel-signature"
-          >
-            {language === 'pt-BR' ? 'Cancelar' : 'Cancel'}
-          </Button>
-          
-          {(data?.status === 'sent' || data?.status === 'expired' || data?.status === 'failed') && (
+        <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:gap-2">
+          <div className="flex gap-2 w-full sm:w-auto">
             <Button
-              onClick={handleResend}
-              disabled={isResending}
               variant="outline"
-              className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 gap-2"
-              data-testid="button-resend-signature"
+              onClick={handleCancel}
+              className="flex-1 sm:flex-none border-[#2a3f5f] text-gray-300 hover:bg-[#1a2744]"
+              data-testid="button-cancel-signature"
             >
-              {isResending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
-              {language === 'pt-BR' ? 'Reenviar SMS' : 'Resend SMS'}
+              {language === 'pt-BR' ? 'Cancelar' : 'Cancel'}
+            </Button>
+            
+            {(data?.status === 'sent' || data?.status === 'expired' || data?.status === 'failed') && (
+              <Button
+                onClick={handleResend}
+                disabled={isResending}
+                variant="outline"
+                className="flex-1 sm:flex-none border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 gap-2"
+                data-testid="button-resend-signature"
+              >
+                {isResending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                {language === 'pt-BR' ? 'Reenviar SMS' : 'Resend SMS'}
+              </Button>
+            )}
+          </div>
+          
+          {onManualApproval && (
+            <Button
+              onClick={handleManualApproval}
+              disabled={!isManualApprovalEnabled}
+              variant="outline"
+              className={`w-full sm:w-auto gap-2 transition-all ${
+                isManualApprovalEnabled 
+                  ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10' 
+                  : 'border-[#2a3f5f] text-gray-500 cursor-not-allowed opacity-60'
+              }`}
+              data-testid="button-manual-approval"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              {getManualApprovalLabel()}
             </Button>
           )}
         </DialogFooter>

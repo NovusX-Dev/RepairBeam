@@ -3431,6 +3431,22 @@ export default function KanbanTickets() {
     });
   };
 
+  // Handle manual approval when SMS signature fails or client prefers in-person
+  const handleDropoffManualApproval = () => {
+    setShowSignatureModal(false);
+    setPendingSignatureRequest(null);
+    // Set status to 'signed' to allow ticket creation (manual approval path)
+    setDropoffSignatureStatus('signed');
+    // Clear the signature request ID since we're using manual approval
+    setDropoffSignatureRequestId(null);
+    setFormData(prev => ({ ...prev, clientApproved: true }));
+    
+    toast({
+      title: t("manual_approval_confirmed", "Manual Approval Confirmed"),
+      description: t("manual_approval_description", "Client has been approved manually. You can now create the ticket."),
+    });
+  };
+
   // Handle signature cancelled
   const handleSignatureCancelled = () => {
     setShowSignatureModal(false);
@@ -5899,7 +5915,7 @@ export default function KanbanTickets() {
                                 <p className="text-xs text-muted-foreground mt-1">
                                   {selectedClient?.phone 
                                     ? t("approval_via_sms", "Enabling this will send an SMS signature request to the client.")
-                                    : t("approval_confirmation", "By enabling this, you confirm the client has agreed to the service terms, cost, and timeline.")
+                                    : t("approval_manual_in_person", "Enable to confirm the client has reviewed and approved in person.")
                                   }
                                 </p>
                               </div>
@@ -7706,6 +7722,7 @@ export default function KanbanTickets() {
           clientName={selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : ''}
           onSigned={handleDropoffSignatureCompleted}
           onCancel={handleDropoffSignatureCancelled}
+          onManualApproval={handleDropoffManualApproval}
         />
       )}
 
