@@ -231,41 +231,39 @@ export default function SignatureWaitingModal({
           )}
         </div>
 
-        <DialogFooter className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-2 justify-center w-full">
+        <DialogFooter className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            className="w-full sm:w-auto border-[#2a3f5f] text-gray-300 hover:bg-[#1a2744]"
+            data-testid="button-cancel-signature"
+          >
+            {language === 'pt-BR' ? 'Cancelar' : 'Cancel'}
+          </Button>
+          
+          {(data?.status === 'sent' || data?.status === 'expired' || data?.status === 'failed') && (
             <Button
+              onClick={handleResend}
+              disabled={isResending}
               variant="outline"
-              onClick={handleCancel}
-              className="border-[#2a3f5f] text-gray-300 hover:bg-[#1a2744]"
-              data-testid="button-cancel-signature"
+              className="w-full sm:w-auto border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 gap-2"
+              data-testid="button-resend-signature"
             >
-              {language === 'pt-BR' ? 'Cancelar' : 'Cancel'}
+              {isResending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              {language === 'pt-BR' ? 'Reenviar SMS' : 'Resend SMS'}
             </Button>
-            
-            {(data?.status === 'sent' || data?.status === 'expired' || data?.status === 'failed') && (
-              <Button
-                onClick={handleResend}
-                disabled={isResending}
-                variant="outline"
-                className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 gap-2"
-                data-testid="button-resend-signature"
-              >
-                {isResending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                {language === 'pt-BR' ? 'Reenviar SMS' : 'Resend SMS'}
-              </Button>
-            )}
-          </div>
+          )}
           
           {onManualApproval && (
             <Button
               onClick={handleManualApproval}
               disabled={!isManualApprovalEnabled}
               variant="outline"
-              className={`w-full gap-2 transition-all ${
+              className={`w-full sm:w-auto gap-2 transition-all ${
                 isManualApprovalEnabled 
                   ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10' 
                   : 'border-[#2a3f5f] text-gray-500 cursor-not-allowed opacity-60'
