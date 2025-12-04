@@ -673,6 +673,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ticketData = validationResult.data;
       const newTicket = await storage.createTicket(ticketData);
 
+      // Link signature request to the new ticket if dropoffSignatureId is provided
+      if (ticketData.dropoffSignatureId) {
+        await storage.linkSignatureToTicket(ticketData.dropoffSignatureId, newTicket.id);
+      }
+
       // Save issue responses if they exist
       if (issueResponses && Array.isArray(issueResponses) && issueResponses.length > 0) {
         for (const response of issueResponses) {
