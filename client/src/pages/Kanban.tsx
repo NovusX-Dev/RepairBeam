@@ -1227,6 +1227,11 @@ export default function KanbanTickets() {
     ticketData: any;
   } | null>(null);
   
+  // Dropoff signature state for authorization flow (triggered by toggle)
+  const [dropoffSignatureStatus, setDropoffSignatureStatus] = useState<'none' | 'pending' | 'signed'>('none');
+  const [dropoffSignatureRequestId, setDropoffSignatureRequestId] = useState<string | null>(null);
+  const [sendingDropoffSignature, setSendingDropoffSignature] = useState(false);
+  
   // Pickup signature flow state for ticket finalization
   const [showPickupSignatureModal, setShowPickupSignatureModal] = useState(false);
   const [pickupSignatureRequestId, setPickupSignatureRequestId] = useState<string | null>(null);
@@ -3271,27 +3276,11 @@ export default function KanbanTickets() {
   const handleConfirmCreateTicket = async () => {
     setShowCreateConfirmation(false);
     
-    // Build ticket data first
-    const ticketData = await buildTicketData();
+    // Build ticket data with the pre-obtained signature ID
+    const ticketData = await buildTicketData(dropoffSignatureRequestId);
     
-    // Check if client has a phone number for SMS signature
-    const clientPhone = selectedClient?.phone;
-    if (clientPhone) {
-      // Request signature via SMS
-      const signatureRequest = await requestDropoffSignature(ticketData);
-      if (signatureRequest) {
-        // Store pending request and show waiting modal
-        setPendingSignatureRequest({
-          id: signatureRequest.id,
-          type: 'dropoff',
-          ticketData,
-        });
-        setShowSignatureModal(true);
-      }
-    } else {
-      // No phone number - create ticket without signature
-      createTicketMutation.mutate(ticketData);
-    }
+    // Create ticket directly - signature was already obtained during authorization
+    createTicketMutation.mutate(ticketData);
   };
 
   // Handle signature completed callback
@@ -3324,6 +3313,109 @@ export default function KanbanTickets() {
         variant: "destructive",
       });
     }
+  };
+
+  // Handle authorization toggle change - triggers signature request immediately
+  const handleAuthorizationToggle = async (checked: boolean) => {
+    if (checked) {
+      // Client is authorizing - check if they have a phone for SMS signature
+      const clientPhone = selectedClient?.phone;
+      
+      if (clientPhone) {
+        // Client has phone - send signature request via SMS
+        setSendingDropoffSignature(true);
+        
+        try {
+          // Create signature request (without ticket ID since ticket doesn't exist yet)
+          const response = await apiRequest("POST", "/api/signature-requests", {
+            ticketId: null, // No ticket yet
+            clientId: selectedClient?.id,
+            type: 'dropoff',
+            phoneNumber: clientPhone,
+          });
+          
+          const signatureRequest = await response.json();
+          
+          // Store the signature request ID and show waiting modal
+          setDropoffSignatureRequestId(signatureRequest.id);
+          setDropoffSignatureStatus('pending');
+          setShowSignatureModal(true);
+          setPendingSignatureRequest({
+            id: signatureRequest.id,
+            type: 'dropoff',
+            ticketData: null, // Will be built when ticket is created
+          });
+          
+          toast({
+            title: t("signature_request_sent", "Signature Request Sent"),
+            description: t("waiting_for_client_signature", "Waiting for client to sign via SMS link."),
+          });
+        } catch (error) {
+          console.error('Failed to create signature request:', error);
+          toast({
+            title: t("error", "Error"),
+            description: t("signature_request_failed", "Failed to send signature request. Please try again."),
+            variant: "destructive",
+          });
+        } finally {
+          setSendingDropoffSignature(false);
+        }
+      } else {
+        // No phone number - allow manual authorization
+        setFormData(prev => ({ ...prev, clientApproved: true }));
+        setDropoffSignatureStatus('none');
+      }
+    } else {
+      // Toggling off - reset authorization state
+      setFormData(prev => ({ ...prev, clientApproved: false }));
+      setDropoffSignatureStatus('none');
+      setDropoffSignatureRequestId(null);
+    }
+  };
+
+  // Handle dropoff signature completed during authorization flow
+  const handleDropoffSignatureCompleted = async () => {
+    if (!dropoffSignatureRequestId) return;
+    
+    try {
+      const response = await fetch(`/api/signature-requests/${dropoffSignatureRequestId}/status`);
+      const signatureStatus = await response.json();
+      
+      if (signatureStatus.status === 'signed') {
+        // Signature received - update authorization state
+        setDropoffSignatureStatus('signed');
+        setFormData(prev => ({ ...prev, clientApproved: true }));
+        setShowSignatureModal(false);
+        setPendingSignatureRequest(null);
+        
+        toast({
+          title: t("signature_received", "Signature Received"),
+          description: t("client_has_signed", "Client has signed the authorization. You can now create the ticket."),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to verify signature:', error);
+      toast({
+        title: t("error", "Error"),
+        description: t("signature_verification_failed", "Failed to verify signature. Please try again."),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle dropoff signature cancelled during authorization
+  const handleDropoffSignatureCancelled = () => {
+    setShowSignatureModal(false);
+    setPendingSignatureRequest(null);
+    setDropoffSignatureStatus('none');
+    setDropoffSignatureRequestId(null);
+    setFormData(prev => ({ ...prev, clientApproved: false }));
+    
+    toast({
+      title: t("signature_cancelled", "Signature Cancelled"),
+      description: t("authorization_not_completed", "Client authorization was not completed."),
+      variant: "destructive",
+    });
   };
 
   // Handle signature cancelled
@@ -3528,6 +3620,12 @@ export default function KanbanTickets() {
       setShowClientForm(false);
       setShowCPFConflict(false);
       setConflictClient(null);
+      
+      // Reset signature states
+      setDropoffSignatureStatus('none');
+      setDropoffSignatureRequestId(null);
+      setShowSignatureModal(false);
+      setPendingSignatureRequest(null);
     }
   };
 
@@ -5750,13 +5848,35 @@ export default function KanbanTickets() {
                           </h4>
                         </div>
                         <div className="p-4 space-y-4">
+                          {/* Signature Status Display */}
+                          {dropoffSignatureStatus === 'signed' && (
+                            <div className="bg-gradient-to-r from-green-500/10 to-green-500/5 border border-green-500/30 rounded-md p-3">
+                              <div className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <p className="text-sm text-green-300">
+                                  {t("signature_received_ready", "Digital signature received. You can now create the ticket.")}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {dropoffSignatureStatus === 'pending' && (
+                            <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/5 border border-blue-500/30 rounded-md p-3">
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="w-4 h-4 text-blue-400 animate-spin flex-shrink-0" />
+                                <p className="text-sm text-blue-300">
+                                  {t("waiting_for_signature", "Waiting for client signature via SMS...")}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="bg-gradient-to-r from-[#00FFFF]/5 to-[#0A192F]/20 rounded-md border border-[#00FFFF]/20 p-4">
                             <div className="flex items-center space-x-3">
                               <Switch
-                                checked={formData.clientApproved}
-                                onCheckedChange={(checked) => {
-                                  setFormData(prev => ({ ...prev, clientApproved: checked }));
-                                }}
+                                checked={formData.clientApproved || dropoffSignatureStatus === 'pending'}
+                                onCheckedChange={handleAuthorizationToggle}
+                                disabled={sendingDropoffSignature || dropoffSignatureStatus === 'pending'}
                                 data-testid="switch-client-approved"
                               />
                               <div className="flex-1">
@@ -5764,10 +5884,21 @@ export default function KanbanTickets() {
                                   {t("client_has_approved", "Client has reviewed and approved all details")}
                                 </Label>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {t("approval_confirmation", "By enabling this, you confirm the client has agreed to the service terms, cost, and timeline.")}
+                                  {selectedClient?.phone 
+                                    ? t("approval_via_sms", "Enabling this will send an SMS signature request to the client.")
+                                    : t("approval_confirmation", "By enabling this, you confirm the client has agreed to the service terms, cost, and timeline.")
+                                  }
                                 </p>
                               </div>
-                              {formData.clientApproved && (
+                              {sendingDropoffSignature && (
+                                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                              )}
+                              {formData.clientApproved && dropoffSignatureStatus === 'signed' && (
+                                <div className="text-green-500">
+                                  <Check className="w-5 h-5" />
+                                </div>
+                              )}
+                              {formData.clientApproved && dropoffSignatureStatus === 'none' && !selectedClient?.phone && (
                                 <div className="text-green-500">
                                   <Check className="w-5 h-5" />
                                 </div>
@@ -5775,7 +5906,7 @@ export default function KanbanTickets() {
                             </div>
                           </div>
 
-                          {!formData.clientApproved && (
+                          {!formData.clientApproved && dropoffSignatureStatus === 'none' && (
                             <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-md p-3">
                               <div className="flex items-center gap-2">
                                 <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
@@ -7536,12 +7667,12 @@ export default function KanbanTickets() {
       {pendingSignatureRequest && (
         <SignatureWaitingModal
           isOpen={showSignatureModal}
-          onClose={handleSignatureCancelled}
+          onClose={handleDropoffSignatureCancelled}
           signatureRequestId={pendingSignatureRequest.id}
           type={pendingSignatureRequest.type}
           clientName={selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : ''}
-          onSigned={handleSignatureCompleted}
-          onCancel={handleSignatureCancelled}
+          onSigned={handleDropoffSignatureCompleted}
+          onCancel={handleDropoffSignatureCancelled}
         />
       )}
 
