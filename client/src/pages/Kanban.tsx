@@ -3102,6 +3102,19 @@ export default function KanbanTickets() {
       });
       return;
     }
+    
+    // For clients with phone: require digital signature to be signed
+    // For clients without phone: manual approval (clientApproved=true) is sufficient
+    if (selectedClient.phone) {
+      if (dropoffSignatureStatus !== 'signed') {
+        toast({
+          title: t("signature_required", "Signature Required"),
+          description: t("waiting_for_digital_signature", "Please wait for the client to complete the digital signature via SMS."),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     // Calculate and save total cost before showing confirmation
     const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
@@ -5987,16 +6000,36 @@ export default function KanbanTickets() {
                 ) : (
                   <Button 
                     onClick={handleCreateTicket}
-                    disabled={createTicketMutation.isPending}
-                    className="btn-next-hover bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 relative overflow-hidden"
+                    disabled={
+                      createTicketMutation.isPending || 
+                      !formData.clientApproved ||
+                      (selectedClient?.phone && dropoffSignatureStatus !== 'signed')
+                    }
+                    className="btn-next-hover bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
                     data-testid="button-create-ticket-final"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="text-lg">🎉</div>
-                      {t("create_ticket", "Create Ticket")}
-                      <div className="text-lg">🎉</div>
+                      {selectedClient?.phone && dropoffSignatureStatus === 'pending' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {t("waiting_signature", "Waiting for Signature...")}
+                        </>
+                      ) : selectedClient?.phone && dropoffSignatureStatus !== 'signed' && dropoffSignatureStatus !== 'none' ? (
+                        <>
+                          <AlertTriangle className="h-4 w-4" />
+                          {t("signature_issue", "Signature Issue")}
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-lg">🎉</div>
+                          {t("create_ticket", "Create Ticket")}
+                          <div className="text-lg">🎉</div>
+                        </>
+                      )}
                     </div>
-                    <div className="absolute inset-0 bg-white/10 rounded-lg animate-ping opacity-30"></div>
+                    {formData.clientApproved && (!selectedClient?.phone || dropoffSignatureStatus === 'signed') && (
+                      <div className="absolute inset-0 bg-white/10 rounded-lg animate-ping opacity-30"></div>
+                    )}
                   </Button>
                 )}
               </div>
