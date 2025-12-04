@@ -1662,6 +1662,44 @@ export default function Configs() {
                   </div>
                 </div>
 
+                {/* SMS & Phone Settings Section */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-cyan-100 border-b border-slate-600 pb-2">
+                    {t('sms_phone_settings', 'SMS & Phone Settings')}
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="defaultCountryCode">{t('default_country_code', 'Default Country Code')}</Label>
+                      <Select
+                        value={storeFormData.defaultCountryCode || '+55'}
+                        onValueChange={(value) => setStoreFormData(prev => ({ ...prev, defaultCountryCode: value }))}
+                      >
+                        <SelectTrigger id="defaultCountryCode" data-testid="select-default-country-code">
+                          <SelectValue placeholder={t('select_country_code', 'Select country code')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="+55">+55 (Brazil)</SelectItem>
+                          <SelectItem value="+1">+1 (USA/Canada)</SelectItem>
+                          <SelectItem value="+44">+44 (UK)</SelectItem>
+                          <SelectItem value="+351">+351 (Portugal)</SelectItem>
+                          <SelectItem value="+34">+34 (Spain)</SelectItem>
+                          <SelectItem value="+49">+49 (Germany)</SelectItem>
+                          <SelectItem value="+33">+33 (France)</SelectItem>
+                          <SelectItem value="+39">+39 (Italy)</SelectItem>
+                          <SelectItem value="+52">+52 (Mexico)</SelectItem>
+                          <SelectItem value="+54">+54 (Argentina)</SelectItem>
+                          <SelectItem value="+56">+56 (Chile)</SelectItem>
+                          <SelectItem value="+57">+57 (Colombia)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {t('country_code_help', 'Phone numbers without country code will automatically use this prefix for SMS')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center pt-4">
                   {hasUnsavedChanges && (
                     <div className="flex items-center gap-2 text-amber-400 text-sm">
