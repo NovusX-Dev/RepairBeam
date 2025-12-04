@@ -108,7 +108,6 @@ export default function SignatureWaitingModal({
   const handleManualApproval = () => {
     stopPolling();
     onManualApproval?.();
-    onClose();
   };
 
   const getManualApprovalLabel = () => {
@@ -232,12 +231,12 @@ export default function SignatureWaitingModal({
           )}
         </div>
 
-        <DialogFooter className="flex flex-col gap-3 sm:flex-row sm:gap-2">
-          <div className="flex gap-2 w-full sm:w-auto">
+        <DialogFooter className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2 justify-center w-full">
             <Button
               variant="outline"
               onClick={handleCancel}
-              className="flex-1 sm:flex-none border-[#2a3f5f] text-gray-300 hover:bg-[#1a2744]"
+              className="border-[#2a3f5f] text-gray-300 hover:bg-[#1a2744]"
               data-testid="button-cancel-signature"
             >
               {language === 'pt-BR' ? 'Cancelar' : 'Cancel'}
@@ -248,7 +247,7 @@ export default function SignatureWaitingModal({
                 onClick={handleResend}
                 disabled={isResending}
                 variant="outline"
-                className="flex-1 sm:flex-none border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 gap-2"
+                className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 gap-2"
                 data-testid="button-resend-signature"
               >
                 {isResending ? (
@@ -266,7 +265,7 @@ export default function SignatureWaitingModal({
               onClick={handleManualApproval}
               disabled={!isManualApprovalEnabled}
               variant="outline"
-              className={`w-full sm:w-auto gap-2 transition-all ${
+              className={`w-full gap-2 transition-all ${
                 isManualApprovalEnabled 
                   ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10' 
                   : 'border-[#2a3f5f] text-gray-500 cursor-not-allowed opacity-60'
