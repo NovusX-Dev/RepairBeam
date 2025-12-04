@@ -764,6 +764,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Status is required" });
       }
 
+      // Block finalized status - must use /api/tickets/:ticketId/finalize endpoint
+      if (status === 'finalized') {
+        return res.status(400).json({ 
+          message: "Cannot set status to 'finalized' directly. Use the finalize endpoint with completion data.",
+          error: "Finalization requires completion notes, actual hours, and cost. Please use the proper finalization workflow."
+        });
+      }
+
       // Get current ticket to validate status transition
       const currentTicket = await storage.getTicket(ticketId, req.authUser.tenantId);
       

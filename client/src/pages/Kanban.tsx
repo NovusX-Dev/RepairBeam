@@ -6326,6 +6326,18 @@ export default function KanbanTickets() {
                               <Select
                                 value={ticket.status}
                                 onValueChange={(newStatus) => {
+                                  // Intercept finalized status - must go through completion dialog
+                                  if (newStatus === 'finalized') {
+                                    setTicketToFinalize(ticket);
+                                    setCompletionData({
+                                      completionNotes: '',
+                                      actualHours: ticket.technicianEstimatedHours?.toString() || '',
+                                      finalActualCost: '',
+                                    });
+                                    resetWizard();
+                                    setShowCompletionDialog(true);
+                                    return;
+                                  }
                                   updateTicketStatus.mutate({ 
                                     ticketId: ticket.id, 
                                     status: newStatus as TicketStatus 
