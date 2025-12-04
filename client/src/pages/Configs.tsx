@@ -1671,30 +1671,34 @@ export default function Configs() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="defaultCountryCode">{t('default_country_code', 'Default Country Code')}</Label>
-                      <Select
+                      <Input
+                        id="defaultCountryCode"
                         value={storeFormData.defaultCountryCode || '+55'}
-                        onValueChange={(value) => setStoreFormData(prev => ({ ...prev, defaultCountryCode: value }))}
-                      >
-                        <SelectTrigger id="defaultCountryCode" data-testid="select-default-country-code">
-                          <SelectValue placeholder={t('select_country_code', 'Select country code')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="+55">+55 (Brazil)</SelectItem>
-                          <SelectItem value="+1">+1 (USA/Canada)</SelectItem>
-                          <SelectItem value="+44">+44 (UK)</SelectItem>
-                          <SelectItem value="+351">+351 (Portugal)</SelectItem>
-                          <SelectItem value="+34">+34 (Spain)</SelectItem>
-                          <SelectItem value="+49">+49 (Germany)</SelectItem>
-                          <SelectItem value="+33">+33 (France)</SelectItem>
-                          <SelectItem value="+39">+39 (Italy)</SelectItem>
-                          <SelectItem value="+52">+52 (Mexico)</SelectItem>
-                          <SelectItem value="+54">+54 (Argentina)</SelectItem>
-                          <SelectItem value="+56">+56 (Chile)</SelectItem>
-                          <SelectItem value="+57">+57 (Colombia)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setStoreFormData(prev => ({ ...prev, defaultCountryCode: value }));
+                        }}
+                        placeholder="+55"
+                        maxLength={5}
+                        data-testid="input-default-country-code"
+                        className={
+                          storeFormData.defaultCountryCode && 
+                          !/^\+\d{1,4}$/.test(storeFormData.defaultCountryCode)
+                            ? 'border-red-500 focus:border-red-500'
+                            : ''
+                        }
+                      />
+                      {storeFormData.defaultCountryCode && 
+                       !/^\+\d{1,4}$/.test(storeFormData.defaultCountryCode) && (
+                        <p className="text-xs text-red-400">
+                          {t('country_code_format_error', 'Format must be + followed by 1-4 digits (e.g., +55, +1, +351)')}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {t('country_code_help', 'Phone numbers without country code will automatically use this prefix for SMS')}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {t('country_code_examples', 'Examples: +55 (Brazil), +1 (USA/Canada), +351 (Portugal)')}
                       </p>
                     </div>
                   </div>
@@ -1710,7 +1714,11 @@ export default function Configs() {
                   <div className="flex justify-end gap-3 ml-auto">
                     <Button
                       type="submit"
-                      disabled={storeSettingsMutation.isPending || !hasUnsavedChanges}
+                      disabled={
+                        storeSettingsMutation.isPending || 
+                        !hasUnsavedChanges ||
+                        !!(storeFormData.defaultCountryCode && !/^\+\d{1,4}$/.test(storeFormData.defaultCountryCode))
+                      }
                       data-testid="button-save-store-settings"
                     >
                       {storeSettingsMutation.isPending ? (
