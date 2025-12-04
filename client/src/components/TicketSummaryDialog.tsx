@@ -965,7 +965,9 @@ export default function TicketSummaryDialog({
                             identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
                             language: locale,
                             dropoffSignaturePng: dropoffSignature?.signaturePng 
-                              ? `data:image/png;base64,${dropoffSignature.signaturePng}` 
+                              ? (dropoffSignature.signaturePng.startsWith('data:') 
+                                  ? dropoffSignature.signaturePng 
+                                  : `data:image/png;base64,${dropoffSignature.signaturePng}`) 
                               : null,
                             dropoffSignedAt: dropoffSignature?.signedAt ? formatDate(new Date(dropoffSignature.signedAt)) : null,
                           },
@@ -1110,7 +1112,9 @@ export default function TicketSummaryDialog({
                             footerText: null,
                             language: locale,
                             pickupSignaturePng: pickupSignature?.signaturePng 
-                              ? `data:image/png;base64,${pickupSignature.signaturePng}` 
+                              ? (pickupSignature.signaturePng.startsWith('data:') 
+                                  ? pickupSignature.signaturePng 
+                                  : `data:image/png;base64,${pickupSignature.signaturePng}`) 
                               : null,
                             pickupSignedAt: pickupSignature?.signedAt ? formatDate(new Date(pickupSignature.signedAt)) : null,
                           },
@@ -1375,7 +1379,9 @@ export default function TicketSummaryDialog({
                         {dropoffSig.signaturePng && (
                           <div className="bg-white p-3 rounded border border-border/50">
                             <img 
-                              src={`data:image/png;base64,${dropoffSig.signaturePng}`} 
+                              src={dropoffSig.signaturePng.startsWith('data:') 
+                                ? dropoffSig.signaturePng 
+                                : `data:image/png;base64,${dropoffSig.signaturePng}`} 
                               alt={t("dropoff_signature", "Drop-off Signature")}
                               className="max-h-20 mx-auto"
                               data-testid="img-dropoff-signature"
@@ -1455,7 +1461,9 @@ export default function TicketSummaryDialog({
                         {pickupSig.signaturePng && (
                           <div className="bg-white p-3 rounded border border-border/50">
                             <img 
-                              src={`data:image/png;base64,${pickupSig.signaturePng}`} 
+                              src={pickupSig.signaturePng.startsWith('data:') 
+                                ? pickupSig.signaturePng 
+                                : `data:image/png;base64,${pickupSig.signaturePng}`} 
                               alt={t("pickup_signature", "Pick-up Signature")}
                               className="max-h-20 mx-auto"
                               data-testid="img-pickup-signature"
