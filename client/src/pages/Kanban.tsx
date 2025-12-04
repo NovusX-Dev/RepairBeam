@@ -3533,6 +3533,19 @@ export default function KanbanTickets() {
     });
   };
 
+  // Handle pickup manual approval when SMS signature fails
+  const handlePickupManualApproval = () => {
+    setShowPickupSignatureModal(false);
+    setPickupSignatureRequestId(null);
+    // Set client authorization to true when manually approved
+    setWizardData(prev => ({ ...prev, clientAuthorized: true }));
+    
+    toast({
+      title: t("manual_approval_confirmed", "Manual Approval Confirmed"),
+      description: t("manual_approval_description", "Client has been approved manually. You can now create the ticket."),
+    });
+  };
+
   // Reset pickup signature state when completion dialog closes
   useEffect(() => {
     if (!showCompletionDialog) {
@@ -7736,6 +7749,7 @@ export default function KanbanTickets() {
           clientName={ticketToFinalize?.client ? `${ticketToFinalize.client.firstName} ${ticketToFinalize.client.lastName}` : ''}
           onSigned={handlePickupSignatureCompleted}
           onCancel={handlePickupSignatureCancelled}
+          onManualApproval={handlePickupManualApproval}
         />
       )}
     </TooltipProvider>
