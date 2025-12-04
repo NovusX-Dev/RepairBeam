@@ -964,7 +964,9 @@ export default function TicketSummaryDialog({
                             selectedServices: selectedServicesBreakdown,
                             identifiedDefects: identifiedDefects.length > 0 ? identifiedDefects : null,
                             language: locale,
-                            dropoffSignaturePng: dropoffSignature?.signaturePng || null,
+                            dropoffSignaturePng: dropoffSignature?.signaturePng 
+                              ? `data:image/png;base64,${dropoffSignature.signaturePng}` 
+                              : null,
                             dropoffSignedAt: dropoffSignature?.signedAt ? formatDate(new Date(dropoffSignature.signedAt)) : null,
                           },
                         });
@@ -1107,7 +1109,9 @@ export default function TicketSummaryDialog({
                             warrantyText: storeSettings?.warrantyTermsText || null,
                             footerText: null,
                             language: locale,
-                            pickupSignaturePng: pickupSignature?.signaturePng || null,
+                            pickupSignaturePng: pickupSignature?.signaturePng 
+                              ? `data:image/png;base64,${pickupSignature.signaturePng}` 
+                              : null,
                             pickupSignedAt: pickupSignature?.signedAt ? formatDate(new Date(pickupSignature.signedAt)) : null,
                           },
                         });
