@@ -1982,18 +1982,12 @@ export default function KanbanTickets() {
             return;
           }
 
-          // Calculate costs properly using currency helpers
-          const services = ticket.selectedServices || [];
-          const totalServicesCents = services.reduce((total: number, serviceId: string) => {
-            const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
-            if (service && service.estimatedLaborCost) {
-              const serviceCostCents = toCents(service.estimatedLaborCost, locale);
-              return addCents(total, serviceCostCents);
-            }
-            return total;
-          }, 0);
-
-          // Calculate items cost
+          // Use the ACTUAL final cost from the finalized ticket (entered by user during finalization)
+          // This is the locked final cost, not recalculated from service estimates
+          const finalActualCostCents = ticket.finalActualCost ? toCents(ticket.finalActualCost, locale) : 0;
+          const actualHours = ticket.actualHours || 0;
+          
+          // Calculate items cost for breakdown display
           const partItems = (ticketItems as any[])?.map((item: any) => {
             const unitPriceNum = item.unitPrice ? parseFloat(item.unitPrice) : 0;
             return {
@@ -2013,7 +2007,15 @@ export default function KanbanTickets() {
             return total;
           }, 0) || 0;
 
-          const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+          // Labor cost is the final cost minus items cost (the remainder after parts)
+          const laborCostCents = Math.max(0, finalActualCostCents - totalItemsCents);
+          
+          // Get labor description from selected services
+          const services = ticket.selectedServices || [];
+          const laborDescriptionText = services.map((serviceId: string) => {
+            const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
+            return service?.name || '';
+          }).filter(Boolean).join(', ') || t('repair_labor', 'Repair Labor');
 
           // Calculate warranty cost
           let warrantyCostCents = 0;
@@ -2036,9 +2038,11 @@ export default function KanbanTickets() {
             }
           }
 
-          const subtotalCents = addCents(totalServicesCents, totalItemsCents);
+          // Subtotal is the final actual cost (labor + parts)
+          const subtotalCents = finalActualCostCents;
           const taxCents = 0;
-          const totalCents = addCents(addCents(addCents(subtotalCents, extraCostCents), warrantyCostCents), taxCents);
+          // Total includes warranty cost on top of the final actual cost
+          const totalCents = addCents(subtotalCents, warrantyCostCents);
 
           const formatDate = (date: Date | string | null) => {
             if (!date) return 'N/A';
@@ -2069,15 +2073,12 @@ export default function KanbanTickets() {
               deviceModel: ticket.deviceModel || null,
               serialNumber: null,
               items: partItems.length > 0 ? partItems : null,
-              laborDescription: services.map((serviceId: string) => {
-                const service = (ticketRepairServices as any[])?.find(s => s.id === serviceId);
-                return service?.name || '';
-              }).filter(Boolean).join(', ') || null,
-              laborHours: null,
-              laborRate: null,
-              laborTotal: totalServicesCents / 100,
-              extraCost: extraCostCents > 0 ? extraCostCents / 100 : null,
-              extraCostDescription: extraCostCents > 0 ? t('additional_costs', 'Additional costs') : null,
+              laborDescription: laborDescriptionText,
+              laborHours: actualHours > 0 ? actualHours : null,
+              laborRate: actualHours > 0 ? (laborCostCents / 100 / actualHours) : null,
+              laborTotal: laborCostCents > 0 ? laborCostCents / 100 : null,
+              extraCost: null,
+              extraCostDescription: null,
               warrantyCost: warrantyCostCents > 0 ? warrantyCostCents / 100 : null,
               warrantyType: finalizedWarrantyType || null,
               warrantyValidUntil: warrantyValidUntil,
