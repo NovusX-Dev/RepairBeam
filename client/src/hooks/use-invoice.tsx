@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { pdf } from "@react-pdf/renderer";
 import { apiRequest } from "@/lib/queryClient";
@@ -11,50 +12,77 @@ interface GenerateInvoiceParams {
   type: InvoiceType;
   InvoiceComponent: React.ComponentType<any>;
   invoiceProps: any;
+  onLoadingStart?: () => void;
+  onLoadingEnd?: () => void;
 }
 
 export function useInvoice() {
   const { toast } = useToast();
   const { t } = useLocalization();
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
+  const [loadingInvoiceType, setLoadingInvoiceType] = useState<InvoiceType | null>(null);
+
+  const closeLoadingModal = useCallback(() => {
+    setIsLoadingInvoice(false);
+    setLoadingInvoiceType(null);
+  }, []);
 
   const generateAndPrintInvoice = useMutation({
-    mutationFn: async ({ ticketId, type, InvoiceComponent, invoiceProps }: GenerateInvoiceParams) => {
-      // Check if invoice already exists for this ticket/type (for reprinting)
-      const existingResponse = await apiRequest("GET", `/api/tickets/${ticketId}/invoices`);
-      const existingInvoices = await existingResponse.json();
+    mutationFn: async ({ ticketId, type, InvoiceComponent, invoiceProps, onLoadingStart, onLoadingEnd }: GenerateInvoiceParams) => {
+      setIsLoadingInvoice(true);
+      setLoadingInvoiceType(type);
+      onLoadingStart?.();
       
-      let invoice;
-      const matchingInvoice = existingInvoices.find((inv: any) => inv.type === type);
-      
-      if (matchingInvoice) {
-        // Reprint existing invoice - don't create a new one
-        invoice = matchingInvoice;
-      } else {
-        // Create new invoice record in database
-        const createResponse = await apiRequest("POST", "/api/invoices", {
-          ticketId,
-          type,
-        });
-        invoice = await createResponse.json();
+      try {
+        // Check if invoice already exists for this ticket/type (for reprinting)
+        const existingResponse = await apiRequest("GET", `/api/tickets/${ticketId}/invoices`);
+        const existingInvoices = await existingResponse.json();
+        
+        let invoice;
+        const matchingInvoice = existingInvoices.find((inv: any) => inv.type === type);
+        
+        if (matchingInvoice) {
+          // Reprint existing invoice - don't create a new one
+          invoice = matchingInvoice;
+        } else {
+          // Create new invoice record in database
+          const createResponse = await apiRequest("POST", "/api/invoices", {
+            ticketId,
+            type,
+          });
+          invoice = await createResponse.json();
+        }
+
+        // Generate PDF blob
+        const blob = await pdf(<InvoiceComponent {...invoiceProps} invoiceNumber={invoice.invoiceNumber} />).toBlob();
+
+        // Create blob URL and trigger print
+        const url = URL.createObjectURL(blob);
+        const printWindow = window.open(url, '_blank');
+        
+        if (printWindow) {
+          printWindow.addEventListener('load', () => {
+            printWindow.print();
+          });
+        }
+
+        // Close loading modal after successful generation
+        setIsLoadingInvoice(false);
+        setLoadingInvoiceType(null);
+        onLoadingEnd?.();
+
+        return { invoice, url };
+      } catch (error) {
+        setIsLoadingInvoice(false);
+        setLoadingInvoiceType(null);
+        onLoadingEnd?.();
+        throw error;
       }
-
-      // Generate PDF blob
-      const blob = await pdf(<InvoiceComponent {...invoiceProps} invoiceNumber={invoice.invoiceNumber} />).toBlob();
-
-      // Create blob URL and trigger print
-      const url = URL.createObjectURL(blob);
-      const printWindow = window.open(url, '_blank');
-      
-      if (printWindow) {
-        printWindow.addEventListener('load', () => {
-          printWindow.print();
-        });
-      }
-
-      return { invoice, url };
     },
     onError: (error) => {
       console.error("Failed to generate invoice:", error);
+      setIsLoadingInvoice(false);
+      setLoadingInvoiceType(null);
       toast({
         title: t("error", "Error"),
         description: t("invoice_generation_failed", "Failed to generate invoice. Please try again."),
@@ -85,5 +113,8 @@ export function useInvoice() {
   return {
     generateAndPrintInvoice,
     downloadInvoice,
+    isLoadingInvoice,
+    loadingInvoiceType,
+    closeLoadingModal,
   };
 }

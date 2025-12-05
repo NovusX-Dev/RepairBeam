@@ -86,6 +86,7 @@ import { PERMISSIONS } from "@shared/permissions";
 import { useInvoice } from "@/hooks/use-invoice";
 import DropOffReceiptInvoice from "@/components/invoices/DropOffReceiptInvoice";
 import FinalInvoice from "@/components/invoices/FinalInvoice";
+import { InvoiceLoadingModal } from "@/components/invoices/InvoiceLoadingModal";
 import SignatureWaitingModal from "@/components/signature/SignatureWaitingModal";
 
 // Problems Tab Component
@@ -1350,7 +1351,7 @@ export default function KanbanTickets() {
   const queryClient = useQueryClient();
   const { t, currentLanguage, formatDate } = useLocalization();
   const { toast } = useToast();
-  const { generateAndPrintInvoice } = useInvoice();
+  const { generateAndPrintInvoice, isLoadingInvoice, loadingInvoiceType, closeLoadingModal } = useInvoice();
 
   // Fetch notes and issue responses when ticket summary modal opens
   useEffect(() => {
@@ -7768,6 +7769,13 @@ export default function KanbanTickets() {
           onManualApproval={handlePickupManualApproval}
         />
       )}
+
+      {/* Invoice Loading Modal - shown while generating invoices */}
+      <InvoiceLoadingModal
+        isOpen={isLoadingInvoice}
+        onClose={closeLoadingModal}
+        type={loadingInvoiceType || 'drop_off'}
+      />
     </TooltipProvider>
   );
 }
