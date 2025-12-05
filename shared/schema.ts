@@ -357,6 +357,9 @@ export const tickets = pgTable("tickets", {
   // Signature tracking fields
   dropoffSignatureId: varchar("dropoff_signature_id"), // Signature request ID for drop-off
   pickupSignatureId: varchar("pickup_signature_id"), // Signature request ID for pickup
+  // Archive field - hides finalized tickets from Kanban without deleting data
+  isArchived: boolean("is_archived").default(false),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

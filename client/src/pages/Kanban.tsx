@@ -49,7 +49,7 @@ import QRCodeScanner from "@/components/QRCodeScanner";
 import { AdvancedSearch } from "@/components/search-filter/AdvancedSearch";
 import { FilterPanel } from "@/components/search-filter/FilterPanel";
 import { DateRangePicker } from "@/components/search-filter/DateRangePicker";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer, Archive } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -2109,6 +2109,29 @@ export default function KanbanTickets() {
     },
   });
 
+  // Archive finalized tickets mutation (cleanup)
+  const archiveFinalizedTickets = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/tickets/archive-finalized");
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: t("success", "Success"),
+        description: t("tickets_archived", "{{count}} finalized ticket(s) archived").replace("{{count}}", data.archivedCount?.toString() || "0"),
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: t("error", "Error"),
+        description: err.message || t("archive_failed", "Failed to archive tickets"),
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+    },
+  });
+
   // Update ticket status mutation
   const updateTicketStatus = useMutation({
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: TicketStatus }) => {
@@ -2566,8 +2589,13 @@ export default function KanbanTickets() {
       }
     }
     
-    // Filter archived tickets (finalized status)
+    // Filter archived tickets (finalized status or isArchived flag)
     if (!filters.showArchived && ticket.status === 'finalized') {
+      return false;
+    }
+    
+    // Always hide tickets that have been archived (cleanup action)
+    if ((ticket as any).isArchived === true) {
       return false;
     }
     
@@ -6291,13 +6319,38 @@ export default function KanbanTickets() {
               {/* Column Header */}
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-800">{column.title}</h3>
-                <Badge variant="secondary" className="bg-[#0A192F] text-[#00FFFF] border border-[#00FFFF]/30 font-semibold shadow-sm">
-                  {ticketsByStatus[column.id]?.length || 0}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-[#0A192F] text-[#00FFFF] border border-[#00FFFF]/30 font-semibold shadow-sm">
+                    {ticketsByStatus[column.id]?.length || 0}
+                  </Badge>
+                  {/* Cleanup button - only for finalized column */}
+                  {column.id === 'finalized' && (ticketsByStatus[column.id]?.length || 0) > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700"
+                      onClick={() => archiveFinalizedTickets.mutate()}
+                      disabled={archiveFinalizedTickets.isPending}
+                      title={t("cleanup_finalized", "Archive all finalized tickets")}
+                      data-testid="button-cleanup-finalized"
+                    >
+                      {archiveFinalizedTickets.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Archive className="w-3 h-3" />
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {/* Tickets */}
-              <div className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll">
+              {/* Tickets - scrollable when more than 5 tickets */}
+              <div 
+                className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll"
+                style={{ 
+                  maxHeight: (ticketsByStatus[column.id]?.length || 0) > 5 ? 'calc(5 * 180px + 4 * 12px)' : 'none' 
+                }}
+              >
                 {ticketsByStatus[column.id]?.map((ticket) => {
                   const collapsed = isCardCollapsed(ticket.id);
                   
@@ -6495,6 +6548,14 @@ export default function KanbanTickets() {
                               <Clock className="w-3 h-3 mr-1" />
                               {formatDate(ticket.createdAt)}
                             </div>
+
+                            {/* Finalization date - only shown for finalized tickets */}
+                            {ticket.status === 'finalized' && ticket.completedAt && (
+                              <div className={`flex items-center text-xs font-medium ${getStatusMutedColor(ticket.status)}`}>
+                                <CheckCircle className="w-3 h-3 mr-1 text-emerald-600" />
+                                {t("finalized_on", "Finalized")}: {formatDate(ticket.completedAt)}
+                              </div>
+                            )}
 
                             {/* Quick Actions */}
                             {ticket.client && (

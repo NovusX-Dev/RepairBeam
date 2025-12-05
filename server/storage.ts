@@ -187,6 +187,7 @@ export interface IStorage {
   checkTicketIdExists(ticketId: string, tenantId: string): Promise<boolean>;
   deleteTicket(ticketId: string, tenantId: string): Promise<boolean>;
   finalizeTicket(ticketId: string, tenantId: string, completedBy: string, completionNotes: string, actualHours: number, finalActualCost: number): Promise<Ticket | undefined>;
+  archiveFinalizedTickets(tenantId: string): Promise<number>; // Archive all finalized tickets, returns count
   
   // Completion analytics operations
   createCompletionAnalytics(analytics: InsertCompletionAnalytics): Promise<CompletionAnalytics>;
@@ -839,6 +840,27 @@ export class DatabaseStorage implements IStorage {
     }
 
     return finalizedTicket;
+  }
+
+  async archiveFinalizedTickets(tenantId: string): Promise<number> {
+    const now = new Date();
+    const result = await db
+      .update(tickets)
+      .set({ 
+        isArchived: true,
+        archivedAt: now,
+        updatedAt: now
+      })
+      .where(
+        and(
+          eq(tickets.tenantId, tenantId),
+          eq(tickets.status, 'finalized'),
+          eq(tickets.isArchived, false)
+        )
+      )
+      .returning();
+    
+    return result.length;
   }
 
   async updateTicket(ticketId: string, tenantId: string, updates: Partial<InsertTicket>): Promise<Ticket | undefined> {

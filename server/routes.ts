@@ -913,6 +913,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Archive all finalized tickets (cleanup from Kanban view)
+  app.post("/api/tickets/archive-finalized", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_DELETE), async (req: any, res) => {
+    try {
+      if (!req.authUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const archivedCount = await storage.archiveFinalizedTickets(req.authUser.tenantId);
+      
+      res.json({ 
+        success: true, 
+        archivedCount,
+        message: `Archived ${archivedCount} finalized ticket(s)` 
+      });
+    } catch (error: any) {
+      console.error("Error archiving tickets:", error);
+      res.status(500).json({ message: "Failed to archive tickets" });
+    }
+  });
+
   // Update ticket priority
   app.put("/api/tickets/:ticketId/priority", isAuthenticated, requirePermission(PERMISSIONS.TICKETS_UPDATE), async (req: any, res) => {
     try {
