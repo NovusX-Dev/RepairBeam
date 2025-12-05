@@ -1962,13 +1962,15 @@ export default function KanbanTickets() {
           const ticket = finalizedTicket as any;
           
           // Fetch client, ticket items, services, warranty tiers, and signatures
-          const [clientData, ticketItems, ticketRepairServices, warrantyTiers, ticketSignatures] = await Promise.all([
+          // Force fresh fetch for signatures since the pickup signature was just linked
+          const [clientData, ticketItems, ticketRepairServices, warrantyTiers, signaturesResponse] = await Promise.all([
             queryClient.fetchQuery({ queryKey: [`/api/clients/${ticket.clientId}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/tickets/${ticket.id}/items`] }),
             queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${ticket.deviceType}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/warranty-tiers/${ticket.deviceType}`] }),
-            queryClient.fetchQuery({ queryKey: [`/api/tickets/${ticket.id}/signatures`] })
+            fetch(`/api/tickets/${ticket.id}/signatures`, { credentials: 'include' }).then(r => r.json())
           ]);
+          const ticketSignatures = signaturesResponse || [];
 
           if (!clientData) {
             toast({
@@ -2335,14 +2337,16 @@ export default function KanbanTickets() {
       (async () => {
         try {
           // Fetch all required data including repair services and signatures
-          const [storeSettings, clientData, ticketChecklists, possibleDefects, repairServices, ticketSignatures] = await Promise.all([
+          // Force fresh fetch for signatures since the ticket was just created and signature was just linked
+          const [storeSettings, clientData, ticketChecklists, possibleDefects, repairServices, signaturesResponse] = await Promise.all([
             queryClient.fetchQuery({ queryKey: ['/api/store-settings'] }),
             queryClient.fetchQuery({ queryKey: [`/api/clients/${newTicket.clientId}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/checklists/device/${newTicket.deviceType}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/possible-defects/device/${newTicket.deviceType}`] }),
             queryClient.fetchQuery({ queryKey: [`/api/repair-services/device/${newTicket.deviceType}`] }),
-            queryClient.fetchQuery({ queryKey: [`/api/tickets/${newTicket.id}/signatures`] })
+            fetch(`/api/tickets/${newTicket.id}/signatures`, { credentials: 'include' }).then(r => r.json())
           ]);
+          const ticketSignatures = signaturesResponse || [];
 
           if (!storeSettings || !clientData) {
             toast({
