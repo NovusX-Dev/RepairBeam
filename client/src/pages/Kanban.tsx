@@ -3783,7 +3783,7 @@ export default function KanbanTickets() {
 
   return (
     <TooltipProvider>
-      <div className="w-full flex flex-col">
+      <div className="w-full h-full flex flex-col overflow-hidden">
       {/* Action Bar */}
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -6295,16 +6295,16 @@ export default function KanbanTickets() {
         </div>
       )}
 
-      {/* Kanban Board Container - Constrained to parent width */}
-      <div className="w-full overflow-hidden">
+      {/* Kanban Board Container - Fixed height with horizontal scroll always visible */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         <div 
-          className="w-full overflow-x-auto border border-border rounded-lg bg-muted/20"
+          className="h-full overflow-x-auto overflow-y-hidden border border-border rounded-lg bg-muted/20"
         >
-          <div className="flex gap-4 p-2" style={{ width: 'fit-content' }}>
+          <div className="flex gap-4 p-2 h-full" style={{ width: 'fit-content' }}>
           {kanbanColumns.map((column) => (
             <div
               key={column.id}
-              className={`w-84 ${column.color} rounded-lg p-3 flex flex-col flex-shrink-0 transition-all duration-200 ${
+              className={`w-84 h-full ${column.color} rounded-lg p-3 flex flex-col flex-shrink-0 transition-all duration-200 ${
                 dragHoverColumn === column.id 
                   ? isValidDrop
                     ? 'ring-2 ring-[#00FFFF] ring-offset-2 bg-opacity-80 shadow-lg shadow-[#00FFFF]/30 transform scale-[1.02]' 
@@ -6317,7 +6317,7 @@ export default function KanbanTickets() {
               data-testid={`column-${column.id}`}
             >
               {/* Column Header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
                 <h3 className="font-semibold text-gray-800">{column.title}</h3>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="bg-[#0A192F] text-[#00FFFF] border border-[#00FFFF]/30 font-semibold shadow-sm">
@@ -6344,12 +6344,9 @@ export default function KanbanTickets() {
                 </div>
               </div>
 
-              {/* Tickets - scrollable when more than 5 tickets */}
+              {/* Tickets - scrollable column filling available height */}
               <div 
-                className="space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll"
-                style={{ 
-                  maxHeight: (ticketsByStatus[column.id]?.length || 0) > 5 ? 'calc(5 * 180px + 4 * 12px)' : 'none' 
-                }}
+                className="flex-1 min-h-0 space-y-3 overflow-y-auto overflow-x-hidden pr-1 kanban-scroll"
               >
                 {ticketsByStatus[column.id]?.map((ticket) => {
                   const collapsed = isCardCollapsed(ticket.id);
