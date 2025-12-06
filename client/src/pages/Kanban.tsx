@@ -1251,6 +1251,12 @@ export default function KanbanTickets() {
   // Item selection dialog state
   const [showItemSelectionDialog, setShowItemSelectionDialog] = useState(false);
   const [itemSearchQuery, setItemSearchQuery] = useState('');
+  
+  // Device history modal state
+  const [showDeviceHistoryModal, setShowDeviceHistoryModal] = useState(false);
+  const [deviceHistorySearch, setDeviceHistorySearch] = useState('');
+  const [deviceHistoryTypeFilter, setDeviceHistoryTypeFilter] = useState<string>('all');
+  const [deviceHistoryWarrantyFilter, setDeviceHistoryWarrantyFilter] = useState<string>('all');
 
   // Finalization wizard state
   const [wizardStep, setWizardStep] = useState(1);
@@ -4119,25 +4125,51 @@ export default function KanbanTickets() {
                     <div className="mt-4 bg-slate-700/40 border border-blue-500/40 rounded-lg overflow-hidden shadow-lg">
                       {/* Aurora Gradient Header */}
                       <div className="bg-gradient-to-r from-blue-900/60 via-blue-700/60 to-cyan-800/60 px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                            <Clock className="w-6 h-6 text-blue-400" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                              <Clock className="w-6 h-6 text-blue-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-white text-lg">
+                                {t("device_history", "Device History")} <span className="text-blue-200">({clientTickets.length} {clientTickets.length === 1 ? t("device", "device") : t("devices", "devices")})</span>
+                              </h4>
+                              <p className="text-blue-200 text-xs">
+                                {t("select_previous_device", "Select a previously serviced device to auto-fill information")}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="font-bold text-white text-lg">
-                              {t("device_history", "Device History")} <span className="text-blue-200">({clientTickets.length} {clientTickets.length === 1 ? t("device", "device") : t("devices", "devices")})</span>
-                            </h4>
-                            <p className="text-blue-200 text-xs">
-                              {t("select_previous_device", "Select a previously serviced device to auto-fill information")}
-                            </p>
-                          </div>
+                          {clientTickets.length > 2 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setDeviceHistorySearch('');
+                                setDeviceHistoryTypeFilter('all');
+                                setDeviceHistoryWarrantyFilter('all');
+                                setShowDeviceHistoryModal(true);
+                              }}
+                              className="bg-blue-500/20 border-blue-400/50 text-blue-200 hover:bg-blue-500/30 hover:border-blue-400"
+                              data-testid="button-view-all-devices"
+                            >
+                              <Search className="w-4 h-4 mr-2" />
+                              {t("view_all_history", "View All")} ({clientTickets.length})
+                            </Button>
+                          )}
                         </div>
                       </div>
                       
-                      {/* Device Cards Grid */}
+                      {/* Device Cards Grid - Show only 2 most recent devices (sorted by completion/creation date) */}
                       <div className="p-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {clientTickets.map((ticket) => (
+                          {[...clientTickets]
+                            .sort((a, b) => {
+                              const dateA = new Date(a.completedAt || a.createdAt || 0).getTime();
+                              const dateB = new Date(b.completedAt || b.createdAt || 0).getTime();
+                              return dateB - dateA;
+                            })
+                            .slice(0, 2)
+                            .map((ticket) => (
                             <div
                               key={ticket.id}
                               className="bg-slate-800/60 border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-400/60 hover:bg-slate-800/80 transition-all shadow-md hover:shadow-xl"
@@ -7657,6 +7689,319 @@ export default function KanbanTickets() {
                 }
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Device History Modal */}
+      <Dialog open={showDeviceHistoryModal} onOpenChange={setShowDeviceHistoryModal}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden bg-gradient-to-br from-[#0A192F] to-slate-900">
+          <DialogHeader className="border-b border-[#00FFFF]/20 pb-4">
+            <DialogTitle className="text-xl font-bold text-[#00FFFF] flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              {t("full_device_history", "Full Device History")}
+              {selectedClient && (
+                <span className="text-sm font-normal text-slate-300 ml-2">
+                  - {selectedClient.firstName} {selectedClient.lastName}
+                </span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              {t("device_history_modal_description", "Search and filter through all previously serviced devices for this client.")}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Search and Filter Bar */}
+          <div className="p-4 bg-slate-800/50 border-b border-slate-700/50 space-y-3">
+            <div className="flex gap-3">
+              {/* Search Input */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  value={deviceHistorySearch}
+                  onChange={(e) => setDeviceHistorySearch(e.target.value)}
+                  placeholder={t("search_devices", "Search by model, brand, or color...")}
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400"
+                  data-testid="input-device-history-search"
+                />
+              </div>
+              
+              {/* Device Type Filter */}
+              <Select value={deviceHistoryTypeFilter} onValueChange={setDeviceHistoryTypeFilter}>
+                <SelectTrigger className="w-40 bg-slate-700/50 border-slate-600 text-white" data-testid="select-device-type-filter">
+                  <SelectValue placeholder={t("device_type", "Device Type")} />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0A1128] border-slate-600">
+                  <SelectItem value="all" className="text-white focus:bg-[#00FFFF]/20">{t("all_types", "All Types")}</SelectItem>
+                  <SelectItem value="Phone" className="text-white focus:bg-[#00FFFF]/20">{t("phone", "Phone")}</SelectItem>
+                  <SelectItem value="Laptop" className="text-white focus:bg-[#00FFFF]/20">{t("laptop", "Laptop")}</SelectItem>
+                  <SelectItem value="Desktop" className="text-white focus:bg-[#00FFFF]/20">{t("desktop", "Desktop")}</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Warranty Filter */}
+              <Select value={deviceHistoryWarrantyFilter} onValueChange={setDeviceHistoryWarrantyFilter}>
+                <SelectTrigger className="w-40 bg-slate-700/50 border-slate-600 text-white" data-testid="select-warranty-filter">
+                  <SelectValue placeholder={t("warranty", "Warranty")} />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0A1128] border-slate-600">
+                  <SelectItem value="all" className="text-white focus:bg-[#00FFFF]/20">{t("all_warranties", "All Warranties")}</SelectItem>
+                  <SelectItem value="standard" className="text-white focus:bg-[#00FFFF]/20">{t("standard_warranty", "Standard")}</SelectItem>
+                  <SelectItem value="extended" className="text-white focus:bg-[#00FFFF]/20">{t("extended_warranty", "Extended")}</SelectItem>
+                  <SelectItem value="none" className="text-white focus:bg-[#00FFFF]/20">{t("no_warranty", "No Warranty")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Active Filters Summary */}
+            {(deviceHistorySearch || deviceHistoryTypeFilter !== 'all' || deviceHistoryWarrantyFilter !== 'all') && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-slate-400">{t("active_filters", "Active filters")}:</span>
+                {deviceHistorySearch && (
+                  <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-300 border-cyan-500/30">
+                    {t("search", "Search")}: "{deviceHistorySearch}"
+                  </Badge>
+                )}
+                {deviceHistoryTypeFilter !== 'all' && (
+                  <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                    {t("type", "Type")}: {deviceHistoryTypeFilter}
+                  </Badge>
+                )}
+                {deviceHistoryWarrantyFilter !== 'all' && (
+                  <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                    {t("warranty", "Warranty")}: {deviceHistoryWarrantyFilter}
+                  </Badge>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDeviceHistorySearch('');
+                    setDeviceHistoryTypeFilter('all');
+                    setDeviceHistoryWarrantyFilter('all');
+                  }}
+                  className="h-6 px-2 text-xs text-slate-400 hover:text-white"
+                  data-testid="button-clear-device-filters"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  {t("clear_all", "Clear all")}
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Device Cards - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-4 max-h-[50vh]">
+            {(() => {
+              const filteredDevices = [...clientTickets]
+                .sort((a, b) => {
+                  const dateA = new Date(a.completedAt || a.createdAt || 0).getTime();
+                  const dateB = new Date(b.completedAt || b.createdAt || 0).getTime();
+                  return dateB - dateA;
+                })
+                .filter(ticket => {
+                  const searchLower = (deviceHistorySearch || '').toLowerCase().trim();
+                  const matchesSearch = !searchLower || 
+                    ((ticket.deviceModel || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceBrand || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceColor || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceType || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceMemory || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceStorageCapacity || '').toLowerCase().includes(searchLower));
+                  
+                  const matchesType = deviceHistoryTypeFilter === 'all' || ticket.deviceType === deviceHistoryTypeFilter;
+                  
+                  const ticketWarranty = (ticket.warrantyType || '').toLowerCase();
+                  const matchesWarranty = deviceHistoryWarrantyFilter === 'all' ||
+                    (deviceHistoryWarrantyFilter === 'none' && !ticket.warrantyType) ||
+                    (deviceHistoryWarrantyFilter === 'standard' && ticketWarranty === 'standard') ||
+                    (deviceHistoryWarrantyFilter === 'extended' && ticketWarranty === 'extended');
+                  
+                  return matchesSearch && matchesType && matchesWarranty;
+                });
+              
+              if (filteredDevices.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                    <Search className="w-12 h-12 mb-4 opacity-50" />
+                    <p className="text-lg font-medium">{t("no_devices_found", "No devices found")}</p>
+                    <p className="text-sm">{t("try_different_filters", "Try adjusting your search or filters")}</p>
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredDevices.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      className="bg-slate-800/60 border border-cyan-500/30 rounded-lg p-4 hover:border-cyan-400/60 hover:bg-slate-800/80 transition-all shadow-md hover:shadow-xl"
+                      data-testid={`modal-device-card-${ticket.id}`}
+                    >
+                      {/* Device Header */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                          {ticket.deviceType === 'Phone' && <Smartphone className="w-5 h-5 text-cyan-400" />}
+                          {ticket.deviceType === 'Laptop' && <Laptop className="w-5 h-5 text-cyan-400" />}
+                          {ticket.deviceType === 'Desktop' && <Monitor className="w-5 h-5 text-cyan-400" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="font-bold text-white text-sm mb-1 truncate">
+                            {ticket.deviceType} - {ticket.deviceModel}
+                          </h5>
+                          <div className="space-y-1 text-xs text-gray-300">
+                            <div className="flex items-center gap-1">
+                              <span className="text-cyan-400">{t("color", "Color")}:</span> 
+                              <span className="font-medium">{ticket.deviceColor}</span>
+                            </div>
+                            {ticket.deviceMemory && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-cyan-400">{t("memory", "Memory")}:</span>
+                                <span className="font-medium">{ticket.deviceMemory}</span>
+                              </div>
+                            )}
+                            {ticket.deviceStorageCapacity && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-cyan-400">{t("storage", "Storage")}:</span>
+                                <span className="font-medium">{ticket.deviceStorageCapacity}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Service Indicators */}
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {ticket.selectedServices && Array.isArray(ticket.selectedServices) && ticket.selectedServices.length > 0 && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 border border-green-500/30 text-green-300 rounded-md text-xs font-medium">
+                            <Wrench className="w-3 h-3" />
+                            <span>{ticket.selectedServices.length} {t("services", "services")}</span>
+                          </div>
+                        )}
+                        
+                        {ticket.serviceChecklist && typeof ticket.serviceChecklist === 'object' && Object.keys(ticket.serviceChecklist as Record<string, any>).length > 0 && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-orange-500/20 border border-orange-500/30 text-orange-300 rounded-md text-xs font-medium">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>{Object.keys(ticket.serviceChecklist as Record<string, any>).length} {t("defects_found", "defects")}</span>
+                          </div>
+                        )}
+                        
+                        {ticket.warrantyType && ticket.status === 'finalized' && (
+                          <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded-md text-xs font-medium">
+                            <Shield className="w-3 h-3" />
+                            <span>{ticket.warrantyType === 'extended' ? t("extended_warranty", "Extended") : t("standard_warranty", "Standard")}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Last Service Date and Warranty Expiration */}
+                      <div className="space-y-2 mb-3 pb-3 border-b border-cyan-500/20">
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <Clock className="w-3 h-3" />
+                          <span className="font-medium">{t("last_service", "Last Service")}:</span>
+                          <span>{ticket.createdAt ? formatDate(ticket.createdAt) : t("not_available", "N/A")}</span>
+                        </div>
+                        
+                        {/* Warranty Expiration Date */}
+                        {ticket.warrantyType && ticket.status === 'finalized' && ticket.completedAt && (
+                          (() => {
+                            const completedDate = new Date(ticket.completedAt);
+                            const monthsToAdd = ticket.warrantyType === 'extended' ? 6 : 3;
+                            const expirationDate = new Date(completedDate);
+                            expirationDate.setMonth(expirationDate.getMonth() + monthsToAdd);
+                            const isExpired = new Date() > expirationDate;
+                            
+                            return (
+                              <div className="flex items-center gap-2 text-xs">
+                                <Shield className={`w-3 h-3 ${isExpired ? 'text-red-400' : 'text-blue-400'}`} />
+                                <span className={`font-medium ${isExpired ? 'text-red-400' : 'text-gray-400'}`}>
+                                  {t("warranty_expires", "Warranty Expires")}:
+                                </span>
+                                <span className={isExpired ? 'text-red-400 font-semibold' : 'text-gray-400'}>
+                                  {formatDate(expirationDate)}
+                                </span>
+                                {isExpired && (
+                                  <Badge variant="destructive" className="text-xs py-0 px-2 bg-red-500/20 text-red-400 border-red-500/30">
+                                    {t("expired", "Expired")}
+                                  </Badge>
+                                )}
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                      
+                      {/* Use Device Button */}
+                      <Button
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold shadow-md"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            deviceType: ticket.deviceType || '',
+                            deviceBrand: ticket.deviceBrand || '',
+                            deviceModel: ticket.deviceModel || '',
+                            deviceColor: ticket.deviceColor || '',
+                            deviceMemory: ticket.deviceMemory || '',
+                            deviceStorageCapacity: ticket.deviceStorageCapacity || '',
+                            selectedServices: [],
+                            technicianEstimatedHours: '',
+                            costEstimation: '',
+                            totalCost: '',
+                          }));
+                          setCurrentStep(1);
+                          setShowDeviceHistoryModal(false);
+                          toast({
+                            title: t("device_selected", "Device Selected"),
+                            description: t("device_info_filled", "Device information has been auto-filled"),
+                          });
+                        }}
+                        data-testid={`modal-button-use-device-${ticket.id}`}
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        {t("use_this_device", "Use This Device")}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          
+          {/* Footer with count */}
+          <div className="border-t border-slate-700/50 p-4 flex items-center justify-between">
+            <p className="text-sm text-slate-400">
+              {t("showing_devices", "Showing")} {(() => {
+                const searchLower = (deviceHistorySearch || '').toLowerCase().trim();
+                return clientTickets.filter(ticket => {
+                  const matchesSearch = !searchLower || 
+                    ((ticket.deviceModel || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceBrand || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceColor || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceType || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceMemory || '').toLowerCase().includes(searchLower)) ||
+                    ((ticket.deviceStorageCapacity || '').toLowerCase().includes(searchLower));
+                  
+                  const matchesType = deviceHistoryTypeFilter === 'all' || ticket.deviceType === deviceHistoryTypeFilter;
+                  
+                  const ticketWarranty = (ticket.warrantyType || '').toLowerCase();
+                  const matchesWarranty = deviceHistoryWarrantyFilter === 'all' ||
+                    (deviceHistoryWarrantyFilter === 'none' && !ticket.warrantyType) ||
+                    (deviceHistoryWarrantyFilter === 'standard' && ticketWarranty === 'standard') ||
+                    (deviceHistoryWarrantyFilter === 'extended' && ticketWarranty === 'extended');
+                  
+                  return matchesSearch && matchesType && matchesWarranty;
+                }).length;
+              })()} {t("of", "of")} {clientTickets.length} {t("devices", "devices")}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeviceHistoryModal(false)}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              data-testid="button-close-device-history-modal"
+            >
+              {t("close", "Close")}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
