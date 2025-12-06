@@ -3829,7 +3829,11 @@ export default function KanbanTickets() {
                 {t("new_ticket", "New Ticket")}
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-[#0A192F] to-slate-900 dark:from-[#0A192F] dark:to-slate-900">
+          <DialogContent 
+            className="max-w-5xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-[#0A192F] to-slate-900 dark:from-[#0A192F] dark:to-slate-900"
+            onInteractOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader className="border-b border-[#00FFFF]/20 pb-4 mb-0">
               <DialogTitle className="text-2xl font-bold text-[#00FFFF]">
                 {t("create_new_ticket", "Create New Ticket")}
@@ -6833,7 +6837,11 @@ export default function KanbanTickets() {
         setShowCompletionDialog(open);
         if (!open) resetWizard();
       }}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className="sm:max-w-4xl max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Check className="w-5 h-5 text-green-600" />
