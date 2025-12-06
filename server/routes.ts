@@ -318,13 +318,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const formattedMonthlyRevenue = fromCents(monthlyRevenue, 'en');
 
-      // Calculate completion analytics metrics
-      const completionRate = totalTickets > 0 ? ((completedTickets / totalTickets) * 100).toFixed(1) : '0.0';
+      // Calculate completion analytics metrics (return as numbers, not strings)
+      const completionRate = totalTickets > 0 ? Math.round(((completedTickets / totalTickets) * 100) * 10) / 10 : 0;
       
       // Calculate average accuracy score from recent completions
       const avgAccuracyScore = completionAnalytics.length > 0 
-        ? (completionAnalytics.reduce((sum, a) => sum + parseFloat(a.accuracyScore || '0'), 0) / completionAnalytics.length).toFixed(1)
-        : '0.0';
+        ? Math.round((completionAnalytics.reduce((sum, a) => sum + parseFloat(a.accuracyScore || '0'), 0) / completionAnalytics.length) * 10) / 10
+        : 0;
       
       // Calculate revenue from completed tickets this month
       const completedTicketsThisMonth = tickets.filter(t => {
@@ -345,13 +345,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calculate time variance trend (positive = over-estimated, negative = under-estimated)
       const avgTimeVariance = completionAnalytics.length > 0
-        ? (completionAnalytics.reduce((sum, a) => sum + parseFloat(a.hoursVariancePercentage || '0'), 0) / completionAnalytics.length).toFixed(1)
-        : '0.0';
+        ? Math.round((completionAnalytics.reduce((sum, a) => sum + parseFloat(a.hoursVariancePercentage || '0'), 0) / completionAnalytics.length) * 10) / 10
+        : 0;
       
       // Calculate cost variance trend
       const avgCostVariance = completionAnalytics.length > 0
-        ? (completionAnalytics.reduce((sum, a) => sum + parseFloat(a.costVariancePercentage || '0'), 0) / completionAnalytics.length).toFixed(1)
-        : '0.0';
+        ? Math.round((completionAnalytics.reduce((sum, a) => sum + parseFloat(a.costVariancePercentage || '0'), 0) / completionAnalytics.length) * 10) / 10
+        : 0;
+
+      // Calculate ticket status breakdown for pie chart
+      const statusCounts: Record<string, number> = {};
+      tickets.forEach(t => {
+        const status = t.status || 'intake';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      
+      const ticketStatusBreakdown = Object.entries(statusCounts).map(([status, count]) => ({
+        status,
+        count,
+        percentage: totalTickets > 0 ? Math.round(((count / totalTickets) * 100) * 10) / 10 : 0
+      }));
+
+      // Calculate daily revenue trend (last 7 days)
+      const dailyRevenueTrend: { date: string; revenue: number; ticketCount: number }[] = [];
+      const today = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const dayTransactions = transactions.filter(t => {
+          if (!t.createdAt) return false;
+          const txDate = new Date(t.createdAt).toISOString().split('T')[0];
+          return txDate === dateStr;
+        });
+        
+        const dayRevenue = dayTransactions.reduce((sum, t) => {
+          return sum + toCents(t.total.toString(), 'en');
+        }, 0);
+        
+        const dayTickets = tickets.filter(t => {
+          if (!t.createdAt) return false;
+          const ticketDate = new Date(t.createdAt).toISOString().split('T')[0];
+          return ticketDate === dateStr;
+        }).length;
+        
+        dailyRevenueTrend.push({
+          date: dateStr,
+          revenue: dayRevenue / 100,
+          ticketCount: dayTickets
+        });
+      }
+
+      // Get recent activity (last 10 events)
+      const recentActivity: { id: string; type: string; description: string; timestamp: string; metadata?: any }[] = [];
+      
+      // Add recent tickets
+      const sortedTickets = [...tickets]
+        .filter(t => t.createdAt)
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+        .slice(0, 5);
+      
+      sortedTickets.forEach(t => {
+        recentActivity.push({
+          id: `ticket-${t.id}`,
+          type: 'ticket_created',
+          description: `New ticket #${t.id.slice(0, 8)}`,
+          timestamp: t.createdAt!.toString(),
+          metadata: { deviceType: t.deviceType, deviceModel: t.deviceModel, status: t.status }
+        });
+      });
+      
+      // Add recent completed tickets
+      const recentCompleted = [...tickets]
+        .filter(t => t.status === 'finalized' && t.completedAt)
+        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())
+        .slice(0, 5);
+      
+      recentCompleted.forEach(t => {
+        recentActivity.push({
+          id: `completed-${t.id}`,
+          type: 'ticket_completed',
+          description: `Ticket #${t.id.slice(0, 8)} completed`,
+          timestamp: t.completedAt!.toString(),
+          metadata: { finalCost: t.finalActualCost, deviceType: t.deviceType }
+        });
+      });
+      
+      // Add recent transactions
+      const sortedTransactions = [...transactions]
+        .filter(t => t.createdAt)
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+        .slice(0, 5);
+      
+      sortedTransactions.forEach(t => {
+        recentActivity.push({
+          id: `tx-${t.id}`,
+          type: 'payment_received',
+          description: `Payment of ${fromCents(toCents(t.total.toString(), 'en'), 'en')}`,
+          timestamp: t.createdAt!.toString(),
+          metadata: { paymentMethod: t.paymentMethod, total: t.total }
+        });
+      });
+      
+      // Sort all activity by timestamp and take top 10
+      recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const topRecentActivity = recentActivity.slice(0, 10);
+
+      // Calculate previous month revenue for comparison
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevMonthRevenue = transactions
+        .filter(t => {
+          const transactionDate = new Date(t.createdAt!);
+          return transactionDate.getMonth() === prevMonth && 
+                 transactionDate.getFullYear() === prevYear;
+        })
+        .reduce((sum, t) => sum + toCents(t.total.toString(), 'en'), 0);
+      
+      const revenueChange = prevMonthRevenue > 0 
+        ? Math.round((((monthlyRevenue - prevMonthRevenue) / prevMonthRevenue) * 100) * 10) / 10
+        : monthlyRevenue > 0 ? 100.0 : 0;
+
+      // Calculate previous month ticket count for comparison
+      const prevMonthTickets = tickets.filter(t => {
+        if (!t.createdAt) return false;
+        const ticketDate = new Date(t.createdAt);
+        return ticketDate.getMonth() === prevMonth && ticketDate.getFullYear() === prevYear;
+      }).length;
+      
+      const currentMonthTickets = tickets.filter(t => {
+        if (!t.createdAt) return false;
+        const ticketDate = new Date(t.createdAt);
+        return ticketDate.getMonth() === currentMonth && ticketDate.getFullYear() === currentYear;
+      }).length;
+      
+      const ticketChange = prevMonthTickets > 0
+        ? Math.round((((currentMonthTickets - prevMonthTickets) / prevMonthTickets) * 100) * 10) / 10
+        : currentMonthTickets > 0 ? 100.0 : 0;
+
+      // Calculate inventory total value
+      const inventoryTotalValue = inventoryItems.reduce((sum, item) => {
+        const price = parseFloat(item.cost?.toString() || '0');
+        return sum + (price * item.quantity);
+      }, 0);
 
       res.json({
         openTickets,
@@ -359,14 +496,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lowStockItems,
         activeClients: clients.length,
         // Completion Analytics Metrics
-        completionRate: parseFloat(completionRate),
+        completionRate,
         completedTickets,
         totalTickets,
-        avgAccuracyScore: parseFloat(avgAccuracyScore),
+        avgAccuracyScore,
         completionRevenue: formattedCompletionRevenue,
-        avgTimeVariance: parseFloat(avgTimeVariance),
-        avgCostVariance: parseFloat(avgCostVariance),
-        recentCompletions: completionAnalytics.length
+        avgTimeVariance,
+        avgCostVariance,
+        recentCompletions: completionAnalytics.length,
+        // New dashboard metrics
+        ticketStatusBreakdown,
+        dailyRevenueTrend,
+        recentActivity: topRecentActivity,
+        revenueChange,
+        ticketChange,
+        currentMonthTickets,
+        inventoryTotalValue: inventoryTotalValue.toFixed(2),
+        totalInventoryItems: inventoryItems.length
       });
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
