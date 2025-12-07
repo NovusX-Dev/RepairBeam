@@ -5247,6 +5247,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POS - Quotes Routes
   // ========================================================================
 
+  app.get("/api/quotes/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const allQuotes = await storage.getQuotes(req.authUser.tenantId);
+      const now = new Date();
+      
+      const stats = {
+        total: allQuotes.length,
+        draft: allQuotes.filter(q => q.status === 'draft').length,
+        sent: allQuotes.filter(q => q.status === 'sent').length,
+        accepted: allQuotes.filter(q => q.status === 'accepted').length,
+        rejected: allQuotes.filter(q => q.status === 'rejected').length,
+        expired: allQuotes.filter(q => q.status === 'expired' || (q.validUntil && new Date(q.validUntil) < now && q.status === 'sent')).length,
+        converted: allQuotes.filter(q => q.status === 'converted').length,
+        totalValue: allQuotes.reduce((sum, q) => sum + parseFloat(q.totalAmount || '0'), 0),
+        pendingValue: allQuotes.filter(q => q.status === 'sent').reduce((sum, q) => sum + parseFloat(q.totalAmount || '0'), 0),
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching quotes stats:", error);
+      res.status(500).json({ message: "Failed to fetch quotes stats" });
+    }
+  });
+
   app.get("/api/quotes", isAuthenticated, async (req: any, res) => {
     try {
       if (!req.authUser?.tenantId) {
@@ -5323,6 +5350,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting quote:", error);
       res.status(500).json({ message: "Failed to delete quote" });
+    }
+  });
+
+  app.post("/api/quotes/:id/convert-to-invoice", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const quote = await storage.getQuote(req.params.id, req.authUser.tenantId);
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      
+      if (quote.status !== 'accepted') {
+        return res.status(400).json({ message: "Only accepted quotes can be converted to invoices" });
+      }
+      
+      if (quote.convertedToInvoiceId) {
+        return res.status(400).json({ message: "Quote has already been converted to an invoice" });
+      }
+      
+      const quoteItems = await storage.getQuoteItems(quote.id);
+      const invoiceNumber = await storage.getNextPosInvoiceNumber(req.authUser.tenantId);
+      
+      const invoice = await storage.createPosInvoice({
+        tenantId: req.authUser.tenantId,
+        invoiceNumber,
+        clientId: quote.clientId,
+        quoteId: quote.id,
+        status: 'draft',
+        subtotal: quote.subtotal,
+        discountAmount: quote.discountAmount,
+        discountPercentage: quote.discountPercentage,
+        taxAmount: quote.taxAmount,
+        totalAmount: quote.totalAmount,
+        paidAmount: '0.00',
+        balanceDue: quote.totalAmount,
+        notes: quote.notes,
+        issuedBy: req.authUser.id,
+      });
+      
+      for (const item of quoteItems) {
+        await storage.createPosInvoiceItem({
+          invoiceId: invoice.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountAmount: item.discountAmount,
+          totalPrice: item.totalPrice,
+          inventoryItemId: item.inventoryItemId,
+          repairServiceId: item.repairServiceId,
+          sortOrder: item.sortOrder,
+        });
+      }
+      
+      await storage.updateQuote(quote.id, req.authUser.tenantId, {
+        status: 'converted',
+        convertedToInvoiceId: invoice.id,
+      });
+      
+      res.status(201).json(invoice);
+    } catch (error) {
+      console.error("Error converting quote to invoice:", error);
+      res.status(500).json({ message: "Failed to convert quote to invoice" });
     }
   });
 
