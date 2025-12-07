@@ -86,12 +86,12 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   return (
     <div 
       className={cn(
-        "bg-navy-900 border-r border-border transition-all duration-300 ease-in-out",
+        "bg-navy-900 border-r border-border transition-all duration-300 ease-in-out h-screen flex flex-col",
         isCollapsed ? "w-20" : "w-70"
       )}
     >
-      {/* Brand Header */}
-      <div className="flex items-center justify-between p-6 border-b border-border">
+      {/* Brand Header - Fixed at top */}
+      <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-border">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-background">
             {storeSettings?.shopLogoUrl ? (
@@ -130,8 +130,8 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         </Button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+      {/* Navigation - Scrollable middle section */}
+      <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-2 sidebar-nav">
         {/* Main Section */}
         {mainItems.map((item) => {
           const Icon = item.icon;
@@ -262,9 +262,9 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         )}
       </nav>
 
-      {/* User Profile */}
+      {/* User Profile - Fixed at bottom */}
       {!isCollapsed && user && (
-        <div className="p-4 border-t border-border">
+        <div className="flex-shrink-0 p-4 border-t border-border bg-navy-900">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-navy-900 font-semibold text-sm overflow-hidden">
               {storeSettings?.shopLogoUrl ? (

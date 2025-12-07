@@ -185,6 +185,30 @@
   background: hsl(210 40% 8%);
 }
 
+/* Sidebar navigation scrollbar - thinner and subtle */
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: hsl(210 40% 20%);
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: hsl(180 100% 50%);
+}
+
+/* Firefox sidebar scrollbar */
+.sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(210 40% 20%) transparent;
+}
+
 /* Date picker calendar theming */
 input[type="date"] {
   color-scheme: dark;
