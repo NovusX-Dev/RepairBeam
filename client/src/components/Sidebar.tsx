@@ -22,6 +22,11 @@ import {
   UserCog,
   ScrollText,
   ChevronLeft,
+  FileText,
+  Receipt,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -33,19 +38,23 @@ interface SidebarProps {
 }
 
 const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
-  { name: t("dashboard", "Dashboard"), href: "/", icon: LayoutDashboard, id: "dashboard", translationKey: "dashboard", permission: null },
-  { name: t("clients", "Clients"), href: "/clients", icon: Users, id: "clients", translationKey: "clients", permission: PERMISSIONS.CLIENTS_READ },
-  { name: t("kanban", "Kanban Tickets"), href: "/kanban", icon: Kanban, id: "kanban", translationKey: "kanban", permission: PERMISSIONS.TICKETS_READ },
-  { name: t("completed_history", "Completed History"), href: "/completed-history", icon: CheckSquare, id: "completed-history", translationKey: "completed_history", permission: PERMISSIONS.TICKETS_READ },
-  { name: t("inventory", "Inventory"), href: "/inventory", icon: Package, id: "inventory", translationKey: "inventory", permission: PERMISSIONS.INVENTORY_READ },
-  { name: t("inventory_analytics", "Inventory Analytics"), href: "/inventory-analytics", icon: TrendingUp, id: "inventory-analytics", translationKey: "inventory_analytics", permission: PERMISSIONS.INVENTORY_VIEW_ANALYTICS },
-  { name: t("suppliers", "Suppliers"), href: "/suppliers", icon: Building2, id: "suppliers", translationKey: "suppliers", permission: PERMISSIONS.PURCHASE_ORDERS_READ },
-  { name: t("purchase_orders", "Purchase Orders"), href: "/purchase-orders", icon: ShoppingCart, id: "purchase-orders", translationKey: "purchase_orders", permission: PERMISSIONS.PURCHASE_ORDERS_READ },
-  { name: t("pos", "Point of Sale"), href: "/pos", icon: CreditCard, id: "pos", translationKey: "pos", permission: PERMISSIONS.POS_ACCESS },
-  { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support", permission: null },
-  { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs", permission: PERMISSIONS.SETTINGS_READ },
-  { name: t("userManagement", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "userManagement", permission: PERMISSIONS.USERS_READ },
-  { name: t("audit_logs", "Audit Logs"), href: "/audit-logs", icon: ScrollText, id: "audit-logs", translationKey: "audit_logs", permission: PERMISSIONS.AUDIT_LOGS_READ },
+  { name: t("dashboard", "Dashboard"), href: "/", icon: LayoutDashboard, id: "dashboard", translationKey: "dashboard", permission: null, section: "main" },
+  { name: t("clients", "Clients"), href: "/clients", icon: Users, id: "clients", translationKey: "clients", permission: PERMISSIONS.CLIENTS_READ, section: "main" },
+  { name: t("kanban", "Kanban Tickets"), href: "/kanban", icon: Kanban, id: "kanban", translationKey: "kanban", permission: PERMISSIONS.TICKETS_READ, section: "main" },
+  { name: t("completed_history", "Completed History"), href: "/completed-history", icon: CheckSquare, id: "completed-history", translationKey: "completed_history", permission: PERMISSIONS.TICKETS_READ, section: "main" },
+  { name: t("inventory", "Inventory"), href: "/inventory", icon: Package, id: "inventory", translationKey: "inventory", permission: PERMISSIONS.INVENTORY_READ, section: "stock" },
+  { name: t("inventory_analytics", "Inventory Analytics"), href: "/inventory-analytics", icon: TrendingUp, id: "inventory-analytics", translationKey: "inventory_analytics", permission: PERMISSIONS.INVENTORY_VIEW_ANALYTICS, section: "stock" },
+  { name: t("suppliers", "Suppliers"), href: "/suppliers", icon: Building2, id: "suppliers", translationKey: "suppliers", permission: PERMISSIONS.PURCHASE_ORDERS_READ, section: "stock" },
+  { name: t("purchase_orders", "Purchase Orders"), href: "/purchase-orders", icon: ShoppingCart, id: "purchase-orders", translationKey: "purchase_orders", permission: PERMISSIONS.PURCHASE_ORDERS_READ, section: "stock" },
+  { name: t("pos", "Point of Sale"), href: "/pos", icon: CreditCard, id: "pos", translationKey: "pos", permission: PERMISSIONS.POS_ACCESS, section: "finance" },
+  { name: t("quotes", "Quotes"), href: "/quotes", icon: FileText, id: "quotes", translationKey: "quotes", permission: PERMISSIONS.QUOTES_READ, section: "finance" },
+  { name: t("invoices", "Invoices"), href: "/pos-invoices", icon: Receipt, id: "pos-invoices", translationKey: "invoices", permission: PERMISSIONS.INVOICES_READ, section: "finance" },
+  { name: t("accounts_receivable", "Accounts Receivable"), href: "/accounts-receivable", icon: ArrowDownCircle, id: "accounts-receivable", translationKey: "accounts_receivable", permission: PERMISSIONS.ACCOUNTS_RECEIVABLE_READ, section: "finance" },
+  { name: t("accounts_payable", "Accounts Payable"), href: "/accounts-payable", icon: ArrowUpCircle, id: "accounts-payable", translationKey: "accounts_payable", permission: PERMISSIONS.ACCOUNTS_PAYABLE_READ, section: "finance" },
+  { name: t("support", "Customer Support"), href: "/support", icon: HeadphonesIcon, id: "support", translationKey: "support", permission: null, section: "other" },
+  { name: t("configs", "Configurations"), href: "/configs", icon: Settings, id: "configs", translationKey: "configs", permission: PERMISSIONS.SETTINGS_READ, section: "other" },
+  { name: t("userManagement", "User Management"), href: "/users", icon: UserCog, id: "users", translationKey: "userManagement", permission: PERMISSIONS.USERS_READ, section: "other" },
+  { name: t("audit_logs", "Audit Logs"), href: "/audit-logs", icon: ScrollText, id: "audit-logs", translationKey: "audit_logs", permission: PERMISSIONS.AUDIT_LOGS_READ, section: "other" },
 ];
 
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {
@@ -67,6 +76,12 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   const navigationItems = allNavigationItems.filter(item => 
     !item.permission || hasPermission(item.permission as Permission)
   );
+  
+  // Group items by section
+  const mainItems = navigationItems.filter(item => item.section === "main");
+  const stockItems = navigationItems.filter(item => item.section === "stock");
+  const financeItems = navigationItems.filter(item => item.section === "finance");
+  const otherItems = navigationItems.filter(item => item.section === "other");
 
   return (
     <div 
@@ -116,8 +131,9 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navigationItems.slice(0, 4).map((item) => {
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {/* Main Section */}
+        {mainItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href;
           
@@ -142,68 +158,108 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         })}
 
         {/* Divider before Stock Management */}
-        <div className="border-t border-cyan-500/20 my-3"></div>
-
-        {/* Stock Management Section */}
-        {!isCollapsed && (
-          <div className="pb-2">
-            <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
-              {t("stock_management", "Stock Management")}
-            </h3>
-          </div>
+        {stockItems.length > 0 && (
+          <>
+            <div className="border-t border-cyan-500/20 my-3"></div>
+            {!isCollapsed && (
+              <div className="pb-2">
+                <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
+                  {t("stock_management", "Stock Management")}
+                </h3>
+              </div>
+            )}
+            {stockItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <Link 
+                  key={item.id} 
+                  href={item.href}
+                  className={cn(
+                    "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+                    "hover:bg-accent hover:border-l-primary",
+                    isActive && "bg-accent border-l-primary text-primary"
+                  )}
+                  onClick={() => onPageChange(item.name)}
+                  data-testid={`link-nav-${item.id}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {!isCollapsed && (
+                    <span className="font-medium">{item.name}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </>
         )}
-        
-        {navigationItems.slice(4, 8).map((item) => {
-          const Icon = item.icon;
-          const isActive = location === item.href;
-          
-          return (
-            <Link 
-              key={item.id} 
-              href={item.href}
-              className={cn(
-                "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                "hover:bg-accent hover:border-l-primary",
-                isActive && "bg-accent border-l-primary text-primary"
-              )}
-              onClick={() => onPageChange(item.name)}
-              data-testid={`link-nav-${item.id}`}
-            >
-              <Icon className="w-5 h-5" />
-              {!isCollapsed && (
-                <span className="font-medium">{item.name}</span>
-              )}
-            </Link>
-          );
-        })}
 
-        {/* Divider after Stock Management */}
-        <div className="border-t border-cyan-500/20 my-3"></div>
+        {/* Finance & Billing Section */}
+        {financeItems.length > 0 && (
+          <>
+            <div className="border-t border-cyan-500/20 my-3"></div>
+            {!isCollapsed && (
+              <div className="pb-2">
+                <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
+                  {t("finance_and_billing", "Finance & Billing")}
+                </h3>
+              </div>
+            )}
+            {financeItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <Link 
+                  key={item.id} 
+                  href={item.href}
+                  className={cn(
+                    "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+                    "hover:bg-accent hover:border-l-primary",
+                    isActive && "bg-accent border-l-primary text-primary"
+                  )}
+                  onClick={() => onPageChange(item.name)}
+                  data-testid={`link-nav-${item.id}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {!isCollapsed && (
+                    <span className="font-medium">{item.name}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </>
+        )}
 
-        {/* Remaining items */}
-        {navigationItems.slice(8).map((item) => {
-          const Icon = item.icon;
-          const isActive = location === item.href;
-          
-          return (
-            <Link 
-              key={item.id} 
-              href={item.href}
-              className={cn(
-                "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                "hover:bg-accent hover:border-l-primary",
-                isActive && "bg-accent border-l-primary text-primary"
-              )}
-              onClick={() => onPageChange(item.name)}
-              data-testid={`link-nav-${item.id}`}
-            >
-              <Icon className="w-5 h-5" />
-              {!isCollapsed && (
-                <span className="font-medium">{item.name}</span>
-              )}
-            </Link>
-          );
-        })}
+        {/* Divider after Finance */}
+        {otherItems.length > 0 && (
+          <>
+            <div className="border-t border-cyan-500/20 my-3"></div>
+            {otherItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.href;
+              
+              return (
+                <Link 
+                  key={item.id} 
+                  href={item.href}
+                  className={cn(
+                    "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+                    "hover:bg-accent hover:border-l-primary",
+                    isActive && "bg-accent border-l-primary text-primary"
+                  )}
+                  onClick={() => onPageChange(item.name)}
+                  data-testid={`link-nav-${item.id}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {!isCollapsed && (
+                    <span className="font-medium">{item.name}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User Profile */}

@@ -20,6 +20,10 @@ import InventoryAnalytics from "@/pages/InventoryAnalytics";
 import Suppliers from "@/pages/Suppliers";
 import PurchaseOrders from "@/pages/PurchaseOrders";
 import POS from "@/pages/POS";
+import Quotes from "@/pages/Quotes";
+import PosInvoices from "@/pages/PosInvoices";
+import AccountsReceivable from "@/pages/AccountsReceivable";
+import AccountsPayable from "@/pages/AccountsPayable";
 import Support from "@/pages/Support";
 import Configs from "@/pages/Configs";
 import Users from "@/pages/Users";
@@ -77,6 +81,10 @@ function Router() {
             <Route path="/suppliers" component={() => <Layout><Suppliers /></Layout>} />
             <Route path="/purchase-orders" component={() => <Layout><PurchaseOrders /></Layout>} />
             <Route path="/pos" component={() => <Layout><POS /></Layout>} />
+            <Route path="/quotes" component={() => <Layout><Quotes /></Layout>} />
+            <Route path="/pos-invoices" component={() => <Layout><PosInvoices /></Layout>} />
+            <Route path="/accounts-receivable" component={() => <Layout><AccountsReceivable /></Layout>} />
+            <Route path="/accounts-payable" component={() => <Layout><AccountsPayable /></Layout>} />
             <Route path="/support" component={() => <Layout><Support /></Layout>} />
             <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
             <Route path="/users" component={() => <Layout><Users /></Layout>} />

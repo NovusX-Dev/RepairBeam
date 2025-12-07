@@ -43,6 +43,29 @@ export const PERMISSIONS = {
   POS_REFUND: 'pos:refund',
   POS_VIEW_REPORTS: 'pos:view_reports',
   
+  // Quotes
+  QUOTES_READ: 'quotes:read',
+  QUOTES_CREATE: 'quotes:create',
+  QUOTES_UPDATE: 'quotes:update',
+  QUOTES_DELETE: 'quotes:delete',
+  QUOTES_CONVERT_TO_INVOICE: 'quotes:convert_to_invoice',
+  
+  // Invoices (POS)
+  INVOICES_READ: 'invoices:read',
+  INVOICES_CREATE: 'invoices:create',
+  INVOICES_UPDATE: 'invoices:update',
+  INVOICES_DELETE: 'invoices:delete',
+  INVOICES_VOID: 'invoices:void',
+  
+  // Finance & Accounts
+  FINANCE_READ: 'finance:read',
+  ACCOUNTS_RECEIVABLE_READ: 'accounts_receivable:read',
+  ACCOUNTS_RECEIVABLE_MANAGE: 'accounts_receivable:manage',
+  ACCOUNTS_PAYABLE_READ: 'accounts_payable:read',
+  ACCOUNTS_PAYABLE_MANAGE: 'accounts_payable:manage',
+  PAYMENT_TERMS_MANAGE: 'payment_terms:manage',
+  PAYMENT_METHODS_MANAGE: 'payment_methods:manage',
+  
   // User Management (Admin only)
   USERS_READ: 'users:read',
   USERS_INVITE: 'users:invite',
@@ -131,6 +154,41 @@ export const PERMISSION_CATEGORIES = {
       PERMISSIONS.POS_PROCESS_SALE,
       PERMISSIONS.POS_REFUND,
       PERMISSIONS.POS_VIEW_REPORTS,
+    ],
+  },
+  QUOTES: {
+    label: 'Quotes',
+    description: 'Create and manage quotes for clients',
+    permissions: [
+      PERMISSIONS.QUOTES_READ,
+      PERMISSIONS.QUOTES_CREATE,
+      PERMISSIONS.QUOTES_UPDATE,
+      PERMISSIONS.QUOTES_DELETE,
+      PERMISSIONS.QUOTES_CONVERT_TO_INVOICE,
+    ],
+  },
+  INVOICES: {
+    label: 'Invoices',
+    description: 'Create and manage invoices and payments',
+    permissions: [
+      PERMISSIONS.INVOICES_READ,
+      PERMISSIONS.INVOICES_CREATE,
+      PERMISSIONS.INVOICES_UPDATE,
+      PERMISSIONS.INVOICES_DELETE,
+      PERMISSIONS.INVOICES_VOID,
+    ],
+  },
+  FINANCE: {
+    label: 'Finance & Billing',
+    description: 'Manage accounts receivable, payable, and payment settings',
+    permissions: [
+      PERMISSIONS.FINANCE_READ,
+      PERMISSIONS.ACCOUNTS_RECEIVABLE_READ,
+      PERMISSIONS.ACCOUNTS_RECEIVABLE_MANAGE,
+      PERMISSIONS.ACCOUNTS_PAYABLE_READ,
+      PERMISSIONS.ACCOUNTS_PAYABLE_MANAGE,
+      PERMISSIONS.PAYMENT_TERMS_MANAGE,
+      PERMISSIONS.PAYMENT_METHODS_MANAGE,
     ],
   },
   USER_MANAGEMENT: {
@@ -361,6 +419,29 @@ export const PERMISSION_LABELS: Record<Permission, { en: string; 'pt-BR': string
   [PERMISSIONS.POS_PROCESS_SALE]: { en: 'Process Sales', 'pt-BR': 'Processar Vendas' },
   [PERMISSIONS.POS_REFUND]: { en: 'Issue Refunds', 'pt-BR': 'Emitir Reembolsos' },
   [PERMISSIONS.POS_VIEW_REPORTS]: { en: 'View POS Reports', 'pt-BR': 'Ver Relatórios de PDV' },
+  
+  // Quotes
+  [PERMISSIONS.QUOTES_READ]: { en: 'View Quotes', 'pt-BR': 'Visualizar Orçamentos' },
+  [PERMISSIONS.QUOTES_CREATE]: { en: 'Create Quotes', 'pt-BR': 'Criar Orçamentos' },
+  [PERMISSIONS.QUOTES_UPDATE]: { en: 'Edit Quotes', 'pt-BR': 'Editar Orçamentos' },
+  [PERMISSIONS.QUOTES_DELETE]: { en: 'Delete Quotes', 'pt-BR': 'Excluir Orçamentos' },
+  [PERMISSIONS.QUOTES_CONVERT_TO_INVOICE]: { en: 'Convert Quotes to Invoice', 'pt-BR': 'Converter Orçamentos em Nota Fiscal' },
+  
+  // Invoices
+  [PERMISSIONS.INVOICES_READ]: { en: 'View Invoices', 'pt-BR': 'Visualizar Notas Fiscais' },
+  [PERMISSIONS.INVOICES_CREATE]: { en: 'Create Invoices', 'pt-BR': 'Criar Notas Fiscais' },
+  [PERMISSIONS.INVOICES_UPDATE]: { en: 'Edit Invoices', 'pt-BR': 'Editar Notas Fiscais' },
+  [PERMISSIONS.INVOICES_DELETE]: { en: 'Delete Invoices', 'pt-BR': 'Excluir Notas Fiscais' },
+  [PERMISSIONS.INVOICES_VOID]: { en: 'Void Invoices', 'pt-BR': 'Cancelar Notas Fiscais' },
+  
+  // Finance & Accounts
+  [PERMISSIONS.FINANCE_READ]: { en: 'View Finance Overview', 'pt-BR': 'Visualizar Visão Geral Financeira' },
+  [PERMISSIONS.ACCOUNTS_RECEIVABLE_READ]: { en: 'View Accounts Receivable', 'pt-BR': 'Visualizar Contas a Receber' },
+  [PERMISSIONS.ACCOUNTS_RECEIVABLE_MANAGE]: { en: 'Manage Accounts Receivable', 'pt-BR': 'Gerenciar Contas a Receber' },
+  [PERMISSIONS.ACCOUNTS_PAYABLE_READ]: { en: 'View Accounts Payable', 'pt-BR': 'Visualizar Contas a Pagar' },
+  [PERMISSIONS.ACCOUNTS_PAYABLE_MANAGE]: { en: 'Manage Accounts Payable', 'pt-BR': 'Gerenciar Contas a Pagar' },
+  [PERMISSIONS.PAYMENT_TERMS_MANAGE]: { en: 'Manage Payment Terms', 'pt-BR': 'Gerenciar Condições de Pagamento' },
+  [PERMISSIONS.PAYMENT_METHODS_MANAGE]: { en: 'Manage Payment Methods', 'pt-BR': 'Gerenciar Formas de Pagamento' },
   
   // Users
   [PERMISSIONS.USERS_READ]: { en: 'View Users', 'pt-BR': 'Visualizar Usuários' },

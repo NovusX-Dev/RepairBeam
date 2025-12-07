@@ -5113,6 +5113,639 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================================================
+  // POS - Payment Terms Routes
+  // ========================================================================
+
+  app.get("/api/payment-terms", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const terms = await storage.getPaymentTerms(req.authUser.tenantId);
+      res.json(terms);
+    } catch (error) {
+      console.error("Error fetching payment terms:", error);
+      res.status(500).json({ message: "Failed to fetch payment terms" });
+    }
+  });
+
+  app.post("/api/payment-terms", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const term = await storage.createPaymentTerm({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+      });
+      res.status(201).json(term);
+    } catch (error) {
+      console.error("Error creating payment term:", error);
+      res.status(500).json({ message: "Failed to create payment term" });
+    }
+  });
+
+  app.patch("/api/payment-terms/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const term = await storage.updatePaymentTerm(req.params.id, req.authUser.tenantId, req.body);
+      if (!term) {
+        return res.status(404).json({ message: "Payment term not found" });
+      }
+      res.json(term);
+    } catch (error) {
+      console.error("Error updating payment term:", error);
+      res.status(500).json({ message: "Failed to update payment term" });
+    }
+  });
+
+  app.delete("/api/payment-terms/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const deleted = await storage.deletePaymentTerm(req.params.id, req.authUser.tenantId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Payment term not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting payment term:", error);
+      res.status(500).json({ message: "Failed to delete payment term" });
+    }
+  });
+
+  // ========================================================================
+  // POS - Payment Methods Routes
+  // ========================================================================
+
+  app.get("/api/payment-methods", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const methods = await storage.getPaymentMethods(req.authUser.tenantId);
+      res.json(methods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+
+  app.post("/api/payment-methods", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const method = await storage.createPaymentMethod({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+      });
+      res.status(201).json(method);
+    } catch (error) {
+      console.error("Error creating payment method:", error);
+      res.status(500).json({ message: "Failed to create payment method" });
+    }
+  });
+
+  app.patch("/api/payment-methods/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const method = await storage.updatePaymentMethod(req.params.id, req.authUser.tenantId, req.body);
+      if (!method) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      res.json(method);
+    } catch (error) {
+      console.error("Error updating payment method:", error);
+      res.status(500).json({ message: "Failed to update payment method" });
+    }
+  });
+
+  app.delete("/api/payment-methods/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const deleted = await storage.deletePaymentMethod(req.params.id, req.authUser.tenantId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting payment method:", error);
+      res.status(500).json({ message: "Failed to delete payment method" });
+    }
+  });
+
+  // ========================================================================
+  // POS - Quotes Routes
+  // ========================================================================
+
+  app.get("/api/quotes", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const quotesList = await storage.getQuotes(req.authUser.tenantId);
+      res.json(quotesList);
+    } catch (error) {
+      console.error("Error fetching quotes:", error);
+      res.status(500).json({ message: "Failed to fetch quotes" });
+    }
+  });
+
+  app.get("/api/quotes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const quote = await storage.getQuote(req.params.id, req.authUser.tenantId);
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      res.json(quote);
+    } catch (error) {
+      console.error("Error fetching quote:", error);
+      res.status(500).json({ message: "Failed to fetch quote" });
+    }
+  });
+
+  app.post("/api/quotes", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const quoteNumber = await storage.getNextQuoteNumber(req.authUser.tenantId);
+      const quote = await storage.createQuote({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+        quoteNumber,
+      });
+      res.status(201).json(quote);
+    } catch (error) {
+      console.error("Error creating quote:", error);
+      res.status(500).json({ message: "Failed to create quote" });
+    }
+  });
+
+  app.patch("/api/quotes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const quote = await storage.updateQuote(req.params.id, req.authUser.tenantId, req.body);
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      res.json(quote);
+    } catch (error) {
+      console.error("Error updating quote:", error);
+      res.status(500).json({ message: "Failed to update quote" });
+    }
+  });
+
+  app.delete("/api/quotes/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const deleted = await storage.deleteQuote(req.params.id, req.authUser.tenantId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting quote:", error);
+      res.status(500).json({ message: "Failed to delete quote" });
+    }
+  });
+
+  // Quote items
+  app.get("/api/quotes/:quoteId/items", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const items = await storage.getQuoteItems(req.params.quoteId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching quote items:", error);
+      res.status(500).json({ message: "Failed to fetch quote items" });
+    }
+  });
+
+  app.post("/api/quotes/:quoteId/items", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const item = await storage.createQuoteItem({
+        ...req.body,
+        quoteId: req.params.quoteId,
+      });
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating quote item:", error);
+      res.status(500).json({ message: "Failed to create quote item" });
+    }
+  });
+
+  app.patch("/api/quote-items/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const item = await storage.updateQuoteItem(req.params.id, req.body);
+      if (!item) {
+        return res.status(404).json({ message: "Quote item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Error updating quote item:", error);
+      res.status(500).json({ message: "Failed to update quote item" });
+    }
+  });
+
+  app.delete("/api/quote-items/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const deleted = await storage.deleteQuoteItem(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Quote item not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting quote item:", error);
+      res.status(500).json({ message: "Failed to delete quote item" });
+    }
+  });
+
+  // ========================================================================
+  // POS - Invoices Routes
+  // ========================================================================
+
+  app.get("/api/pos-invoices", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const invoicesList = await storage.getPosInvoices(req.authUser.tenantId);
+      res.json(invoicesList);
+    } catch (error) {
+      console.error("Error fetching POS invoices:", error);
+      res.status(500).json({ message: "Failed to fetch POS invoices" });
+    }
+  });
+
+  app.get("/api/pos-invoices/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const invoice = await storage.getPosInvoice(req.params.id, req.authUser.tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error fetching POS invoice:", error);
+      res.status(500).json({ message: "Failed to fetch POS invoice" });
+    }
+  });
+
+  app.post("/api/pos-invoices", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const invoiceNumber = await storage.getNextPosInvoiceNumber(req.authUser.tenantId);
+      const invoice = await storage.createPosInvoice({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+        invoiceNumber,
+      });
+      res.status(201).json(invoice);
+    } catch (error) {
+      console.error("Error creating POS invoice:", error);
+      res.status(500).json({ message: "Failed to create POS invoice" });
+    }
+  });
+
+  app.patch("/api/pos-invoices/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const invoice = await storage.updatePosInvoice(req.params.id, req.authUser.tenantId, req.body);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error updating POS invoice:", error);
+      res.status(500).json({ message: "Failed to update POS invoice" });
+    }
+  });
+
+  app.delete("/api/pos-invoices/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const deleted = await storage.deletePosInvoice(req.params.id, req.authUser.tenantId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting POS invoice:", error);
+      res.status(500).json({ message: "Failed to delete POS invoice" });
+    }
+  });
+
+  // POS Invoice items
+  app.get("/api/pos-invoices/:invoiceId/items", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const items = await storage.getPosInvoiceItems(req.params.invoiceId);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching POS invoice items:", error);
+      res.status(500).json({ message: "Failed to fetch POS invoice items" });
+    }
+  });
+
+  app.post("/api/pos-invoices/:invoiceId/items", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const item = await storage.createPosInvoiceItem({
+        ...req.body,
+        invoiceId: req.params.invoiceId,
+      });
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating POS invoice item:", error);
+      res.status(500).json({ message: "Failed to create POS invoice item" });
+    }
+  });
+
+  app.patch("/api/pos-invoice-items/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const item = await storage.updatePosInvoiceItem(req.params.id, req.body);
+      if (!item) {
+        return res.status(404).json({ message: "Invoice item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Error updating POS invoice item:", error);
+      res.status(500).json({ message: "Failed to update POS invoice item" });
+    }
+  });
+
+  app.delete("/api/pos-invoice-items/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const deleted = await storage.deletePosInvoiceItem(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invoice item not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting POS invoice item:", error);
+      res.status(500).json({ message: "Failed to delete POS invoice item" });
+    }
+  });
+
+  // ========================================================================
+  // POS - Payments Routes
+  // ========================================================================
+
+  app.get("/api/payments", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const paymentsList = await storage.getPayments(req.authUser.tenantId);
+      res.json(paymentsList);
+    } catch (error) {
+      console.error("Error fetching payments:", error);
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+
+  app.get("/api/payments/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const payment = await storage.getPayment(req.params.id, req.authUser.tenantId);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      res.json(payment);
+    } catch (error) {
+      console.error("Error fetching payment:", error);
+      res.status(500).json({ message: "Failed to fetch payment" });
+    }
+  });
+
+  app.post("/api/payments", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const paymentNumber = await storage.getNextPaymentNumber(req.authUser.tenantId);
+      const payment = await storage.createPayment({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+        paymentNumber,
+      });
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      res.status(500).json({ message: "Failed to create payment" });
+    }
+  });
+
+  app.patch("/api/payments/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const payment = await storage.updatePayment(req.params.id, req.authUser.tenantId, req.body);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      res.json(payment);
+    } catch (error) {
+      console.error("Error updating payment:", error);
+      res.status(500).json({ message: "Failed to update payment" });
+    }
+  });
+
+  // ========================================================================
+  // POS - Accounts Receivable Routes
+  // ========================================================================
+
+  app.get("/api/accounts-receivable", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { status } = req.query;
+      let accounts;
+      if (status === 'overdue') {
+        accounts = await storage.getOverdueAccountsReceivable(req.authUser.tenantId);
+      } else if (status) {
+        accounts = await storage.getAccountsReceivableByStatus(req.authUser.tenantId, status);
+      } else {
+        accounts = await storage.getAccountsReceivable(req.authUser.tenantId);
+      }
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching accounts receivable:", error);
+      res.status(500).json({ message: "Failed to fetch accounts receivable" });
+    }
+  });
+
+  app.get("/api/accounts-receivable/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const ar = await storage.getAccountReceivable(req.params.id, req.authUser.tenantId);
+      if (!ar) {
+        return res.status(404).json({ message: "Account receivable not found" });
+      }
+      res.json(ar);
+    } catch (error) {
+      console.error("Error fetching account receivable:", error);
+      res.status(500).json({ message: "Failed to fetch account receivable" });
+    }
+  });
+
+  app.post("/api/accounts-receivable", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const ar = await storage.createAccountReceivable({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+      });
+      res.status(201).json(ar);
+    } catch (error) {
+      console.error("Error creating account receivable:", error);
+      res.status(500).json({ message: "Failed to create account receivable" });
+    }
+  });
+
+  app.patch("/api/accounts-receivable/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const ar = await storage.updateAccountReceivable(req.params.id, req.authUser.tenantId, req.body);
+      if (!ar) {
+        return res.status(404).json({ message: "Account receivable not found" });
+      }
+      res.json(ar);
+    } catch (error) {
+      console.error("Error updating account receivable:", error);
+      res.status(500).json({ message: "Failed to update account receivable" });
+    }
+  });
+
+  // ========================================================================
+  // POS - Accounts Payable Routes
+  // ========================================================================
+
+  app.get("/api/accounts-payable", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { status } = req.query;
+      let accounts;
+      if (status === 'overdue') {
+        accounts = await storage.getOverdueAccountsPayable(req.authUser.tenantId);
+      } else if (status) {
+        accounts = await storage.getAccountsPayableByStatus(req.authUser.tenantId, status);
+      } else {
+        accounts = await storage.getAccountsPayable(req.authUser.tenantId);
+      }
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching accounts payable:", error);
+      res.status(500).json({ message: "Failed to fetch accounts payable" });
+    }
+  });
+
+  app.get("/api/accounts-payable/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const ap = await storage.getAccountPayable(req.params.id, req.authUser.tenantId);
+      if (!ap) {
+        return res.status(404).json({ message: "Account payable not found" });
+      }
+      res.json(ap);
+    } catch (error) {
+      console.error("Error fetching account payable:", error);
+      res.status(500).json({ message: "Failed to fetch account payable" });
+    }
+  });
+
+  app.post("/api/accounts-payable", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const ap = await storage.createAccountPayable({
+        ...req.body,
+        tenantId: req.authUser.tenantId,
+      });
+      res.status(201).json(ap);
+    } catch (error) {
+      console.error("Error creating account payable:", error);
+      res.status(500).json({ message: "Failed to create account payable" });
+    }
+  });
+
+  app.patch("/api/accounts-payable/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const ap = await storage.updateAccountPayable(req.params.id, req.authUser.tenantId, req.body);
+      if (!ap) {
+        return res.status(404).json({ message: "Account payable not found" });
+      }
+      res.json(ap);
+    } catch (error) {
+      console.error("Error updating account payable:", error);
+      res.status(500).json({ message: "Failed to update account payable" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
