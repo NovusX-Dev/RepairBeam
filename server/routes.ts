@@ -5418,6 +5418,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get ticket summary for quote creation
+  app.get("/api/tickets/:ticketId/quote-summary", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const ticket = await storage.getTicket(req.params.ticketId, req.authUser.tenantId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Get client info
+      const client = ticket.clientId ? await storage.getClient(ticket.clientId, req.authUser.tenantId) : null;
+      
+      // Get ticket items (parts/inventory)
+      const ticketItemsList = await storage.getTicketItems(req.params.ticketId, req.authUser.tenantId);
+      
+      // Get selected services from ticket
+      const selectedServiceIds = (ticket.selectedServices as string[]) || [];
+      const allServices = await storage.getRepairServices(req.authUser.tenantId);
+      const services = allServices.filter(s => selectedServiceIds.includes(s.id));
+      
+      // Calculate totals
+      const partsTotal = ticketItemsList.reduce((sum, item) => sum + parseFloat(item.totalPrice || '0'), 0);
+      const servicesTotal = services.reduce((sum, s) => sum + parseFloat(s.estimatedLaborCost || '0'), 0);
+      const extraCosts = parseFloat(ticket.estimatedCost || '0') - partsTotal - servicesTotal;
+      const totalAmount = parseFloat(ticket.totalCost || ticket.estimatedCost || '0');
+      
+      // Build quote line items from ticket data
+      const lineItems = [
+        // Services as line items
+        ...services.map((service, index) => ({
+          type: 'service',
+          description: service.name,
+          quantity: 1,
+          unitPrice: service.estimatedLaborCost || '0.00',
+          discountAmount: '0.00',
+          totalPrice: service.estimatedLaborCost || '0.00',
+          repairServiceId: service.id,
+          sortOrder: index,
+        })),
+        // Parts/inventory items as line items
+        ...ticketItemsList.map((item, index) => ({
+          type: 'part',
+          description: item.inventoryItem?.name || 'Inventory Item',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountAmount: '0.00',
+          totalPrice: item.totalPrice,
+          inventoryItemId: item.inventoryItemId,
+          sortOrder: services.length + index,
+        })),
+      ];
+      
+      res.json({
+        ticket: {
+          id: ticket.id,
+          title: ticket.title,
+          description: ticket.description,
+          status: ticket.status,
+          deviceType: ticket.deviceType,
+          deviceBrand: ticket.deviceBrand,
+          deviceModel: ticket.deviceModel,
+        },
+        client: client ? {
+          id: client.id,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          email: client.email,
+          phone: client.phone,
+        } : null,
+        lineItems,
+        summary: {
+          servicesTotal,
+          partsTotal,
+          extraCosts: extraCosts > 0 ? extraCosts : 0,
+          subtotal: totalAmount,
+          totalAmount,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching ticket quote summary:", error);
+      res.status(500).json({ message: "Failed to fetch ticket quote summary" });
+    }
+  });
+
+  // Create quote from ticket
+  app.post("/api/quotes/from-ticket/:ticketId", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const ticket = await storage.getTicket(req.params.ticketId, req.authUser.tenantId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Check if ticket already has a quote linked
+      const existingQuotes = await storage.getQuotes(req.authUser.tenantId);
+      const linkedQuote = existingQuotes.find(q => q.ticketId === ticket.id && q.status !== 'rejected');
+      if (linkedQuote) {
+        return res.status(400).json({ 
+          message: "This ticket already has an active quote", 
+          existingQuoteId: linkedQuote.id,
+          existingQuoteNumber: linkedQuote.quoteNumber 
+        });
+      }
+      
+      // Get ticket items
+      const ticketItemsList = await storage.getTicketItems(req.params.ticketId, req.authUser.tenantId);
+      
+      // Get services
+      const selectedServiceIds = (ticket.selectedServices as string[]) || [];
+      const allServices = await storage.getRepairServices(req.authUser.tenantId);
+      const services = allServices.filter(s => selectedServiceIds.includes(s.id));
+      
+      // Calculate totals
+      const partsTotal = ticketItemsList.reduce((sum, item) => sum + parseFloat(item.totalPrice || '0'), 0);
+      const servicesTotal = services.reduce((sum, s) => sum + parseFloat(s.estimatedLaborCost || '0'), 0);
+      const subtotal = partsTotal + servicesTotal;
+      const totalAmount = parseFloat(ticket.totalCost || ticket.estimatedCost || '0') || subtotal;
+      
+      // Generate quote number
+      const quoteNumber = await storage.getNextQuoteNumber(req.authUser.tenantId);
+      
+      // Set valid until (default 30 days from now)
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 30);
+      
+      // Create the quote
+      const quote = await storage.createQuote({
+        tenantId: req.authUser.tenantId,
+        quoteNumber,
+        clientId: ticket.clientId,
+        ticketId: ticket.id,
+        status: 'draft',
+        title: `Quote for ${ticket.title}`,
+        description: ticket.description || `Repair quote for ${ticket.deviceBrand || ''} ${ticket.deviceModel || ''}`.trim(),
+        subtotal: subtotal.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        validUntil,
+        issuedBy: req.authUser.id,
+      });
+      
+      // Add service line items
+      for (let i = 0; i < services.length; i++) {
+        const service = services[i];
+        await storage.createQuoteItem({
+          quoteId: quote.id,
+          description: service.name,
+          quantity: 1,
+          unitPrice: service.estimatedLaborCost || '0.00',
+          discountAmount: '0.00',
+          totalPrice: service.estimatedLaborCost || '0.00',
+          repairServiceId: service.id,
+          sortOrder: i,
+        });
+      }
+      
+      // Add parts/inventory line items
+      for (let i = 0; i < ticketItemsList.length; i++) {
+        const item = ticketItemsList[i];
+        await storage.createQuoteItem({
+          quoteId: quote.id,
+          description: item.inventoryItem?.name || 'Part',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountAmount: '0.00',
+          totalPrice: item.totalPrice,
+          inventoryItemId: item.inventoryItemId,
+          sortOrder: services.length + i,
+        });
+      }
+      
+      // Return the created quote with items
+      const quoteItems = await storage.getQuoteItems(quote.id);
+      
+      res.status(201).json({
+        ...quote,
+        items: quoteItems,
+      });
+    } catch (error) {
+      console.error("Error creating quote from ticket:", error);
+      res.status(500).json({ message: "Failed to create quote from ticket" });
+    }
+  });
+
   // Quote items
   app.get("/api/quotes/:quoteId/items", isAuthenticated, async (req: any, res) => {
     try {
