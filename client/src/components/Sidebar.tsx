@@ -231,10 +231,17 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
           </>
         )}
 
-        {/* Divider after Finance */}
+        {/* Settings & Admin Section */}
         {otherItems.length > 0 && (
           <>
             <div className="border-t border-cyan-500/20 my-3"></div>
+            {!isCollapsed && (
+              <div className="pb-2">
+                <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
+                  {t("settings_and_admin", "Settings & Admin")}
+                </h3>
+              </div>
+            )}
             {otherItems.map((item) => {
               const Icon = item.icon;
               const isActive = location === item.href;
