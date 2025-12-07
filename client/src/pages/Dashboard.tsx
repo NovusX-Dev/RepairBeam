@@ -23,8 +23,15 @@ import {
   CreditCard,
   Target,
   BarChart3,
-  Wrench
+  Wrench,
+  Info
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   PieChart,
   Pie,
@@ -35,7 +42,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   AreaChart,
   Area
@@ -112,6 +119,30 @@ const STATUS_LABELS: Record<string, { en: string; pt: string }> = {
   finalized: { en: 'Completed', pt: 'Concluído' },
   archived: { en: 'Archived', pt: 'Arquivado' }
 };
+
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button 
+            className="ml-1 inline-flex items-center justify-center" 
+            type="button"
+            aria-label={text}
+          >
+            <Info className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 transition-colors cursor-help" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent 
+          side="top" 
+          className="max-w-xs bg-slate-800 border-cyan-500/30 text-slate-200 text-sm"
+        >
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 function TrendIndicator({ value, suffix = '%' }: { value: number; suffix?: string }) {
   if (value > 0) {
@@ -197,7 +228,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("open_tickets", "Open Tickets")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("open_tickets", "Open Tickets")}
+                  <InfoTooltip text={t("kpi_info_open_tickets", "Number of repair tickets currently in progress that have not been completed or archived.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-16" />
                 ) : (
@@ -224,7 +258,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("monthly_revenue", "Monthly Revenue")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("monthly_revenue", "Monthly Revenue")}
+                  <InfoTooltip text={t("kpi_info_monthly_revenue", "Total revenue from completed repairs this month. Includes all payments received.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-24" />
                 ) : (
@@ -251,7 +288,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("completion_rate", "Completion Rate")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("completion_rate", "Completion Rate")}
+                  <InfoTooltip text={t("kpi_info_completion_rate", "Percentage of tickets that have been completed out of total tickets created.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-20" />
                 ) : (
@@ -277,7 +317,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("active_clients", "Active Clients")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("active_clients", "Active Clients")}
+                  <InfoTooltip text={t("kpi_info_active_clients", "Total number of registered customers in your database.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-16" />
                 ) : (
@@ -304,7 +347,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("low_stock_items", "Low Stock Items")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("low_stock_items", "Low Stock Items")}
+                  <InfoTooltip text={t("kpi_info_low_stock", "Number of inventory items below their minimum quantity threshold. These items need to be reordered.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-12" />
                 ) : (
@@ -332,7 +378,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("inventory_value", "Inventory Value")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("inventory_value", "Inventory Value")}
+                  <InfoTooltip text={t("kpi_info_inventory_value", "Total value of all parts and items currently in your inventory, based on cost price.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-24" />
                 ) : (
@@ -356,7 +405,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("accuracy_score", "Accuracy Score")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("accuracy_score", "Accuracy Score")}
+                  <InfoTooltip text={t("kpi_info_accuracy_score", "How close your repair estimates are to final costs. Higher percentage means more accurate quotes to customers.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-16" />
                 ) : (
@@ -380,7 +432,10 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">{t("tickets_this_month", "Tickets This Month")}</p>
+                <p className="text-slate-400 text-sm font-medium mb-1 flex items-center">
+                  {t("tickets_this_month", "Tickets This Month")}
+                  <InfoTooltip text={t("kpi_info_tickets_month", "Total number of new repair tickets created during the current month.")} />
+                </p>
                 {isLoading ? (
                   <Skeleton className="h-9 w-16" />
                 ) : (
@@ -437,13 +492,13 @@ export default function Dashboard() {
                     fontSize={12}
                     tickFormatter={(value) => `$${value}`}
                   />
-                  <Tooltip 
+                  <RechartsTooltip 
                     contentStyle={{ 
                       backgroundColor: '#1e293b', 
                       border: '1px solid #00FFFF33',
                       borderRadius: '8px'
                     }}
-                    labelFormatter={(label) => formatDayLabel(label)}
+                    labelFormatter={(label: string) => formatDayLabel(label)}
                     formatter={(value: number) => [`$${value.toFixed(2)}`, t("revenue", "Revenue")]}
                   />
                   <Area 
@@ -488,7 +543,7 @@ export default function Dashboard() {
                         <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || '#6B7280'} />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <RechartsTooltip 
                       contentStyle={{ 
                         backgroundColor: '#1e293b', 
                         border: '1px solid #00FFFF33',
