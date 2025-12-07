@@ -33,6 +33,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { IssueAssessment } from "@/components/IssueAssessment";
@@ -49,7 +54,7 @@ import QRCodeScanner from "@/components/QRCodeScanner";
 import { AdvancedSearch } from "@/components/search-filter/AdvancedSearch";
 import { FilterPanel } from "@/components/search-filter/FilterPanel";
 import { DateRangePicker } from "@/components/search-filter/DateRangePicker";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer, Archive } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer, Archive, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -443,6 +448,174 @@ function FormFieldWithTooltip({
         )}
       </div>
     </div>
+  );
+}
+
+// Ticket Quick View Button - Renders an eye icon with hover card for quick preview
+interface TicketQuickViewProps {
+  ticket: TicketWithClient;
+  onOpenFullDetails: () => void;
+}
+
+function TicketQuickViewButton({ ticket, onOpenFullDetails }: TicketQuickViewProps) {
+  const { t, formatDate } = useLocalization();
+  
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'vip': return 'VIP';
+      case 'critical': return t('critical', 'Critical');
+      case 'medium': return t('medium', 'Medium');
+      case 'low': return t('low', 'Low');
+      default: return priority;
+    }
+  };
+  
+  const getPriorityBadgeColor = (priority: string) => {
+    switch (priority) {
+      case 'vip': return 'bg-gradient-to-r from-purple-600 to-pink-600 text-white';
+      case 'critical': return 'bg-gradient-to-r from-red-500 to-red-600 text-white';
+      case 'medium': return 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white';
+      case 'low': return 'bg-gradient-to-r from-green-500 to-emerald-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+  
+  const getStatusLabel = (status: string) => {
+    return t(`status_${status}`, status.replace(/_/g, ' ').split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' '));
+  };
+  
+  return (
+    <HoverCard openDelay={400} closeDelay={200}>
+      <HoverCardTrigger asChild>
+        <button
+          className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 rounded bg-[#0A192F]/80 hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30"
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onDragStart={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          aria-label={t("quick_view", "Quick View")}
+          data-testid={`button-quick-view-${ticket.id}`}
+        >
+          <Eye className="w-3.5 h-3.5 text-[#00FFFF]" aria-hidden="true" />
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent 
+        side="right" 
+        align="start"
+        sideOffset={8}
+        className="w-80 p-0 bg-[#0A192F] border-[#00FFFF]/40 shadow-lg shadow-[#00FFFF]/10"
+      >
+        {/* Header with gradient */}
+        <div className="bg-gradient-to-r from-[#0A192F] via-[#112240] to-[#0A192F] border-b border-[#00FFFF]/30 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-[#00FFFF]" aria-hidden="true" />
+              <span className="text-[#00FFFF] font-semibold text-sm">
+                {t("quick_view", "Quick View")}
+              </span>
+            </div>
+            <Badge className={`text-xs px-2 py-0.5 ${getPriorityBadgeColor(ticket.priority || 'low')}`}>
+              {getPriorityLabel(ticket.priority || 'low')}
+            </Badge>
+          </div>
+          <p className="text-white font-medium text-sm line-clamp-2">{ticket.title}</p>
+          <p className="text-slate-400 text-xs mt-1">
+            #{ticket.id.slice(-6).toUpperCase()}
+          </p>
+        </div>
+        
+        {/* Content */}
+        <div className="p-3 space-y-3">
+          {/* Status */}
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-slate-400" aria-hidden="true" />
+            <span className="text-slate-400 text-xs">{t("status", "Status")}:</span>
+            <Badge variant="outline" className="text-xs border-[#00FFFF]/30 text-[#00FFFF] bg-[#00FFFF]/10">
+              {getStatusLabel(ticket.status)}
+            </Badge>
+          </div>
+          
+          {/* Client */}
+          {ticket.client && (
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-slate-400" aria-hidden="true" />
+              <span className="text-slate-400 text-xs">{t("client", "Client")}:</span>
+              <span className="text-white text-xs font-medium">
+                {ticket.client.firstName} {ticket.client.lastName}
+              </span>
+            </div>
+          )}
+          
+          {/* Device */}
+          {(ticket.deviceType || ticket.deviceModel || ticket.deviceBrand) && (
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-slate-400" aria-hidden="true" />
+              <span className="text-slate-400 text-xs">{t("device", "Device")}:</span>
+              <span className="text-white text-xs font-medium truncate">
+                {[ticket.deviceBrand, ticket.deviceModel].filter(Boolean).join(' ') || ticket.deviceType}
+              </span>
+            </div>
+          )}
+          
+          {/* Cost */}
+          {ticket.estimatedCost && (
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-slate-400" aria-hidden="true" />
+              <span className="text-slate-400 text-xs">{t("estimated_cost", "Estimated Cost")}:</span>
+              <span className="text-[#00FFFF] text-xs font-medium">
+                ${ticket.estimatedCost}
+              </span>
+            </div>
+          )}
+          
+          {/* Created date */}
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-slate-400" aria-hidden="true" />
+            <span className="text-slate-400 text-xs">{t("created", "Created")}:</span>
+            <span className="text-white text-xs">
+              {formatDate(ticket.createdAt)}
+            </span>
+          </div>
+          
+          {/* Completed date - only for finalized */}
+          {ticket.status === 'finalized' && ticket.completedAt && (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-400" aria-hidden="true" />
+              <span className="text-slate-400 text-xs">{t("completed", "Completed")}:</span>
+              <span className="text-emerald-400 text-xs font-medium">
+                {formatDate(ticket.completedAt)}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {/* Footer with action button */}
+        <div className="border-t border-[#00FFFF]/30 p-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-8 text-xs bg-[#00FFFF]/10 hover:bg-[#00FFFF]/20 text-[#00FFFF] border border-[#00FFFF]/30"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFullDetails();
+            }}
+            data-testid={`button-view-full-details-${ticket.id}`}
+          >
+            <FileText className="w-3 h-3 mr-1.5" aria-hidden="true" />
+            {t("view_full_details", "View Full Details")}
+          </Button>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
@@ -6390,12 +6563,17 @@ export default function KanbanTickets() {
                   return (
                     <Card
                       key={ticket.id}
-                      className={`${ticket.status === 'finalized' ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md'} transition-all duration-200 ${getStatusCardStyling(ticket.status)}`}
+                      className={`${ticket.status === 'finalized' ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md'} transition-all duration-200 ${getStatusCardStyling(ticket.status)} group relative`}
                       draggable={ticket.status !== 'finalized'}
                       onDragStart={(e) => ticket.status !== 'finalized' ? handleDragStart(e, ticket.id) : e.preventDefault()}
                       onClick={() => setSelectedTicketSummary(ticket)}
                       data-testid={`ticket-${ticket.id}`}
                     >
+                      {/* Quick View Hover Trigger */}
+                      <TicketQuickViewButton
+                        ticket={ticket}
+                        onOpenFullDetails={() => setSelectedTicketSummary(ticket)}
+                      />
                       <CardContent className={`${collapsed ? 'p-3' : 'p-4 pr-4'} ${getStatusTextColor(ticket.status)}`}>
                         {/* Header row with priority, ticket ID, status dropdown, and expand/collapse button */}
                         <div className="flex items-center justify-between mb-2">
