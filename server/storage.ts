@@ -38,6 +38,15 @@ import {
   invoices,
   signatureRequests,
   signatureAuditEvents,
+  paymentTerms,
+  paymentMethods,
+  quotes,
+  quoteItems,
+  posInvoices,
+  posInvoiceItems,
+  payments,
+  accountsReceivable,
+  accountsPayable,
   type User,
   type UpsertUser,
   type Tenant,
@@ -118,6 +127,24 @@ import {
   type SignatureAuditEvent,
   type InsertSignatureAuditEvent,
   type SignatureAuditEventType,
+  type PaymentTerm,
+  type InsertPaymentTerm,
+  type PaymentMethod,
+  type InsertPaymentMethod,
+  type Quote,
+  type InsertQuote,
+  type QuoteItem,
+  type InsertQuoteItem,
+  type PosInvoice,
+  type InsertPosInvoice,
+  type PosInvoiceItem,
+  type InsertPosInvoiceItem,
+  type Payment,
+  type InsertPayment,
+  type AccountReceivable,
+  type InsertAccountReceivable,
+  type AccountPayable,
+  type InsertAccountPayable,
 } from "@shared/schema";
 import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
@@ -402,6 +429,81 @@ export interface IStorage {
   createSignatureAuditEvent(event: InsertSignatureAuditEvent): Promise<SignatureAuditEvent>;
   getSignatureAuditEvents(signatureRequestId: string, tenantId: string): Promise<SignatureAuditEvent[]>;
   getSignatureAuditEventsByTenant(tenantId: string, limit?: number): Promise<SignatureAuditEvent[]>;
+
+  // Payment Terms operations (POS)
+  getPaymentTerms(tenantId: string): Promise<PaymentTerm[]>;
+  getPaymentTerm(id: string, tenantId: string): Promise<PaymentTerm | undefined>;
+  createPaymentTerm(term: InsertPaymentTerm): Promise<PaymentTerm>;
+  updatePaymentTerm(id: string, tenantId: string, term: Partial<InsertPaymentTerm>): Promise<PaymentTerm | undefined>;
+  deletePaymentTerm(id: string, tenantId: string): Promise<boolean>;
+  getDefaultPaymentTerm(tenantId: string): Promise<PaymentTerm | undefined>;
+
+  // Payment Methods operations (POS)
+  getPaymentMethods(tenantId: string): Promise<PaymentMethod[]>;
+  getPaymentMethod(id: string, tenantId: string): Promise<PaymentMethod | undefined>;
+  createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(id: string, tenantId: string, method: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined>;
+  deletePaymentMethod(id: string, tenantId: string): Promise<boolean>;
+
+  // Quotes operations (POS)
+  getQuotes(tenantId: string): Promise<Quote[]>;
+  getQuote(id: string, tenantId: string): Promise<Quote | undefined>;
+  getQuotesByClient(clientId: string, tenantId: string): Promise<Quote[]>;
+  getQuotesByTicket(ticketId: string, tenantId: string): Promise<Quote[]>;
+  createQuote(quote: InsertQuote): Promise<Quote>;
+  updateQuote(id: string, tenantId: string, quote: Partial<InsertQuote>): Promise<Quote | undefined>;
+  deleteQuote(id: string, tenantId: string): Promise<boolean>;
+  getNextQuoteNumber(tenantId: string): Promise<string>;
+
+  // Quote Items operations (POS)
+  getQuoteItems(quoteId: string): Promise<QuoteItem[]>;
+  createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
+  updateQuoteItem(id: string, item: Partial<InsertQuoteItem>): Promise<QuoteItem | undefined>;
+  deleteQuoteItem(id: string): Promise<boolean>;
+
+  // POS Invoices operations
+  getPosInvoices(tenantId: string): Promise<PosInvoice[]>;
+  getPosInvoice(id: string, tenantId: string): Promise<PosInvoice | undefined>;
+  getPosInvoicesByClient(clientId: string, tenantId: string): Promise<PosInvoice[]>;
+  getPosInvoicesByTicket(ticketId: string, tenantId: string): Promise<PosInvoice[]>;
+  createPosInvoice(invoice: InsertPosInvoice): Promise<PosInvoice>;
+  updatePosInvoice(id: string, tenantId: string, invoice: Partial<InsertPosInvoice>): Promise<PosInvoice | undefined>;
+  deletePosInvoice(id: string, tenantId: string): Promise<boolean>;
+  getNextPosInvoiceNumber(tenantId: string): Promise<string>;
+
+  // POS Invoice Items operations
+  getPosInvoiceItems(invoiceId: string): Promise<PosInvoiceItem[]>;
+  createPosInvoiceItem(item: InsertPosInvoiceItem): Promise<PosInvoiceItem>;
+  updatePosInvoiceItem(id: string, item: Partial<InsertPosInvoiceItem>): Promise<PosInvoiceItem | undefined>;
+  deletePosInvoiceItem(id: string): Promise<boolean>;
+
+  // Payments operations (POS)
+  getPayments(tenantId: string): Promise<Payment[]>;
+  getPayment(id: string, tenantId: string): Promise<Payment | undefined>;
+  getPaymentsByInvoice(posInvoiceId: string, tenantId: string): Promise<Payment[]>;
+  getPaymentsByTicket(ticketId: string, tenantId: string): Promise<Payment[]>;
+  getPaymentsByClient(clientId: string, tenantId: string): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: string, tenantId: string, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
+  getNextPaymentNumber(tenantId: string): Promise<string>;
+
+  // Accounts Receivable operations (POS)
+  getAccountsReceivable(tenantId: string): Promise<AccountReceivable[]>;
+  getAccountReceivable(id: string, tenantId: string): Promise<AccountReceivable | undefined>;
+  getAccountsReceivableByClient(clientId: string, tenantId: string): Promise<AccountReceivable[]>;
+  getAccountsReceivableByStatus(tenantId: string, status: string): Promise<AccountReceivable[]>;
+  getOverdueAccountsReceivable(tenantId: string): Promise<AccountReceivable[]>;
+  createAccountReceivable(ar: InsertAccountReceivable): Promise<AccountReceivable>;
+  updateAccountReceivable(id: string, tenantId: string, ar: Partial<InsertAccountReceivable>): Promise<AccountReceivable | undefined>;
+
+  // Accounts Payable operations (POS)
+  getAccountsPayable(tenantId: string): Promise<AccountPayable[]>;
+  getAccountPayable(id: string, tenantId: string): Promise<AccountPayable | undefined>;
+  getAccountsPayableBySupplier(supplierId: string, tenantId: string): Promise<AccountPayable[]>;
+  getAccountsPayableByStatus(tenantId: string, status: string): Promise<AccountPayable[]>;
+  getOverdueAccountsPayable(tenantId: string): Promise<AccountPayable[]>;
+  createAccountPayable(ap: InsertAccountPayable): Promise<AccountPayable>;
+  updateAccountPayable(id: string, tenantId: string, ap: Partial<InsertAccountPayable>): Promise<AccountPayable | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3610,6 +3712,600 @@ export class DatabaseStorage implements IStorage {
         .where(eq(signatureAuditEvents.tenantId, tenantId))
         .orderBy(desc(signatureAuditEvents.occurredAt))
         .limit(limit);
+    });
+  }
+
+  // Payment Terms operations (POS)
+  async getPaymentTerms(tenantId: string): Promise<PaymentTerm[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(paymentTerms)
+        .where(eq(paymentTerms.tenantId, tenantId))
+        .orderBy(asc(paymentTerms.daysUntilDue));
+    });
+  }
+
+  async getPaymentTerm(id: string, tenantId: string): Promise<PaymentTerm | undefined> {
+    return withRetry(async () => {
+      const [term] = await db
+        .select()
+        .from(paymentTerms)
+        .where(and(eq(paymentTerms.id, id), eq(paymentTerms.tenantId, tenantId)));
+      return term;
+    });
+  }
+
+  async createPaymentTerm(term: InsertPaymentTerm): Promise<PaymentTerm> {
+    return withRetry(async () => {
+      const [created] = await db.insert(paymentTerms).values(term).returning();
+      return created;
+    });
+  }
+
+  async updatePaymentTerm(id: string, tenantId: string, term: Partial<InsertPaymentTerm>): Promise<PaymentTerm | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(paymentTerms)
+        .set({ ...term, updatedAt: new Date() })
+        .where(and(eq(paymentTerms.id, id), eq(paymentTerms.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deletePaymentTerm(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(paymentTerms)
+        .where(and(eq(paymentTerms.id, id), eq(paymentTerms.tenantId, tenantId)));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  async getDefaultPaymentTerm(tenantId: string): Promise<PaymentTerm | undefined> {
+    return withRetry(async () => {
+      const [term] = await db
+        .select()
+        .from(paymentTerms)
+        .where(and(eq(paymentTerms.tenantId, tenantId), eq(paymentTerms.isDefault, true)));
+      return term;
+    });
+  }
+
+  // Payment Methods operations (POS)
+  async getPaymentMethods(tenantId: string): Promise<PaymentMethod[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.tenantId, tenantId))
+        .orderBy(asc(paymentMethods.sortOrder));
+    });
+  }
+
+  async getPaymentMethod(id: string, tenantId: string): Promise<PaymentMethod | undefined> {
+    return withRetry(async () => {
+      const [method] = await db
+        .select()
+        .from(paymentMethods)
+        .where(and(eq(paymentMethods.id, id), eq(paymentMethods.tenantId, tenantId)));
+      return method;
+    });
+  }
+
+  async createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod> {
+    return withRetry(async () => {
+      const [created] = await db.insert(paymentMethods).values(method).returning();
+      return created;
+    });
+  }
+
+  async updatePaymentMethod(id: string, tenantId: string, method: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(paymentMethods)
+        .set({ ...method, updatedAt: new Date() })
+        .where(and(eq(paymentMethods.id, id), eq(paymentMethods.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deletePaymentMethod(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(paymentMethods)
+        .where(and(eq(paymentMethods.id, id), eq(paymentMethods.tenantId, tenantId)));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  // Quotes operations (POS)
+  async getQuotes(tenantId: string): Promise<Quote[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(quotes)
+        .where(eq(quotes.tenantId, tenantId))
+        .orderBy(desc(quotes.createdAt));
+    });
+  }
+
+  async getQuote(id: string, tenantId: string): Promise<Quote | undefined> {
+    return withRetry(async () => {
+      const [quote] = await db
+        .select()
+        .from(quotes)
+        .where(and(eq(quotes.id, id), eq(quotes.tenantId, tenantId)));
+      return quote;
+    });
+  }
+
+  async getQuotesByClient(clientId: string, tenantId: string): Promise<Quote[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(quotes)
+        .where(and(eq(quotes.clientId, clientId), eq(quotes.tenantId, tenantId)))
+        .orderBy(desc(quotes.createdAt));
+    });
+  }
+
+  async getQuotesByTicket(ticketId: string, tenantId: string): Promise<Quote[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(quotes)
+        .where(and(eq(quotes.ticketId, ticketId), eq(quotes.tenantId, tenantId)))
+        .orderBy(desc(quotes.createdAt));
+    });
+  }
+
+  async createQuote(quote: InsertQuote): Promise<Quote> {
+    return withRetry(async () => {
+      const [created] = await db.insert(quotes).values(quote).returning();
+      return created;
+    });
+  }
+
+  async updateQuote(id: string, tenantId: string, quote: Partial<InsertQuote>): Promise<Quote | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(quotes)
+        .set({ ...quote, updatedAt: new Date() })
+        .where(and(eq(quotes.id, id), eq(quotes.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deleteQuote(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(quotes)
+        .where(and(eq(quotes.id, id), eq(quotes.tenantId, tenantId)));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  async getNextQuoteNumber(tenantId: string): Promise<string> {
+    return withRetry(async () => {
+      const [result] = await db
+        .select({ quoteNumber: quotes.quoteNumber })
+        .from(quotes)
+        .where(eq(quotes.tenantId, tenantId))
+        .orderBy(desc(quotes.createdAt))
+        .limit(1);
+      
+      const prefix = 'QT';
+      const year = new Date().getFullYear();
+      if (!result) {
+        return `${prefix}-${year}-0001`;
+      }
+      
+      const parts = result.quoteNumber.split('-');
+      const lastNumber = parseInt(parts[parts.length - 1], 10) || 0;
+      return `${prefix}-${year}-${String(lastNumber + 1).padStart(4, '0')}`;
+    });
+  }
+
+  // Quote Items operations (POS)
+  async getQuoteItems(quoteId: string): Promise<QuoteItem[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(quoteItems)
+        .where(eq(quoteItems.quoteId, quoteId))
+        .orderBy(asc(quoteItems.sortOrder));
+    });
+  }
+
+  async createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem> {
+    return withRetry(async () => {
+      const [created] = await db.insert(quoteItems).values(item).returning();
+      return created;
+    });
+  }
+
+  async updateQuoteItem(id: string, item: Partial<InsertQuoteItem>): Promise<QuoteItem | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(quoteItems)
+        .set(item)
+        .where(eq(quoteItems.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deleteQuoteItem(id: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db.delete(quoteItems).where(eq(quoteItems.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  // POS Invoices operations
+  async getPosInvoices(tenantId: string): Promise<PosInvoice[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(posInvoices)
+        .where(eq(posInvoices.tenantId, tenantId))
+        .orderBy(desc(posInvoices.createdAt));
+    });
+  }
+
+  async getPosInvoice(id: string, tenantId: string): Promise<PosInvoice | undefined> {
+    return withRetry(async () => {
+      const [invoice] = await db
+        .select()
+        .from(posInvoices)
+        .where(and(eq(posInvoices.id, id), eq(posInvoices.tenantId, tenantId)));
+      return invoice;
+    });
+  }
+
+  async getPosInvoicesByClient(clientId: string, tenantId: string): Promise<PosInvoice[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(posInvoices)
+        .where(and(eq(posInvoices.clientId, clientId), eq(posInvoices.tenantId, tenantId)))
+        .orderBy(desc(posInvoices.createdAt));
+    });
+  }
+
+  async getPosInvoicesByTicket(ticketId: string, tenantId: string): Promise<PosInvoice[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(posInvoices)
+        .where(and(eq(posInvoices.ticketId, ticketId), eq(posInvoices.tenantId, tenantId)))
+        .orderBy(desc(posInvoices.createdAt));
+    });
+  }
+
+  async createPosInvoice(invoice: InsertPosInvoice): Promise<PosInvoice> {
+    return withRetry(async () => {
+      const [created] = await db.insert(posInvoices).values(invoice).returning();
+      return created;
+    });
+  }
+
+  async updatePosInvoice(id: string, tenantId: string, invoice: Partial<InsertPosInvoice>): Promise<PosInvoice | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(posInvoices)
+        .set({ ...invoice, updatedAt: new Date() })
+        .where(and(eq(posInvoices.id, id), eq(posInvoices.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deletePosInvoice(id: string, tenantId: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db
+        .delete(posInvoices)
+        .where(and(eq(posInvoices.id, id), eq(posInvoices.tenantId, tenantId)));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  async getNextPosInvoiceNumber(tenantId: string): Promise<string> {
+    return withRetry(async () => {
+      const [result] = await db
+        .select({ invoiceNumber: posInvoices.invoiceNumber })
+        .from(posInvoices)
+        .where(eq(posInvoices.tenantId, tenantId))
+        .orderBy(desc(posInvoices.createdAt))
+        .limit(1);
+      
+      const prefix = 'INV';
+      const year = new Date().getFullYear();
+      if (!result) {
+        return `${prefix}-${year}-0001`;
+      }
+      
+      const parts = result.invoiceNumber.split('-');
+      const lastNumber = parseInt(parts[parts.length - 1], 10) || 0;
+      return `${prefix}-${year}-${String(lastNumber + 1).padStart(4, '0')}`;
+    });
+  }
+
+  // POS Invoice Items operations
+  async getPosInvoiceItems(invoiceId: string): Promise<PosInvoiceItem[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(posInvoiceItems)
+        .where(eq(posInvoiceItems.invoiceId, invoiceId))
+        .orderBy(asc(posInvoiceItems.sortOrder));
+    });
+  }
+
+  async createPosInvoiceItem(item: InsertPosInvoiceItem): Promise<PosInvoiceItem> {
+    return withRetry(async () => {
+      const [created] = await db.insert(posInvoiceItems).values(item).returning();
+      return created;
+    });
+  }
+
+  async updatePosInvoiceItem(id: string, item: Partial<InsertPosInvoiceItem>): Promise<PosInvoiceItem | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(posInvoiceItems)
+        .set(item)
+        .where(eq(posInvoiceItems.id, id))
+        .returning();
+      return updated;
+    });
+  }
+
+  async deletePosInvoiceItem(id: string): Promise<boolean> {
+    return withRetry(async () => {
+      const result = await db.delete(posInvoiceItems).where(eq(posInvoiceItems.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  // Payments operations (POS)
+  async getPayments(tenantId: string): Promise<Payment[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(payments)
+        .where(eq(payments.tenantId, tenantId))
+        .orderBy(desc(payments.createdAt));
+    });
+  }
+
+  async getPayment(id: string, tenantId: string): Promise<Payment | undefined> {
+    return withRetry(async () => {
+      const [payment] = await db
+        .select()
+        .from(payments)
+        .where(and(eq(payments.id, id), eq(payments.tenantId, tenantId)));
+      return payment;
+    });
+  }
+
+  async getPaymentsByInvoice(posInvoiceId: string, tenantId: string): Promise<Payment[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(payments)
+        .where(and(eq(payments.posInvoiceId, posInvoiceId), eq(payments.tenantId, tenantId)))
+        .orderBy(desc(payments.createdAt));
+    });
+  }
+
+  async getPaymentsByTicket(ticketId: string, tenantId: string): Promise<Payment[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(payments)
+        .where(and(eq(payments.ticketId, ticketId), eq(payments.tenantId, tenantId)))
+        .orderBy(desc(payments.createdAt));
+    });
+  }
+
+  async getPaymentsByClient(clientId: string, tenantId: string): Promise<Payment[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(payments)
+        .where(and(eq(payments.clientId, clientId), eq(payments.tenantId, tenantId)))
+        .orderBy(desc(payments.createdAt));
+    });
+  }
+
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    return withRetry(async () => {
+      const [created] = await db.insert(payments).values(payment).returning();
+      return created;
+    });
+  }
+
+  async updatePayment(id: string, tenantId: string, payment: Partial<InsertPayment>): Promise<Payment | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(payments)
+        .set({ ...payment, updatedAt: new Date() })
+        .where(and(eq(payments.id, id), eq(payments.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  async getNextPaymentNumber(tenantId: string): Promise<string> {
+    return withRetry(async () => {
+      const [result] = await db
+        .select({ paymentNumber: payments.paymentNumber })
+        .from(payments)
+        .where(eq(payments.tenantId, tenantId))
+        .orderBy(desc(payments.createdAt))
+        .limit(1);
+      
+      const prefix = 'PAY';
+      const year = new Date().getFullYear();
+      if (!result) {
+        return `${prefix}-${year}-0001`;
+      }
+      
+      const parts = result.paymentNumber.split('-');
+      const lastNumber = parseInt(parts[parts.length - 1], 10) || 0;
+      return `${prefix}-${year}-${String(lastNumber + 1).padStart(4, '0')}`;
+    });
+  }
+
+  // Accounts Receivable operations (POS)
+  async getAccountsReceivable(tenantId: string): Promise<AccountReceivable[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(accountsReceivable)
+        .where(eq(accountsReceivable.tenantId, tenantId))
+        .orderBy(asc(accountsReceivable.dueDate));
+    });
+  }
+
+  async getAccountReceivable(id: string, tenantId: string): Promise<AccountReceivable | undefined> {
+    return withRetry(async () => {
+      const [ar] = await db
+        .select()
+        .from(accountsReceivable)
+        .where(and(eq(accountsReceivable.id, id), eq(accountsReceivable.tenantId, tenantId)));
+      return ar;
+    });
+  }
+
+  async getAccountsReceivableByClient(clientId: string, tenantId: string): Promise<AccountReceivable[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(accountsReceivable)
+        .where(and(eq(accountsReceivable.clientId, clientId), eq(accountsReceivable.tenantId, tenantId)))
+        .orderBy(asc(accountsReceivable.dueDate));
+    });
+  }
+
+  async getAccountsReceivableByStatus(tenantId: string, status: string): Promise<AccountReceivable[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(accountsReceivable)
+        .where(and(eq(accountsReceivable.tenantId, tenantId), eq(accountsReceivable.status, status)))
+        .orderBy(asc(accountsReceivable.dueDate));
+    });
+  }
+
+  async getOverdueAccountsReceivable(tenantId: string): Promise<AccountReceivable[]> {
+    return withRetry(async () => {
+      const now = new Date();
+      return db
+        .select()
+        .from(accountsReceivable)
+        .where(and(
+          eq(accountsReceivable.tenantId, tenantId),
+          eq(accountsReceivable.status, 'pending'),
+          sql`${accountsReceivable.dueDate} < ${now}`
+        ))
+        .orderBy(asc(accountsReceivable.dueDate));
+    });
+  }
+
+  async createAccountReceivable(ar: InsertAccountReceivable): Promise<AccountReceivable> {
+    return withRetry(async () => {
+      const [created] = await db.insert(accountsReceivable).values(ar).returning();
+      return created;
+    });
+  }
+
+  async updateAccountReceivable(id: string, tenantId: string, ar: Partial<InsertAccountReceivable>): Promise<AccountReceivable | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(accountsReceivable)
+        .set({ ...ar, updatedAt: new Date() })
+        .where(and(eq(accountsReceivable.id, id), eq(accountsReceivable.tenantId, tenantId)))
+        .returning();
+      return updated;
+    });
+  }
+
+  // Accounts Payable operations (POS)
+  async getAccountsPayable(tenantId: string): Promise<AccountPayable[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(accountsPayable)
+        .where(eq(accountsPayable.tenantId, tenantId))
+        .orderBy(asc(accountsPayable.dueDate));
+    });
+  }
+
+  async getAccountPayable(id: string, tenantId: string): Promise<AccountPayable | undefined> {
+    return withRetry(async () => {
+      const [ap] = await db
+        .select()
+        .from(accountsPayable)
+        .where(and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)));
+      return ap;
+    });
+  }
+
+  async getAccountsPayableBySupplier(supplierId: string, tenantId: string): Promise<AccountPayable[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(accountsPayable)
+        .where(and(eq(accountsPayable.supplierId, supplierId), eq(accountsPayable.tenantId, tenantId)))
+        .orderBy(asc(accountsPayable.dueDate));
+    });
+  }
+
+  async getAccountsPayableByStatus(tenantId: string, status: string): Promise<AccountPayable[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(accountsPayable)
+        .where(and(eq(accountsPayable.tenantId, tenantId), eq(accountsPayable.status, status)))
+        .orderBy(asc(accountsPayable.dueDate));
+    });
+  }
+
+  async getOverdueAccountsPayable(tenantId: string): Promise<AccountPayable[]> {
+    return withRetry(async () => {
+      const now = new Date();
+      return db
+        .select()
+        .from(accountsPayable)
+        .where(and(
+          eq(accountsPayable.tenantId, tenantId),
+          eq(accountsPayable.status, 'pending'),
+          sql`${accountsPayable.dueDate} < ${now}`
+        ))
+        .orderBy(asc(accountsPayable.dueDate));
+    });
+  }
+
+  async createAccountPayable(ap: InsertAccountPayable): Promise<AccountPayable> {
+    return withRetry(async () => {
+      const [created] = await db.insert(accountsPayable).values(ap).returning();
+      return created;
+    });
+  }
+
+  async updateAccountPayable(id: string, tenantId: string, ap: Partial<InsertAccountPayable>): Promise<AccountPayable | undefined> {
+    return withRetry(async () => {
+      const [updated] = await db
+        .update(accountsPayable)
+        .set({ ...ap, updatedAt: new Date() })
+        .where(and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)))
+        .returning();
+      return updated;
     });
   }
 }

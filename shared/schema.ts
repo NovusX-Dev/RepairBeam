@@ -1055,6 +1055,248 @@ export const userActivities = pgTable("user_activities", {
   index("idx_user_activities_date").on(table.createdAt),
 ]);
 
+// ============================================
+// POS (Point of Sale) / Finance Module Tables
+// ============================================
+
+// Enums for POS module
+export const quoteStatusEnum = ['draft', 'sent', 'accepted', 'rejected', 'expired', 'converted'] as const;
+export const posInvoiceStatusEnum = ['draft', 'issued', 'partially_paid', 'paid', 'overdue', 'void', 'cancelled'] as const;
+export const paymentStatusEnum = ['pending', 'processing', 'completed', 'failed', 'refunded', 'cancelled'] as const;
+export const paymentMethodTypeEnum = ['pix', 'credit_card', 'debit_card', 'cash', 'boleto', 'bank_transfer', 'other'] as const;
+export const accountTypeEnum = ['receivable', 'payable'] as const;
+export const accountStatusEnum = ['pending', 'partially_paid', 'paid', 'overdue', 'cancelled', 'written_off'] as const;
+
+// Payment Terms - Configurable payment terms for A/R
+export const paymentTerms = pgTable("payment_terms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: varchar("name").notNull(), // e.g., "Net 15", "Net 30", "Due on Receipt"
+  daysUntilDue: integer("days_until_due").notNull().default(30),
+  description: text("description"),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_payment_terms_tenant").on(table.tenantId),
+  unique("unique_payment_term_name_per_tenant").on(table.tenantId, table.name),
+]);
+
+// Payment Methods - Configured payment methods per tenant
+export const paymentMethods = pgTable("payment_methods", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  type: varchar("type").notNull(), // 'pix', 'credit_card', 'debit_card', 'cash', 'boleto', 'bank_transfer', 'other'
+  name: varchar("name").notNull(), // Display name e.g., "PIX", "Cartão de Crédito"
+  description: text("description"),
+  providerConfig: jsonb("provider_config").default({}), // Provider-specific settings (gateway ID, etc.)
+  isActive: boolean("is_active").notNull().default(true),
+  allowInstallments: boolean("allow_installments").notNull().default(false), // For credit cards
+  maxInstallments: integer("max_installments").default(12),
+  sortOrder: integer("sort_order").notNull().default(0), // Display order
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_payment_methods_tenant").on(table.tenantId),
+  index("idx_payment_methods_type").on(table.type),
+]);
+
+// Quotes - Estimates/quotations for clients
+export const quotes = pgTable("quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  quoteNumber: varchar("quote_number").notNull(), // Formatted number (e.g., "QT-2025-001")
+  clientId: varchar("client_id").references(() => clients.id, { onDelete: 'set null' }),
+  ticketId: varchar("ticket_id").references(() => tickets.id, { onDelete: 'set null' }), // Optional link to repair ticket
+  status: varchar("status").notNull().default('draft'), // draft, sent, accepted, rejected, expired, converted
+  title: varchar("title"),
+  description: text("description"),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0.00'),
+  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default('0.00'),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0.00'),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  validUntil: timestamp("valid_until"), // Quote expiry date
+  notes: text("notes"), // Internal notes
+  termsAndConditions: text("terms_and_conditions"),
+  issuedDate: timestamp("issued_date"),
+  issuedBy: varchar("issued_by"), // User ID
+  acceptedDate: timestamp("accepted_date"),
+  convertedToInvoiceId: varchar("converted_to_invoice_id"), // Link to POS invoice if converted
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique("unique_quote_number_per_tenant").on(table.tenantId, table.quoteNumber),
+  index("idx_quotes_tenant").on(table.tenantId),
+  index("idx_quotes_client").on(table.clientId),
+  index("idx_quotes_status").on(table.status),
+  index("idx_quotes_ticket").on(table.ticketId),
+]);
+
+// Quote Items - Line items for quotes
+export const quoteItems = pgTable("quote_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  description: varchar("description").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0.00'),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  inventoryItemId: varchar("inventory_item_id").references(() => inventoryItems.id, { onDelete: 'set null' }), // Optional link to inventory
+  repairServiceId: varchar("repair_service_id").references(() => repairServices.id, { onDelete: 'set null' }), // Optional link to repair service
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_quote_items_quote").on(table.quoteId),
+]);
+
+// POS Invoices - Standalone invoices for POS transactions (separate from repair ticket invoices)
+export const posInvoices = pgTable("pos_invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  invoiceNumber: varchar("invoice_number").notNull(), // Formatted number (e.g., "POS-2025-001")
+  clientId: varchar("client_id").references(() => clients.id, { onDelete: 'set null' }),
+  ticketId: varchar("ticket_id").references(() => tickets.id, { onDelete: 'set null' }), // Optional link to repair ticket
+  quoteId: varchar("quote_id").references(() => quotes.id, { onDelete: 'set null' }), // If converted from quote
+  status: varchar("status").notNull().default('draft'), // draft, issued, partially_paid, paid, overdue, void, cancelled
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0.00'),
+  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default('0.00'),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0.00'),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default('0.00'), // Amount paid so far
+  balanceDue: decimal("balance_due", { precision: 10, scale: 2 }).notNull().default('0.00'), // Remaining balance
+  paymentTermsId: varchar("payment_terms_id").references(() => paymentTerms.id, { onDelete: 'set null' }),
+  dueDate: timestamp("due_date"),
+  issuedDate: timestamp("issued_date"),
+  issuedBy: varchar("issued_by"), // User ID
+  paidDate: timestamp("paid_date"), // When fully paid
+  notes: text("notes"),
+  internalNotes: text("internal_notes"),
+  pdfUrl: varchar("pdf_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique("unique_pos_invoice_number_per_tenant").on(table.tenantId, table.invoiceNumber),
+  index("idx_pos_invoices_tenant").on(table.tenantId),
+  index("idx_pos_invoices_client").on(table.clientId),
+  index("idx_pos_invoices_status").on(table.status),
+  index("idx_pos_invoices_due_date").on(table.dueDate),
+]);
+
+// POS Invoice Items - Line items for POS invoices
+export const posInvoiceItems = pgTable("pos_invoice_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").notNull().references(() => posInvoices.id, { onDelete: 'cascade' }),
+  description: varchar("description").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0.00'),
+  totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
+  inventoryItemId: varchar("inventory_item_id").references(() => inventoryItems.id, { onDelete: 'set null' }),
+  repairServiceId: varchar("repair_service_id").references(() => repairServices.id, { onDelete: 'set null' }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_pos_invoice_items_invoice").on(table.invoiceId),
+]);
+
+// Payments - Transaction records for all payments
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  paymentNumber: varchar("payment_number").notNull(), // Reference number (e.g., "PAY-2025-001")
+  posInvoiceId: varchar("pos_invoice_id").references(() => posInvoices.id, { onDelete: 'set null' }), // Link to POS invoice
+  ticketId: varchar("ticket_id").references(() => tickets.id, { onDelete: 'set null' }), // Or link to repair ticket
+  clientId: varchar("client_id").references(() => clients.id, { onDelete: 'set null' }),
+  paymentMethodId: varchar("payment_method_id").references(() => paymentMethods.id, { onDelete: 'set null' }),
+  paymentMethodType: varchar("payment_method_type").notNull(), // 'pix', 'credit_card', 'debit_card', 'cash', etc.
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").notNull().default('pending'), // pending, processing, completed, failed, refunded, cancelled
+  // Gateway details
+  gatewayProvider: varchar("gateway_provider"), // 'stripe', 'pagar_me', 'manual', etc.
+  gatewayTransactionId: varchar("gateway_transaction_id"), // External transaction ID
+  gatewayResponse: jsonb("gateway_response").default({}), // Full response from gateway
+  // Installment details (for credit cards)
+  installments: integer("installments").default(1),
+  installmentAmount: decimal("installment_amount", { precision: 10, scale: 2 }),
+  // PIX specific
+  pixQrCode: text("pix_qr_code"), // QR code data
+  pixQrCodeUrl: varchar("pix_qr_code_url"), // URL to QR code image
+  pixExpiresAt: timestamp("pix_expires_at"),
+  // Processing details
+  processedAt: timestamp("processed_at"),
+  processedBy: varchar("processed_by"), // User ID who processed
+  failureReason: text("failure_reason"),
+  refundedAt: timestamp("refunded_at"),
+  refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
+  refundReason: text("refund_reason"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  unique("unique_payment_number_per_tenant").on(table.tenantId, table.paymentNumber),
+  index("idx_payments_tenant").on(table.tenantId),
+  index("idx_payments_invoice").on(table.posInvoiceId),
+  index("idx_payments_ticket").on(table.ticketId),
+  index("idx_payments_client").on(table.clientId),
+  index("idx_payments_status").on(table.status),
+  index("idx_payments_gateway_tx").on(table.gatewayTransactionId),
+]);
+
+// Accounts Receivable - Money owed TO the business
+export const accountsReceivable = pgTable("accounts_receivable", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  posInvoiceId: varchar("pos_invoice_id").references(() => posInvoices.id, { onDelete: 'set null' }),
+  ticketId: varchar("ticket_id").references(() => tickets.id, { onDelete: 'set null' }),
+  description: varchar("description").notNull(),
+  originalAmount: decimal("original_amount", { precision: 10, scale: 2 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  balanceDue: decimal("balance_due", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").notNull().default('pending'), // pending, partially_paid, paid, overdue, cancelled, written_off
+  dueDate: timestamp("due_date").notNull(),
+  paidDate: timestamp("paid_date"),
+  paymentTermsId: varchar("payment_terms_id").references(() => paymentTerms.id, { onDelete: 'set null' }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_ar_tenant").on(table.tenantId),
+  index("idx_ar_client").on(table.clientId),
+  index("idx_ar_status").on(table.status),
+  index("idx_ar_due_date").on(table.dueDate),
+]);
+
+// Accounts Payable - Money owed BY the business
+export const accountsPayable = pgTable("accounts_payable", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  supplierId: varchar("supplier_id").references(() => suppliers.id, { onDelete: 'set null' }),
+  purchaseOrderId: varchar("purchase_order_id").references(() => purchaseOrders.id, { onDelete: 'set null' }),
+  description: varchar("description").notNull(),
+  category: varchar("category"), // 'inventory', 'utilities', 'rent', 'services', 'other'
+  originalAmount: decimal("original_amount", { precision: 10, scale: 2 }).notNull(),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).notNull().default('0.00'),
+  balanceDue: decimal("balance_due", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status").notNull().default('pending'), // pending, partially_paid, paid, overdue, cancelled
+  dueDate: timestamp("due_date").notNull(),
+  paidDate: timestamp("paid_date"),
+  paymentMethod: varchar("payment_method"), // How it was/will be paid
+  referenceNumber: varchar("reference_number"), // External reference (supplier invoice number, etc.)
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_ap_tenant").on(table.tenantId),
+  index("idx_ap_supplier").on(table.supplierId),
+  index("idx_ap_status").on(table.status),
+  index("idx_ap_due_date").on(table.dueDate),
+  index("idx_ap_category").on(table.category),
+]);
+
 // Schema exports for gamification
 export const userProgressInsertSchema = createInsertSchema(userProgress).omit({
   id: true,
@@ -1133,6 +1375,97 @@ export type SignatureAuditEvent = typeof signatureAuditEvents.$inferSelect;
 export type InsertSignatureAuditEvent = z.infer<typeof insertSignatureAuditEventSchema>;
 export type SignatureAuditEventType = (typeof signatureAuditEventTypeEnum)[number];
 
+// ============================================
+// POS Module Schemas and Types
+// ============================================
+
+// Payment Terms
+export const insertPaymentTermSchema = createInsertSchema(paymentTerms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type PaymentTerm = typeof paymentTerms.$inferSelect;
+export type InsertPaymentTerm = z.infer<typeof insertPaymentTermSchema>;
+
+// Payment Methods
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+
+// Quotes
+export const insertQuoteSchema = createInsertSchema(quotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type Quote = typeof quotes.$inferSelect;
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+
+// Quote Items
+export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({
+  id: true,
+  createdAt: true,
+});
+export type QuoteItem = typeof quoteItems.$inferSelect;
+export type InsertQuoteItem = z.infer<typeof insertQuoteItemSchema>;
+
+// POS Invoices
+export const insertPosInvoiceSchema = createInsertSchema(posInvoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type PosInvoice = typeof posInvoices.$inferSelect;
+export type InsertPosInvoice = z.infer<typeof insertPosInvoiceSchema>;
+
+// POS Invoice Items
+export const insertPosInvoiceItemSchema = createInsertSchema(posInvoiceItems).omit({
+  id: true,
+  createdAt: true,
+});
+export type PosInvoiceItem = typeof posInvoiceItems.$inferSelect;
+export type InsertPosInvoiceItem = z.infer<typeof insertPosInvoiceItemSchema>;
+
+// Payments
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+// Accounts Receivable
+export const insertAccountReceivableSchema = createInsertSchema(accountsReceivable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type AccountReceivable = typeof accountsReceivable.$inferSelect;
+export type InsertAccountReceivable = z.infer<typeof insertAccountReceivableSchema>;
+
+// Accounts Payable
+export const insertAccountPayableSchema = createInsertSchema(accountsPayable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type AccountPayable = typeof accountsPayable.$inferSelect;
+export type InsertAccountPayable = z.infer<typeof insertAccountPayableSchema>;
+
+// POS Enum Types
+export type QuoteStatus = (typeof quoteStatusEnum)[number];
+export type PosInvoiceStatus = (typeof posInvoiceStatusEnum)[number];
+export type PaymentStatus = (typeof paymentStatusEnum)[number];
+export type PaymentMethodType = (typeof paymentMethodTypeEnum)[number];
+export type AccountType = (typeof accountTypeEnum)[number];
+export type AccountStatus = (typeof accountStatusEnum)[number];
+
 // Relations - moved to end after all tables are defined
 export const tenantRelations = relations(tenants, ({ many, one }) => ({
   users: many(users),
@@ -1145,6 +1478,14 @@ export const tenantRelations = relations(tenants, ({ many, one }) => ({
   warrantyTiers: many(warrantyTiers),
   repairServices: many(repairServices),
   possibleDefects: many(possibleDefects),
+  // POS relations
+  paymentTerms: many(paymentTerms),
+  paymentMethods: many(paymentMethods),
+  quotes: many(quotes),
+  posInvoices: many(posInvoices),
+  payments: many(payments),
+  accountsReceivable: many(accountsReceivable),
+  accountsPayable: many(accountsPayable),
 }));
 
 export const userRelations = relations(users, ({ one }) => ({
@@ -1217,5 +1558,155 @@ export const possibleDefectRelations = relations(possibleDefects, ({ one }) => (
   tenant: one(tenants, {
     fields: [possibleDefects.tenantId],
     references: [tenants.id],
+  }),
+}));
+
+// ============================================
+// POS Module Relations
+// ============================================
+
+export const paymentTermRelations = relations(paymentTerms, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [paymentTerms.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const paymentMethodRelations = relations(paymentMethods, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [paymentMethods.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const quoteRelations = relations(quotes, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [quotes.tenantId],
+    references: [tenants.id],
+  }),
+  client: one(clients, {
+    fields: [quotes.clientId],
+    references: [clients.id],
+  }),
+  ticket: one(tickets, {
+    fields: [quotes.ticketId],
+    references: [tickets.id],
+  }),
+  items: many(quoteItems),
+}));
+
+export const quoteItemRelations = relations(quoteItems, ({ one }) => ({
+  quote: one(quotes, {
+    fields: [quoteItems.quoteId],
+    references: [quotes.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [quoteItems.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+  repairService: one(repairServices, {
+    fields: [quoteItems.repairServiceId],
+    references: [repairServices.id],
+  }),
+}));
+
+export const posInvoiceRelations = relations(posInvoices, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [posInvoices.tenantId],
+    references: [tenants.id],
+  }),
+  client: one(clients, {
+    fields: [posInvoices.clientId],
+    references: [clients.id],
+  }),
+  ticket: one(tickets, {
+    fields: [posInvoices.ticketId],
+    references: [tickets.id],
+  }),
+  quote: one(quotes, {
+    fields: [posInvoices.quoteId],
+    references: [quotes.id],
+  }),
+  paymentTerms: one(paymentTerms, {
+    fields: [posInvoices.paymentTermsId],
+    references: [paymentTerms.id],
+  }),
+  items: many(posInvoiceItems),
+  payments: many(payments),
+}));
+
+export const posInvoiceItemRelations = relations(posInvoiceItems, ({ one }) => ({
+  invoice: one(posInvoices, {
+    fields: [posInvoiceItems.invoiceId],
+    references: [posInvoices.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [posInvoiceItems.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+  repairService: one(repairServices, {
+    fields: [posInvoiceItems.repairServiceId],
+    references: [repairServices.id],
+  }),
+}));
+
+export const paymentRelations = relations(payments, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [payments.tenantId],
+    references: [tenants.id],
+  }),
+  posInvoice: one(posInvoices, {
+    fields: [payments.posInvoiceId],
+    references: [posInvoices.id],
+  }),
+  ticket: one(tickets, {
+    fields: [payments.ticketId],
+    references: [tickets.id],
+  }),
+  client: one(clients, {
+    fields: [payments.clientId],
+    references: [clients.id],
+  }),
+  paymentMethod: one(paymentMethods, {
+    fields: [payments.paymentMethodId],
+    references: [paymentMethods.id],
+  }),
+}));
+
+export const accountReceivableRelations = relations(accountsReceivable, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [accountsReceivable.tenantId],
+    references: [tenants.id],
+  }),
+  client: one(clients, {
+    fields: [accountsReceivable.clientId],
+    references: [clients.id],
+  }),
+  posInvoice: one(posInvoices, {
+    fields: [accountsReceivable.posInvoiceId],
+    references: [posInvoices.id],
+  }),
+  ticket: one(tickets, {
+    fields: [accountsReceivable.ticketId],
+    references: [tickets.id],
+  }),
+  paymentTerms: one(paymentTerms, {
+    fields: [accountsReceivable.paymentTermsId],
+    references: [paymentTerms.id],
+  }),
+}));
+
+export const accountPayableRelations = relations(accountsPayable, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [accountsPayable.tenantId],
+    references: [tenants.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [accountsPayable.supplierId],
+    references: [suppliers.id],
+  }),
+  purchaseOrder: one(purchaseOrders, {
+    fields: [accountsPayable.purchaseOrderId],
+    references: [purchaseOrders.id],
   }),
 }));
