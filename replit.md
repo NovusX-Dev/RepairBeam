@@ -15,6 +15,7 @@ Preferred communication style: Simple, everyday language.
 - **Localization Requirements**: Always add localizations and translations when necessary, ensuring support for only the configured languages (currently: en, pt-BR)
 - **Database Query Integrity**: Always ensure that lookups and queries are properly structured and do not break existing lookups
 - **Naming Convention Consistency**: Adhere to the same naming convention throughout the codebase, never mix different naming patterns
+- **Permission Template Updates**: When adding new sections or features with permissions, ALWAYS update the existing user permission group templates in the database (Administrator, Manager, Technician, Receptionist, Viewer) to include the new permissions. This prevents users from losing access to new features due to missing permissions in their groups.
 
 ## System Architecture
 
