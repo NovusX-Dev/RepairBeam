@@ -271,10 +271,19 @@ export default function Invoices() {
       });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices", selectedInvoice?.id, "payments"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices", selectedInvoice?.id, "payments"] });
+      
+      if (selectedInvoice) {
+        const response = await fetch(`/api/pos-invoices/${selectedInvoice.id}`, { credentials: "include" });
+        if (response.ok) {
+          const updatedInvoice = await response.json();
+          setSelectedInvoice(updatedInvoice);
+        }
+      }
+      
       setIsRecordPaymentOpen(false);
       setPaymentAmount("");
       setPaymentMethod("cash");
