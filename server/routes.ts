@@ -5673,6 +5673,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POS - Invoices Routes
   // ========================================================================
 
+  app.get("/api/pos-invoices/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const invoicesList = await storage.getPosInvoices(req.authUser.tenantId);
+      
+      const stats = {
+        total: invoicesList.length,
+        draft: invoicesList.filter(i => i.status === 'draft').length,
+        issued: invoicesList.filter(i => i.status === 'issued').length,
+        partiallyPaid: invoicesList.filter(i => i.status === 'partially_paid').length,
+        paid: invoicesList.filter(i => i.status === 'paid').length,
+        overdue: invoicesList.filter(i => i.status === 'overdue').length,
+        void: invoicesList.filter(i => i.status === 'void').length,
+        totalAmount: invoicesList.reduce((sum, i) => sum + parseFloat(i.totalAmount || '0'), 0),
+        paidAmount: invoicesList.reduce((sum, i) => sum + parseFloat(i.paidAmount || '0'), 0),
+        balanceDue: invoicesList.reduce((sum, i) => sum + parseFloat(i.balanceDue || '0'), 0),
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching POS invoice stats:", error);
+      res.status(500).json({ message: "Failed to fetch POS invoice stats" });
+    }
+  });
+
   app.get("/api/pos-invoices", isAuthenticated, async (req: any, res) => {
     try {
       if (!req.authUser?.tenantId) {
@@ -5811,6 +5838,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting POS invoice item:", error);
       res.status(500).json({ message: "Failed to delete POS invoice item" });
+    }
+  });
+
+  app.get("/api/pos-invoices/:invoiceId/payments", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const paymentsList = await storage.getPaymentsByInvoice(req.params.invoiceId, req.authUser.tenantId);
+      res.json(paymentsList);
+    } catch (error) {
+      console.error("Error fetching invoice payments:", error);
+      res.status(500).json({ message: "Failed to fetch invoice payments" });
+    }
+  });
+
+  app.post("/api/pos-invoices/:invoiceId/payments", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const invoice = await storage.getPosInvoice(req.params.invoiceId, req.authUser.tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      const paymentAmount = parseFloat(req.body.amount);
+      if (isNaN(paymentAmount) || paymentAmount <= 0) {
+        return res.status(400).json({ message: "Invalid payment amount" });
+      }
+      
+      const currentPaid = parseFloat(invoice.paidAmount || '0');
+      const totalAmount = parseFloat(invoice.totalAmount || '0');
+      const newPaidAmount = currentPaid + paymentAmount;
+      const newBalanceDue = Math.max(0, totalAmount - newPaidAmount);
+      
+      const paymentNumber = await storage.getNextPaymentNumber(req.authUser.tenantId);
+      const payment = await storage.createPayment({
+        tenantId: req.authUser.tenantId,
+        paymentNumber,
+        posInvoiceId: req.params.invoiceId,
+        clientId: invoice.clientId,
+        paymentMethodType: req.body.paymentMethodType || 'cash',
+        amount: paymentAmount.toFixed(2),
+        status: 'completed',
+        processedAt: new Date(),
+        processedBy: req.authUser.id,
+        notes: req.body.notes,
+      });
+      
+      let newStatus = invoice.status;
+      if (newBalanceDue <= 0) {
+        newStatus = 'paid';
+      } else if (newPaidAmount > 0) {
+        newStatus = 'partially_paid';
+      }
+      
+      await storage.updatePosInvoice(req.params.invoiceId, req.authUser.tenantId, {
+        paidAmount: newPaidAmount.toFixed(2),
+        balanceDue: newBalanceDue.toFixed(2),
+        status: newStatus,
+        paidDate: newBalanceDue <= 0 ? new Date() : null,
+      });
+      
+      res.status(201).json(payment);
+    } catch (error) {
+      console.error("Error recording invoice payment:", error);
+      res.status(500).json({ message: "Failed to record payment" });
     }
   });
 
