@@ -970,6 +970,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Actual hours and final cost are required" });
       }
 
+      // Check if ticket has an invoice linked
+      const existingInvoices = await storage.getPosInvoices(req.authUser.tenantId);
+      const linkedInvoice = existingInvoices.find(inv => inv.ticketId === ticketId && inv.status !== 'void' && inv.status !== 'cancelled');
+      
+      if (!linkedInvoice) {
+        return res.status(409).json({ 
+          message: "Invoice required before finalizing",
+          code: "INVOICE_REQUIRED",
+          description: "An invoice must be created for this ticket before it can be finalized. Please create an invoice from the Invoices page."
+        });
+      }
+
       // Get all ticket items
       const ticketItems = await storage.getTicketItems(ticketId, req.authUser.tenantId);
       
@@ -1049,7 +1061,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json(finalizedTicket);
+      // Auto-create AR entry if invoice has unpaid balance and has a linked client
+      let createdAREntry = null;
+      const invoiceBalance = parseFloat(linkedInvoice.balanceDue || '0');
+      if (invoiceBalance > 0 && linkedInvoice.clientId) {
+        try {
+          // Check if AR entry already exists for this invoice
+          const existingAREntries = await storage.getAccountsReceivable(req.authUser.tenantId);
+          const existingAR = existingAREntries.find(ar => ar.posInvoiceId === linkedInvoice.id);
+          
+          if (!existingAR) {
+            // Set AR due date to invoice due date or 30 days from now
+            const arDueDate = linkedInvoice.dueDate ? new Date(linkedInvoice.dueDate) : new Date();
+            if (!linkedInvoice.dueDate) {
+              arDueDate.setDate(arDueDate.getDate() + 30);
+            }
+            
+            createdAREntry = await storage.createAccountReceivable({
+              tenantId: req.authUser.tenantId,
+              clientId: linkedInvoice.clientId,
+              posInvoiceId: linkedInvoice.id,
+              description: `Invoice ${linkedInvoice.invoiceNumber} - ${finalizedTicket.title}`,
+              originalAmount: linkedInvoice.totalAmount || '0.00',
+              paidAmount: linkedInvoice.paidAmount || '0.00',
+              balanceDue: linkedInvoice.balanceDue || '0.00',
+              status: parseFloat(linkedInvoice.paidAmount || '0') > 0 ? 'partially_paid' : 'pending',
+              dueDate: arDueDate,
+              notes: `Auto-created from ticket finalization for ${finalizedTicket.title}`,
+            });
+          }
+        } catch (arError) {
+          console.error("Warning: Failed to create AR entry:", arError);
+          // Don't fail the finalization if AR creation fails
+        }
+      }
+
+      res.json({ ...finalizedTicket, createdAREntry });
     } catch (error: any) {
       console.error("Error finalizing ticket:", error);
       if (error.message === "Cannot modify finalized ticket") {
@@ -5776,6 +5823,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting POS invoice:", error);
       res.status(500).json({ message: "Failed to delete POS invoice" });
+    }
+  });
+
+  // Create invoice from ticket (import feature)
+  app.post("/api/pos-invoices/from-ticket/:ticketId", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const ticket = await storage.getTicket(req.params.ticketId, req.authUser.tenantId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      
+      // Check if ticket already has an invoice linked
+      const existingInvoices = await storage.getPosInvoices(req.authUser.tenantId);
+      const linkedInvoice = existingInvoices.find(inv => inv.ticketId === ticket.id && inv.status !== 'void' && inv.status !== 'cancelled');
+      if (linkedInvoice) {
+        return res.status(400).json({ 
+          message: "This ticket already has an active invoice", 
+          existingInvoiceId: linkedInvoice.id,
+          existingInvoiceNumber: linkedInvoice.invoiceNumber 
+        });
+      }
+      
+      // Get ticket items (parts)
+      const ticketItemsList = await storage.getTicketItems(req.params.ticketId, req.authUser.tenantId);
+      
+      // Get selected services
+      const selectedServiceIds = (ticket.selectedServices as string[]) || [];
+      const allServices = await storage.getRepairServices(req.authUser.tenantId);
+      const services = allServices.filter(s => selectedServiceIds.includes(s.id));
+      
+      // Calculate totals
+      const partsTotal = ticketItemsList.reduce((sum, item) => sum + parseFloat(item.totalPrice || '0'), 0);
+      const servicesTotal = services.reduce((sum, s) => sum + parseFloat(s.estimatedLaborCost || '0'), 0);
+      const subtotal = partsTotal + servicesTotal;
+      const totalAmount = parseFloat(ticket.totalCost || ticket.estimatedCost || '0') || subtotal;
+      
+      // Generate invoice number
+      const invoiceNumber = await storage.getNextPosInvoiceNumber(req.authUser.tenantId);
+      
+      // Set due date (default 30 days from now)
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+      
+      // Create the invoice
+      const invoice = await storage.createPosInvoice({
+        tenantId: req.authUser.tenantId,
+        invoiceNumber,
+        clientId: ticket.clientId,
+        ticketId: ticket.id,
+        status: 'draft',
+        subtotal: subtotal.toFixed(2),
+        totalAmount: totalAmount.toFixed(2),
+        balanceDue: totalAmount.toFixed(2),
+        paidAmount: '0.00',
+        dueDate,
+        issuedBy: req.authUser.id,
+        notes: `Invoice for ${ticket.title}`,
+      });
+      
+      // Add service line items
+      for (let i = 0; i < services.length; i++) {
+        const service = services[i];
+        await storage.createPosInvoiceItem({
+          invoiceId: invoice.id,
+          description: service.name,
+          quantity: 1,
+          unitPrice: service.estimatedLaborCost || '0.00',
+          discountAmount: '0.00',
+          totalPrice: service.estimatedLaborCost || '0.00',
+          repairServiceId: service.id,
+          sortOrder: i,
+        });
+      }
+      
+      // Add parts/inventory line items
+      for (let i = 0; i < ticketItemsList.length; i++) {
+        const item = ticketItemsList[i];
+        await storage.createPosInvoiceItem({
+          invoiceId: invoice.id,
+          description: item.inventoryItem?.name || 'Part',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountAmount: '0.00',
+          totalPrice: item.totalPrice,
+          inventoryItemId: item.inventoryItemId,
+          sortOrder: services.length + i,
+        });
+      }
+      
+      // Return the created invoice with items
+      const invoiceItems = await storage.getPosInvoiceItems(invoice.id);
+      
+      res.status(201).json({
+        ...invoice,
+        items: invoiceItems,
+      });
+    } catch (error) {
+      console.error("Error creating invoice from ticket:", error);
+      res.status(500).json({ message: "Failed to create invoice from ticket" });
     }
   });
 

@@ -41,7 +41,41 @@ import {
   Link,
   ClipboardList
 } from "lucide-react";
-import type { PosInvoice, PosInvoiceItem, Client, Payment } from "@shared/schema";
+import type { PosInvoice, PosInvoiceItem, Client, Payment, Ticket } from "@shared/schema";
+import { Smartphone, Wrench, Package } from "lucide-react";
+
+interface TicketSummary {
+  ticket: {
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+    deviceType: string;
+    deviceBrand: string;
+    deviceModel: string;
+  };
+  client: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  } | null;
+  lineItems: Array<{
+    type: 'service' | 'part';
+    description: string;
+    quantity: number;
+    unitPrice: string;
+    totalPrice: string;
+  }>;
+  summary: {
+    servicesTotal: number;
+    partsTotal: number;
+    extraCosts: number;
+    subtotal: number;
+    totalAmount: number;
+  };
+}
 
 interface InvoiceStats {
   total: number;
@@ -103,6 +137,14 @@ export default function Invoices() {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paymentNotes, setPaymentNotes] = useState("");
 
+  // Import from ticket state
+  const [isImportFromTicketOpen, setIsImportFromTicketOpen] = useState(false);
+  const [ticketSearchTerm, setTicketSearchTerm] = useState("");
+  const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [ticketSummary, setTicketSummary] = useState<TicketSummary | null>(null);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery<PosInvoice[]>({
     queryKey: ["/api/pos-invoices"]
   });
@@ -136,6 +178,51 @@ export default function Invoices() {
       return response.json();
     },
     enabled: !!selectedInvoice?.id && isDetailsSheetOpen
+  });
+
+  // Tickets for import feature
+  const { data: tickets = [] } = useQuery<Ticket[]>({
+    queryKey: ["/api/tickets"],
+    enabled: isImportFromTicketOpen
+  });
+
+  // Filter tickets for import dialog
+  const filteredTickets = tickets.filter(ticket => {
+    if (ticket.isArchived) return false;
+    const matchesSearch = 
+      ticket.title?.toLowerCase().includes(ticketSearchTerm.toLowerCase()) ||
+      ticket.deviceBrand?.toLowerCase().includes(ticketSearchTerm.toLowerCase()) ||
+      ticket.deviceModel?.toLowerCase().includes(ticketSearchTerm.toLowerCase());
+    const matchesStatus = ticketStatusFilter === "all" || ticket.status === ticketStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Mutation for creating invoice from ticket
+  const createInvoiceFromTicketMutation = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await apiRequest("POST", `/api/pos-invoices/from-ticket/${ticketId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+      setIsImportFromTicketOpen(false);
+      setTicketSummary(null);
+      setSelectedTicketId(null);
+      setIsPreviewMode(false);
+      toast({
+        title: t("success", "Success"),
+        description: t("invoice_created_from_ticket", "Invoice created from ticket successfully")
+      });
+    },
+    onError: (error: any) => {
+      const message = error?.message || t("invoice_creation_failed", "Failed to create invoice");
+      toast({
+        title: t("error", "Error"),
+        description: message,
+        variant: "destructive"
+      });
+    }
   });
 
   const createInvoiceMutation = useMutation({
@@ -347,6 +434,56 @@ export default function Invoices() {
     setLineItems(lineItems.filter((_, i) => i !== index));
   };
 
+  // Import from ticket handlers
+  const handleOpenImportFromTicket = () => {
+    setTicketSearchTerm("");
+    setTicketStatusFilter("all");
+    setSelectedTicketId(null);
+    setTicketSummary(null);
+    setIsPreviewMode(false);
+    setIsImportFromTicketOpen(true);
+  };
+
+  const handleSelectTicket = async (ticketId: string) => {
+    setSelectedTicketId(ticketId);
+    try {
+      const response = await fetch(`/api/tickets/${ticketId}/quote-summary`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch ticket summary");
+      const summary = await response.json();
+      setTicketSummary(summary);
+      setIsPreviewMode(true);
+    } catch (error) {
+      toast({
+        title: t("error", "Error"),
+        description: t("failed_to_load_ticket_summary", "Failed to load ticket summary"),
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCreateInvoiceFromTicket = () => {
+    if (selectedTicketId) {
+      createInvoiceFromTicketMutation.mutate(selectedTicketId);
+    }
+  };
+
+  const handleBackToTicketSelection = () => {
+    setIsPreviewMode(false);
+    setTicketSummary(null);
+    setSelectedTicketId(null);
+  };
+
+  const getTicketStatusColor = (status: string) => {
+    switch (status) {
+      case "backlog": return "text-gray-400";
+      case "waiting_parts": return "text-yellow-400";
+      case "in_progress": return "text-blue-400";
+      case "done": return "text-green-400";
+      case "finalized": return "text-purple-400";
+      default: return "text-gray-400";
+    }
+  };
+
   const handleCreateInvoice = () => {
     createInvoiceMutation.mutate({ invoice: formData, items: lineItems });
   };
@@ -455,14 +592,25 @@ export default function Invoices() {
           </p>
         </div>
         <PermissionGate permission={PERMISSIONS.INVOICES_CREATE}>
-          <Button 
-            onClick={handleOpenAddDialog}
-            className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-            data-testid="button-add-invoice"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {t("create_invoice", "Create Invoice")}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleOpenImportFromTicket}
+              variant="outline"
+              className="border-cyan-500/30 hover:bg-cyan-500/10"
+              data-testid="button-import-from-ticket"
+            >
+              <ClipboardList className="w-4 h-4 mr-2" />
+              {t("import_from_ticket", "Import from Ticket")}
+            </Button>
+            <Button 
+              onClick={handleOpenAddDialog}
+              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+              data-testid="button-add-invoice"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {t("create_invoice", "Create Invoice")}
+            </Button>
+          </div>
         </PermissionGate>
       </div>
 
@@ -1233,6 +1381,237 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isImportFromTicketOpen} onOpenChange={setIsImportFromTicketOpen}>
+        <DialogContent className="max-w-4xl bg-slate-900 border-cyan-500/20 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-cyan-400 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5" />
+              {isPreviewMode ? t("invoice_preview", "Invoice Preview") : t("import_from_ticket", "Import from Ticket")}
+            </DialogTitle>
+            <DialogDescription>
+              {isPreviewMode 
+                ? t("review_invoice_before_creating", "Review the invoice details before creating")
+                : t("select_ticket_to_create_invoice", "Select a repair ticket to create an invoice from its services and parts")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!isPreviewMode ? (
+            <div className="space-y-4 py-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder={t("search_tickets", "Search tickets...")}
+                    value={ticketSearchTerm}
+                    onChange={(e) => setTicketSearchTerm(e.target.value)}
+                    className="pl-10 bg-slate-800 border-slate-700"
+                    data-testid="input-search-tickets-invoice"
+                  />
+                </div>
+                <Select value={ticketStatusFilter} onValueChange={setTicketStatusFilter}>
+                  <SelectTrigger className="w-full md:w-48 bg-slate-800 border-slate-700" data-testid="select-ticket-status-invoice">
+                    <SelectValue placeholder={t("filter_by_status", "Filter by status")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("all_statuses", "All Statuses")}</SelectItem>
+                    <SelectItem value="backlog">{t("backlog", "Backlog")}</SelectItem>
+                    <SelectItem value="waiting_parts">{t("waiting_parts", "Waiting Parts")}</SelectItem>
+                    <SelectItem value="in_progress">{t("in_progress", "In Progress")}</SelectItem>
+                    <SelectItem value="done">{t("done", "Done")}</SelectItem>
+                    <SelectItem value="finalized">{t("finalized", "Finalized")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredTickets.length === 0 ? (
+                <div className="text-center py-12">
+                  <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">{t("no_tickets_found", "No tickets found")}</p>
+                </div>
+              ) : (
+                <div className="border border-slate-700 rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-700 bg-slate-800/50">
+                        <TableHead className="text-cyan-400">{t("ticket", "Ticket")}</TableHead>
+                        <TableHead className="text-cyan-400">{t("device", "Device")}</TableHead>
+                        <TableHead className="text-cyan-400">{t("status", "Status")}</TableHead>
+                        <TableHead className="text-cyan-400">{t("estimated_cost", "Est. Cost")}</TableHead>
+                        <TableHead className="text-cyan-400 text-right">{t("actions", "Actions")}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTickets.map((ticket) => (
+                        <TableRow key={ticket.id} className="border-slate-700 hover:bg-slate-800/50" data-testid={`row-ticket-invoice-${ticket.id}`}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-white">{ticket.title}</p>
+                              <p className="text-xs text-muted-foreground">{ticket.id.slice(0, 8)}...</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Smartphone className="w-4 h-4 text-cyan-400" />
+                              <span>{ticket.deviceBrand} {ticket.deviceModel}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getTicketStatusColor(ticket.status)}>
+                              {t(ticket.status, ticket.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(parseFloat(ticket.estimatedCost || ticket.totalCost || '0'))}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSelectTicket(ticket.id)}
+                              className="hover:bg-cyan-500/10 text-cyan-400"
+                              data-testid={`button-select-ticket-invoice-${ticket.id}`}
+                            >
+                              {t("select", "Select")}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6 py-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToTicketSelection}
+                className="text-muted-foreground hover:text-white"
+              >
+                ← {t("back_to_tickets", "Back to tickets")}
+              </Button>
+
+              {ticketSummary && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-800/50 rounded-lg">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList className="w-5 h-5 text-cyan-400" />
+                        <h3 className="font-semibold text-white">{t("ticket_info", "Ticket Info")}</h3>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="text-muted-foreground">{t("title", "Title")}:</span> <span className="text-white">{ticketSummary.ticket.title}</span></p>
+                        <p><span className="text-muted-foreground">{t("device", "Device")}:</span> <span className="text-white">{ticketSummary.ticket.deviceBrand} {ticketSummary.ticket.deviceModel}</span></p>
+                        <p><span className="text-muted-foreground">{t("status", "Status")}:</span> <Badge variant="outline" className={getTicketStatusColor(ticketSummary.ticket.status)}>{t(ticketSummary.ticket.status, ticketSummary.ticket.status)}</Badge></p>
+                      </div>
+                    </div>
+                    
+                    {ticketSummary.client && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <User className="w-5 h-5 text-cyan-400" />
+                          <h3 className="font-semibold text-white">{t("client_info", "Client Info")}</h3>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p><span className="text-muted-foreground">{t("name", "Name")}:</span> <span className="text-white">{ticketSummary.client.firstName} {ticketSummary.client.lastName}</span></p>
+                          {ticketSummary.client.email && <p><span className="text-muted-foreground">{t("email", "Email")}:</span> <span className="text-white">{ticketSummary.client.email}</span></p>}
+                          {ticketSummary.client.phone && <p><span className="text-muted-foreground">{t("phone", "Phone")}:</span> <span className="text-white">{ticketSummary.client.phone}</span></p>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-cyan-400">{t("line_items", "Line Items")}</h3>
+                    {ticketSummary.lineItems.length > 0 ? (
+                      <div className="border border-slate-700 rounded-lg overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-slate-700 bg-slate-800/50">
+                              <TableHead className="text-xs">{t("type", "Type")}</TableHead>
+                              <TableHead className="text-xs">{t("description", "Description")}</TableHead>
+                              <TableHead className="text-xs text-right">{t("quantity", "Qty")}</TableHead>
+                              <TableHead className="text-xs text-right">{t("unit_price", "Price")}</TableHead>
+                              <TableHead className="text-xs text-right">{t("total", "Total")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {ticketSummary.lineItems.map((item, index) => (
+                              <TableRow key={index} className="border-slate-700">
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {item.type === 'service' ? (
+                                      <Wrench className="w-4 h-4 text-blue-400" />
+                                    ) : (
+                                      <Package className="w-4 h-4 text-green-400" />
+                                    )}
+                                    <span className="text-xs">{item.type === 'service' ? t("service", "Service") : t("part", "Part")}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{item.description}</TableCell>
+                                <TableCell className="text-right">{item.quantity}</TableCell>
+                                <TableCell className="text-right">{formatCurrency(parseFloat(item.unitPrice))}</TableCell>
+                                <TableCell className="text-right font-semibold">{formatCurrency(parseFloat(item.totalPrice))}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">{t("no_items_in_ticket", "No services or parts in this ticket")}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 p-4 bg-slate-800/50 rounded-lg">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Wrench className="w-4 h-4 text-blue-400" />
+                        {t("services_total", "Services")}
+                      </span>
+                      <span className="text-white">{formatCurrency(ticketSummary.summary.servicesTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Package className="w-4 h-4 text-green-400" />
+                        {t("parts_total", "Parts")}
+                      </span>
+                      <span className="text-white">{formatCurrency(ticketSummary.summary.partsTotal)}</span>
+                    </div>
+                    {ticketSummary.summary.extraCosts > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{t("extra_costs", "Extra Costs")}</span>
+                        <span className="text-white">{formatCurrency(ticketSummary.summary.extraCosts)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-lg font-bold border-t border-slate-700 pt-2 mt-2">
+                      <span className="text-cyan-400">{t("total", "Total")}</span>
+                      <span className="text-white">{formatCurrency(ticketSummary.summary.totalAmount)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImportFromTicketOpen(false)}>
+              {t("cancel", "Cancel")}
+            </Button>
+            {isPreviewMode && ticketSummary && (
+              <Button
+                onClick={handleCreateInvoiceFromTicket}
+                disabled={createInvoiceFromTicketMutation.isPending}
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                data-testid="button-create-invoice-from-ticket"
+              >
+                {createInvoiceFromTicketMutation.isPending ? t("creating", "Creating...") : t("create_invoice", "Create Invoice")}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2102,10 +2102,35 @@ export default function KanbanTickets() {
       if (context?.previousTickets) {
         queryClient.setQueryData(["/api/tickets"], context.previousTickets);
       }
+      
+      // Check if it's an invoice-required error by parsing the error response
+      const errorMessage = err.message || "";
+      let isInvoiceError = false;
+      let displayMessage = t("finalization_failed", "Failed to finalize ticket");
+      
+      // The error message format is "status: {json}" - try to parse the JSON
+      try {
+        const jsonMatch = errorMessage.match(/^\d+:\s*(.+)$/);
+        if (jsonMatch) {
+          const errorData = JSON.parse(jsonMatch[1]);
+          // Check for invoice-required error code (works regardless of language)
+          isInvoiceError = errorData.code === "INVOICE_REQUIRED";
+          displayMessage = isInvoiceError 
+            ? t("invoice_required_message", "An invoice must be created for this ticket before it can be finalized. Please create an invoice from the Invoices page.")
+            : (errorData.message || errorData.description || displayMessage);
+        }
+      } catch {
+        // If parsing fails, fall back to the raw message
+        displayMessage = errorMessage || displayMessage;
+      }
+      
       toast({
-        title: t("error", "Error"),
-        description: err.message || t("finalization_failed", "Failed to finalize ticket"),
+        title: isInvoiceError 
+          ? t("invoice_required", "Invoice Required") 
+          : t("error", "Error"),
+        description: displayMessage,
         variant: "destructive",
+        duration: isInvoiceError ? 8000 : 5000,
       });
     },
     onSuccess: async (_, variables) => {
