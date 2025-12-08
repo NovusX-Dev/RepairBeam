@@ -5981,6 +5981,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POS - Accounts Receivable Routes
   // ========================================================================
 
+  app.get("/api/accounts-receivable/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const accounts = await storage.getAccountsReceivable(req.authUser.tenantId);
+      const now = new Date();
+      
+      let total = 0, pending = 0, partiallyPaid = 0, paid = 0, overdue = 0, cancelled = 0, writtenOff = 0;
+      let totalAmount = 0, paidAmount = 0, balanceDue = 0;
+      
+      for (const ar of accounts) {
+        total++;
+        totalAmount += parseFloat(ar.originalAmount || '0');
+        paidAmount += parseFloat(ar.paidAmount || '0');
+        balanceDue += parseFloat(ar.balanceDue || '0');
+        
+        const isOverdue = ar.dueDate && new Date(ar.dueDate) < now && ar.status !== 'paid' && ar.status !== 'cancelled' && ar.status !== 'written_off';
+        
+        if (isOverdue) {
+          overdue++;
+        }
+        
+        switch (ar.status) {
+          case 'pending': pending++; break;
+          case 'partially_paid': partiallyPaid++; break;
+          case 'paid': paid++; break;
+          case 'cancelled': cancelled++; break;
+          case 'written_off': writtenOff++; break;
+        }
+      }
+      
+      res.json({
+        total,
+        pending,
+        partiallyPaid,
+        paid,
+        overdue,
+        cancelled,
+        writtenOff,
+        totalAmount,
+        paidAmount,
+        balanceDue
+      });
+    } catch (error) {
+      console.error("Error fetching accounts receivable stats:", error);
+      res.status(500).json({ message: "Failed to fetch accounts receivable stats" });
+    }
+  });
+
   app.get("/api/accounts-receivable", isAuthenticated, async (req: any, res) => {
     try {
       if (!req.authUser?.tenantId) {
@@ -6053,6 +6103,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // POS - Accounts Payable Routes
   // ========================================================================
+
+  app.get("/api/accounts-payable/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const accounts = await storage.getAccountsPayable(req.authUser.tenantId);
+      const now = new Date();
+      
+      let total = 0, pending = 0, partiallyPaid = 0, paid = 0, overdue = 0, cancelled = 0;
+      let totalAmount = 0, paidAmount = 0, balanceDue = 0;
+      
+      for (const ap of accounts) {
+        total++;
+        totalAmount += parseFloat(ap.originalAmount || '0');
+        paidAmount += parseFloat(ap.paidAmount || '0');
+        balanceDue += parseFloat(ap.balanceDue || '0');
+        
+        const isOverdue = ap.dueDate && new Date(ap.dueDate) < now && ap.status !== 'paid' && ap.status !== 'cancelled';
+        
+        if (isOverdue) {
+          overdue++;
+        }
+        
+        switch (ap.status) {
+          case 'pending': pending++; break;
+          case 'partially_paid': partiallyPaid++; break;
+          case 'paid': paid++; break;
+          case 'cancelled': cancelled++; break;
+        }
+      }
+      
+      res.json({
+        total,
+        pending,
+        partiallyPaid,
+        paid,
+        overdue,
+        cancelled,
+        totalAmount,
+        paidAmount,
+        balanceDue
+      });
+    } catch (error) {
+      console.error("Error fetching accounts payable stats:", error);
+      res.status(500).json({ message: "Failed to fetch accounts payable stats" });
+    }
+  });
 
   app.get("/api/accounts-payable", isAuthenticated, async (req: any, res) => {
     try {
