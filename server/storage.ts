@@ -1800,6 +1800,7 @@ export class DatabaseStorage implements IStorage {
         profileImageUrl: users.profileImageUrl,
         tenantId: users.tenantId,
         role: users.role,
+        passwordHash: users.passwordHash,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         tenant: {

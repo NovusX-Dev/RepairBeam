@@ -2279,6 +2279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shopName: user.storeSettings?.shopName || 'Shop',
         shopAlias: user.storeSettings?.shopAlias,
         tenantDomain: user.tenant?.domain,
+        hasPassword: !!user.passwordHash, // Indicates if user uses password-based auth
       }));
       
       res.json(userList);

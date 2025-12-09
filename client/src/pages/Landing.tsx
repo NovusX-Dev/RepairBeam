@@ -20,6 +20,7 @@ interface RecentUser {
   shopName: string;
   shopAlias: string | null;
   tenantDomain: string | null;
+  hasPassword: boolean;
 }
 
 export default function Landing() {
@@ -57,8 +58,15 @@ export default function Landing() {
     fetchRecentUsers();
   }, []);
 
-  const handleUserLogin = (userId: string) => {
-    window.location.href = `/api/login?user_hint=${userId}`;
+  const handleUserLogin = (user: RecentUser) => {
+    if (user.hasPassword) {
+      // Password-based user - show password login form with pre-filled email
+      setEmail(user.email || '');
+      setShowPasswordLogin(true);
+    } else {
+      // OIDC user - redirect to SSO login
+      window.location.href = `/api/login?user_hint=${user.id}`;
+    }
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
@@ -208,7 +216,7 @@ export default function Landing() {
                           key={user.id}
                           variant="outline"
                           className="w-full justify-start"
-                          onClick={() => handleUserLogin(user.id)}
+                          onClick={() => handleUserLogin(user)}
                           data-testid={`button-quick-login-${user.id}`}
                         >
                           <div className="flex items-center space-x-3">
