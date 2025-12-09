@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -122,6 +123,7 @@ const emptyItemFormData: InvoiceItemFormData = {
 export default function Invoices() {
   const { t, formatCurrency } = useLocalization();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1402,7 +1404,7 @@ export default function Invoices() {
                     className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
                     onClick={() => {
                       setIsDetailsSheetOpen(false);
-                      window.location.href = `/kanban?ticketId=${selectedInvoice.ticketId}`;
+                      setLocation(`/kanban?ticketId=${selectedInvoice.ticketId}`);
                     }}
                     data-testid="button-view-linked-ticket"
                   >

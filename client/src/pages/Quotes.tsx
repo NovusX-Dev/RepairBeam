@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useLocalization } from "@/contexts/LocalizationContext";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -127,6 +128,7 @@ const emptyItemFormData: QuoteItemFormData = {
 export default function Quotes() {
   const { t, formatCurrency } = useLocalization();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -1291,7 +1293,7 @@ export default function Quotes() {
                     className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
                     onClick={() => {
                       setIsDetailsSheetOpen(false);
-                      window.location.href = `/kanban?ticketId=${selectedQuote.ticketId}`;
+                      setLocation(`/kanban?ticketId=${selectedQuote.ticketId}`);
                     }}
                     data-testid="button-view-linked-ticket"
                   >
