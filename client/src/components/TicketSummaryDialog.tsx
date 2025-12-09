@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -442,6 +442,49 @@ export default function TicketSummaryDialog({
 
   // Use either ticket.client or fetchedClient
   const clientData = ticket?.client || fetchedClient;
+
+  // Compute estimated cost from services, items, and extra costs
+  const estimatedCostCents = useMemo(() => {
+    if (!ticket) return 0;
+    
+    const locale: Locale = currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en';
+    
+    // Parse selected services
+    let services: string[] = [];
+    if (ticket.selectedServices) {
+      if (Array.isArray(ticket.selectedServices)) {
+        services = ticket.selectedServices as string[];
+      } else if (typeof ticket.selectedServices === 'string') {
+        try {
+          services = JSON.parse(ticket.selectedServices);
+        } catch (e) {
+          services = [];
+        }
+      }
+    }
+    
+    // Services cost
+    const totalServicesCents = services.reduce((total: number, serviceId: string) => {
+      const service = ticketRepairServices.find(s => s.id === serviceId);
+      if (service) {
+        const serviceCostCents = toCents(service.estimatedLaborCost || '0', locale);
+        return addCents(total, serviceCostCents);
+      }
+      return total;
+    }, 0);
+    
+    // Items cost
+    const totalItemsCents = summaryTicketItems.reduce((total: number, item: any) => {
+      const unitPriceCents = toCents(item.unitPrice || '0', locale);
+      const itemTotalCents = unitPriceCents * item.quantity;
+      return addCents(total, itemTotalCents);
+    }, 0);
+    
+    // Extra costs
+    const extraCostCents = ticket.costEstimation ? toCents(ticket.costEstimation, locale) : 0;
+    
+    return addCents(addCents(totalServicesCents, totalItemsCents), extraCostCents);
+  }, [ticket, ticketRepairServices, summaryTicketItems, currentLanguage.code]);
 
   // Priority update mutation
   const updateTicketPriority = useMutation({
@@ -1648,7 +1691,7 @@ export default function TicketSummaryDialog({
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="w-4 h-4 text-cyan-400" />
                 <span className="text-muted-foreground">{t("estimated_cost", "Est. Cost")}:</span>
-                <span className="text-white">{formatCurrency(toCents(ticket.totalCost || '0'), currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}</span>
+                <span className="text-white">{formatCurrency(estimatedCostCents, currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}</span>
               </div>
             </div>
             
@@ -1713,7 +1756,7 @@ export default function TicketSummaryDialog({
               <div className="flex items-center gap-2 text-sm">
                 <DollarSign className="w-4 h-4 text-green-400" />
                 <span className="text-muted-foreground">{t("estimated_cost", "Est. Cost")}:</span>
-                <span className="text-white">{formatCurrency(toCents(ticket.totalCost || '0'), currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}</span>
+                <span className="text-white">{formatCurrency(estimatedCostCents, currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}</span>
               </div>
             </div>
             
