@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -710,89 +711,139 @@ export default function Quotes() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDetailsSheet(quote)}
-                            className="hover:bg-cyan-500/10"
-                            data-testid={`button-view-quote-${quote.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          {quote.status === 'draft' && (
-                            <>
-                              <PermissionGate permission={PERMISSIONS.QUOTES_UPDATE}>
+                        <TooltipProvider>
+                          <div className="flex items-center justify-end gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleOpenEditDialog(quote)}
-                                  className="hover:bg-blue-500/10"
-                                  data-testid={`button-edit-quote-${quote.id}`}
+                                  onClick={() => handleOpenDetailsSheet(quote)}
+                                  className="hover:bg-cyan-500/10"
+                                  data-testid={`button-view-quote-${quote.id}`}
                                 >
-                                  <Edit className="w-4 h-4" />
+                                  <Eye className="w-4 h-4" />
                                 </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{t("view_quote", "View Quote")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            {quote.status === 'draft' && (
+                              <>
+                                <PermissionGate permission={PERMISSIONS.QUOTES_UPDATE}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleOpenEditDialog(quote)}
+                                        className="hover:bg-blue-500/10"
+                                        data-testid={`button-edit-quote-${quote.id}`}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{t("edit_quote", "Edit Quote")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </PermissionGate>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleSendQuote(quote)}
+                                      className="hover:bg-green-500/10 text-green-400"
+                                      data-testid={`button-send-quote-${quote.id}`}
+                                    >
+                                      <Send className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("send_quote", "Send Quote")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                            {quote.status === 'sent' && (
+                              <>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleAcceptQuote(quote)}
+                                      className="hover:bg-green-500/10 text-green-400"
+                                      data-testid={`button-accept-quote-${quote.id}`}
+                                    >
+                                      <CheckCircle className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("accept_quote", "Accept Quote")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleRejectQuote(quote)}
+                                      className="hover:bg-red-500/10 text-red-400"
+                                      data-testid={`button-reject-quote-${quote.id}`}
+                                    >
+                                      <XCircle className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("reject_quote", "Reject Quote")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                            {quote.status === 'accepted' && !quote.convertedToInvoiceId && (
+                              <PermissionGate permission={PERMISSIONS.INVOICES_CREATE}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleConvertToInvoice(quote)}
+                                      disabled={convertToInvoiceMutation.isPending}
+                                      className="hover:bg-purple-500/10 text-purple-400"
+                                      data-testid={`button-convert-quote-${quote.id}`}
+                                    >
+                                      <ArrowRightCircle className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("convert_to_invoice", "Convert to Invoice")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </PermissionGate>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleSendQuote(quote)}
-                                className="hover:bg-green-500/10 text-green-400"
-                                data-testid={`button-send-quote-${quote.id}`}
-                              >
-                                <Send className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                          {quote.status === 'sent' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleAcceptQuote(quote)}
-                                className="hover:bg-green-500/10 text-green-400"
-                                data-testid={`button-accept-quote-${quote.id}`}
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRejectQuote(quote)}
-                                className="hover:bg-red-500/10 text-red-400"
-                                data-testid={`button-reject-quote-${quote.id}`}
-                              >
-                                <XCircle className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                          {quote.status === 'accepted' && !quote.convertedToInvoiceId && (
-                            <PermissionGate permission={PERMISSIONS.INVOICES_CREATE}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleConvertToInvoice(quote)}
-                                disabled={convertToInvoiceMutation.isPending}
-                                className="hover:bg-purple-500/10 text-purple-400"
-                                title={t("convert_to_invoice", "Convert to Invoice")}
-                                data-testid={`button-convert-quote-${quote.id}`}
-                              >
-                                <ArrowRightCircle className="w-4 h-4" />
-                              </Button>
+                            )}
+                            <PermissionGate permission={PERMISSIONS.QUOTES_DELETE}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenDeleteDialog(quote)}
+                                    className="hover:bg-red-500/10 text-red-400"
+                                    data-testid={`button-delete-quote-${quote.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{t("delete_quote", "Delete Quote")}</p>
+                                </TooltipContent>
+                              </Tooltip>
                             </PermissionGate>
-                          )}
-                          <PermissionGate permission={PERMISSIONS.QUOTES_DELETE}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenDeleteDialog(quote)}
-                              className="hover:bg-red-500/10 text-red-400"
-                              data-testid={`button-delete-quote-${quote.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </PermissionGate>
-                        </div>
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}

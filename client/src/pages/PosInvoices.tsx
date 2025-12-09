@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -784,80 +785,124 @@ export default function Invoices() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDetailsSheet(invoice)}
-                            className="hover:bg-cyan-500/10"
-                            data-testid={`button-view-invoice-${invoice.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          {invoice.status === 'draft' && (
-                            <>
-                              <PermissionGate permission={PERMISSIONS.INVOICES_UPDATE}>
+                        <TooltipProvider>
+                          <div className="flex items-center justify-end gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleOpenEditDialog(invoice)}
-                                  className="hover:bg-blue-500/10"
-                                  data-testid={`button-edit-invoice-${invoice.id}`}
+                                  onClick={() => handleOpenDetailsSheet(invoice)}
+                                  className="hover:bg-cyan-500/10"
+                                  data-testid={`button-view-invoice-${invoice.id}`}
                                 >
-                                  <Edit className="w-4 h-4" />
+                                  <Eye className="w-4 h-4" />
                                 </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{t("view_invoice", "View Invoice")}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            {invoice.status === 'draft' && (
+                              <>
+                                <PermissionGate permission={PERMISSIONS.INVOICES_UPDATE}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleOpenEditDialog(invoice)}
+                                        className="hover:bg-blue-500/10"
+                                        data-testid={`button-edit-invoice-${invoice.id}`}
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{t("edit_invoice", "Edit Invoice")}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </PermissionGate>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleIssueInvoice(invoice)}
+                                      className="hover:bg-green-500/10 text-green-400"
+                                      data-testid={`button-issue-invoice-${invoice.id}`}
+                                    >
+                                      <Send className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("issue_invoice", "Issue Invoice")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                            {(invoice.status === 'issued' || invoice.status === 'partially_paid') && (
+                              <PermissionGate permission={PERMISSIONS.INVOICES_UPDATE}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleOpenRecordPayment(invoice)}
+                                      className="hover:bg-green-500/10 text-green-400"
+                                      data-testid={`button-record-payment-${invoice.id}`}
+                                    >
+                                      <Banknote className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("record_payment", "Record Payment")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </PermissionGate>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleIssueInvoice(invoice)}
-                                className="hover:bg-green-500/10 text-green-400"
-                                data-testid={`button-issue-invoice-${invoice.id}`}
-                              >
-                                <Send className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                          {(invoice.status === 'issued' || invoice.status === 'partially_paid') && (
-                            <PermissionGate permission={PERMISSIONS.INVOICES_UPDATE}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleOpenRecordPayment(invoice)}
-                                className="hover:bg-green-500/10 text-green-400"
-                                data-testid={`button-record-payment-${invoice.id}`}
-                              >
-                                <Banknote className="w-4 h-4" />
-                              </Button>
-                            </PermissionGate>
-                          )}
-                          {invoice.status !== 'void' && invoice.status !== 'paid' && (
-                            <PermissionGate permission={PERMISSIONS.INVOICES_VOID}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleVoidInvoice(invoice)}
-                                className="hover:bg-red-500/10 text-red-400"
-                                data-testid={`button-void-invoice-${invoice.id}`}
-                              >
-                                <Ban className="w-4 h-4" />
-                              </Button>
-                            </PermissionGate>
-                          )}
-                          {invoice.status === 'draft' && (
-                            <PermissionGate permission={PERMISSIONS.INVOICES_DELETE}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleOpenDeleteDialog(invoice)}
-                                className="hover:bg-red-500/10 text-red-400"
-                                data-testid={`button-delete-invoice-${invoice.id}`}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </PermissionGate>
-                          )}
-                        </div>
+                            )}
+                            {invoice.status !== 'void' && invoice.status !== 'paid' && (
+                              <PermissionGate permission={PERMISSIONS.INVOICES_VOID}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleVoidInvoice(invoice)}
+                                      className="hover:bg-red-500/10 text-red-400"
+                                      data-testid={`button-void-invoice-${invoice.id}`}
+                                    >
+                                      <Ban className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("void_invoice", "Void Invoice")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </PermissionGate>
+                            )}
+                            {invoice.status === 'draft' && (
+                              <PermissionGate permission={PERMISSIONS.INVOICES_DELETE}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleOpenDeleteDialog(invoice)}
+                                      className="hover:bg-red-500/10 text-red-400"
+                                      data-testid={`button-delete-invoice-${invoice.id}`}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("delete_invoice", "Delete Invoice")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </PermissionGate>
+                            )}
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))}
