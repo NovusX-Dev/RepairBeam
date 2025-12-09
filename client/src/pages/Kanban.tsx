@@ -54,7 +54,8 @@ import QRCodeScanner from "@/components/QRCodeScanner";
 import { AdvancedSearch } from "@/components/search-filter/AdvancedSearch";
 import { FilterPanel } from "@/components/search-filter/FilterPanel";
 import { DateRangePicker } from "@/components/search-filter/DateRangePicker";
-import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer, Archive, Eye } from "lucide-react";
+import { Plus, Clock, User, DollarSign, Check, AlertTriangle, Info, CalendarIcon, Shield, Smartphone, Laptop, Monitor, Loader2, MessageSquare, Filter, X, ChevronDown, ChevronUp, Minimize2, Maximize2, Edit, Users, Lock, FileText, CheckSquare, GitCompare, AlertCircle, Wrench, CheckCircle, Repeat, Package, Search, QrCode, Save, Star, Printer, Archive, Eye, FileSpreadsheet, Receipt } from "lucide-react";
+import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { ptBR } from 'date-fns/locale';
 
@@ -459,6 +460,56 @@ interface TicketQuickViewProps {
 
 function TicketQuickViewButton({ ticket, onOpenFullDetails }: TicketQuickViewProps) {
   const { t, formatDate } = useLocalization();
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const createQuoteFromTicketMutation = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await apiRequest("POST", `/api/quotes/from-ticket/${ticketId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      toast({
+        title: t("success", "Success"),
+        description: t("quote_created_from_ticket", "Quote created from ticket successfully"),
+      });
+      setLocation("/quotes");
+    },
+    onError: (error: any) => {
+      const message = error?.message || t("quote_creation_failed", "Failed to create quote");
+      toast({
+        title: t("error", "Error"),
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createInvoiceFromTicketMutation = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await apiRequest("POST", `/api/pos-invoices/from-ticket/${ticketId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+      toast({
+        title: t("success", "Success"),
+        description: t("invoice_created_from_ticket", "Invoice created from ticket successfully"),
+      });
+      setLocation("/pos-invoices");
+    },
+    onError: (error: any) => {
+      const message = error?.message || t("invoice_creation_failed", "Failed to create invoice");
+      toast({
+        title: t("error", "Error"),
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
   
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
@@ -598,8 +649,57 @@ function TicketQuickViewButton({ ticket, onOpenFullDetails }: TicketQuickViewPro
           )}
         </div>
         
-        {/* Footer with action button */}
-        <div className="border-t border-[#00FFFF]/30 p-3">
+        {/* Footer with action buttons */}
+        <div className="border-t border-[#00FFFF]/30 p-3 space-y-2">
+          {/* Create Quote Button - only when ticket is in 'waiting_client_approval' status */}
+          {ticket.status === 'waiting_client_approval' && (
+            <PermissionGate permission={PERMISSIONS.QUOTES_CREATE}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full h-8 text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  createQuoteFromTicketMutation.mutate(ticket.id);
+                }}
+                disabled={createQuoteFromTicketMutation.isPending}
+                data-testid={`button-create-quote-${ticket.id}`}
+              >
+                {createQuoteFromTicketMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <FileSpreadsheet className="w-3 h-3 mr-1.5" aria-hidden="true" />
+                )}
+                {t("create_quote", "Create Quote")}
+              </Button>
+            </PermissionGate>
+          )}
+
+          {/* Create Invoice Button - only when ticket is in 'final_customer_check' status */}
+          {ticket.status === 'final_customer_check' && (
+            <PermissionGate permission={PERMISSIONS.INVOICES_CREATE}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full h-8 text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  createInvoiceFromTicketMutation.mutate(ticket.id);
+                }}
+                disabled={createInvoiceFromTicketMutation.isPending}
+                data-testid={`button-create-invoice-${ticket.id}`}
+              >
+                {createInvoiceFromTicketMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 mr-1.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Receipt className="w-3 h-3 mr-1.5" aria-hidden="true" />
+                )}
+                {t("create_invoice", "Create Invoice")}
+              </Button>
+            </PermissionGate>
+          )}
+
+          {/* View Full Details Button */}
           <Button
             variant="ghost"
             size="sm"
