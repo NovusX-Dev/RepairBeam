@@ -5879,14 +5879,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (updateData.dueDate && typeof updateData.dueDate === 'string') {
         updateData.dueDate = new Date(updateData.dueDate);
       }
-      if (updateData.issueDate && typeof updateData.issueDate === 'string') {
-        updateData.issueDate = new Date(updateData.issueDate);
+      if (updateData.issuedDate && typeof updateData.issuedDate === 'string') {
+        updateData.issuedDate = new Date(updateData.issuedDate);
       }
-      if (updateData.paidAt && typeof updateData.paidAt === 'string') {
-        updateData.paidAt = new Date(updateData.paidAt);
+      if (updateData.paidDate && typeof updateData.paidDate === 'string') {
+        updateData.paidDate = new Date(updateData.paidDate);
       }
-      if (updateData.voidedAt && typeof updateData.voidedAt === 'string') {
-        updateData.voidedAt = new Date(updateData.voidedAt);
+      if (updateData.createdAt && typeof updateData.createdAt === 'string') {
+        updateData.createdAt = new Date(updateData.createdAt);
+      }
+      if (updateData.updatedAt && typeof updateData.updatedAt === 'string') {
+        updateData.updatedAt = new Date(updateData.updatedAt);
       }
       
       const invoice = await storage.updatePosInvoice(req.params.id, req.authUser.tenantId, updateData);
