@@ -1797,6 +1797,23 @@ export default function KanbanTickets() {
   });
 
 
+  // Handle URL query parameter to auto-open ticket summary
+  useEffect(() => {
+    if (tickets.length > 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ticketIdParam = urlParams.get('ticketId');
+      if (ticketIdParam) {
+        const ticketToOpen = tickets.find(ticket => ticket.id === ticketIdParam);
+        if (ticketToOpen) {
+          setSelectedTicketSummary(ticketToOpen);
+          // Clear the URL parameter after opening
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      }
+    }
+  }, [tickets]);
+
   // Sync selectedTicketSummary with updated tickets data when tickets change
   useEffect(() => {
     if (selectedTicketSummary && tickets.length > 0) {

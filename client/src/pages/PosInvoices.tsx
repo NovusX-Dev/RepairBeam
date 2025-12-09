@@ -1390,12 +1390,25 @@ export default function Invoices() {
               )}
 
               {selectedInvoice.ticketId && (
-                <div className="space-y-1 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+                <div className="space-y-2 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="w-4 h-4 text-cyan-400" />
                     <p className="text-xs text-cyan-400 font-medium">{t("linked_to_ticket", "Linked to Repair Ticket")}</p>
                   </div>
                   <p className="text-white text-sm">{t("ticket_id", "Ticket ID")}: {selectedInvoice.ticketId.slice(0, 8)}...</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+                    onClick={() => {
+                      setIsDetailsSheetOpen(false);
+                      window.location.href = `/kanban?ticketId=${selectedInvoice.ticketId}`;
+                    }}
+                    data-testid="button-view-linked-ticket"
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    {t("view_ticket", "View Ticket")}
+                  </Button>
                 </div>
               )}
             </div>
