@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocalization } from "@/contexts/LocalizationContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,10 +19,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProgressVisualization from "@/components/ProgressVisualization";
-import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, Check, AlertTriangle, FileText, Printer, PenTool, History } from "lucide-react";
+import { Smartphone, User, DollarSign, Clock, MessageSquare, Loader2, Package, Check, AlertTriangle, FileText, Printer, PenTool, History, Receipt, FileSpreadsheet } from "lucide-react";
 import SignatureAuditTrail from "@/components/signature/SignatureAuditTrail";
 import type { Ticket, Client, TicketStatus, TicketPriority } from "@shared/schema";
 import { toCents, fromCents, addCents, formatCurrency as formatCurrencyFromUtility, normalizeCurrency, type Locale } from "@shared/money";
@@ -285,16 +289,75 @@ export default function TicketSummaryDialog({
 }: TicketSummaryDialogProps) {
   const { t, currentLanguage, formatDate } = useLocalization();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [newNote, setNewNote] = useState('');
   const [notes, setNotes] = useState<any[]>([]);
   const [issueResponses, setIssueResponses] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('general');
   const { generateAndPrintInvoice } = useInvoice();
+  
+  // State for create quote/invoice dialogs
+  const [showCreateQuoteDialog, setShowCreateQuoteDialog] = useState(false);
+  const [showCreateInvoiceDialog, setShowCreateInvoiceDialog] = useState(false);
 
   // Currency formatting utility
   const formatCurrency = (amountCents: number, locale: Locale = 'en') => {
     return formatCurrencyFromUtility(amountCents, locale);
   };
+  
+  // Mutation for creating a quote from ticket
+  const createQuoteFromTicketMutation = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await apiRequest("POST", `/api/quotes/from-ticket/${ticketId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
+      setShowCreateQuoteDialog(false);
+      onClose();
+      toast({
+        title: t("success", "Success"),
+        description: t("quote_created_from_ticket", "Quote created from ticket successfully"),
+      });
+      setLocation("/quotes");
+    },
+    onError: (error: any) => {
+      const message = error?.message || t("quote_creation_failed", "Failed to create quote");
+      toast({
+        title: t("error", "Error"),
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutation for creating an invoice from ticket
+  const createInvoiceFromTicketMutation = useMutation({
+    mutationFn: async (ticketId: string) => {
+      const response = await apiRequest("POST", `/api/pos-invoices/from-ticket/${ticketId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+      setShowCreateInvoiceDialog(false);
+      onClose();
+      toast({
+        title: t("success", "Success"),
+        description: t("invoice_created_from_ticket", "Invoice created from ticket successfully"),
+      });
+      setLocation("/pos-invoices");
+    },
+    onError: (error: any) => {
+      const message = error?.message || t("invoice_creation_failed", "Failed to create invoice");
+      toast({
+        title: t("error", "Error"),
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Fetch notes and issue responses when ticket changes
   useEffect(() => {
@@ -1499,24 +1562,191 @@ export default function TicketSummaryDialog({
         </Tabs>
 
         {/* Footer Actions */}
-        <div className="flex justify-between items-center mt-6 pt-4 border-t">
-          {onDelete && ticket.status !== 'finalized' ? (
-            <PermissionGate permission={PERMISSIONS.TICKETS_DELETE}>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => onDelete(ticket.id)}
-                data-testid="button-delete-ticket"
-              >
-                {t("delete_ticket", "Delete Ticket")}
-              </Button>
-            </PermissionGate>
-          ) : <div />}
-          <Button variant="outline" onClick={onClose} data-testid="button-close-ticket-summary">
-            {t("close", "Close")}
-          </Button>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mt-6 pt-4 border-t">
+          <div className="flex gap-2">
+            {onDelete && ticket.status !== 'finalized' ? (
+              <PermissionGate permission={PERMISSIONS.TICKETS_DELETE}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onDelete(ticket.id)}
+                  data-testid="button-delete-ticket"
+                >
+                  {t("delete_ticket", "Delete Ticket")}
+                </Button>
+              </PermissionGate>
+            ) : null}
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {/* Create Quote Button - only for non-finalized tickets */}
+            {ticket.status !== 'finalized' && (
+              <PermissionGate permission={PERMISSIONS.QUOTES_CREATE}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCreateQuoteDialog(true)}
+                  className="border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400"
+                  data-testid="button-create-quote-from-ticket"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  {t("create_quote", "Create Quote")}
+                </Button>
+              </PermissionGate>
+            )}
+            
+            {/* Create Invoice Button - only for non-finalized tickets */}
+            {ticket.status !== 'finalized' && (
+              <PermissionGate permission={PERMISSIONS.INVOICES_CREATE}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowCreateInvoiceDialog(true)}
+                  className="border-green-500/30 hover:bg-green-500/10 text-green-400"
+                  data-testid="button-create-invoice-from-ticket"
+                >
+                  <Receipt className="w-4 h-4 mr-2" />
+                  {t("create_invoice", "Create Invoice")}
+                </Button>
+              </PermissionGate>
+            )}
+            
+            <Button variant="outline" onClick={onClose} data-testid="button-close-ticket-summary">
+              {t("close", "Close")}
+            </Button>
+          </div>
         </div>
       </DialogContent>
+      
+      {/* Create Quote Confirmation Dialog */}
+      <Dialog open={showCreateQuoteDialog} onOpenChange={setShowCreateQuoteDialog}>
+        <DialogContent className="sm:max-w-md bg-slate-900 border-cyan-500/20">
+          <DialogHeader>
+            <DialogTitle className="text-cyan-400 flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5" />
+              {t("create_quote_from_ticket", "Create Quote from Ticket")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("create_quote_from_ticket_description", "This will create a new quote based on this ticket's services and parts.")}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-3">
+            <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Smartphone className="w-4 h-4 text-cyan-400" />
+                <span className="text-muted-foreground">{t("device", "Device")}:</span>
+                <span className="text-white">{ticket.deviceBrand} {ticket.deviceModel}</span>
+              </div>
+              {clientData && (
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="w-4 h-4 text-cyan-400" />
+                  <span className="text-muted-foreground">{t("client", "Client")}:</span>
+                  <span className="text-white">{clientData.firstName} {clientData.lastName}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm">
+                <DollarSign className="w-4 h-4 text-cyan-400" />
+                <span className="text-muted-foreground">{t("estimated_cost", "Est. Cost")}:</span>
+                <span className="text-white">{formatCurrency(toCents(ticket.totalCost || '0'), currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}</span>
+              </div>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">
+              {t("quote_navigation_info", "After creating the quote, you will be taken to the Quotes page.")}
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateQuoteDialog(false)}>
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button
+              onClick={() => ticket && createQuoteFromTicketMutation.mutate(ticket.id)}
+              disabled={createQuoteFromTicketMutation.isPending}
+              className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+              data-testid="button-confirm-create-quote"
+            >
+              {createQuoteFromTicketMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("creating", "Creating...")}
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  {t("create_quote", "Create Quote")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Create Invoice Confirmation Dialog */}
+      <Dialog open={showCreateInvoiceDialog} onOpenChange={setShowCreateInvoiceDialog}>
+        <DialogContent className="sm:max-w-md bg-slate-900 border-green-500/20">
+          <DialogHeader>
+            <DialogTitle className="text-green-400 flex items-center gap-2">
+              <Receipt className="w-5 h-5" />
+              {t("create_invoice_from_ticket", "Create Invoice from Ticket")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("create_invoice_from_ticket_description", "This will create a new invoice based on this ticket's services and parts.")}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-3">
+            <div className="bg-slate-800/50 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Smartphone className="w-4 h-4 text-green-400" />
+                <span className="text-muted-foreground">{t("device", "Device")}:</span>
+                <span className="text-white">{ticket.deviceBrand} {ticket.deviceModel}</span>
+              </div>
+              {clientData && (
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="w-4 h-4 text-green-400" />
+                  <span className="text-muted-foreground">{t("client", "Client")}:</span>
+                  <span className="text-white">{clientData.firstName} {clientData.lastName}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-sm">
+                <DollarSign className="w-4 h-4 text-green-400" />
+                <span className="text-muted-foreground">{t("estimated_cost", "Est. Cost")}:</span>
+                <span className="text-white">{formatCurrency(toCents(ticket.totalCost || '0'), currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}</span>
+              </div>
+            </div>
+            
+            <p className="text-sm text-muted-foreground">
+              {t("invoice_navigation_info", "After creating the invoice, you will be taken to the Invoices page.")}
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateInvoiceDialog(false)}>
+              {t("cancel", "Cancel")}
+            </Button>
+            <Button
+              onClick={() => ticket && createInvoiceFromTicketMutation.mutate(ticket.id)}
+              disabled={createInvoiceFromTicketMutation.isPending}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
+              data-testid="button-confirm-create-invoice"
+            >
+              {createInvoiceFromTicketMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("creating", "Creating...")}
+                </>
+              ) : (
+                <>
+                  <Receipt className="w-4 h-4 mr-2" />
+                  {t("create_invoice", "Create Invoice")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
