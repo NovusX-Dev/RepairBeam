@@ -5872,7 +5872,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.authUser?.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const invoice = await storage.updatePosInvoice(req.params.id, req.authUser.tenantId, req.body);
+      
+      // Convert date strings to Date objects for timestamp fields
+      const updateData = { ...req.body };
+      if (updateData.dueDate && typeof updateData.dueDate === 'string') {
+        updateData.dueDate = new Date(updateData.dueDate);
+      }
+      if (updateData.issueDate && typeof updateData.issueDate === 'string') {
+        updateData.issueDate = new Date(updateData.issueDate);
+      }
+      if (updateData.paidAt && typeof updateData.paidAt === 'string') {
+        updateData.paidAt = new Date(updateData.paidAt);
+      }
+      if (updateData.voidedAt && typeof updateData.voidedAt === 'string') {
+        updateData.voidedAt = new Date(updateData.voidedAt);
+      }
+      
+      const invoice = await storage.updatePosInvoice(req.params.id, req.authUser.tenantId, updateData);
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
