@@ -5334,6 +5334,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get quotes by ticket ID
+  app.get("/api/tickets/:ticketId/quotes", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const quotes = await storage.getQuotesByTicket(req.params.ticketId, req.authUser.tenantId);
+      res.json(quotes);
+    } catch (error) {
+      console.error("Error fetching quotes for ticket:", error);
+      res.status(500).json({ message: "Failed to fetch quotes for ticket" });
+    }
+  });
+
   app.get("/api/quotes/:id", isAuthenticated, async (req: any, res) => {
     try {
       if (!req.authUser?.tenantId) {
@@ -5373,11 +5387,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.authUser?.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      
+      // Get the current quote to check for status change
+      const existingQuote = await storage.getQuote(req.params.id, req.authUser.tenantId);
+      if (!existingQuote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      
+      const isBeingAccepted = req.body.status === 'accepted' && existingQuote.status !== 'accepted';
+      const isBeingRejected = req.body.status === 'rejected' && existingQuote.status !== 'rejected';
+      
       const quote = await storage.updateQuote(req.params.id, req.authUser.tenantId, req.body);
       if (!quote) {
         return res.status(404).json({ message: "Quote not found" });
       }
-      res.json(quote);
+      
+      // If quote was accepted and has a linked ticket, move ticket to 'approved' status
+      if (isBeingAccepted && quote.ticketId) {
+        try {
+          const ticket = await storage.getTicket(quote.ticketId, req.authUser.tenantId);
+          if (ticket) {
+            // Only move to approved if ticket is in waiting_client_approval
+            if (ticket.status === 'waiting_client_approval') {
+              await storage.updateTicketStatus(quote.ticketId, 'approved', req.authUser.tenantId);
+              
+              // Add a note to the ticket documenting the approval
+              await storage.createTicketNote({
+                ticketId: quote.ticketId,
+                tenantId: req.authUser.tenantId,
+                userId: req.authUser.id,
+                content: `Quote #${quote.quoteNumber} was accepted by the client. Ticket automatically moved to Approved status.`,
+              });
+            }
+          }
+        } catch (ticketError) {
+          console.error("Error updating linked ticket after quote acceptance:", ticketError);
+          // Don't fail the quote update if ticket update fails
+        }
+      }
+      
+      // If quote was rejected and has a linked ticket, add a note
+      if (isBeingRejected && quote.ticketId) {
+        try {
+          const ticket = await storage.getTicket(quote.ticketId, req.authUser.tenantId);
+          if (ticket) {
+            await storage.createTicketNote({
+              ticketId: quote.ticketId,
+              tenantId: req.authUser.tenantId,
+              userId: req.authUser.id,
+              content: `Quote #${quote.quoteNumber} was rejected by the client.`,
+            });
+          }
+        } catch (ticketError) {
+          console.error("Error adding note to ticket after quote rejection:", ticketError);
+        }
+      }
+      
+      // Include ticketStatusUpdated flag in response if ticket was moved
+      const response: any = { ...quote };
+      if (isBeingAccepted && quote.ticketId) {
+        response.ticketStatusUpdated = true;
+        response.ticketId = quote.ticketId;
+      }
+      
+      res.json(response);
     } catch (error) {
       console.error("Error updating quote:", error);
       res.status(500).json({ message: "Failed to update quote" });

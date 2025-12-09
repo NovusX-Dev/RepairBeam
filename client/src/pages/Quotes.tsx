@@ -242,13 +242,24 @@ export default function Quotes() {
       const response = await apiRequest("PATCH", `/api/quotes/${id}`, { status });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/quotes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quotes/stats"] });
-      toast({
-        title: t("success", "Success"),
-        description: t("quote_status_updated", "Quote status updated")
-      });
+      
+      // If ticket was auto-moved to Approved, show extended notification
+      if (data.ticketStatusUpdated && data.ticketId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/tickets"] });
+        toast({
+          title: t("quote_accepted_ticket_moved", "Quote Accepted - Ticket Updated"),
+          description: t("ticket_auto_moved_to_approved", "The linked ticket has been automatically moved to the Approved column."),
+          duration: 8000,
+        });
+      } else {
+        toast({
+          title: t("success", "Success"),
+          description: t("quote_status_updated", "Quote status updated")
+        });
+      }
     },
     onError: () => {
       toast({

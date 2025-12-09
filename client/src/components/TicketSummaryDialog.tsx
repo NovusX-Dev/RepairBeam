@@ -440,6 +440,13 @@ export default function TicketSummaryDialog({
     staleTime: 30 * 1000, // 30 seconds
   });
 
+  // Fetch quotes linked to this ticket
+  const { data: linkedQuotes = [] } = useQuery<any[]>({
+    queryKey: [`/api/tickets/${ticket?.id}/quotes`],
+    enabled: !!ticket?.id,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
   // Use either ticket.client or fetchedClient
   const clientData = ticket?.client || fetchedClient;
 
@@ -811,6 +818,40 @@ export default function TicketSummaryDialog({
                   </div>
                 )}
               </div>
+
+              {/* Linked Quotes Status */}
+              {linkedQuotes.length > 0 && (
+                <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <FileSpreadsheet className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                    {t("linked_quotes", "Linked Quotes")}
+                  </h3>
+                  <div className="space-y-2">
+                    {linkedQuotes.map((quote: any) => (
+                      <div key={quote.id} className="flex items-center justify-between bg-slate-800/50 p-2 rounded border border-cyan-500/20">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm text-white">{quote.quoteNumber}</span>
+                          <Badge 
+                            variant="outline" 
+                            className={
+                              quote.status === 'accepted' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                              quote.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                              quote.status === 'sent' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                              quote.status === 'converted' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
+                              'bg-slate-500/20 text-slate-400 border-slate-500/30'
+                            }
+                          >
+                            {t(`quote_status_${quote.status}`, quote.status)}
+                          </Badge>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {formatCurrency(toCents(quote.totalAmount || '0'), currentLanguage.code === 'pt-BR' ? 'pt-BR' : 'en')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Cost Summary */}
               <div className="bg-muted/5 border border-muted/20 rounded-lg p-3">
@@ -1622,8 +1663,8 @@ export default function TicketSummaryDialog({
           </div>
           
           <div className="flex flex-wrap gap-2">
-            {/* Create Quote Button - only for non-finalized tickets */}
-            {ticket.status !== 'finalized' && (
+            {/* Create Quote Button - only when ticket is in 'waiting_client_approval' status */}
+            {ticket.status === 'waiting_client_approval' && (
               <PermissionGate permission={PERMISSIONS.QUOTES_CREATE}>
                 <Button
                   variant="outline"
@@ -1638,8 +1679,8 @@ export default function TicketSummaryDialog({
               </PermissionGate>
             )}
             
-            {/* Create Invoice Button - only for non-finalized tickets */}
-            {ticket.status !== 'finalized' && (
+            {/* Create Invoice Button - only when ticket is in 'final_customer_check' status */}
+            {ticket.status === 'final_customer_check' && (
               <PermissionGate permission={PERMISSIONS.INVOICES_CREATE}>
                 <Button
                   variant="outline"
