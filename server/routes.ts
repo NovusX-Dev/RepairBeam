@@ -6113,6 +6113,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid payment amount" });
       }
       
+      const balanceDue = parseFloat(invoice.balanceDue || '0');
+      if (paymentAmount > balanceDue) {
+        return res.status(400).json({ message: "Payment amount exceeds balance due" });
+      }
+      
       const currentPaid = parseFloat(invoice.paidAmount || '0');
       const totalAmount = parseFloat(invoice.totalAmount || '0');
       const newPaidAmount = currentPaid + paymentAmount;
@@ -6127,6 +6132,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethodType: req.body.paymentMethodType || 'cash',
         amount: paymentAmount.toFixed(2),
         status: 'completed',
+        referenceNumber: req.body.referenceNumber || null,
+        gatewayProvider: 'manual',
         processedAt: new Date(),
         processedBy: req.authUser.id,
         notes: req.body.notes,
@@ -6139,14 +6146,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStatus = 'partially_paid';
       }
       
-      await storage.updatePosInvoice(req.params.invoiceId, req.authUser.tenantId, {
+      const updatedInvoice = await storage.updatePosInvoice(req.params.invoiceId, req.authUser.tenantId, {
         paidAmount: newPaidAmount.toFixed(2),
         balanceDue: newBalanceDue.toFixed(2),
         status: newStatus,
         paidDate: newBalanceDue <= 0 ? new Date() : null,
       });
       
-      res.status(201).json(payment);
+      res.status(201).json({ payment, invoice: updatedInvoice });
     } catch (error) {
       console.error("Error recording invoice payment:", error);
       res.status(500).json({ message: "Failed to record payment" });
@@ -6167,6 +6174,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching payments:", error);
       res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+
+  app.get("/api/payments/daily-summary", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const dateStr = req.query.date as string;
+      const date = dateStr ? new Date(dateStr) : new Date();
+      
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      const allPayments = await storage.getPayments(req.authUser.tenantId);
+      const dayPayments = allPayments.filter(p => {
+        const pDate = new Date(p.processedAt || p.createdAt || new Date());
+        return pDate >= startOfDay && pDate <= endOfDay && p.status === 'completed';
+      });
+      
+      const methodSummary: Record<string, { count: number; total: number }> = {};
+      let grandTotal = 0;
+      
+      for (const p of dayPayments) {
+        const method = p.paymentMethodType;
+        if (!methodSummary[method]) {
+          methodSummary[method] = { count: 0, total: 0 };
+        }
+        const amount = parseFloat(p.amount);
+        methodSummary[method].count++;
+        methodSummary[method].total += amount;
+        grandTotal += amount;
+      }
+      
+      res.json({
+        date: startOfDay.toISOString().split('T')[0],
+        payments: dayPayments,
+        summary: methodSummary,
+        grandTotal,
+        totalTransactions: dayPayments.length,
+      });
+    } catch (error) {
+      console.error("Error fetching daily summary:", error);
+      res.status(500).json({ message: "Failed to fetch daily summary" });
     }
   });
 
@@ -6217,6 +6271,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating payment:", error);
       res.status(500).json({ message: "Failed to update payment" });
+    }
+  });
+
+  app.post("/api/payments/:id/void", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const payment = await storage.getPayment(req.params.id, req.authUser.tenantId);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      
+      if (payment.status !== 'completed') {
+        return res.status(400).json({ message: "Only completed payments can be voided" });
+      }
+      
+      const voidedPayment = await storage.updatePayment(req.params.id, req.authUser.tenantId, {
+        status: 'cancelled',
+        refundReason: req.body.reason || 'Voided by operator',
+        refundedAt: new Date(),
+      });
+      
+      if (payment.posInvoiceId) {
+        const invoice = await storage.getPosInvoice(payment.posInvoiceId, req.authUser.tenantId);
+        if (invoice) {
+          const paymentAmount = parseFloat(payment.amount);
+          const currentPaid = parseFloat(invoice.paidAmount || '0');
+          const totalAmount = parseFloat(invoice.totalAmount || '0');
+          const newPaidAmount = Math.max(0, currentPaid - paymentAmount);
+          const newBalanceDue = Math.max(0, totalAmount - newPaidAmount);
+          
+          let newStatus = invoice.status;
+          if (newPaidAmount <= 0) {
+            newStatus = 'issued';
+          } else if (newBalanceDue > 0) {
+            newStatus = 'partially_paid';
+          }
+          
+          await storage.updatePosInvoice(payment.posInvoiceId, req.authUser.tenantId, {
+            paidAmount: newPaidAmount.toFixed(2),
+            balanceDue: newBalanceDue.toFixed(2),
+            status: newStatus,
+            paidDate: null,
+          });
+        }
+      }
+      
+      res.json(voidedPayment);
+    } catch (error) {
+      console.error("Error voiding payment:", error);
+      res.status(500).json({ message: "Failed to void payment" });
     }
   });
 

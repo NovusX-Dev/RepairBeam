@@ -43,7 +43,7 @@ import {
   Link,
   ClipboardList
 } from "lucide-react";
-import type { PosInvoice, PosInvoiceItem, Client, Payment, Ticket } from "@shared/schema";
+import type { PosInvoice, PosInvoiceItem, Client, Payment, Ticket, StoreSettings } from "@shared/schema";
 import { Smartphone, Wrench, Package } from "lucide-react";
 
 interface TicketSummary {
@@ -139,6 +139,11 @@ export default function Invoices() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentReferenceNumber, setPaymentReferenceNumber] = useState("");
+  const [isPaymentConfirmStep, setIsPaymentConfirmStep] = useState(false);
+  const [isVoidPaymentOpen, setIsVoidPaymentOpen] = useState(false);
+  const [selectedPaymentToVoid, setSelectedPaymentToVoid] = useState<Payment | null>(null);
+  const [voidReason, setVoidReason] = useState("");
 
   // Import from ticket state
   const [isImportFromTicketOpen, setIsImportFromTicketOpen] = useState(false);
@@ -159,6 +164,10 @@ export default function Invoices() {
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
     select: (data: any) => data?.clients || data || []
+  });
+
+  const { data: storeSettings } = useQuery<StoreSettings>({
+    queryKey: ["/api/store-settings"],
   });
 
   const { data: invoiceItems = [] } = useQuery<PosInvoiceItem[]>({
@@ -353,11 +362,12 @@ export default function Invoices() {
   });
 
   const recordPaymentMutation = useMutation({
-    mutationFn: async ({ invoiceId, amount, method, notes }: { invoiceId: string; amount: string; method: string; notes: string }) => {
+    mutationFn: async ({ invoiceId, amount, method, notes, referenceNumber }: { invoiceId: string; amount: string; method: string; notes: string; referenceNumber: string }) => {
       const response = await apiRequest("POST", `/api/pos-invoices/${invoiceId}/payments`, {
         amount,
         paymentMethodType: method,
-        notes
+        notes,
+        referenceNumber: referenceNumber || null,
       });
       return response.json();
     },
@@ -375,18 +385,67 @@ export default function Invoices() {
       }
       
       setIsRecordPaymentOpen(false);
+      setIsPaymentConfirmStep(false);
       setPaymentAmount("");
       setPaymentMethod("cash");
       setPaymentNotes("");
+      setPaymentReferenceNumber("");
       toast({
         title: t("success", "Success"),
-        description: t("payment_recorded_successfully", "Payment recorded successfully")
+        description: t("payment_recorded_successfully", "Payment recorded successfully"),
+        action: selectedInvoice ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+            onClick={() => handlePrintReceipt(selectedInvoice)}
+          >
+            <Receipt className="w-3 h-3 mr-1" />
+            {t("print_receipt", "Print Receipt")}
+          </Button>
+        ) : undefined,
+      });
+    },
+    onError: () => {
+      setIsPaymentConfirmStep(false);
+      toast({
+        title: t("error", "Error"),
+        description: t("payment_recording_failed", "Failed to record payment"),
+        variant: "destructive"
+      });
+    }
+  });
+
+  const voidPaymentMutation = useMutation({
+    mutationFn: async ({ paymentId, reason }: { paymentId: string; reason: string }) => {
+      const response = await apiRequest("POST", `/api/payments/${paymentId}/void`, { reason });
+      return response.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices", selectedInvoice?.id, "payments"] });
+      
+      if (selectedInvoice) {
+        const response = await fetch(`/api/pos-invoices/${selectedInvoice.id}`, { credentials: "include" });
+        if (response.ok) {
+          const updatedInvoice = await response.json();
+          setSelectedInvoice(updatedInvoice);
+        }
+      }
+      
+      setIsVoidPaymentOpen(false);
+      setSelectedPaymentToVoid(null);
+      setVoidReason("");
+      toast({
+        title: t("success", "Success"),
+        description: t("payment_voided_successfully", "Payment voided successfully")
       });
     },
     onError: () => {
       toast({
         title: t("error", "Error"),
-        description: t("payment_recording_failed", "Failed to record payment"),
+        description: t("payment_void_failed", "Failed to void payment"),
         variant: "destructive"
       });
     }
@@ -424,6 +483,8 @@ export default function Invoices() {
     setPaymentAmount(invoice.balanceDue || "0");
     setPaymentMethod("cash");
     setPaymentNotes("");
+    setPaymentReferenceNumber("");
+    setIsPaymentConfirmStep(false);
     setIsRecordPaymentOpen(true);
   };
 
@@ -517,8 +578,149 @@ export default function Invoices() {
         invoiceId: selectedInvoice.id,
         amount: paymentAmount,
         method: paymentMethod,
-        notes: paymentNotes
+        notes: paymentNotes,
+        referenceNumber: paymentReferenceNumber,
       });
+    }
+  };
+
+  const handleVoidPayment = () => {
+    if (selectedPaymentToVoid) {
+      voidPaymentMutation.mutate({
+        paymentId: selectedPaymentToVoid.id,
+        reason: voidReason,
+      });
+    }
+  };
+
+  const getPaymentMethodIcon = (method: string) => {
+    switch (method) {
+      case 'cash': return <Banknote className="w-4 h-4 text-green-400" />;
+      case 'pix': return <Smartphone className="w-4 h-4 text-cyan-400" />;
+      case 'credit_card': return <CreditCard className="w-4 h-4 text-blue-400" />;
+      case 'debit_card': return <CreditCard className="w-4 h-4 text-purple-400" />;
+      case 'bank_transfer': return <ArrowRightCircle className="w-4 h-4 text-orange-400" />;
+      case 'boleto': return <FileText className="w-4 h-4 text-yellow-400" />;
+      default: return <DollarSign className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getPaymentMethodLabel = (method: string) => {
+    switch (method) {
+      case 'cash': return t("cash", "Cash");
+      case 'pix': return t("pix", "PIX");
+      case 'credit_card': return t("credit_card", "Credit Card");
+      case 'debit_card': return t("debit_card", "Debit Card");
+      case 'bank_transfer': return t("bank_transfer", "Bank Transfer");
+      case 'boleto': return t("boleto", "Boleto");
+      default: return t("other", "Other");
+    }
+  };
+
+  const getReferencePlaceholder = (method: string) => {
+    switch (method) {
+      case 'pix': return t("pix_reference_placeholder", "PIX transaction ID or E2E ID");
+      case 'credit_card': return t("card_reference_placeholder", "Card machine receipt number");
+      case 'debit_card': return t("card_reference_placeholder", "Card machine receipt number");
+      case 'bank_transfer': return t("transfer_reference_placeholder", "Bank transfer reference number");
+      case 'boleto': return t("reference_placeholder", "Boleto number or barcode");
+      default: return t("reference_placeholder", "Receipt or reference number");
+    }
+  };
+
+  const handlePrintReceipt = (invoice: PosInvoice, payment?: Payment) => {
+    const storeName = storeSettings?.shopName || 'Repair Beam';
+    const storeAddress = storeSettings?.address || '';
+    const clientName = getClientName(invoice.clientId);
+    const now = new Date();
+    
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${t("receipt", "Receipt")} - ${invoice.invoiceNumber}</title>
+        <style>
+          @page { margin: 0; size: 80mm auto; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; padding: 4mm; color: #000; background: #fff; }
+          .center { text-align: center; }
+          .bold { font-weight: bold; }
+          .line { border-top: 1px dashed #000; margin: 6px 0; }
+          .double-line { border-top: 2px solid #000; margin: 6px 0; }
+          .row { display: flex; justify-content: space-between; padding: 1px 0; }
+          .item-row { padding: 2px 0; }
+          .item-desc { }
+          .item-price { text-align: right; }
+          .total-row { font-weight: bold; font-size: 14px; }
+          .header { margin-bottom: 8px; }
+          .store-name { font-size: 16px; font-weight: bold; }
+          .footer { margin-top: 10px; font-size: 10px; text-align: center; }
+          h3 { font-size: 13px; margin: 4px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="header center">
+          <div class="store-name">${storeName}</div>
+          ${storeAddress ? `<div>${storeAddress}</div>` : ''}
+          <div class="line"></div>
+          <div class="bold">${t("receipt", "RECEIPT")}</div>
+        </div>
+        
+        <div class="line"></div>
+        
+        <div>
+          <div class="row"><span>${t("invoice", "Invoice")}:</span><span>${invoice.invoiceNumber}</span></div>
+          <div class="row"><span>${t("date", "Date")}:</span><span>${format(now, "dd/MM/yyyy HH:mm")}</span></div>
+          <div class="row"><span>${t("client", "Client")}:</span><span>${clientName}</span></div>
+        </div>
+        
+        <div class="line"></div>
+        
+        <h3>${t("items", "Items")}</h3>
+        ${invoiceItems.map(item => `
+          <div class="item-row">
+            <div class="item-desc">${item.quantity}x ${item.description}</div>
+            <div class="item-price">${formatCurrency(parseFloat(item.totalPrice))}</div>
+          </div>
+        `).join('')}
+        
+        <div class="double-line"></div>
+        
+        <div class="row"><span>${t("subtotal", "Subtotal")}:</span><span>${formatCurrency(parseFloat(invoice.subtotal || '0'))}</span></div>
+        ${parseFloat(invoice.discountAmount || '0') > 0 ? `<div class="row"><span>${t("discount", "Discount")}:</span><span>-${formatCurrency(parseFloat(invoice.discountAmount || '0'))}</span></div>` : ''}
+        ${parseFloat(invoice.taxAmount || '0') > 0 ? `<div class="row"><span>${t("tax", "Tax")}:</span><span>${formatCurrency(parseFloat(invoice.taxAmount || '0'))}</span></div>` : ''}
+        <div class="row total-row"><span>${t("total", "TOTAL")}:</span><span>${formatCurrency(parseFloat(invoice.totalAmount || '0'))}</span></div>
+        
+        <div class="line"></div>
+        
+        ${payment ? `
+          <h3>${t("payment_info", "Payment")}</h3>
+          <div class="row"><span>${t("method", "Method")}:</span><span>${getPaymentMethodLabel(payment.paymentMethodType)}</span></div>
+          <div class="row"><span>${t("amount_paid", "Amount Paid")}:</span><span>${formatCurrency(parseFloat(payment.amount))}</span></div>
+          ${payment.referenceNumber ? `<div class="row"><span>${t("ref", "Ref")}:</span><span>${payment.referenceNumber}</span></div>` : ''}
+        ` : `
+          <h3>${t("payment_summary", "Payment Summary")}</h3>
+          <div class="row"><span>${t("total_paid", "Total Paid")}:</span><span>${formatCurrency(parseFloat(invoice.paidAmount || '0'))}</span></div>
+          <div class="row"><span>${t("balance_due", "Balance Due")}:</span><span>${formatCurrency(parseFloat(invoice.balanceDue || '0'))}</span></div>
+        `}
+        
+        <div class="line"></div>
+        
+        <div class="footer">
+          <div>${t("thank_you", "Thank you for your business!")}</div>
+          <div>${storeName}</div>
+        </div>
+        
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank', 'width=350,height=600');
+    if (printWindow) {
+      printWindow.document.write(receiptHtml);
+      printWindow.document.close();
     }
   };
 
@@ -1166,19 +1368,26 @@ export default function Invoices() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isRecordPaymentOpen} onOpenChange={setIsRecordPaymentOpen}>
+      <Dialog open={isRecordPaymentOpen} onOpenChange={(open) => {
+        setIsRecordPaymentOpen(open);
+        if (!open) setIsPaymentConfirmStep(false);
+      }}>
         <DialogContent className="max-w-md bg-slate-900 border-cyan-500/20">
           <DialogHeader>
             <DialogTitle className="text-xl text-white flex items-center gap-2">
               <Banknote className="w-5 h-5 text-green-400" />
-              {t("record_payment", "Record Payment")}
+              {isPaymentConfirmStep 
+                ? t("confirm_payment", "Confirm Payment") 
+                : t("record_payment", "Record Payment")}
             </DialogTitle>
             <DialogDescription>
-              {t("record_payment_description", "Record a payment for this invoice")}
+              {isPaymentConfirmStep
+                ? t("confirm_payment_description", "Please verify the payment details below before confirming")
+                : t("record_payment_description", "Record a payment for this invoice")}
             </DialogDescription>
           </DialogHeader>
           
-          {selectedInvoice && (
+          {selectedInvoice && !isPaymentConfirmStep && (
             <div className="space-y-4 py-4">
               <div className="p-4 bg-slate-800/50 rounded-lg space-y-2">
                 <div className="flex justify-between">
@@ -1189,10 +1398,12 @@ export default function Invoices() {
                   <span className="text-muted-foreground">{t("total_amount", "Total Amount")}:</span>
                   <span className="text-white">{formatCurrency(parseFloat(selectedInvoice.totalAmount || '0'))}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("already_paid", "Already Paid")}:</span>
-                  <span className="text-green-400">{formatCurrency(parseFloat(selectedInvoice.paidAmount || '0'))}</span>
-                </div>
+                {parseFloat(selectedInvoice.paidAmount || '0') > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("already_paid", "Already Paid")}:</span>
+                    <span className="text-green-400">{formatCurrency(parseFloat(selectedInvoice.paidAmount || '0'))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t border-slate-700 pt-2">
                   <span className="text-muted-foreground">{t("balance_due", "Balance Due")}:</span>
                   <span className="text-yellow-400 font-semibold">{formatCurrency(parseFloat(selectedInvoice.balanceDue || '0'))}</span>
@@ -1200,31 +1411,129 @@ export default function Invoices() {
               </div>
 
               <div className="space-y-2">
-                <Label>{t("payment_amount", "Payment Amount")}</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="bg-slate-800 border-slate-700"
-                  data-testid="input-payment-amount"
-                />
+                <Label>{t("payment_method", "Payment Method")}</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left ${
+                      paymentMethod === 'cash'
+                        ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                    }`}
+                    data-testid="payment-method-cash"
+                  >
+                    <Banknote className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t("cash", "Cash")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('pix')}
+                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left ${
+                      paymentMethod === 'pix'
+                        ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400'
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                    }`}
+                    data-testid="payment-method-pix"
+                  >
+                    <Smartphone className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t("pix", "PIX")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('credit_card')}
+                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left ${
+                      paymentMethod === 'credit_card'
+                        ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                    }`}
+                    data-testid="payment-method-credit_card"
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t("credit_card", "Credit Card")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('debit_card')}
+                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left ${
+                      paymentMethod === 'debit_card'
+                        ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                    }`}
+                    data-testid="payment-method-debit_card"
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t("debit_card", "Debit Card")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('bank_transfer')}
+                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left col-span-2 ${
+                      paymentMethod === 'bank_transfer'
+                        ? 'border-orange-500/50 bg-orange-500/10 text-orange-400'
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                    }`}
+                    data-testid="payment-method-bank_transfer"
+                  >
+                    <ArrowRightCircle className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t("bank_transfer", "Bank Transfer")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('boleto')}
+                    className={`flex items-center gap-2 p-3 rounded-lg border transition-all text-left col-span-2 ${
+                      paymentMethod === 'boleto'
+                        ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400'
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                    }`}
+                    data-testid="payment-method-boleto"
+                  >
+                    <FileText className="w-5 h-5" />
+                    <span className="text-sm font-medium">{t("boleto", "Boleto")}</span>
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label>{t("payment_method", "Payment Method")}</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="bg-slate-800 border-slate-700" data-testid="select-payment-method">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">{t("cash", "Cash")}</SelectItem>
-                    <SelectItem value="credit_card">{t("credit_card", "Credit Card")}</SelectItem>
-                    <SelectItem value="debit_card">{t("debit_card", "Debit Card")}</SelectItem>
-                    <SelectItem value="pix">{t("pix", "PIX")}</SelectItem>
-                    <SelectItem value="bank_transfer">{t("bank_transfer", "Bank Transfer")}</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>{t("payment_amount", "Payment Amount")}</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={selectedInvoice.balanceDue || undefined}
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="bg-slate-800 border-slate-700 text-lg font-semibold"
+                    data-testid="input-payment-amount"
+                  />
+                </div>
+                {parseFloat(paymentAmount) > 0 && parseFloat(paymentAmount) < parseFloat(selectedInvoice.balanceDue || '0') && (
+                  <p className="text-xs text-yellow-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    {t("partial_payment_warning", "This is a partial payment. Remaining balance will be")} {formatCurrency(parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount))}
+                  </p>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-green-500/30 text-green-400 hover:bg-green-500/10"
+                  onClick={() => setPaymentAmount(selectedInvoice.balanceDue || "0")}
+                >
+                  {t("pay_full_balance", "Pay Full Balance")} ({formatCurrency(parseFloat(selectedInvoice.balanceDue || '0'))})
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t("reference_number", "Reference Number")} ({t("optional", "optional")})</Label>
+                <Input
+                  value={paymentReferenceNumber}
+                  onChange={(e) => setPaymentReferenceNumber(e.target.value)}
+                  className="bg-slate-800 border-slate-700"
+                  placeholder={getReferencePlaceholder(paymentMethod)}
+                  data-testid="input-payment-reference"
+                />
               </div>
 
               <div className="space-y-2">
@@ -1233,25 +1542,96 @@ export default function Invoices() {
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
                   className="bg-slate-800 border-slate-700"
-                  placeholder={t("payment_notes_placeholder", "Transaction reference, notes...")}
+                  placeholder={t("payment_notes_placeholder", "Additional notes about this payment...")}
+                  rows={2}
                   data-testid="textarea-payment-notes"
                 />
               </div>
             </div>
           )}
 
+          {selectedInvoice && isPaymentConfirmStep && (
+            <div className="space-y-4 py-4">
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                  <span className="text-green-400 font-medium">{t("payment_summary", "Payment Summary")}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("invoice", "Invoice")}:</span>
+                  <span className="text-white font-mono">{selectedInvoice.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("method", "Method")}:</span>
+                  <span className="text-white flex items-center gap-2">
+                    {getPaymentMethodIcon(paymentMethod)}
+                    {getPaymentMethodLabel(paymentMethod)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("amount", "Amount")}:</span>
+                  <span className="text-green-400 text-lg font-bold">{formatCurrency(parseFloat(paymentAmount))}</span>
+                </div>
+                {paymentReferenceNumber && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("reference", "Reference")}:</span>
+                    <span className="text-white font-mono text-sm">{paymentReferenceNumber}</span>
+                  </div>
+                )}
+                {paymentNotes && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("notes", "Notes")}:</span>
+                    <span className="text-white text-sm">{paymentNotes}</span>
+                  </div>
+                )}
+                {parseFloat(paymentAmount) < parseFloat(selectedInvoice.balanceDue || '0') && (
+                  <div className="flex justify-between border-t border-green-500/20 pt-2">
+                    <span className="text-yellow-400">{t("remaining_after_payment", "Remaining after payment")}:</span>
+                    <span className="text-yellow-400 font-semibold">{formatCurrency(parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount))}</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                {t("confirm_payment_note", "Please confirm that you have received this payment before proceeding.")}
+              </p>
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRecordPaymentOpen(false)}>
-              {t("cancel", "Cancel")}
-            </Button>
-            <Button
-              onClick={handleRecordPayment}
-              disabled={recordPaymentMutation.isPending || !paymentAmount || parseFloat(paymentAmount) <= 0}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
-              data-testid="button-confirm-payment"
-            >
-              {recordPaymentMutation.isPending ? t("processing", "Processing...") : t("record_payment", "Record Payment")}
-            </Button>
+            {isPaymentConfirmStep ? (
+              <>
+                <Button variant="outline" onClick={() => setIsPaymentConfirmStep(false)}>
+                  {t("back", "Back")}
+                </Button>
+                <Button
+                  onClick={handleRecordPayment}
+                  disabled={recordPaymentMutation.isPending}
+                  className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
+                  data-testid="button-confirm-payment"
+                >
+                  {recordPaymentMutation.isPending ? t("processing", "Processing...") : (
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      {t("confirm_payment_received", "Confirm Payment Received")}
+                    </span>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setIsRecordPaymentOpen(false)}>
+                  {t("cancel", "Cancel")}
+                </Button>
+                <Button
+                  onClick={() => setIsPaymentConfirmStep(true)}
+                  disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                  data-testid="button-proceed-payment"
+                >
+                  {t("proceed_to_confirm", "Proceed to Confirm")}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1274,12 +1654,36 @@ export default function Invoices() {
                 <Badge variant={getStatusBadgeVariant(selectedInvoice.status)} className={`${getStatusColor(selectedInvoice.status)} px-3 py-1`}>
                   {getStatusLabel(selectedInvoice.status)}
                 </Badge>
-                {selectedInvoice.quoteId && (
-                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
-                    <Link className="w-3 h-3 mr-1" />
-                    {t("from_quote", "From Quote")}
-                  </Badge>
+                <div className="flex items-center gap-2">
+                  {selectedInvoice.quoteId && (
+                    <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
+                      <Link className="w-3 h-3 mr-1" />
+                      {t("from_quote", "From Quote")}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                {['issued', 'partially_paid'].includes(selectedInvoice.status) && (
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
+                    onClick={() => handleOpenRecordPayment(selectedInvoice)}
+                  >
+                    <Banknote className="w-4 h-4 mr-1" />
+                    {t("record_payment", "Record Payment")}
+                  </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+                  onClick={() => handlePrintReceipt(selectedInvoice)}
+                >
+                  <Receipt className="w-4 h-4 mr-1" />
+                  {t("print_receipt", "Print Receipt")}
+                </Button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 p-4 bg-slate-800/50 rounded-lg">
@@ -1365,19 +1769,76 @@ export default function Invoices() {
 
               {invoicePayments.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium text-cyan-400">{t("payment_history", "Payment History")}</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-cyan-400">{t("payment_history", "Payment History")}</h4>
+                    <span className="text-xs text-muted-foreground">
+                      {invoicePayments.filter(p => p.status === 'completed').length} {t("payments_recorded", "payments recorded")}
+                    </span>
+                  </div>
                   <div className="space-y-2">
                     {invoicePayments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                        <div>
-                          <p className="text-white font-mono text-sm">{payment.paymentNumber}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {payment.paymentMethodType} • {formatDate(payment.createdAt)}
-                          </p>
+                      <div key={payment.id} className={`p-3 rounded-lg border ${
+                        payment.status === 'cancelled' 
+                          ? 'bg-red-500/5 border-red-500/20 opacity-60' 
+                          : 'bg-green-500/10 border-green-500/20'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getPaymentMethodIcon(payment.paymentMethodType)}
+                            <div>
+                              <p className="text-white font-mono text-sm">{payment.paymentNumber}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {getPaymentMethodLabel(payment.paymentMethodType)} • {formatDate(payment.processedAt || payment.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right flex items-center gap-2">
+                            <span className={`font-semibold ${payment.status === 'cancelled' ? 'text-red-400 line-through' : 'text-green-400'}`}>
+                              {formatCurrency(parseFloat(payment.amount))}
+                            </span>
+                            {payment.status === 'completed' && selectedInvoice.status !== 'void' && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+                                      onClick={() => {
+                                        setSelectedPaymentToVoid(payment);
+                                        setVoidReason("");
+                                        setIsVoidPaymentOpen(true);
+                                      }}
+                                    >
+                                      <Ban className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>{t("void_payment", "Void Payment")}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-green-400 font-semibold">
-                          {formatCurrency(parseFloat(payment.amount))}
-                        </span>
+                        {payment.referenceNumber && (
+                          <p className="text-xs text-muted-foreground mt-1 ml-6">
+                            {t("ref", "Ref")}: <span className="font-mono">{payment.referenceNumber}</span>
+                          </p>
+                        )}
+                        {payment.notes && (
+                          <p className="text-xs text-muted-foreground mt-1 ml-6">{payment.notes}</p>
+                        )}
+                        {payment.status === 'cancelled' && (
+                          <div className="mt-1 ml-6">
+                            <Badge variant="outline" className="border-red-500/30 text-red-400 text-xs">
+                              {t("voided", "Voided")}
+                            </Badge>
+                            {payment.refundReason && (
+                              <p className="text-xs text-red-400/70 mt-1">{payment.refundReason}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1437,6 +1898,61 @@ export default function Invoices() {
               data-testid="button-confirm-delete"
             >
               {deleteInvoiceMutation.isPending ? t("deleting", "Deleting...") : t("delete", "Delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isVoidPaymentOpen} onOpenChange={setIsVoidPaymentOpen}>
+        <AlertDialogContent className="bg-slate-900 border-red-500/20">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white flex items-center gap-2">
+              <Ban className="w-5 h-5 text-red-400" />
+              {t("void_payment", "Void Payment")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("void_payment_confirmation", "Are you sure you want to void this payment? The invoice balance will be updated accordingly.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          {selectedPaymentToVoid && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("payment_number", "Payment #")}:</span>
+                <span className="text-white font-mono">{selectedPaymentToVoid.paymentNumber}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">{t("method", "Method")}:</span>
+                <span className="text-white flex items-center gap-2">
+                  {getPaymentMethodIcon(selectedPaymentToVoid.paymentMethodType)}
+                  {getPaymentMethodLabel(selectedPaymentToVoid.paymentMethodType)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("amount", "Amount")}:</span>
+                <span className="text-red-400 font-semibold">{formatCurrency(parseFloat(selectedPaymentToVoid.amount))}</span>
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <Label>{t("void_reason", "Reason for voiding")} ({t("optional", "optional")})</Label>
+            <Textarea
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              className="bg-slate-800 border-slate-700"
+              placeholder={t("void_reason_placeholder", "Why is this payment being voided?")}
+              rows={2}
+            />
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleVoidPayment}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {voidPaymentMutation.isPending ? t("voiding", "Voiding...") : t("void_payment", "Void Payment")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

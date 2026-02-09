@@ -1232,6 +1232,7 @@ export const payments = pgTable("payments", {
   refundedAt: timestamp("refunded_at"),
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
   refundReason: text("refund_reason"),
+  referenceNumber: varchar("reference_number"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
