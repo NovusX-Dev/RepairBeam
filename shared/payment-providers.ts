@@ -108,7 +108,7 @@ export abstract class BasePaymentProvider implements PaymentProviderInterface {
 
 export class ManualPaymentProvider extends BasePaymentProvider {
   readonly providerName = 'manual';
-  readonly supportedMethods: PaymentMethodType[] = ['cash', 'bank_transfer', 'other'];
+  readonly supportedMethods: PaymentMethodType[] = ['cash', 'pix', 'credit_card', 'debit_card', 'bank_transfer', 'boleto', 'other'];
   
   async createPayment(request: CreatePaymentRequest): Promise<PaymentResult> {
     this.ensureInitialized();

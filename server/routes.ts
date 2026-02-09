@@ -10,7 +10,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { aiService } from "./aiService";
 import { deviceColorService } from "./deviceColorService";
 import { normalizeCurrency, toCents, fromCents } from "@shared/money";
-import { insertTicketSchema, insertChecklistSchema, isValidStatusTransition, getAllowedNextStatuses, type TicketStatus, insertSignatureRequestSchema } from "@shared/schema";
+import { insertTicketSchema, insertChecklistSchema, isValidStatusTransition, getAllowedNextStatuses, type TicketStatus, insertSignatureRequestSchema, paymentMethodTypeEnum } from "@shared/schema";
 import { z } from "zod";
 import { sendSignatureSMS, isTwilioConfigured } from "./services/twilio";
 import { nanoid } from "nanoid";
@@ -6108,13 +6108,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
+      if (invoice.status === 'paid') {
+        return res.status(400).json({ message: "Invoice is already fully paid" });
+      }
+      if (invoice.status === 'cancelled' || invoice.status === 'voided') {
+        return res.status(400).json({ message: "Cannot record payment on a cancelled or voided invoice" });
+      }
+      
+      const paymentMethodType = req.body.paymentMethodType || 'cash';
+      if (!(paymentMethodTypeEnum as readonly string[]).includes(paymentMethodType)) {
+        return res.status(400).json({ message: "Invalid payment method type" });
+      }
+      
       const paymentAmount = parseFloat(req.body.amount);
       if (isNaN(paymentAmount) || paymentAmount <= 0) {
         return res.status(400).json({ message: "Invalid payment amount" });
       }
       
       const balanceDue = parseFloat(invoice.balanceDue || '0');
-      if (paymentAmount > balanceDue) {
+      if (paymentAmount > balanceDue + 0.01) {
         return res.status(400).json({ message: "Payment amount exceeds balance due" });
       }
       
@@ -6129,7 +6141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentNumber,
         posInvoiceId: req.params.invoiceId,
         clientId: invoice.clientId,
-        paymentMethodType: req.body.paymentMethodType || 'cash',
+        paymentMethodType,
         amount: paymentAmount.toFixed(2),
         status: 'completed',
         referenceNumber: req.body.referenceNumber || null,
