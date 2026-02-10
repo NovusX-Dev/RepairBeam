@@ -217,18 +217,13 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
                     "hover:bg-white/[0.04]"
                   )}
                 >
-                  <div className="flex items-center gap-2">
-                    <h3 className={cn(
-                      "text-xs font-semibold uppercase tracking-wider transition-colors",
-                      hasActiveItem ? "text-cyan-400" : "text-cyan-400/70",
-                      "group-hover:text-cyan-400"
-                    )}>
-                      {section.label}
-                    </h3>
-                    <span className="text-[10px] text-muted-foreground/50 font-medium">
-                      {section.items.length}
-                    </span>
-                  </div>
+                  <h3 className={cn(
+                    "text-xs font-semibold uppercase tracking-wider transition-colors",
+                    hasActiveItem ? "text-cyan-400" : "text-cyan-400/70",
+                    "group-hover:text-cyan-400"
+                  )}>
+                    {section.label}
+                  </h3>
                   <ChevronDown
                     className={cn(
                       "w-3.5 h-3.5 text-cyan-400/50 transition-transform duration-200",
