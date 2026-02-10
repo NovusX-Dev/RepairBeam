@@ -53,6 +53,83 @@ const signatureSubmitPerTokenRateLimiter = createTokenRateLimiter({
   message: 'Too many attempts for this signature link.'
 });
 
+async function ensureAccountReceivableForInvoice(
+  tenantId: string,
+  invoice: { id: string; invoiceNumber: string; clientId: string | null; totalAmount: string | null; paidAmount: string | null; balanceDue: string | null; dueDate: Date | string | null; ticketId?: string | null; status?: string | null },
+  description?: string
+) {
+  if (!invoice.clientId) return null;
+  const balance = parseFloat(invoice.balanceDue || invoice.totalAmount || '0');
+  if (balance <= 0) return null;
+
+  try {
+    const existingAREntries = await storage.getAccountsReceivable(tenantId);
+    const existingAR = existingAREntries.find(ar => ar.posInvoiceId === invoice.id);
+    if (existingAR) return existingAR;
+
+    let arDueDate: Date;
+    if (invoice.dueDate) {
+      arDueDate = typeof invoice.dueDate === 'string' ? new Date(invoice.dueDate) : invoice.dueDate;
+    } else {
+      arDueDate = new Date();
+      arDueDate.setDate(arDueDate.getDate() + 30);
+    }
+
+    const paidAmount = parseFloat(invoice.paidAmount || '0');
+    return await storage.createAccountReceivable({
+      tenantId,
+      clientId: invoice.clientId,
+      posInvoiceId: invoice.id,
+      ticketId: invoice.ticketId || null,
+      description: description || `Invoice ${invoice.invoiceNumber}`,
+      originalAmount: invoice.totalAmount || '0.00',
+      paidAmount: invoice.paidAmount || '0.00',
+      balanceDue: invoice.balanceDue || invoice.totalAmount || '0.00',
+      status: paidAmount > 0 ? 'partially_paid' : 'pending',
+      dueDate: arDueDate,
+      notes: `Auto-created from invoice ${invoice.invoiceNumber}`,
+    });
+  } catch (error) {
+    console.error("Warning: Failed to auto-create AR entry for invoice:", error);
+    return null;
+  }
+}
+
+async function syncAccountReceivableWithInvoice(
+  tenantId: string,
+  invoiceId: string,
+  paidAmount: string,
+  balanceDue: string,
+  invoiceStatus: string
+) {
+  try {
+    const existingAREntries = await storage.getAccountsReceivable(tenantId);
+    const ar = existingAREntries.find(entry => entry.posInvoiceId === invoiceId);
+    if (!ar) return;
+
+    let arStatus: string;
+    const balance = parseFloat(balanceDue);
+    const paid = parseFloat(paidAmount);
+
+    if (invoiceStatus === 'paid' || balance <= 0) {
+      arStatus = 'paid';
+    } else if (paid > 0) {
+      arStatus = 'partially_paid';
+    } else {
+      arStatus = 'pending';
+    }
+
+    await storage.updateAccountReceivable(ar.id, tenantId, {
+      paidAmount,
+      balanceDue,
+      status: arStatus,
+      paidDate: arStatus === 'paid' ? new Date() : null,
+    });
+  } catch (error) {
+    console.error("Warning: Failed to sync AR entry with invoice:", error);
+  }
+}
+
 // Enhanced validation schema for tickets with currency normalization
 const validateAndNormalizeCurrency = (value: any, ctx: z.RefinementCtx, fieldName: string) => {
   if (value === null || value === undefined || value === '') {
@@ -5540,6 +5617,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         convertedToInvoiceId: invoice.id,
       });
       
+      await ensureAccountReceivableForInvoice(
+        req.authUser.tenantId,
+        invoice,
+        `Invoice ${invoice.invoiceNumber} (from Quote ${quote.quoteNumber})`
+      );
+      
       res.status(201).json(invoice);
     } catch (error) {
       console.error("Error converting quote to invoice:", error);
@@ -5864,11 +5947,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const invoiceNumber = await storage.getNextPosInvoiceNumber(req.authUser.tenantId);
+      const body = { ...req.body };
+      if (body.dueDate && typeof body.dueDate === 'string') body.dueDate = new Date(body.dueDate);
+      if (body.issuedDate && typeof body.issuedDate === 'string') body.issuedDate = new Date(body.issuedDate);
       const invoice = await storage.createPosInvoice({
-        ...req.body,
+        ...body,
         tenantId: req.authUser.tenantId,
         invoiceNumber,
       });
+      
+      await ensureAccountReceivableForInvoice(req.authUser.tenantId, invoice);
+      
       res.status(201).json(invoice);
     } catch (error) {
       console.error("Error creating POS invoice:", error);
@@ -6016,6 +6105,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sortOrder: services.length + i,
         });
       }
+      
+      await ensureAccountReceivableForInvoice(
+        req.authUser.tenantId,
+        invoice,
+        `Invoice ${invoice.invoiceNumber} - ${ticket.title}`
+      );
       
       // Return the created invoice with items
       const invoiceItems = await storage.getPosInvoiceItems(invoice.id);
@@ -6173,6 +6268,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paidDate: newBalanceDue <= 0 ? new Date() : null,
       });
       
+      await syncAccountReceivableWithInvoice(
+        req.authUser.tenantId,
+        req.params.invoiceId,
+        newPaidAmount.toFixed(2),
+        newBalanceDue.toFixed(2),
+        newStatus
+      );
+      
       res.status(201).json({ payment, invoice: updatedInvoice });
     } catch (error) {
       console.error("Error recording invoice payment:", error);
@@ -6271,6 +6374,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tenantId: req.authUser.tenantId,
         paymentNumber,
       });
+      
+      if (payment.posInvoiceId) {
+        const invoice = await storage.getPosInvoice(payment.posInvoiceId, req.authUser.tenantId);
+        if (invoice) {
+          await syncAccountReceivableWithInvoice(
+            req.authUser.tenantId,
+            invoice.id,
+            invoice.paidAmount || '0.00',
+            invoice.balanceDue || '0.00',
+            invoice.status || 'issued'
+          );
+        }
+      }
+      
       res.status(201).json(payment);
     } catch (error) {
       console.error("Error creating payment:", error);
@@ -6337,6 +6454,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             status: newStatus,
             paidDate: null,
           });
+          
+          await syncAccountReceivableWithInvoice(
+            req.authUser.tenantId,
+            payment.posInvoiceId,
+            newPaidAmount.toFixed(2),
+            newBalanceDue.toFixed(2),
+            newStatus
+          );
         }
       }
       
