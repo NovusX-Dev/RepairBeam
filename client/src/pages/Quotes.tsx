@@ -42,7 +42,7 @@ import {
   Smartphone,
   Link
 } from "lucide-react";
-import type { Quote, QuoteItem, Client, Ticket } from "@shared/schema";
+import type { Quote, QuoteItem, Client, Ticket, RepairService, InventoryItem } from "@shared/schema";
 
 interface QuoteStats {
   total: number;
@@ -66,10 +66,13 @@ interface QuoteFormData {
 }
 
 interface QuoteItemFormData {
+  type: "service" | "item";
   description: string;
   quantity: number;
   unitPrice: string;
   discountAmount: string;
+  repairServiceId?: string;
+  inventoryItemId?: string;
 }
 
 interface TicketSummary {
@@ -119,6 +122,7 @@ const emptyFormData: QuoteFormData = {
 };
 
 const emptyItemFormData: QuoteItemFormData = {
+  type: "service",
   description: "",
   quantity: 1,
   unitPrice: "",
@@ -146,6 +150,9 @@ export default function Quotes() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [ticketSummary, setTicketSummary] = useState<TicketSummary | null>(null);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [lineItemCategory, setLineItemCategory] = useState<"service" | "item" | null>(null);
+  const [lineItemSearchTerm, setLineItemSearchTerm] = useState("");
+  const [showLineItemDropdown, setShowLineItemDropdown] = useState(false);
 
   const { data: quotes = [], isLoading: quotesLoading } = useQuery<Quote[]>({
     queryKey: ["/api/quotes"]
@@ -163,6 +170,17 @@ export default function Quotes() {
   const { data: tickets = [] } = useQuery<Ticket[]>({
     queryKey: ["/api/tickets"],
     enabled: isImportFromTicketOpen
+  });
+
+  const { data: repairServices = [] } = useQuery<RepairService[]>({
+    queryKey: ["/api/repair-services"],
+    enabled: isAddDialogOpen
+  });
+
+  const { data: inventoryItems = [] } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/inventory"],
+    select: (data: any) => data?.items || data || [],
+    enabled: isAddDialogOpen
   });
 
   const { data: quoteItems = [] } = useQuery<QuoteItem[]>({
@@ -348,6 +366,10 @@ export default function Quotes() {
   const handleOpenAddDialog = () => {
     setFormData(emptyFormData);
     setLineItems([]);
+    setNewItem(emptyItemFormData);
+    setLineItemCategory(null);
+    setLineItemSearchTerm("");
+    setShowLineItemDropdown(false);
     setIsAddDialogOpen(true);
   };
 
@@ -378,6 +400,9 @@ export default function Quotes() {
     if (!newItem.description || !newItem.unitPrice) return;
     setLineItems([...lineItems, { ...newItem }]);
     setNewItem(emptyItemFormData);
+    setLineItemCategory(null);
+    setLineItemSearchTerm("");
+    setShowLineItemDropdown(false);
   };
 
   const handleRemoveLineItem = (index: number) => {
@@ -929,63 +954,252 @@ export default function Quotes() {
             <div className="space-y-4">
               <Label className="text-lg font-semibold text-cyan-400">{t("line_items", "Line Items")}</Label>
               
-              <div className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5">
-                  <Label className="text-xs">{t("description", "Description")}</Label>
-                  <Input
-                    value={newItem.description}
-                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                    placeholder={t("item_description", "Item description")}
-                    className="bg-slate-800 border-slate-700"
-                    data-testid="input-item-description"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">{t("quantity", "Qty")}</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={newItem.quantity}
-                    onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
-                    className="bg-slate-800 border-slate-700"
-                    data-testid="input-item-quantity"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">{t("unit_price", "Unit Price")}</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newItem.unitPrice}
-                    onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
-                    placeholder="0.00"
-                    className="bg-slate-800 border-slate-700"
-                    data-testid="input-item-price"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">{t("discount", "Discount")}</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={newItem.discountAmount}
-                    onChange={(e) => setNewItem({ ...newItem, discountAmount: e.target.value })}
-                    placeholder="0.00"
-                    className="bg-slate-800 border-slate-700"
-                    data-testid="input-item-discount"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Button
-                    type="button"
-                    onClick={handleAddLineItem}
-                    size="icon"
-                    className="bg-cyan-600 hover:bg-cyan-500"
-                    data-testid="button-add-item"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
+              <div className="space-y-3 p-3 border border-slate-700 rounded-lg bg-slate-800/30">
+                {!lineItemCategory ? (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">{t("select_item_type", "Select item type")}</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLineItemCategory("service");
+                          setNewItem({ ...emptyItemFormData, type: "service" });
+                          setLineItemSearchTerm("");
+                        }}
+                        className="flex items-center gap-2 p-3 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-300 hover:border-cyan-500/50 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all"
+                      >
+                        <Wrench className="w-5 h-5" />
+                        <div className="text-left">
+                          <span className="text-sm font-medium block">{t("service", "Service")}</span>
+                          <span className="text-xs text-muted-foreground">{t("labor_repair", "Labor / Repair")}</span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLineItemCategory("item");
+                          setNewItem({ ...emptyItemFormData, type: "item" });
+                          setLineItemSearchTerm("");
+                        }}
+                        className="flex items-center gap-2 p-3 rounded-lg border border-slate-700 bg-slate-800/50 text-slate-300 hover:border-green-500/50 hover:bg-green-500/10 hover:text-green-400 transition-all"
+                      >
+                        <Package className="w-5 h-5" />
+                        <div className="text-left">
+                          <span className="text-sm font-medium block">{t("item", "Item")}</span>
+                          <span className="text-xs text-muted-foreground">{t("part_product", "Part / Product")}</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {lineItemCategory === "service" ? (
+                          <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-xs">
+                            <Wrench className="w-3 h-3 mr-1" />
+                            {t("service", "Service")}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-green-500/30 text-green-400 text-xs">
+                            <Package className="w-3 h-3 mr-1" />
+                            {t("item", "Item")}
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setLineItemCategory(null);
+                          setNewItem(emptyItemFormData);
+                          setLineItemSearchTerm("");
+                          setShowLineItemDropdown(false);
+                        }}
+                        className="text-muted-foreground hover:text-white h-7 text-xs"
+                      >
+                        <XCircle className="w-3 h-3 mr-1" />
+                        {t("change_type", "Change")}
+                      </Button>
+                    </div>
+
+                    <div className="relative">
+                      <Label className="text-xs">{t("description", "Description")}</Label>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          value={lineItemSearchTerm}
+                          onChange={(e) => {
+                            setLineItemSearchTerm(e.target.value);
+                            setShowLineItemDropdown(true);
+                            setNewItem({ ...newItem, description: e.target.value, repairServiceId: undefined, inventoryItemId: undefined });
+                          }}
+                          onFocus={() => setShowLineItemDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowLineItemDropdown(false), 200)}
+                          placeholder={lineItemCategory === "service" 
+                            ? t("search_or_type_service", "Search service or type custom...") 
+                            : t("search_or_type_item", "Search item or type custom...")}
+                          className="bg-slate-800 border-slate-700 pl-9"
+                          data-testid="input-item-description"
+                        />
+                      </div>
+                      {showLineItemDropdown && lineItemSearchTerm && (
+                        <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                          {lineItemCategory === "service" ? (
+                            <>
+                              {repairServices
+                                .filter((s) => s.isActive && (
+                                  s.name.toLowerCase().includes(lineItemSearchTerm.toLowerCase()) ||
+                                  (s.description || '').toLowerCase().includes(lineItemSearchTerm.toLowerCase())
+                                ))
+                                .slice(0, 8)
+                                .map((service) => (
+                                  <button
+                                    key={service.id}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 hover:bg-slate-700 transition-colors flex items-center justify-between"
+                                    onClick={() => {
+                                      setNewItem({
+                                        ...newItem,
+                                        type: "service",
+                                        description: service.name,
+                                        unitPrice: service.estimatedLaborCost,
+                                        repairServiceId: service.id,
+                                        inventoryItemId: undefined,
+                                      });
+                                      setLineItemSearchTerm(service.name);
+                                      setShowLineItemDropdown(false);
+                                    }}
+                                  >
+                                    <div>
+                                      <span className="text-sm text-white">{service.name}</span>
+                                      {service.description && (
+                                        <p className="text-xs text-muted-foreground truncate max-w-[250px]">{service.description}</p>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-cyan-400 font-mono ml-2 shrink-0">
+                                      {formatCurrency(parseFloat(service.estimatedLaborCost))}
+                                    </span>
+                                  </button>
+                                ))
+                              }
+                              {repairServices.filter((s) => s.isActive && (
+                                s.name.toLowerCase().includes(lineItemSearchTerm.toLowerCase()) ||
+                                (s.description || '').toLowerCase().includes(lineItemSearchTerm.toLowerCase())
+                              )).length === 0 && (
+                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                  {t("no_matches_custom_entry", "No matches — will use as custom entry")}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {inventoryItems
+                                .filter((i) => 
+                                  i.name.toLowerCase().includes(lineItemSearchTerm.toLowerCase()) ||
+                                  (i.sku || '').toLowerCase().includes(lineItemSearchTerm.toLowerCase()) ||
+                                  (i.description || '').toLowerCase().includes(lineItemSearchTerm.toLowerCase())
+                                )
+                                .slice(0, 8)
+                                .map((invItem) => (
+                                  <button
+                                    key={invItem.id}
+                                    type="button"
+                                    className="w-full text-left px-3 py-2 hover:bg-slate-700 transition-colors flex items-center justify-between"
+                                    onClick={() => {
+                                      setNewItem({
+                                        ...newItem,
+                                        type: "item",
+                                        description: invItem.name,
+                                        unitPrice: invItem.price || invItem.cost || "0",
+                                        inventoryItemId: invItem.id,
+                                        repairServiceId: undefined,
+                                      });
+                                      setLineItemSearchTerm(invItem.name);
+                                      setShowLineItemDropdown(false);
+                                    }}
+                                  >
+                                    <div>
+                                      <span className="text-sm text-white">{invItem.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        {invItem.sku && <span className="text-xs text-muted-foreground font-mono">{invItem.sku}</span>}
+                                        <span className="text-xs text-muted-foreground">
+                                          {t("stock", "Stock")}: {invItem.quantity ?? 0}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-green-400 font-mono ml-2 shrink-0">
+                                      {formatCurrency(parseFloat(invItem.price || invItem.cost || "0"))}
+                                    </span>
+                                  </button>
+                                ))
+                              }
+                              {inventoryItems.filter((i) => 
+                                i.name.toLowerCase().includes(lineItemSearchTerm.toLowerCase()) ||
+                                (i.sku || '').toLowerCase().includes(lineItemSearchTerm.toLowerCase()) ||
+                                (i.description || '').toLowerCase().includes(lineItemSearchTerm.toLowerCase())
+                              ).length === 0 && (
+                                <div className="px-3 py-2 text-xs text-muted-foreground">
+                                  {t("no_matches_custom_entry", "No matches — will use as custom entry")}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-4">
+                        <Label className="text-xs">{t("quantity", "Qty")}</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={newItem.quantity}
+                          onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 1 })}
+                          className="bg-slate-800 border-slate-700"
+                          data-testid="input-item-quantity"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-xs">{t("unit_price", "Unit Price")}</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={newItem.unitPrice}
+                          onChange={(e) => setNewItem({ ...newItem, unitPrice: e.target.value })}
+                          placeholder="0.00"
+                          className="bg-slate-800 border-slate-700"
+                          data-testid="input-item-price"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <Label className="text-xs">{t("discount", "Discount")}</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={newItem.discountAmount}
+                          onChange={(e) => setNewItem({ ...newItem, discountAmount: e.target.value })}
+                          placeholder="0.00"
+                          className="bg-slate-800 border-slate-700"
+                          data-testid="input-item-discount"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Button
+                          type="button"
+                          onClick={handleAddLineItem}
+                          disabled={!newItem.description || !newItem.unitPrice}
+                          className="bg-cyan-600 hover:bg-cyan-500 w-full"
+                          data-testid="button-add-item"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {lineItems.length > 0 && (
@@ -993,6 +1207,7 @@ export default function Quotes() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-slate-700 bg-slate-800/50">
+                        <TableHead className="text-xs">{t("type", "Type")}</TableHead>
                         <TableHead className="text-xs">{t("description", "Description")}</TableHead>
                         <TableHead className="text-xs text-right">{t("quantity", "Qty")}</TableHead>
                         <TableHead className="text-xs text-right">{t("unit_price", "Price")}</TableHead>
@@ -1006,7 +1221,20 @@ export default function Quotes() {
                         const total = (parseFloat(item.unitPrice) * item.quantity) - parseFloat(item.discountAmount || '0');
                         return (
                           <TableRow key={index} className="border-slate-700">
-                            <TableCell>{item.description}</TableCell>
+                            <TableCell>
+                              {item.type === "service" ? (
+                                <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-[10px] px-1.5 py-0">
+                                  <Wrench className="w-2.5 h-2.5 mr-0.5" />
+                                  {t("service", "Service")}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="border-green-500/30 text-green-400 text-[10px] px-1.5 py-0">
+                                  <Package className="w-2.5 h-2.5 mr-0.5" />
+                                  {t("item", "Item")}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">{item.description}</TableCell>
                             <TableCell className="text-right">{item.quantity}</TableCell>
                             <TableCell className="text-right">{formatCurrency(parseFloat(item.unitPrice))}</TableCell>
                             <TableCell className="text-right">{formatCurrency(parseFloat(item.discountAmount || '0'))}</TableCell>
