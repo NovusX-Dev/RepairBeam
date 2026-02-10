@@ -1,4 +1,4 @@
-import { useRef, useCallback, useLayoutEffect } from "react";
+import { useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,27 +64,9 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   const { tenant } = useTenant();
   const { t } = useLocalization();
   const { hasPermission } = usePermissions();
-  const navRef = useRef<HTMLElement>(null);
-  const scrollPositionRef = useRef(0);
-
-  const handleScroll = useCallback(() => {
-    if (navRef.current) {
-      scrollPositionRef.current = navRef.current.scrollTop;
-    }
-  }, []);
-
   const handleNavClick = useCallback((pageName: string) => {
-    if (navRef.current) {
-      scrollPositionRef.current = navRef.current.scrollTop;
-    }
     onPageChange(pageName);
   }, [onPageChange]);
-
-  useLayoutEffect(() => {
-    if (navRef.current) {
-      navRef.current.scrollTop = scrollPositionRef.current;
-    }
-  });
   
   // Fetch store settings to get shop name and logo
   const { data: storeSettings } = useQuery<any>({
@@ -153,7 +135,7 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       </div>
 
       {/* Navigation - Scrollable middle section */}
-      <nav ref={navRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-2 sidebar-nav">
+      <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-2 sidebar-nav">
         {/* Main Section */}
         {mainItems.map((item) => {
           const Icon = item.icon;

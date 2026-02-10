@@ -33,6 +33,34 @@ import Profile from "@/pages/Profile";
 import SignaturePage from "@/pages/SignaturePage";
 import NotFound from "@/pages/not-found";
 
+function AuthenticatedRoutes() {
+  return (
+    <Layout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/clients" component={Clients} />
+        <Route path="/kanban" component={KanbanTickets} />
+        <Route path="/completed-history" component={CompletedHistory} />
+        <Route path="/inventory" component={Inventory} />
+        <Route path="/inventory-analytics" component={InventoryAnalytics} />
+        <Route path="/suppliers" component={Suppliers} />
+        <Route path="/purchase-orders" component={PurchaseOrders} />
+        <Route path="/pos" component={POS} />
+        <Route path="/quotes" component={Quotes} />
+        <Route path="/pos-invoices" component={PosInvoices} />
+        <Route path="/accounts-receivable" component={AccountsReceivable} />
+        <Route path="/accounts-payable" component={AccountsPayable} />
+        <Route path="/support" component={Support} />
+        <Route path="/configs" component={Configs} />
+        <Route path="/users" component={Users} />
+        <Route path="/audit-logs" component={AuditLogs} />
+        <Route path="/profile" component={Profile} />
+        <Route component={NotFound} />
+      </Switch>
+    </Layout>
+  );
+}
+
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const { tenant, isLoading: tenantLoading, hasValidTenant } = useTenant();
@@ -71,26 +99,9 @@ function Router() {
         ) : needsTenantSetup ? (
           <Route path="/" component={TenantSetup} />
         ) : (
-          <>
-            <Route path="/" component={() => <Layout><Dashboard /></Layout>} />
-            <Route path="/clients" component={() => <Layout><Clients /></Layout>} />
-            <Route path="/kanban" component={() => <Layout><KanbanTickets /></Layout>} />
-            <Route path="/completed-history" component={() => <Layout><CompletedHistory /></Layout>} />
-            <Route path="/inventory" component={() => <Layout><Inventory /></Layout>} />
-            <Route path="/inventory-analytics" component={() => <Layout><InventoryAnalytics /></Layout>} />
-            <Route path="/suppliers" component={() => <Layout><Suppliers /></Layout>} />
-            <Route path="/purchase-orders" component={() => <Layout><PurchaseOrders /></Layout>} />
-            <Route path="/pos" component={() => <Layout><POS /></Layout>} />
-            <Route path="/quotes" component={() => <Layout><Quotes /></Layout>} />
-            <Route path="/pos-invoices" component={() => <Layout><PosInvoices /></Layout>} />
-            <Route path="/accounts-receivable" component={() => <Layout><AccountsReceivable /></Layout>} />
-            <Route path="/accounts-payable" component={() => <Layout><AccountsPayable /></Layout>} />
-            <Route path="/support" component={() => <Layout><Support /></Layout>} />
-            <Route path="/configs" component={() => <Layout><Configs /></Layout>} />
-            <Route path="/users" component={() => <Layout><Users /></Layout>} />
-            <Route path="/audit-logs" component={() => <Layout><AuditLogs /></Layout>} />
-            <Route path="/profile" component={() => <Layout><Profile /></Layout>} />
-          </>
+          <Route>
+            <AuthenticatedRoutes />
+          </Route>
         )}
         <Route component={NotFound} />
       </Switch>
