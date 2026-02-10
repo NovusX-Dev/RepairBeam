@@ -130,6 +130,32 @@ async function syncAccountReceivableWithInvoice(
   }
 }
 
+async function recalcQuoteTotals(quoteId: string, tenantId: string) {
+  try {
+    const items = await storage.getQuoteItems(quoteId);
+    const subtotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice || '0'), 0);
+    
+    const quote = await storage.getQuote(quoteId, tenantId);
+    if (!quote) return null;
+    
+    const discountPercentage = parseFloat(quote.discountPercentage || '0');
+    const discountAmount = parseFloat(quote.discountAmount || '0');
+    const taxAmount = parseFloat(quote.taxAmount || '0');
+    
+    const discountFromPercentage = discountPercentage > 0 ? subtotal * (discountPercentage / 100) : 0;
+    const totalDiscount = discountAmount + discountFromPercentage;
+    const totalAmount = Math.max(0, subtotal - totalDiscount + taxAmount);
+    
+    return await storage.updateQuote(quoteId, tenantId, {
+      subtotal: subtotal.toFixed(2),
+      totalAmount: totalAmount.toFixed(2),
+    });
+  } catch (error) {
+    console.error("Warning: Failed to recalculate quote totals:", error);
+    return null;
+  }
+}
+
 // Enhanced validation schema for tickets with currency normalization
 const validateAndNormalizeCurrency = (value: any, ctx: z.RefinementCtx, fieldName: string) => {
   if (value === null || value === undefined || value === '') {
@@ -5581,19 +5607,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quoteItems = await storage.getQuoteItems(quote.id);
       const invoiceNumber = await storage.getNextPosInvoiceNumber(req.authUser.tenantId);
       
+      const computedSubtotal = quoteItems.reduce((sum, item) => sum + parseFloat(item.totalPrice || '0'), 0);
+      const discountPercentage = parseFloat(quote.discountPercentage || '0');
+      const discountAmount = parseFloat(quote.discountAmount || '0');
+      const taxAmount = parseFloat(quote.taxAmount || '0');
+      const discountFromPercentage = discountPercentage > 0 ? computedSubtotal * (discountPercentage / 100) : 0;
+      const totalDiscount = discountAmount + discountFromPercentage;
+      const computedTotal = Math.max(0, computedSubtotal - totalDiscount + taxAmount);
+      
       const invoice = await storage.createPosInvoice({
         tenantId: req.authUser.tenantId,
         invoiceNumber,
         clientId: quote.clientId,
         quoteId: quote.id,
         status: 'draft',
-        subtotal: quote.subtotal,
+        subtotal: computedSubtotal.toFixed(2),
         discountAmount: quote.discountAmount,
         discountPercentage: quote.discountPercentage,
         taxAmount: quote.taxAmount,
-        totalAmount: quote.totalAmount,
+        totalAmount: computedTotal.toFixed(2),
         paidAmount: '0.00',
-        balanceDue: quote.totalAmount,
+        balanceDue: computedTotal.toFixed(2),
         notes: quote.notes,
         issuedBy: req.authUser.id,
       });
@@ -5806,11 +5840,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Return the created quote with items
+      // Recalculate totals from created items to ensure consistency
+      const updatedQuote = await recalcQuoteTotals(quote.id, req.authUser.tenantId);
       const quoteItems = await storage.getQuoteItems(quote.id);
       
       res.status(201).json({
-        ...quote,
+        ...(updatedQuote || quote),
         items: quoteItems,
       });
     } catch (error) {
@@ -5842,6 +5877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         quoteId: req.params.quoteId,
       });
+      await recalcQuoteTotals(req.params.quoteId, req.authUser.tenantId);
       res.status(201).json(item);
     } catch (error) {
       console.error("Error creating quote item:", error);
@@ -5854,10 +5890,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.authUser?.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      const existingItem = await storage.getQuoteItemById(req.params.id, req.authUser.tenantId);
+      if (!existingItem) {
+        return res.status(404).json({ message: "Quote item not found" });
+      }
       const item = await storage.updateQuoteItem(req.params.id, req.body);
       if (!item) {
         return res.status(404).json({ message: "Quote item not found" });
       }
+      await recalcQuoteTotals(item.quoteId, req.authUser.tenantId);
       res.json(item);
     } catch (error) {
       console.error("Error updating quote item:", error);
@@ -5870,10 +5911,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.authUser?.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      const item = await storage.getQuoteItemById(req.params.id, req.authUser.tenantId);
+      if (!item) {
+        return res.status(404).json({ message: "Quote item not found" });
+      }
       const deleted = await storage.deleteQuoteItem(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Quote item not found" });
       }
+      await recalcQuoteTotals(item.quoteId, req.authUser.tenantId);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting quote item:", error);

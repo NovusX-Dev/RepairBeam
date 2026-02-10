@@ -457,6 +457,7 @@ export interface IStorage {
 
   // Quote Items operations (POS)
   getQuoteItems(quoteId: string): Promise<QuoteItem[]>;
+  getQuoteItemById(id: string, tenantId: string): Promise<QuoteItem | undefined>;
   createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
   updateQuoteItem(id: string, item: Partial<InsertQuoteItem>): Promise<QuoteItem | undefined>;
   deleteQuoteItem(id: string): Promise<boolean>;
@@ -3919,6 +3920,29 @@ export class DatabaseStorage implements IStorage {
         .from(quoteItems)
         .where(eq(quoteItems.quoteId, quoteId))
         .orderBy(asc(quoteItems.sortOrder));
+    });
+  }
+
+  async getQuoteItemById(id: string, tenantId: string): Promise<QuoteItem | undefined> {
+    return withRetry(async () => {
+      const [item] = await db
+        .select({
+          id: quoteItems.id,
+          quoteId: quoteItems.quoteId,
+          description: quoteItems.description,
+          quantity: quoteItems.quantity,
+          unitPrice: quoteItems.unitPrice,
+          discountAmount: quoteItems.discountAmount,
+          totalPrice: quoteItems.totalPrice,
+          inventoryItemId: quoteItems.inventoryItemId,
+          repairServiceId: quoteItems.repairServiceId,
+          sortOrder: quoteItems.sortOrder,
+          createdAt: quoteItems.createdAt,
+        })
+        .from(quoteItems)
+        .innerJoin(quotes, eq(quoteItems.quoteId, quotes.id))
+        .where(and(eq(quoteItems.id, id), eq(quotes.tenantId, tenantId)));
+      return item;
     });
   }
 
