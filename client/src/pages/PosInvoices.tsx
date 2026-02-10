@@ -1474,7 +1474,7 @@ export default function Invoices() {
         setIsRecordPaymentOpen(open);
         if (!open) setIsPaymentConfirmStep(false);
       }}>
-        <DialogContent className="max-w-md bg-slate-900 border-cyan-500/20">
+        <DialogContent className="max-w-md bg-slate-900 border-cyan-500/20 max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl text-white flex items-center gap-2">
               <Banknote className="w-5 h-5 text-green-400" />
