@@ -1151,6 +1151,24 @@ export const quoteItems = pgTable("quote_items", {
   index("idx_quote_items_quote").on(table.quoteId),
 ]);
 
+// Inventory Holds - Track inventory quantities reserved by quotes
+export const inventoryHolds = pgTable("inventory_holds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: 'cascade' }),
+  quoteItemId: varchar("quote_item_id").notNull().references(() => quoteItems.id, { onDelete: 'cascade' }),
+  inventoryItemId: varchar("inventory_item_id").notNull().references(() => inventoryItems.id, { onDelete: 'cascade' }),
+  quantityHeld: integer("quantity_held").notNull(),
+  status: varchar("status").notNull().default('active'), // active, released, converted
+  createdAt: timestamp("created_at").defaultNow(),
+  releasedAt: timestamp("released_at"),
+}, (table) => [
+  index("idx_inventory_holds_tenant").on(table.tenantId),
+  index("idx_inventory_holds_quote").on(table.quoteId),
+  index("idx_inventory_holds_inventory_item").on(table.inventoryItemId),
+  index("idx_inventory_holds_status").on(table.status),
+]);
+
 // POS Invoices - Standalone invoices for POS transactions (separate from repair ticket invoices)
 export const posInvoices = pgTable("pos_invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1415,6 +1433,15 @@ export const insertQuoteItemSchema = createInsertSchema(quoteItems).omit({
 export type QuoteItem = typeof quoteItems.$inferSelect;
 export type InsertQuoteItem = z.infer<typeof insertQuoteItemSchema>;
 
+// Inventory Holds
+export const insertInventoryHoldSchema = createInsertSchema(inventoryHolds).omit({
+  id: true,
+  createdAt: true,
+  releasedAt: true,
+});
+export type InventoryHold = typeof inventoryHolds.$inferSelect;
+export type InsertInventoryHold = z.infer<typeof insertInventoryHoldSchema>;
+
 // POS Invoices
 export const insertPosInvoiceSchema = createInsertSchema(posInvoices).omit({
   id: true,
@@ -1596,7 +1623,7 @@ export const quoteRelations = relations(quotes, ({ one, many }) => ({
   items: many(quoteItems),
 }));
 
-export const quoteItemRelations = relations(quoteItems, ({ one }) => ({
+export const quoteItemRelations = relations(quoteItems, ({ one, many }) => ({
   quote: one(quotes, {
     fields: [quoteItems.quoteId],
     references: [quotes.id],
@@ -1608,6 +1635,26 @@ export const quoteItemRelations = relations(quoteItems, ({ one }) => ({
   repairService: one(repairServices, {
     fields: [quoteItems.repairServiceId],
     references: [repairServices.id],
+  }),
+  holds: many(inventoryHolds),
+}));
+
+export const inventoryHoldRelations = relations(inventoryHolds, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [inventoryHolds.tenantId],
+    references: [tenants.id],
+  }),
+  quote: one(quotes, {
+    fields: [inventoryHolds.quoteId],
+    references: [quotes.id],
+  }),
+  quoteItem: one(quoteItems, {
+    fields: [inventoryHolds.quoteItemId],
+    references: [quoteItems.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [inventoryHolds.inventoryItemId],
+    references: [inventoryItems.id],
   }),
 }));
 

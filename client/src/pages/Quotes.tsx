@@ -40,9 +40,11 @@ import {
   Wrench,
   Package,
   Smartphone,
-  Link
+  Link,
+  Lock,
+  Unlock
 } from "lucide-react";
-import type { Quote, QuoteItem, Client, Ticket, RepairService, InventoryItem } from "@shared/schema";
+import type { Quote, QuoteItem, Client, Ticket, RepairService, InventoryItem, InventoryHold } from "@shared/schema";
 
 interface QuoteStats {
   total: number;
@@ -189,6 +191,17 @@ export default function Quotes() {
       if (!selectedQuote?.id) return [];
       const response = await fetch(`/api/quotes/${selectedQuote.id}/items`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to fetch quote items");
+      return response.json();
+    },
+    enabled: !!selectedQuote?.id && isDetailsSheetOpen
+  });
+
+  const { data: inventoryHolds = [] } = useQuery<InventoryHold[]>({
+    queryKey: ["/api/inventory-holds/by-quote", selectedQuote?.id],
+    queryFn: async () => {
+      if (!selectedQuote?.id) return [];
+      const response = await fetch(`/api/inventory-holds/by-quote/${selectedQuote.id}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch inventory holds");
       return response.json();
     },
     enabled: !!selectedQuote?.id && isDetailsSheetOpen
@@ -1448,6 +1461,15 @@ export default function Quotes() {
                 </div>
               )}
 
+              {inventoryHolds.length > 0 && (
+                <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                  <p className="text-xs text-amber-300">
+                    {t("inventory_on_hold", "Inventory items in this quote are on hold and reserved from available stock.")}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-3">
                 <p className="text-sm font-semibold text-cyan-400">{t("line_items", "Line Items")}</p>
                 {quoteItems.length > 0 ? (
@@ -1462,14 +1484,33 @@ export default function Quotes() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {quoteItems.map((item) => (
-                          <TableRow key={item.id} className="border-slate-700">
-                            <TableCell>{item.description}</TableCell>
-                            <TableCell className="text-right">{item.quantity}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(parseFloat(item.unitPrice))}</TableCell>
-                            <TableCell className="text-right font-semibold">{formatCurrency(parseFloat(item.totalPrice))}</TableCell>
-                          </TableRow>
-                        ))}
+                        {quoteItems.map((item) => {
+                          const hold = inventoryHolds.find(h => h.quoteItemId === item.id);
+                          return (
+                            <TableRow key={item.id} className="border-slate-700">
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  {item.description}
+                                  {hold && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Lock className="w-3 h-3 text-amber-400" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>{t("quantity_on_hold", "{{qty}} unit(s) on hold").replace("{{qty}}", String(hold.quantityHeld))}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">{item.quantity}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(parseFloat(item.unitPrice))}</TableCell>
+                              <TableCell className="text-right font-semibold">{formatCurrency(parseFloat(item.totalPrice))}</TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

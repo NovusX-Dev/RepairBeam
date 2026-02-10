@@ -76,6 +76,7 @@ Preferred communication style: Simple, everyday language.
 - **QR Code Tracking System**: Unique QR code generation for inventory units, automated print functionality, multi-method scanning, and secure verification, integrated with Purchase Orders, Kanban Tickets, and Inventory Analytics.
 - **Inventory Category Management**: Device-type-based categorization with backend validation and CRUD operations.
 - **Kanban Status Transition Validation**: Comprehensive workflow enforcement with defined state machine transition rules for ticket statuses, including backend enforcement and enhanced drag-and-drop UX.
+- **Inventory Hold System for Quotes**: When quotes move to "sent" or "accepted" status, inventory items are placed on hold (reserved). Holds are released when quotes are rejected, cancelled, expired, or moved back to draft. Converting a quote to an invoice deducts held quantities from inventory via a database transaction. Quote items cannot be modified while holds are active.
 
 ### Security & Production Standards
 - **Multi-Tenant Security**: Database-level isolation with Row-Level Security (RLS) policies and application-level verification.

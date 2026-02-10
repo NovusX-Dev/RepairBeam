@@ -47,6 +47,7 @@ import {
   payments,
   accountsReceivable,
   accountsPayable,
+  inventoryHolds,
   type User,
   type UpsertUser,
   type Tenant,
@@ -145,6 +146,8 @@ import {
   type InsertAccountReceivable,
   type AccountPayable,
   type InsertAccountPayable,
+  type InventoryHold,
+  type InsertInventoryHold,
 } from "@shared/schema";
 import { type Permission, PERMISSIONS } from "@shared/permissions";
 import { db } from "./db";
@@ -461,6 +464,14 @@ export interface IStorage {
   createQuoteItem(item: InsertQuoteItem): Promise<QuoteItem>;
   updateQuoteItem(id: string, item: Partial<InsertQuoteItem>): Promise<QuoteItem | undefined>;
   deleteQuoteItem(id: string): Promise<boolean>;
+
+  // Inventory Holds operations
+  createInventoryHold(hold: InsertInventoryHold): Promise<InventoryHold>;
+  getActiveHoldsByQuote(quoteId: string, tenantId: string): Promise<InventoryHold[]>;
+  getActiveHoldsByInventoryItem(inventoryItemId: string, tenantId: string): Promise<InventoryHold[]>;
+  getTotalHeldQuantity(inventoryItemId: string, tenantId: string): Promise<number>;
+  releaseHoldsByQuote(quoteId: string, tenantId: string): Promise<void>;
+  convertHoldsByQuote(quoteId: string, tenantId: string): Promise<void>;
 
   // POS Invoices operations
   getPosInvoices(tenantId: string): Promise<PosInvoice[]>;
@@ -3968,6 +3979,104 @@ export class DatabaseStorage implements IStorage {
     return withRetry(async () => {
       const result = await db.delete(quoteItems).where(eq(quoteItems.id, id));
       return result.rowCount ? result.rowCount > 0 : false;
+    });
+  }
+
+  // Inventory Holds operations
+  async createInventoryHold(hold: InsertInventoryHold): Promise<InventoryHold> {
+    return withRetry(async () => {
+      const [created] = await db.insert(inventoryHolds).values(hold).returning();
+      return created;
+    });
+  }
+
+  async getActiveHoldsByQuote(quoteId: string, tenantId: string): Promise<InventoryHold[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(inventoryHolds)
+        .where(and(
+          eq(inventoryHolds.quoteId, quoteId),
+          eq(inventoryHolds.tenantId, tenantId),
+          eq(inventoryHolds.status, 'active')
+        ));
+    });
+  }
+
+  async getActiveHoldsByInventoryItem(inventoryItemId: string, tenantId: string): Promise<InventoryHold[]> {
+    return withRetry(async () => {
+      return db
+        .select()
+        .from(inventoryHolds)
+        .where(and(
+          eq(inventoryHolds.inventoryItemId, inventoryItemId),
+          eq(inventoryHolds.tenantId, tenantId),
+          eq(inventoryHolds.status, 'active')
+        ));
+    });
+  }
+
+  async getTotalHeldQuantity(inventoryItemId: string, tenantId: string): Promise<number> {
+    return withRetry(async () => {
+      const result = await db
+        .select({ total: sql<number>`COALESCE(SUM(${inventoryHolds.quantityHeld}), 0)` })
+        .from(inventoryHolds)
+        .where(and(
+          eq(inventoryHolds.inventoryItemId, inventoryItemId),
+          eq(inventoryHolds.tenantId, tenantId),
+          eq(inventoryHolds.status, 'active')
+        ));
+      return Number(result[0]?.total || 0);
+    });
+  }
+
+  async releaseHoldsByQuote(quoteId: string, tenantId: string): Promise<void> {
+    return withRetry(async () => {
+      await db
+        .update(inventoryHolds)
+        .set({ status: 'released', releasedAt: new Date() })
+        .where(and(
+          eq(inventoryHolds.quoteId, quoteId),
+          eq(inventoryHolds.tenantId, tenantId),
+          eq(inventoryHolds.status, 'active')
+        ));
+    });
+  }
+
+  async convertHoldsByQuote(quoteId: string, tenantId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      const activeHolds = await tx
+        .select()
+        .from(inventoryHolds)
+        .where(and(
+          eq(inventoryHolds.quoteId, quoteId),
+          eq(inventoryHolds.tenantId, tenantId),
+          eq(inventoryHolds.status, 'active')
+        ));
+
+      for (const hold of activeHolds) {
+        const [item] = await tx
+          .select()
+          .from(inventoryItems)
+          .where(eq(inventoryItems.id, hold.inventoryItemId));
+
+        if (item) {
+          const newQty = Math.max(0, (item.quantity ?? 0) - hold.quantityHeld);
+          await tx
+            .update(inventoryItems)
+            .set({ quantity: newQty, updatedAt: new Date() })
+            .where(eq(inventoryItems.id, hold.inventoryItemId));
+        }
+      }
+
+      await tx
+        .update(inventoryHolds)
+        .set({ status: 'converted', releasedAt: new Date() })
+        .where(and(
+          eq(inventoryHolds.quoteId, quoteId),
+          eq(inventoryHolds.tenantId, tenantId),
+          eq(inventoryHolds.status, 'active')
+        ));
     });
   }
 

@@ -5504,6 +5504,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const isBeingAccepted = req.body.status === 'accepted' && existingQuote.status !== 'accepted';
       const isBeingRejected = req.body.status === 'rejected' && existingQuote.status !== 'rejected';
+      const isBeingSent = req.body.status === 'sent' && existingQuote.status !== 'sent';
+      const isBeingCancelled = req.body.status === 'cancelled' && existingQuote.status !== 'cancelled';
+      const isBeingExpired = req.body.status === 'expired' && existingQuote.status !== 'expired';
+      const isGoingBackToDraft = req.body.status === 'draft' && existingQuote.status !== 'draft';
+      const needsHoldCreation = isBeingSent || isBeingAccepted;
+      const needsHoldRelease = isBeingRejected || isBeingCancelled || isBeingExpired || isGoingBackToDraft;
       
       const body = { ...req.body };
       if (body.validUntil) body.validUntil = new Date(body.validUntil);
@@ -5512,6 +5518,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quote = await storage.updateQuote(req.params.id, req.authUser.tenantId, body);
       if (!quote) {
         return res.status(404).json({ message: "Quote not found" });
+      }
+      
+      // Create inventory holds when quote is sent or accepted (if not already held)
+      if (needsHoldCreation) {
+        const existingHolds = await storage.getActiveHoldsByQuote(quote.id, req.authUser.tenantId);
+        if (existingHolds.length === 0) {
+          const items = await storage.getQuoteItems(quote.id);
+          for (const item of items) {
+            if (item.inventoryItemId && item.quantity > 0) {
+              await storage.createInventoryHold({
+                tenantId: req.authUser.tenantId,
+                quoteId: quote.id,
+                quoteItemId: item.id,
+                inventoryItemId: item.inventoryItemId,
+                quantityHeld: item.quantity,
+                status: 'active',
+              });
+            }
+          }
+        }
+      }
+      
+      // Release inventory holds when quote is rejected, cancelled, or expired
+      if (needsHoldRelease) {
+        await storage.releaseHoldsByQuote(quote.id, req.authUser.tenantId);
       }
       
       // If quote was accepted and has a linked ticket, move ticket to 'approved' status
@@ -5650,6 +5681,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'converted',
         convertedToInvoiceId: invoice.id,
       });
+      
+      // Convert inventory holds - deduct quantities from inventory (transactional)
+      await storage.convertHoldsByQuote(quote.id, req.authUser.tenantId);
       
       await ensureAccountReceivableForInvoice(
         req.authUser.tenantId,
@@ -5873,6 +5907,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.authUser?.tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      const activeHolds = await storage.getActiveHoldsByQuote(req.params.quoteId, req.authUser.tenantId);
+      if (activeHolds.length > 0) {
+        return res.status(400).json({ message: "Cannot modify items while inventory is on hold. Change status to draft first." });
+      }
       const item = await storage.createQuoteItem({
         ...req.body,
         quoteId: req.params.quoteId,
@@ -5893,6 +5931,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingItem = await storage.getQuoteItemById(req.params.id, req.authUser.tenantId);
       if (!existingItem) {
         return res.status(404).json({ message: "Quote item not found" });
+      }
+      const activeHolds = await storage.getActiveHoldsByQuote(existingItem.quoteId, req.authUser.tenantId);
+      if (activeHolds.length > 0) {
+        return res.status(400).json({ message: "Cannot modify items while inventory is on hold. Change status to draft first." });
       }
       const item = await storage.updateQuoteItem(req.params.id, req.body);
       if (!item) {
@@ -5915,6 +5957,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!item) {
         return res.status(404).json({ message: "Quote item not found" });
       }
+      const activeHolds = await storage.getActiveHoldsByQuote(item.quoteId, req.authUser.tenantId);
+      if (activeHolds.length > 0) {
+        return res.status(400).json({ message: "Cannot modify items while inventory is on hold. Change status to draft first." });
+      }
       const deleted = await storage.deleteQuoteItem(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Quote item not found" });
@@ -5924,6 +5970,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting quote item:", error);
       res.status(500).json({ message: "Failed to delete quote item" });
+    }
+  });
+
+  // ========================================================================
+  // Inventory Holds Routes
+  // ========================================================================
+
+  app.get("/api/inventory-holds/by-quote/:quoteId", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const holds = await storage.getActiveHoldsByQuote(req.params.quoteId, req.authUser.tenantId);
+      res.json(holds);
+    } catch (error) {
+      console.error("Error fetching inventory holds:", error);
+      res.status(500).json({ message: "Failed to fetch inventory holds" });
+    }
+  });
+
+  app.get("/api/inventory-holds/by-item/:inventoryItemId", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const holds = await storage.getActiveHoldsByInventoryItem(req.params.inventoryItemId, req.authUser.tenantId);
+      res.json(holds);
+    } catch (error) {
+      console.error("Error fetching inventory holds by item:", error);
+      res.status(500).json({ message: "Failed to fetch inventory holds" });
+    }
+  });
+
+  app.get("/api/inventory-holds/held-quantity/:inventoryItemId", isAuthenticated, async (req: any, res) => {
+    try {
+      if (!req.authUser?.tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const total = await storage.getTotalHeldQuantity(req.params.inventoryItemId, req.authUser.tenantId);
+      res.json({ inventoryItemId: req.params.inventoryItemId, totalHeld: total });
+    } catch (error) {
+      console.error("Error fetching held quantity:", error);
+      res.status(500).json({ message: "Failed to fetch held quantity" });
     }
   });
 
