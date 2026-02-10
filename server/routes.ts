@@ -5371,8 +5371,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const quoteNumber = await storage.getNextQuoteNumber(req.authUser.tenantId);
+      const body = { ...req.body };
+      if (body.validUntil) body.validUntil = new Date(body.validUntil);
+      if (body.issuedDate) body.issuedDate = new Date(body.issuedDate);
+      if (body.acceptedDate) body.acceptedDate = new Date(body.acceptedDate);
       const quote = await storage.createQuote({
-        ...req.body,
+        ...body,
         tenantId: req.authUser.tenantId,
         quoteNumber,
       });
@@ -5398,7 +5402,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isBeingAccepted = req.body.status === 'accepted' && existingQuote.status !== 'accepted';
       const isBeingRejected = req.body.status === 'rejected' && existingQuote.status !== 'rejected';
       
-      const quote = await storage.updateQuote(req.params.id, req.authUser.tenantId, req.body);
+      const body = { ...req.body };
+      if (body.validUntil) body.validUntil = new Date(body.validUntil);
+      if (body.issuedDate) body.issuedDate = new Date(body.issuedDate);
+      if (body.acceptedDate) body.acceptedDate = new Date(body.acceptedDate);
+      const quote = await storage.updateQuote(req.params.id, req.authUser.tenantId, body);
       if (!quote) {
         return res.status(404).json({ message: "Quote not found" });
       }
