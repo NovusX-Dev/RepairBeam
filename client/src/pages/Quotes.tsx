@@ -503,24 +503,24 @@ export default function Quotes() {
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "draft": return "secondary";
-      case "sent": return "default";
-      case "accepted": return "default";
+      case "sent": return "outline";
+      case "accepted": return "outline";
       case "rejected": return "destructive";
       case "expired": return "outline";
-      case "converted": return "default";
+      case "converted": return "outline";
       default: return "secondary";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "draft": return "text-gray-400";
-      case "sent": return "text-blue-400";
-      case "accepted": return "text-green-400";
-      case "rejected": return "text-red-400";
-      case "expired": return "text-orange-400";
-      case "converted": return "text-purple-400";
-      default: return "text-gray-400";
+      case "draft": return "bg-slate-700/50 text-gray-300 border-slate-600";
+      case "sent": return "bg-blue-500/15 text-blue-300 border-blue-500/40";
+      case "accepted": return "bg-green-500/15 text-green-300 border-green-500/40";
+      case "rejected": return "bg-red-500/15 text-red-300 border-red-500/40";
+      case "expired": return "bg-orange-500/15 text-orange-300 border-orange-500/40";
+      case "converted": return "bg-purple-500/15 text-purple-300 border-purple-500/40";
+      default: return "bg-slate-700/50 text-gray-300 border-slate-600";
     }
   };
 
