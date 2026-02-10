@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useLayoutEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -80,11 +80,11 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
     onPageChange(pageName);
   }, [onPageChange]);
 
-  useEffect(() => {
-    if (navRef.current && scrollPositionRef.current > 0) {
+  useLayoutEffect(() => {
+    if (navRef.current) {
       navRef.current.scrollTop = scrollPositionRef.current;
     }
-  }, [location]);
+  });
   
   // Fetch store settings to get shop name and logo
   const { data: storeSettings } = useQuery<any>({
