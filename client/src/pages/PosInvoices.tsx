@@ -141,6 +141,11 @@ export default function Invoices() {
   const [paymentNotes, setPaymentNotes] = useState("");
   const [paymentReferenceNumber, setPaymentReferenceNumber] = useState("");
   const [isPaymentConfirmStep, setIsPaymentConfirmStep] = useState(false);
+  const [isPayRestNowStep, setIsPayRestNowStep] = useState(false);
+  const [secondPaymentMethod, setSecondPaymentMethod] = useState("cash");
+  const [secondPaymentNotes, setSecondPaymentNotes] = useState("");
+  const [secondPaymentReferenceNumber, setSecondPaymentReferenceNumber] = useState("");
+  const [isSplitPaymentProcessing, setIsSplitPaymentProcessing] = useState(false);
   const [isVoidPaymentOpen, setIsVoidPaymentOpen] = useState(false);
   const [selectedPaymentToVoid, setSelectedPaymentToVoid] = useState<Payment | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -386,10 +391,14 @@ export default function Invoices() {
       
       setIsRecordPaymentOpen(false);
       setIsPaymentConfirmStep(false);
+      setIsPayRestNowStep(false);
       setPaymentAmount("");
       setPaymentMethod("cash");
       setPaymentNotes("");
       setPaymentReferenceNumber("");
+      setSecondPaymentMethod("cash");
+      setSecondPaymentNotes("");
+      setSecondPaymentReferenceNumber("");
       toast({
         title: t("success", "Success"),
         description: t("payment_recorded_successfully", "Payment recorded successfully"),
@@ -485,6 +494,10 @@ export default function Invoices() {
     setPaymentNotes("");
     setPaymentReferenceNumber("");
     setIsPaymentConfirmStep(false);
+    setIsPayRestNowStep(false);
+    setSecondPaymentMethod("cash");
+    setSecondPaymentNotes("");
+    setSecondPaymentReferenceNumber("");
     setIsRecordPaymentOpen(true);
   };
 
@@ -572,8 +585,97 @@ export default function Invoices() {
     updateInvoiceStatusMutation.mutate({ id: invoice.id, status: 'void' });
   };
 
-  const handleRecordPayment = () => {
-    if (selectedInvoice && paymentAmount) {
+  const handleRecordPayment = async () => {
+    if (!selectedInvoice || !paymentAmount) return;
+    
+    if (isPayRestNowStep) {
+      const remainingAmount = (parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount)).toFixed(2);
+      setIsSplitPaymentProcessing(true);
+      let firstPaymentRecorded = false;
+      try {
+        await apiRequest("POST", `/api/pos-invoices/${selectedInvoice.id}/payments`, {
+          amount: paymentAmount,
+          paymentMethodType: paymentMethod,
+          notes: paymentNotes,
+          referenceNumber: paymentReferenceNumber || null,
+        });
+        firstPaymentRecorded = true;
+
+        await apiRequest("POST", `/api/pos-invoices/${selectedInvoice.id}/payments`, {
+          amount: remainingAmount,
+          paymentMethodType: secondPaymentMethod,
+          notes: secondPaymentNotes,
+          referenceNumber: secondPaymentReferenceNumber || null,
+        });
+
+        await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices", selectedInvoice.id, "payments"] });
+        const response = await fetch(`/api/pos-invoices/${selectedInvoice.id}`, { credentials: "include" });
+        if (response.ok) {
+          const updatedInvoice = await response.json();
+          setSelectedInvoice(updatedInvoice);
+        }
+        setIsRecordPaymentOpen(false);
+        setIsPaymentConfirmStep(false);
+        setIsPayRestNowStep(false);
+        setPaymentAmount("");
+        setPaymentMethod("cash");
+        setPaymentNotes("");
+        setPaymentReferenceNumber("");
+        setSecondPaymentMethod("cash");
+        setSecondPaymentNotes("");
+        setSecondPaymentReferenceNumber("");
+        setIsSplitPaymentProcessing(false);
+        toast({
+          title: t("success", "Success"),
+          description: t("split_payment_recorded_successfully", "Split payment recorded successfully"),
+          action: selectedInvoice ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10"
+              onClick={() => handlePrintReceipt(selectedInvoice)}
+            >
+              <Receipt className="w-3 h-3 mr-1" />
+              {t("print_receipt", "Print Receipt")}
+            </Button>
+          ) : undefined,
+        });
+      } catch (error) {
+        setIsPaymentConfirmStep(false);
+        setIsPayRestNowStep(false);
+        setIsSplitPaymentProcessing(false);
+        if (firstPaymentRecorded) {
+          await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices"] });
+          await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices/stats"] });
+          await queryClient.invalidateQueries({ queryKey: ["/api/pos-invoices", selectedInvoice.id, "payments"] });
+          const response = await fetch(`/api/pos-invoices/${selectedInvoice.id}`, { credentials: "include" });
+          if (response.ok) {
+            const updatedInvoice = await response.json();
+            setSelectedInvoice(updatedInvoice);
+            setPaymentAmount(remainingAmount);
+            setPaymentMethod(secondPaymentMethod);
+            setPaymentNotes(secondPaymentNotes);
+            setPaymentReferenceNumber(secondPaymentReferenceNumber);
+          }
+          setSecondPaymentMethod("cash");
+          setSecondPaymentNotes("");
+          setSecondPaymentReferenceNumber("");
+          toast({
+            title: t("warning", "Warning"),
+            description: t("first_payment_recorded_second_failed", "The first payment was recorded, but the second payment failed. You can try recording the remaining balance again."),
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: t("error", "Error"),
+            description: t("payment_recording_failed", "Failed to record payment"),
+            variant: "destructive"
+          });
+        }
+      }
+    } else {
       recordPaymentMutation.mutate({
         invoiceId: selectedInvoice.id,
         amount: paymentAmount,
@@ -1387,7 +1489,7 @@ export default function Invoices() {
             </DialogDescription>
           </DialogHeader>
           
-          {selectedInvoice && !isPaymentConfirmStep && (
+          {selectedInvoice && !isPaymentConfirmStep && !isPayRestNowStep && (
             <div className="space-y-4 py-4">
               <div className="p-4 bg-slate-800/50 rounded-lg space-y-2">
                 <div className="flex justify-between">
@@ -1550,6 +1652,132 @@ export default function Invoices() {
             </div>
           )}
 
+          {selectedInvoice && isPayRestNowStep && !isPaymentConfirmStep && (
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-cyan-400" />
+                  <span className="text-cyan-400 font-medium text-sm">{t("first_payment", "1st Payment")}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    {getPaymentMethodIcon(paymentMethod)}
+                    {getPaymentMethodLabel(paymentMethod)}
+                  </span>
+                  <span className="text-green-400 font-semibold">{formatCurrency(parseFloat(paymentAmount))}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-700 pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-white font-medium">{t("second_payment", "2nd Payment")}</span>
+                  <span className="text-yellow-400 font-bold">
+                    {formatCurrency(parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount))}
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm">{t("payment_method", "Payment Method")}</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSecondPaymentMethod('cash')}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left ${
+                        secondPaymentMethod === 'cash'
+                          ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <Banknote className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t("cash", "Cash")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSecondPaymentMethod('pix')}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left ${
+                        secondPaymentMethod === 'pix'
+                          ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t("pix", "PIX")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSecondPaymentMethod('credit_card')}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left ${
+                        secondPaymentMethod === 'credit_card'
+                          ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t("credit_card", "Credit Card")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSecondPaymentMethod('debit_card')}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left ${
+                        secondPaymentMethod === 'debit_card'
+                          ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t("debit_card", "Debit Card")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSecondPaymentMethod('bank_transfer')}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left col-span-2 ${
+                        secondPaymentMethod === 'bank_transfer'
+                          ? 'border-orange-500/50 bg-orange-500/10 text-orange-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <ArrowRightCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t("bank_transfer", "Bank Transfer")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSecondPaymentMethod('boleto')}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left col-span-2 ${
+                        secondPaymentMethod === 'boleto'
+                          ? 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="text-sm font-medium">{t("boleto", "Boleto")}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 mt-3">
+                  <Label className="text-sm">{t("reference_number", "Reference Number")} ({t("optional", "optional")})</Label>
+                  <Input
+                    value={secondPaymentReferenceNumber}
+                    onChange={(e) => setSecondPaymentReferenceNumber(e.target.value)}
+                    className="bg-slate-800 border-slate-700"
+                    placeholder={getReferencePlaceholder(secondPaymentMethod)}
+                  />
+                </div>
+
+                <div className="space-y-2 mt-3">
+                  <Label className="text-sm">{t("payment_notes", "Payment Notes")} ({t("optional", "optional")})</Label>
+                  <Textarea
+                    value={secondPaymentNotes}
+                    onChange={(e) => setSecondPaymentNotes(e.target.value)}
+                    className="bg-slate-800 border-slate-700"
+                    placeholder={t("payment_notes_placeholder", "Additional notes about this payment...")}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {selectedInvoice && isPaymentConfirmStep && (
             <div className="space-y-4 py-4">
               <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg space-y-3">
@@ -1561,34 +1789,79 @@ export default function Invoices() {
                   <span className="text-muted-foreground">{t("invoice", "Invoice")}:</span>
                   <span className="text-white font-mono">{selectedInvoice.invoiceNumber}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">{t("method", "Method")}:</span>
-                  <span className="text-white flex items-center gap-2">
-                    {getPaymentMethodIcon(paymentMethod)}
-                    {getPaymentMethodLabel(paymentMethod)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("amount", "Amount")}:</span>
-                  <span className="text-green-400 text-lg font-bold">{formatCurrency(parseFloat(paymentAmount))}</span>
-                </div>
-                {paymentReferenceNumber && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("reference", "Reference")}:</span>
-                    <span className="text-white font-mono text-sm">{paymentReferenceNumber}</span>
-                  </div>
-                )}
-                {paymentNotes && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("notes", "Notes")}:</span>
-                    <span className="text-white text-sm">{paymentNotes}</span>
-                  </div>
-                )}
-                {parseFloat(paymentAmount) < parseFloat(selectedInvoice.balanceDue || '0') && (
-                  <div className="flex justify-between border-t border-green-500/20 pt-2">
-                    <span className="text-yellow-400">{t("remaining_after_payment", "Remaining after payment")}:</span>
-                    <span className="text-yellow-400 font-semibold">{formatCurrency(parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount))}</span>
-                  </div>
+                {isPayRestNowStep ? (
+                  <>
+                    <div className="border-t border-green-500/20 pt-2 space-y-2">
+                      <span className="text-cyan-400 text-xs font-medium">{t("first_payment", "1st Payment")}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          {getPaymentMethodIcon(paymentMethod)}
+                          {getPaymentMethodLabel(paymentMethod)}
+                        </span>
+                        <span className="text-green-400 font-bold">{formatCurrency(parseFloat(paymentAmount))}</span>
+                      </div>
+                      {paymentReferenceNumber && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{t("reference", "Reference")}:</span>
+                          <span className="text-white font-mono text-xs">{paymentReferenceNumber}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-green-500/20 pt-2 space-y-2">
+                      <span className="text-cyan-400 text-xs font-medium">{t("second_payment", "2nd Payment")}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground flex items-center gap-1">
+                          {getPaymentMethodIcon(secondPaymentMethod)}
+                          {getPaymentMethodLabel(secondPaymentMethod)}
+                        </span>
+                        <span className="text-green-400 font-bold">{formatCurrency(parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount))}</span>
+                      </div>
+                      {secondPaymentReferenceNumber && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{t("reference", "Reference")}:</span>
+                          <span className="text-white font-mono text-xs">{secondPaymentReferenceNumber}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="border-t border-green-500/20 pt-2">
+                      <div className="flex justify-between">
+                        <span className="text-white font-medium">{t("total_payment", "Total Payment")}:</span>
+                        <span className="text-green-400 text-lg font-bold">{formatCurrency(parseFloat(selectedInvoice.balanceDue || '0'))}</span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">{t("method", "Method")}:</span>
+                      <span className="text-white flex items-center gap-2">
+                        {getPaymentMethodIcon(paymentMethod)}
+                        {getPaymentMethodLabel(paymentMethod)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t("amount", "Amount")}:</span>
+                      <span className="text-green-400 text-lg font-bold">{formatCurrency(parseFloat(paymentAmount))}</span>
+                    </div>
+                    {paymentReferenceNumber && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("reference", "Reference")}:</span>
+                        <span className="text-white font-mono text-sm">{paymentReferenceNumber}</span>
+                      </div>
+                    )}
+                    {paymentNotes && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("notes", "Notes")}:</span>
+                        <span className="text-white text-sm">{paymentNotes}</span>
+                      </div>
+                    )}
+                    {parseFloat(paymentAmount) < parseFloat(selectedInvoice.balanceDue || '0') && (
+                      <div className="flex justify-between border-t border-green-500/20 pt-2">
+                        <span className="text-yellow-400">{t("remaining_after_payment", "Remaining after payment")}:</span>
+                        <span className="text-yellow-400 font-semibold">{formatCurrency(parseFloat(selectedInvoice.balanceDue || '0') - parseFloat(paymentAmount))}</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <p className="text-xs text-muted-foreground text-center">
@@ -1600,16 +1873,16 @@ export default function Invoices() {
           <DialogFooter>
             {isPaymentConfirmStep ? (
               <>
-                <Button variant="outline" onClick={() => setIsPaymentConfirmStep(false)}>
+                <Button variant="outline" onClick={() => setIsPaymentConfirmStep(false)} disabled={recordPaymentMutation.isPending || isSplitPaymentProcessing}>
                   {t("back", "Back")}
                 </Button>
                 <Button
                   onClick={handleRecordPayment}
-                  disabled={recordPaymentMutation.isPending}
+                  disabled={recordPaymentMutation.isPending || isSplitPaymentProcessing}
                   className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
                   data-testid="button-confirm-payment"
                 >
-                  {recordPaymentMutation.isPending ? t("processing", "Processing...") : (
+                  {(recordPaymentMutation.isPending || isSplitPaymentProcessing) ? t("processing", "Processing...") : (
                     <span className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4" />
                       {t("confirm_payment_received", "Confirm Payment Received")}
@@ -1617,19 +1890,62 @@ export default function Invoices() {
                   )}
                 </Button>
               </>
+            ) : isPayRestNowStep ? (
+              <>
+                <Button variant="outline" onClick={() => setIsPayRestNowStep(false)}>
+                  {t("back", "Back")}
+                </Button>
+                <Button
+                  onClick={() => setIsPaymentConfirmStep(true)}
+                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                >
+                  {t("proceed_to_confirm", "Proceed to Confirm")}
+                </Button>
+              </>
             ) : (
               <>
                 <Button variant="outline" onClick={() => setIsRecordPaymentOpen(false)}>
                   {t("cancel", "Cancel")}
                 </Button>
-                <Button
-                  onClick={() => setIsPaymentConfirmStep(true)}
-                  disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
-                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
-                  data-testid="button-proceed-payment"
-                >
-                  {t("proceed_to_confirm", "Proceed to Confirm")}
-                </Button>
+                {parseFloat(paymentAmount) > 0 && parseFloat(paymentAmount) < parseFloat(selectedInvoice?.balanceDue || '0') ? (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => {
+                        setSecondPaymentMethod("cash");
+                        setSecondPaymentNotes("");
+                        setSecondPaymentReferenceNumber("");
+                        setIsPayRestNowStep(true);
+                      }}
+                      className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                      data-testid="button-pay-rest-now"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <DollarSign className="w-4 h-4" />
+                        {t("pay_rest_now", "Pay Rest Now")}
+                      </span>
+                    </Button>
+                    <Button
+                      onClick={() => setIsPaymentConfirmStep(true)}
+                      variant="outline"
+                      className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
+                      data-testid="button-pay-later"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="w-4 h-4" />
+                        {t("pay_later", "Pay Later")}
+                      </span>
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setIsPaymentConfirmStep(true)}
+                    disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                    data-testid="button-proceed-payment"
+                  >
+                    {t("proceed_to_confirm", "Proceed to Confirm")}
+                  </Button>
+                )}
               </>
             )}
           </DialogFooter>
