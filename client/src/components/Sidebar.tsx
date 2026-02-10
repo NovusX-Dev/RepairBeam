@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +23,7 @@ import {
   UserCog,
   ScrollText,
   ChevronLeft,
+  ChevronDown,
   FileText,
   Receipt,
   ArrowDownCircle,
@@ -58,6 +59,23 @@ const getNavigationItems = (t: (key: string, fallback?: string) => string) => [
   { name: t("audit_logs", "Audit Logs"), href: "/audit-logs", icon: ScrollText, id: "audit-logs", translationKey: "audit_logs", permission: PERMISSIONS.AUDIT_LOGS_READ, section: "other" },
 ];
 
+type NavItem = ReturnType<typeof getNavigationItems>[number];
+
+interface SectionConfig {
+  key: string;
+  label: string;
+  items: NavItem[];
+  bgClass: string;
+}
+
+function getInitialCollapsedSections(): Record<string, boolean> {
+  try {
+    const saved = localStorage.getItem('repairbeam-sidebar-sections');
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return {};
+}
+
 export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChange }: SidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
@@ -67,8 +85,17 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   const handleNavClick = useCallback((pageName: string) => {
     onPageChange(pageName);
   }, [onPageChange]);
+
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(getInitialCollapsedSections);
   
-  // Fetch store settings to get shop name and logo
+  const toggleSection = useCallback((sectionKey: string) => {
+    setCollapsedSections(prev => {
+      const next = { ...prev, [sectionKey]: !prev[sectionKey] };
+      localStorage.setItem('repairbeam-sidebar-sections', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+  
   const { data: storeSettings } = useQuery<any>({
     queryKey: ['/api/store-settings'],
     enabled: !!tenant,
@@ -76,16 +103,45 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
   
   const allNavigationItems = getNavigationItems(t);
   
-  // Filter navigation items based on permissions
   const navigationItems = allNavigationItems.filter(item => 
     !item.permission || hasPermission(item.permission as Permission)
   );
   
-  // Group items by section
   const mainItems = navigationItems.filter(item => item.section === "main");
   const stockItems = navigationItems.filter(item => item.section === "stock");
   const financeItems = navigationItems.filter(item => item.section === "finance");
   const otherItems = navigationItems.filter(item => item.section === "other");
+
+  const sections: SectionConfig[] = [
+    { key: "main", label: t("operations", "Operations"), items: mainItems, bgClass: "bg-white/[0.02]" },
+    { key: "stock", label: t("stock_management", "Stock Management"), items: stockItems, bgClass: "bg-cyan-500/[0.04]" },
+    { key: "finance", label: t("finance_and_billing", "Finance & Billing"), items: financeItems, bgClass: "bg-white/[0.02]" },
+    { key: "other", label: t("settings_and_admin", "Settings & Admin"), items: otherItems, bgClass: "bg-cyan-500/[0.04]" },
+  ].filter(s => s.items.length > 0);
+
+  const renderNavItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const isActive = location === item.href;
+
+    return (
+      <Link 
+        key={item.id} 
+        href={item.href}
+        className={cn(
+          "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
+          "hover:bg-accent hover:border-l-primary",
+          isActive && "bg-accent border-l-primary text-primary"
+        )}
+        onClick={() => handleNavClick(item.name)}
+        data-testid={`link-nav-${item.id}`}
+      >
+        <Icon className="w-5 h-5" />
+        {!isCollapsed && (
+          <span className="font-medium">{item.name}</span>
+        )}
+      </Link>
+    );
+  };
 
   return (
     <div 
@@ -94,7 +150,6 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         isCollapsed ? "w-20" : "w-70"
       )}
     >
-      {/* Brand Header - Fixed at top */}
       <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-border">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-background">
@@ -134,146 +189,69 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
         </Button>
       </div>
 
-      {/* Navigation - Scrollable middle section */}
-      <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-2 sidebar-nav">
-        {/* Main Section */}
-        {mainItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = location === item.href;
-          
+      <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden sidebar-nav">
+        {sections.map((section, idx) => {
+          const isSectionCollapsed = collapsedSections[section.key] ?? false;
+          const hasActiveItem = section.items.some(item => location === item.href);
+
           return (
-            <Link 
-              key={item.id} 
-              href={item.href}
+            <div
+              key={section.key}
               className={cn(
-                "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                "hover:bg-accent hover:border-l-primary",
-                isActive && "bg-accent border-l-primary text-primary"
+                "transition-colors duration-200",
+                section.bgClass,
+                idx > 0 && "border-t border-cyan-500/20"
               )}
-              onClick={() => handleNavClick(item.name)}
-              data-testid={`link-nav-${item.id}`}
             >
-              <Icon className="w-5 h-5" />
-              {!isCollapsed && (
-                <span className="font-medium">{item.name}</span>
+              {!isCollapsed ? (
+                <button
+                  onClick={() => toggleSection(section.key)}
+                  className={cn(
+                    "w-full flex items-center justify-between px-4 py-3 group cursor-pointer transition-colors",
+                    "hover:bg-white/[0.04]"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <h3 className={cn(
+                      "text-xs font-semibold uppercase tracking-wider transition-colors",
+                      hasActiveItem ? "text-cyan-400" : "text-cyan-400/70",
+                      "group-hover:text-cyan-400"
+                    )}>
+                      {section.label}
+                    </h3>
+                    <span className="text-[10px] text-muted-foreground/50 font-medium">
+                      {section.items.length}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "w-3.5 h-3.5 text-cyan-400/50 transition-transform duration-200",
+                      isSectionCollapsed && "-rotate-90"
+                    )}
+                  />
+                </button>
+              ) : (
+                <div className="py-2">
+                  <div className="mx-auto w-6 h-[2px] rounded-full bg-cyan-500/30" />
+                </div>
               )}
-            </Link>
+
+              <div
+                className={cn(
+                  "overflow-hidden transition-all duration-200 px-3",
+                  !isCollapsed && isSectionCollapsed ? "max-h-0 py-0" : "max-h-[500px] pb-2",
+                  isCollapsed && "px-2"
+                )}
+              >
+                <div className="space-y-1">
+                  {section.items.map(renderNavItem)}
+                </div>
+              </div>
+            </div>
           );
         })}
-
-        {/* Divider before Stock Management */}
-        {stockItems.length > 0 && (
-          <>
-            <div className="border-t border-cyan-500/20 my-3"></div>
-            {!isCollapsed && (
-              <div className="pb-2">
-                <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
-                  {t("stock_management", "Stock Management")}
-                </h3>
-              </div>
-            )}
-            {stockItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-              
-              return (
-                <Link 
-                  key={item.id} 
-                  href={item.href}
-                  className={cn(
-                    "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                    "hover:bg-accent hover:border-l-primary",
-                    isActive && "bg-accent border-l-primary text-primary"
-                  )}
-                  onClick={() => handleNavClick(item.name)}
-                  data-testid={`link-nav-${item.id}`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {!isCollapsed && (
-                    <span className="font-medium">{item.name}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {/* Finance & Billing Section */}
-        {financeItems.length > 0 && (
-          <>
-            <div className="border-t border-cyan-500/20 my-3"></div>
-            {!isCollapsed && (
-              <div className="pb-2">
-                <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
-                  {t("finance_and_billing", "Finance & Billing")}
-                </h3>
-              </div>
-            )}
-            {financeItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-              
-              return (
-                <Link 
-                  key={item.id} 
-                  href={item.href}
-                  className={cn(
-                    "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                    "hover:bg-accent hover:border-l-primary",
-                    isActive && "bg-accent border-l-primary text-primary"
-                  )}
-                  onClick={() => handleNavClick(item.name)}
-                  data-testid={`link-nav-${item.id}`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {!isCollapsed && (
-                    <span className="font-medium">{item.name}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {/* Settings & Admin Section */}
-        {otherItems.length > 0 && (
-          <>
-            <div className="border-t border-cyan-500/20 my-3"></div>
-            {!isCollapsed && (
-              <div className="pb-2">
-                <h3 className="px-3 text-xs font-semibold text-cyan-400/70 uppercase tracking-wider">
-                  {t("settings_and_admin", "Settings & Admin")}
-                </h3>
-              </div>
-            )}
-            {otherItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location === item.href;
-              
-              return (
-                <Link 
-                  key={item.id} 
-                  href={item.href}
-                  className={cn(
-                    "flex items-center space-x-3 p-3 rounded-lg border-l-4 border-transparent transition-all duration-200",
-                    "hover:bg-accent hover:border-l-primary",
-                    isActive && "bg-accent border-l-primary text-primary"
-                  )}
-                  onClick={() => handleNavClick(item.name)}
-                  data-testid={`link-nav-${item.id}`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {!isCollapsed && (
-                    <span className="font-medium">{item.name}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </>
-        )}
       </nav>
 
-      {/* User Profile - Fixed at bottom */}
       {!isCollapsed && user && (
         <div className="flex-shrink-0 p-4 border-t border-border bg-navy-900">
           <div className="flex items-center space-x-3">
