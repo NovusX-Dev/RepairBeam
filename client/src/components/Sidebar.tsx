@@ -107,7 +107,8 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
     !item.permission || hasPermission(item.permission as Permission)
   );
   
-  const mainItems = navigationItems.filter(item => item.section === "main");
+  const dashboardItem = navigationItems.find(item => item.id === "dashboard");
+  const mainItems = navigationItems.filter(item => item.section === "main" && item.id !== "dashboard");
   const stockItems = navigationItems.filter(item => item.section === "stock");
   const financeItems = navigationItems.filter(item => item.section === "finance");
   const otherItems = navigationItems.filter(item => item.section === "other");
@@ -190,6 +191,11 @@ export default function Sidebar({ isCollapsed, onToggle, currentPage, onPageChan
       </div>
 
       <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden sidebar-nav">
+        {dashboardItem && (
+          <div className="px-3 pt-3 pb-1">
+            {renderNavItem(dashboardItem)}
+          </div>
+        )}
         {sections.map((section, idx) => {
           const isSectionCollapsed = collapsedSections[section.key] ?? false;
           const hasActiveItem = section.items.some(item => location === item.href);
